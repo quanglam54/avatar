@@ -149,8 +149,8 @@ const UI = (() => {
         NET.sendState(isNew ? 'hello' : 'state');
         p.close();
         if (isNew) {
-          toast(`Chào mừng ${n} tới nông trại! 🌾`, 3500);
-          setTimeout(help, 600);
+          toast(`Chào mừng ${n} tới thành phố! 🌆`, 3500);
+          setTimeout(() => cityMap('start'), 300);
         } else toast('Đã lưu trang phục ✨');
       };
     };
@@ -280,6 +280,265 @@ const UI = (() => {
     p.body.querySelectorAll('[data-seed]').forEach((b) => b.onclick = () => { p.close(); AV.plant(plotIndex, b.dataset.seed); });
   }
 
+  /* ---------- Bản đồ thành phố ---------- */
+  function drawCity(canvas) {
+    const ctx = canvas.getContext('2d');
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const P = (px, py) => [px / 100 * w, py / 100 * h];
+    ctx.fillStyle = '#8fd16a'; ctx.fillRect(0, 0, w, h);
+    const r = ART.srand(7);
+    for (let i = 0; i < 70; i++) { ctx.fillStyle = 'rgba(60,140,50,.25)'; ctx.beginPath(); ctx.arc(r() * w, r() * h, 6 + r() * 10, 0, Math.PI * 2); ctx.fill(); }
+    // biển góc phải trên
+    ctx.fillStyle = '#f3d9a4';
+    ctx.beginPath(); ctx.moveTo(w * 0.7, 0); ctx.quadraticCurveTo(w * 0.82, h * 0.22, w, h * 0.3); ctx.lineTo(w, 0); ctx.fill();
+    ctx.fillStyle = '#4dabf7';
+    ctx.beginPath(); ctx.moveTo(w * 0.78, 0); ctx.quadraticCurveTo(w * 0.88, h * 0.14, w, h * 0.2); ctx.lineTo(w, 0); ctx.fill();
+    // sông
+    ctx.strokeStyle = '#4dabf7'; ctx.lineWidth = 22; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-10, h * 0.45); ctx.bezierCurveTo(w * 0.2, h * 0.38, w * 0.32, h * 0.62, w * 0.42, h * 0.7); ctx.bezierCurveTo(w * 0.55, h * 0.8, w * 0.6, h * 0.95, w * 0.62, h + 10); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 3; ctx.stroke();
+    // đường xe buýt nối các khu
+    const hub = P(50, 52);
+    ctx.strokeStyle = '#6c6c6c'; ctx.lineWidth = 12;
+    DATA.ZONES.forEach((z) => { const p = P(z.x, z.y); ctx.beginPath(); ctx.moveTo(hub[0], hub[1]); ctx.lineTo(p[0], hub[1]); ctx.lineTo(p[0], p[1]); ctx.stroke(); });
+    ctx.strokeStyle = '#f1e9da'; ctx.lineWidth = 2; ctx.setLineDash([8, 8]);
+    DATA.ZONES.forEach((z) => { const p = P(z.x, z.y); ctx.beginPath(); ctx.moveTo(hub[0], hub[1]); ctx.lineTo(p[0], hub[1]); ctx.lineTo(p[0], p[1]); ctx.stroke(); });
+    ctx.setLineDash([]);
+    // nhà cửa trang trí
+    for (let i = 0; i < 26; i++) {
+      const x = r() * w, y = r() * h;
+      if (Math.abs(x - hub[0]) < 40 || DATA.ZONES.some((z) => Math.hypot(P(z.x, z.y)[0] - x, P(z.x, z.y)[1] - y) < 55)) continue;
+      ctx.fillStyle = ['#fff4e0', '#ffe3e3', '#e7f5ff'][i % 3]; ctx.fillRect(x - 8, y - 6, 16, 12);
+      ctx.fillStyle = ['#e8590c', '#c92a2a', '#1971c2'][i % 3];
+      ctx.beginPath(); ctx.moveTo(x - 10, y - 6); ctx.lineTo(x, y - 14); ctx.lineTo(x + 10, y - 6); ctx.fill();
+    }
+    for (let i = 0; i < 30; i++) { const x = r() * w, y = r() * h; ctx.fillStyle = '#2f9e44'; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill(); }
+  }
+
+  function cityMap(mode) {
+    const fromStop = mode === true, start = mode === 'start';
+    const p = panel(start ? '🌆 Bạn muốn đến đâu?' : '🗺️ Bản đồ thành phố', `
+      <div class="citymap"><canvas></canvas><div class="zones"></div></div>
+      <p class="muted small-note">${start ? 'Chào mừng tới thành phố! Chọn khu bạn muốn bắt đầu — sau này đi lại bằng xe buýt 🚌' : fromStop ? 'Chọn nơi muốn đến — xe buýt sẽ tới đón bạn 🚌' : 'Chọn nơi muốn đến — nhân vật sẽ tự đi ra trạm xe buýt 🚌'}</p>`, { wide: true, locked: start });
+    const box = p.body.querySelector('.citymap');
+    const zones = p.body.querySelector('.zones');
+    const render = () => {
+      const counts = NET.zoneCounts();
+      const cur = start ? null : AV.currentMap();
+      zones.innerHTML = DATA.ZONES.map((z) => `
+        <button class="zone ${z.id === cur ? 'here' : ''}" data-z="${z.id}" style="left:${z.x}%;top:${z.y}%">
+          <span class="zi">${z.icon}</span>
+          <b>${z.name}</b>
+          <small>${z.id === cur ? '📍 Bạn ở đây' : z.desc}</small>
+          ${counts[z.id] ? `<em>👥 ${counts[z.id]}</em>` : ''}
+        </button>`).join('');
+      zones.querySelectorAll('[data-z]').forEach((b) => b.onclick = () => { p.close(); if (start) AV.teleport(b.dataset.z, true); else AV.travelTo(b.dataset.z); });
+    };
+    requestAnimationFrame(() => drawCity(box.querySelector('canvas')));
+    render();
+    const timer = setInterval(render, 2000);
+    p.onClose = () => clearInterval(timer);
+  }
+
+  /* ---------- Tiệm thú cưng ---------- */
+  function petShop() {
+    const S = AV.S;
+    const p = panel('🐶 Tiệm Thú Cưng', '', { wide: true });
+    const render = () => {
+      p.body.innerHTML = `
+        <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
+        <p class="muted">Thú cưng sẽ đi theo bạn khắp thành phố — người chơi khác cũng nhìn thấy!</p>
+        <div class="b-grid">${DATA.PETS.map((pt) => {
+          const owned = S.owned.pets.includes(pt.id);
+          const using = S.look.pet === pt.id;
+          const btn = using ? '<button class="btn small ghost" disabled>Đang dẫn</button>'
+            : owned ? `<button class="btn small" data-use="${pt.id}">${pt.id === 'none' ? 'Đi một mình' : 'Dẫn theo'}</button>`
+              : `<button class="btn small" data-buy="${pt.id}">Mua · ${pt.price}💰</button>`;
+          return `<div class="b-card"><canvas data-pet="${pt.id}"></canvas><b>${pt.name}</b>${btn}</div>`;
+        }).join('')}</div>`;
+      p.body.querySelectorAll('[data-pet]').forEach((c) => {
+        const ctx = c.getContext('2d');
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const g = ctx.createLinearGradient(0, 0, 0, c.clientHeight);
+        g.addColorStop(0, '#e6fcf5'); g.addColorStop(1, '#b2f2bb');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, c.clientWidth, c.clientHeight);
+        if (c.dataset.pet === 'none') { ctx.font = '40px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🚶', c.clientWidth / 2, c.clientHeight / 2); return; }
+        ctx.save(); ctx.translate(c.clientWidth / 2 - 4, c.clientHeight - 22); ctx.scale(2.2, 2.2);
+        ART.pet(ctx, 0, 0, c.dataset.pet, 1, 0, false);
+        ctx.restore();
+      });
+      p.body.querySelectorAll('[data-buy]').forEach((b) => b.onclick = () => { AV.buyPet(b.dataset.buy); render(); });
+      p.body.querySelectorAll('[data-use]').forEach((b) => b.onclick = () => { AV.wearPet(b.dataset.use); render(); });
+    };
+    render();
+  }
+
+  /* ---------- Bầu cua tôm cá ---------- */
+  function bauCua() {
+    const S = AV.S;
+    const p = panel('🎲 Bầu Cua Tôm Cá', '', { wide: true });
+    let chip = 10, bets = {}, lastBets = {}, rolling = false, dice = ['❔', '❔', '❔'], msg = 'Chọn mức cược rồi bấm vào ô để đặt. Ra mấy mặt ăn bấy nhiêu lần!';
+    const total = () => Object.values(bets).reduce((a, b) => a + b, 0);
+    const render = () => {
+      p.body.innerHTML = `
+        <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Đang cược: ${total()} xu</div>
+        <div class="dice">${dice.map((d) => `<span class="die ${rolling ? 'roll' : ''}">${d}</span>`).join('')}</div>
+        <p class="game-msg">${msg}</p>
+        <div class="chips center">${[5, 10, 50, 100].map((c) => `<button class="chip ${c === chip ? 'on' : ''}" data-chip="${c}">🪙 ${c}</button>`).join('')}</div>
+        <div class="bc-board">${DATA.BAUCUA.map((s) => `
+          <button class="bc-cell" data-bet="${s.id}" ${rolling ? 'disabled' : ''}>
+            <span class="ic">${s.icon}</span><b>${s.name}</b>${bets[s.id] ? `<em>${bets[s.id]}</em>` : ''}
+          </button>`).join('')}</div>
+        <div class="row-end">
+          <button class="btn ghost" data-clear ${rolling || !total() ? 'disabled' : ''}>Huỷ cược</button>
+          <button class="btn ghost" data-again ${rolling || total() || !Object.keys(lastBets).length ? 'disabled' : ''}>Cược lại</button>
+          <button class="btn" data-roll ${rolling || !total() ? 'disabled' : ''}>🎲 Lắc!</button>
+        </div>`;
+      p.body.querySelectorAll('[data-chip]').forEach((b) => b.onclick = () => { chip = +b.dataset.chip; render(); });
+      p.body.querySelectorAll('[data-bet]').forEach((b) => b.onclick = () => {
+        if (rolling || !AV.spend(chip)) return;
+        bets[b.dataset.bet] = (bets[b.dataset.bet] || 0) + chip;
+        render();
+      });
+      const clear = p.body.querySelector('[data-clear]');
+      clear.onclick = () => { S.coins += total(); bets = {}; AV.saveNow(); updateHud(); render(); };
+      p.body.querySelector('[data-again]').onclick = () => {
+        const need = Object.values(lastBets).reduce((a, b) => a + b, 0);
+        if (!AV.spend(need)) return;
+        bets = { ...lastBets };
+        render();
+      };
+      p.body.querySelector('[data-roll]').onclick = roll;
+    };
+    const roll = () => {
+      rolling = true;
+      msg = 'Đang lắc… 🫨';
+      let ticks = 0;
+      const iv = setInterval(() => {
+        dice = dice.map(() => DATA.BAUCUA[Math.floor(Math.random() * 6)].icon);
+        render();
+        if (++ticks >= 12) {
+          clearInterval(iv);
+          const res = [0, 1, 2].map(() => DATA.BAUCUA[Math.floor(Math.random() * 6)]);
+          dice = res.map((r) => r.icon);
+          let win = 0;
+          const spent = total();
+          for (const [id, b] of Object.entries(bets)) {
+            const k = res.filter((r) => r.id === id).length;
+            if (k) win += b + b * k;
+          }
+          const net = win - spent;
+          msg = `Ra: <b>${res.map((r) => r.name).join(' · ')}</b> — ${net > 0 ? `🎉 Thắng <b>+${net}</b> xu!` : net === 0 ? 'Hoà vốn 😅' : `😢 Thua <b>${-net}</b> xu`}`;
+          if (win) AV.earn(win, 1);
+          lastBets = bets;
+          bets = {};
+          rolling = false;
+          render();
+        }
+      }, 110);
+    };
+    p.onClose = () => { if (total() && !rolling) { S.coins += total(); AV.saveNow(); updateHud(); } };
+    render();
+  }
+
+  /* ---------- Bài cào 3 lá ---------- */
+  function baiCao() {
+    const S = AV.S;
+    const p = panel('🃏 Bài Cào 3 Lá', '', { wide: true });
+    const SUITS = ['♠', '♣', '♦', '♥'], RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    let bet = 20, me = [], dealer = [], reveal = false, busy = false, msg = 'Tổng điểm 3 lá lấy hàng đơn vị, cao hơn nhà cái là thắng. Ba Tây (J/Q/K) là to nhất!';
+    const val = (c) => (c.r === 'A' ? 1 : ['10', 'J', 'Q', 'K'].includes(c.r) ? 0 : +c.r);
+    const score = (h) => h.reduce((s, c) => s + val(c), 0) % 10;
+    const baTay = (h) => h.every((c) => ['J', 'Q', 'K'].includes(c.r));
+    const label = (h) => (baTay(h) ? 'Ba Tây 👑' : `${score(h)} nút`);
+    const card = (c, hidden) => hidden
+      ? '<span class="card back">🂠</span>'
+      : `<span class="card ${'♦♥'.includes(c.s) ? 'red' : ''}"><b>${c.r}</b><i>${c.s}</i></span>`;
+    const render = () => {
+      p.body.innerHTML = `
+        <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
+        <div class="hand"><span class="who">Nhà cái ${dealer.length && reveal ? `· ${label(dealer)}` : ''}</span>${dealer.map((c) => card(c, !reveal)).join('') || '<span class="muted">—</span>'}</div>
+        <div class="hand"><span class="who">Bạn ${me.length ? `· ${label(me)}` : ''}</span>${me.map((c) => card(c, false)).join('') || '<span class="muted">—</span>'}</div>
+        <p class="game-msg">${msg}</p>
+        <div class="chips center">${[10, 20, 50, 100].map((c) => `<button class="chip ${c === bet ? 'on' : ''}" data-b="${c}" ${busy ? 'disabled' : ''}>🪙 ${c}</button>`).join('')}</div>
+        <div class="row-end"><button class="btn" data-deal ${busy ? 'disabled' : ''}>🃏 Chia bài (${bet} xu)</button></div>`;
+      p.body.querySelectorAll('[data-b]').forEach((b) => b.onclick = () => { bet = +b.dataset.b; render(); });
+      p.body.querySelector('[data-deal]').onclick = deal;
+    };
+    const deal = () => {
+      if (busy || !AV.spend(bet)) return;
+      const deck = [];
+      SUITS.forEach((s) => RANKS.forEach((r) => deck.push({ r, s })));
+      for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
+      me = deck.slice(0, 3); dealer = deck.slice(3, 6);
+      reveal = false; busy = true; msg = 'Nhà cái đang lật bài… 🤫';
+      render();
+      setTimeout(() => {
+        reveal = true; busy = false;
+        const a = baTay(me), b = baTay(dealer);
+        let result;
+        if (a && !b) result = 1; else if (b && !a) result = -1; else if (a && b) result = 0;
+        else result = Math.sign(score(me) - score(dealer));
+        if (result > 0) {
+          const win = a ? bet * 3 : bet * 2;
+          AV.earn(win, 2);
+          msg = `🎉 Bạn thắng <b>+${win - bet}</b> xu!${a ? ' Ba Tây ăn gấp đôi!' : ''}`;
+        } else if (result === 0) {
+          AV.earn(bet);
+          msg = '🤝 Hoà — trả lại tiền cược.';
+        } else msg = `😢 Nhà cái thắng, bạn mất ${bet} xu.`;
+        render();
+      }, 1000);
+    };
+    render();
+  }
+
+  /* ---------- Câu cá ---------- */
+  function fishing() {
+    const p = panel('🎣 Câu cá', '');
+    let state = 'idle', timers = [], msg = 'Thả câu, đợi phao giật thì bấm <b>Giật cần!</b> thật nhanh.';
+    const clear = () => { timers.forEach(clearTimeout); timers = []; };
+    const render = () => {
+      p.body.innerHTML = `
+        <div class="pond-view ${state}"><span class="bobber">${state === 'bite' ? '💦' : '🔴'}</span><span class="fishes">🐟 🐠 🐟</span></div>
+        <p class="game-msg">${msg}</p>
+        <div class="row-end">
+          ${state === 'idle' ? '<button class="btn" data-cast>🎣 Thả câu</button>' : ''}
+          ${state === 'wait' ? '<button class="btn ghost" disabled>Đang chờ…</button>' : ''}
+          ${state === 'bite' ? '<button class="btn danger big" data-pull>‼️ Giật cần!</button>' : ''}
+        </div>`;
+      const cast = p.body.querySelector('[data-cast]');
+      if (cast) cast.onclick = () => {
+        state = 'wait'; msg = 'Đang chờ cá cắn câu… 🤫';
+        render();
+        timers.push(setTimeout(() => {
+          state = 'bite'; msg = 'Cá cắn câu rồi!!!';
+          render();
+          timers.push(setTimeout(() => { if (state === 'bite') { state = 'idle'; msg = '😢 Chậm quá, cá chạy mất rồi! Thử lại nhé.'; render(); } }, 1300));
+        }, 1800 + Math.random() * 4000));
+      };
+      const pull = p.body.querySelector('[data-pull]');
+      if (pull) pull.onclick = () => {
+        clear();
+        let r = Math.random() * DATA.FISH.reduce((s, f) => s + f.w, 0);
+        const f = DATA.FISH.find((x) => (r -= x.w) < 0) || DATA.FISH[0];
+        AV.addItem(f.id, 1);
+        AV.earn(0, f.id === 'boot' ? 0 : 2);
+        AV.sayMine(f.id === 'boot' ? 'Ơ… một chiếc giày cũ 👢😂' : `Câu được ${f.icon} ${f.name}!`);
+        state = 'idle';
+        msg = f.id === 'boot' ? 'Câu phải chiếc giày cũ 👢 haha!' : `🎉 Bạn câu được <b>${f.icon} ${f.name}</b> (bán ${f.sell} xu ở Chợ)`;
+        render();
+      };
+    };
+    p.onClose = clear;
+    render();
+  }
+
   /* ---------- Hướng dẫn & cài đặt ---------- */
   function help() {
     const p = panel('❓ Cách chơi', `
@@ -287,7 +546,9 @@ const UI = (() => {
         <li>👆 <b>Chạm / click</b> vào mặt đất để đi, hoặc dùng <b>phím mũi tên / WASD</b>.</li>
         <li>🌾 Bấm vào <b>ô ruộng</b> để gieo hạt, đợi cây lớn rồi bấm lần nữa để thu hoạch.</li>
         <li>🐔 Cho <b>gà</b> ăn 3 lúa mì → có 5 trứng. 🐄 Cho <b>gia súc</b> ăn 4 lúa mì → có sữa & len.</li>
-        <li>🚌 Ra <b>trạm xe buýt</b> để đi tới <b>Thị trấn</b>: bán nông sản ở <b>Chợ</b>, mua đồ ở <b>Tiệm Thời Trang</b>.</li>
+        <li>🗺️ Ra <b>trạm xe buýt</b> hoặc bấm <b>Bản đồ</b> để đi 6 khu: Nông trại, Quảng trường, Khu mua sắm, Khu giải trí, Công viên, Bãi biển.</li>
+        <li>🛍️ <b>Khu mua sắm</b>: Chợ, Tiệm Thời Trang, Tiệm Thú Cưng. 🎡 <b>Khu giải trí</b>: Bầu cua, Bài cào, sân khấu, vòng quay.</li>
+        <li>🎣 Câu cá ở <b>Công viên</b>, 🐚 nhặt vỏ sò ở <b>Bãi biển</b> rồi đem bán ở Chợ.</li>
         <li>💬 Gõ chat ở thanh dưới cùng — người chơi khác cùng khu vực sẽ thấy, NPC trong thị trấn cũng trả lời!</li>
         <li>👥 Bấm ô <b>🟢 online</b> trên cùng để xem ai đang ở cùng khu vực với bạn.</li>
         <li>🏠 Vào <b>nhà</b> hoặc bấm <b>Tủ đồ</b> để thay trang phục.</li>
@@ -342,6 +603,7 @@ const UI = (() => {
     $('#netStatus').onclick = playersPanel;
     $('#chatLog').onclick = () => $('#chatLog').classList.toggle('active');
     $('#btnBag').onclick = inventory;
+    $('#btnMap').onclick = () => cityMap(false);
     $('#btnWardrobe').onclick = () => characterEditor(false);
     $('#btnHelp').onclick = help;
     $('#btnSettings').onclick = settings;
@@ -358,5 +620,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, fishing };
 })();

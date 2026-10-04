@@ -85,9 +85,10 @@ const ART = (() => {
 
   /* ---------------- Nhân vật ---------------- */
   function character(ctx, x, y, look, o = {}) {
-    const t = o.t || 0, dir = o.dir || 1;
-    const swing = o.moving ? Math.sin(t * 12) * 4 : 0;
-    const bob = o.moving ? Math.abs(Math.sin(t * 12)) * 2 : Math.sin(t * 2) * 0.6;
+    const t = o.t || 0;
+    const dir = o.dance ? (Math.sin(t * 4) > 0 ? 1 : -1) : (o.dir || 1);
+    const swing = o.dance ? Math.sin(t * 14) * 8 : o.moving ? Math.sin(t * 12) * 4 : 0;
+    const bob = o.dance ? Math.abs(Math.sin(t * 7)) * 10 : o.moving ? Math.abs(Math.sin(t * 12)) * 2 : Math.sin(t * 2) * 0.6;
     shadow(ctx, x, y, 15, 5);
     ctx.save();
     ctx.translate(x, y - bob);
@@ -514,6 +515,7 @@ const ART = (() => {
       ctx.setLineDash([]);
       ctx.fillStyle = 'rgba(0,0,0,.08)'; rr(ctx, x, y, w, h, 10); ctx.fill();
       ctx.font = '18px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#000';
       ctx.fillText('🔒', x + w / 2, y + h / 2 - 8);
       ctx.font = '800 12px "Be Vietnam Pro", system-ui'; ctx.fillStyle = '#fff';
       ctx.fillText(plotState.price + ' xu', x + w / 2, y + h / 2 + 14);

@@ -48,11 +48,51 @@ const DATA = {
   xpNeed: (lvl) => 20 + lvl * 25,
   EMOTES: ['😀', '😂', '😍', '😎', '👋', '❤️', '😴', '😡'],
   NPC_LINES: [
-    'Hôm nay trời đẹp quá!', 'Bạn đã ghé Chợ chưa?', 'Nón lá ở tiệm Thời Trang xinh lắm đó.',
+    'Hôm nay trời đẹp quá!', 'Chợ ở Khu mua sắm đó, đi xe buýt là tới!', 'Nón lá ở tiệm Thời Trang xinh lắm đó.', 'Ra Bãi biển nhặt vỏ sò đi, có cả ngọc trai đấy!', 'Khu giải trí có bầu cua vui lắm 🎲', 'Công viên câu được cá vàng hiếm đó 🐡',
     'Bí ngô bán được giá nhất đấy!', 'Mình đang đợi xe buýt nè.', 'Ai muốn làm bạn với mình không?',
     'Gà nhà mình đẻ trứng to lắm!', 'Đi dạo quanh đài phun nước thật thư giãn.', 'Lên cấp 5 là mua được vương miện!',
   ],
 };
+
+DATA.PETS = [
+  { id: 'none', name: 'Không dẫn', price: 0 },
+  { id: 'chick', name: 'Gà con', price: 60 },
+  { id: 'dog', name: 'Cún vàng', price: 120 },
+  { id: 'cat', name: 'Mèo mướp', price: 120 },
+  { id: 'bunny', name: 'Thỏ trắng', price: 150 },
+  { id: 'pug', name: 'Chó Pug', price: 180 },
+];
+
+DATA.ZONES = [
+  { id: 'farm', name: 'Nông trại', icon: '🌾', x: 80, y: 80, desc: 'Trồng trọt, chăn nuôi' },
+  { id: 'town', name: 'Quảng trường', icon: '⛲', x: 50, y: 52, desc: 'Gặp gỡ, trò chuyện' },
+  { id: 'mall', name: 'Khu mua sắm', icon: '🛍️', x: 74, y: 28, desc: 'Chợ, thời trang, thú cưng' },
+  { id: 'fun', name: 'Khu giải trí', icon: '🎡', x: 25, y: 26, desc: 'Bầu cua, bài cào, sân khấu' },
+  { id: 'park', name: 'Công viên', icon: '🌳', x: 20, y: 72, desc: 'Câu cá, dạo hồ' },
+  { id: 'beach', name: 'Bãi biển', icon: '🏖️', x: 90, y: 12, desc: 'Nhặt vỏ sò, tắm nắng' },
+];
+
+DATA.FISH = [
+  { id: 'fish_ro', name: 'Cá rô', icon: '🐟', sell: 8, w: 50 },
+  { id: 'fish_chep', name: 'Cá chép', icon: '🐠', sell: 15, w: 28 },
+  { id: 'fish_vang', name: 'Cá vàng hiếm', icon: '🐡', sell: 45, w: 8 },
+  { id: 'boot', name: 'Giày cũ', icon: '👢', sell: 1, w: 14 },
+];
+
+DATA.SHELLS = [
+  { id: 'shell', name: 'Vỏ sò', icon: '🐚', sell: 4, w: 70 },
+  { id: 'starfish', name: 'Sao biển', icon: '⭐', sell: 10, w: 25 },
+  { id: 'pearl', name: 'Ngọc trai', icon: '🔮', sell: 60, w: 5 },
+];
+
+DATA.BAUCUA = [
+  { id: 'nai', name: 'Nai', icon: '🦌' },
+  { id: 'bau', name: 'Bầu', icon: '🍐' },
+  { id: 'ga', name: 'Gà', icon: '🐓' },
+  { id: 'ca', name: 'Cá', icon: '🐟' },
+  { id: 'cua', name: 'Cua', icon: '🦀' },
+  { id: 'tom', name: 'Tôm', icon: '🦐' },
+];
 
 /** Danh sách mọi vật phẩm trong túi đồ: hạt giống, nông sản, sản phẩm chăn nuôi */
 DATA.ITEMS = (() => {
@@ -62,5 +102,6 @@ DATA.ITEMS = (() => {
     items[id] = { name: c.name, icon: c.icon, sell: c.sell };
   }
   for (const [id, p] of Object.entries(DATA.PRODUCTS)) items[id] = { name: p.name, icon: p.icon, sell: p.sell };
+  for (const f of [...DATA.FISH, ...DATA.SHELLS]) items[f.id] = { name: f.name, icon: f.icon, sell: f.sell };
   return items;
 })();

@@ -25,22 +25,22 @@ const NET = (() => {
     };
   }
 
-  function supabaseTransport(room) {
+  function supabaseTransport(room, quiet) {
     const ch = client.channel(room, { config: { broadcast: { self: false } } });
     let cb = () => {};
     let ready = false;
     let queue = [];
     ch.on('broadcast', { event: 'msg' }, ({ payload }) => cb(payload));
-    setStatus('connecting');
+    if (!quiet) setStatus('connecting');
     ch.subscribe((s) => {
       if (s === 'SUBSCRIBED') {
         ready = true;
-        setStatus('online');
+        if (!quiet) setStatus('online');
         queue.forEach((m) => ch.send({ type: 'broadcast', event: 'msg', payload: m }));
         queue = [];
       } else if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
         ready = false;
-        if (transport && transport.ch === ch) setStatus('error');
+        if (!quiet && transport && transport.ch === ch) setStatus('error');
       }
     });
     return {
@@ -85,6 +85,7 @@ const NET = (() => {
     return {
       name: S.name, look: S.look, level: S.level,
       x: Math.round(player.x), y: Math.round(player.y), dir: player.dir, moving: player.moving, hidden: player.hidden,
+      dance: player.dancing > Date.now(),
     };
   }
 
@@ -124,6 +125,7 @@ const NET = (() => {
     r.dir = m.dir === -1 ? -1 : 1;
     r.moving = !!m.moving;
     r.hidden = !!m.hidden;
+    r.dance = !!m.dance;
     r.seen = Date.now();
     if (isNew) renderStatus();
     return isNew;
@@ -144,6 +146,7 @@ const NET = (() => {
       r.dir = m.dir === -1 ? -1 : 1;
       r.moving = !!m.moving;
       r.hidden = !!m.hidden;
+      r.dance = !!m.dance;
       r.seen = Date.now();
     } else if (m.t === 'chat') {
       const r = remotes.get(m.id);
@@ -157,6 +160,38 @@ const NET = (() => {
     }
   }
 
+  /* ---------- Phòng chờ chung: biết ai đang ở khu nào ---------- */
+  let lobby = null;
+  let lobbyBeat = 0;
+  const where = new Map();
+
+  function openLobby() {
+    lobby = mode === 'online' ? supabaseTransport(ROOM_PREFIX + 'lobby', true) : mode === 'local' ? localTransport(ROOM_PREFIX + 'lobby') : null;
+    if (!lobby) return;
+    lobby.on((m) => {
+      if (!m || m.id === pid) return;
+      if (m.t === 'where') where.set(m.id, { map: String(m.map), seen: Date.now() });
+      else if (m.t === 'bye') where.delete(m.id);
+    });
+    announce();
+  }
+
+  function announce() {
+    lobbyBeat = 0;
+    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId });
+  }
+
+  function zoneCounts() {
+    const counts = {};
+    const now = Date.now();
+    for (const [id, w] of where) {
+      if (now - w.seen > 15000) { where.delete(id); continue; }
+      counts[w.map] = (counts[w.map] || 0) + 1;
+    }
+    if (mapId) counts[mapId] = (counts[mapId] || 0) + 1;
+    return counts;
+  }
+
   /* ---------- Vòng đời ---------- */
   function join(newMap) {
     if (transport) { send('bye'); transport.close(); }
@@ -168,18 +203,21 @@ const NET = (() => {
     if (!transport) { renderStatus(); return; }
     transport.on(handle);
     if (AV.S.name) send('hello', stateMsg());
+    announce();
     renderStatus();
   }
 
   function tick(dt) {
     if (!transport || !player || !AV.S.name) return;
     heartbeat += dt;
+    lobbyBeat += dt;
+    if (lobbyBeat > 5) announce();
     sinceMove += dt;
     if (heartbeat > 3) sendState();
     const d = Math.hypot(player.x - last.x, player.y - last.y);
     const changed = d > 1.5 || player.moving !== last.moving || player.hidden !== last.hidden || player.dir !== last.dir;
     if (changed && sinceMove > 0.11) {
-      send('move', { x: Math.round(player.x), y: Math.round(player.y), dir: player.dir, moving: player.moving, hidden: player.hidden });
+      send('move', { x: Math.round(player.x), y: Math.round(player.y), dir: player.dir, moving: player.moving, hidden: player.hidden, dance: player.dancing > Date.now() });
       Object.assign(last, { x: player.x, y: player.y, dir: player.dir, moving: player.moving, hidden: player.hidden });
       sinceMove = 0;
     }
@@ -196,6 +234,10 @@ const NET = (() => {
       r.t += dt;
       r.walking = r.moving || Math.hypot(dx, dy) > 2;
       if (Math.abs(dx) > 1) r.dir = dx > 0 ? 1 : -1;
+      if (r.look.pet && r.look.pet !== 'none') {
+        r.pet = r.pet || { x: r.rx - 30, y: r.ry, dir: 1, t: 0, moving: false };
+        AV.followPet(r.pet, { x: r.rx, y: r.ry }, dt, r.dir);
+      }
       if (now - r.seen > 10000) { remotes.delete(r.id); renderStatus(); }
     }
   }
@@ -226,8 +268,9 @@ const NET = (() => {
     if (mode !== 'online' && 'BroadcastChannel' in window) mode = 'local';
     if (mode === 'local') setStatus('local');
     if (mode === 'offline') setStatus('offline');
+    openLobby();
     if (mapId) join(mapId);
-    window.addEventListener('pagehide', () => send('bye'));
+    window.addEventListener('pagehide', () => { send('bye'); if (lobby) lobby.send({ t: 'bye', id: pid }); });
   }
 
   /** Gọi khi vào map mới; nếu chưa init xong thì chỉ ghi nhớ map */
@@ -237,7 +280,7 @@ const NET = (() => {
   }
 
   return {
-    init, enter, tick, update, sendState, sendChat, remotes,
+    init, enter, tick, update, sendState, sendChat, remotes, zoneCounts, announce,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],

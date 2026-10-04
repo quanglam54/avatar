@@ -1,11 +1,12 @@
 /* Xây dựng bản đồ: cảnh vật, vật cản, điểm tương tác, động vật, NPC */
 const MAPS = (() => {
   function base(id, name, w, h) {
-    return { id, name, w, h, objects: [], colliders: [], inter: [], animals: [], npcs: [], labels: [] };
+    return { id, name, w, h, objects: [], colliders: [], inter: [], animals: [], npcs: [], labels: [], pickups: [] };
   }
   const obj = (m, y, draw) => m.objects.push({ y, draw });
   const col = (m, x, y, w, h) => m.colliders.push({ x, y, w, h });
   const inter = (m, o) => m.inter.push(o);
+  const FLOWERS = ['#ff8fab', '#ffd43b', '#fff', '#da77f2'];
 
   /* ---------- Nền đất vẽ sẵn một lần ---------- */
   function ground(m, painter) {
@@ -52,14 +53,26 @@ const MAPS = (() => {
     }
   }
 
+  function paintPaved(g, x0, y0, w, h, color = '#e9dcc4') {
+    g.fillStyle = color;
+    g.beginPath(); g.roundRect(x0, y0, w, h, 40); g.fill();
+    g.strokeStyle = 'rgba(150,120,80,.18)'; g.lineWidth = 2;
+    for (let y = y0 + 30; y < y0 + h - 20; y += 34) {
+      for (let x = x0 + 30 + ((y / 34) % 2) * 22; x < x0 + w - 40; x += 44) {
+        g.beginPath(); g.roundRect(x, y, 40, 30, 6); g.stroke();
+      }
+    }
+  }
+
   function paintStreet(g, w, y1, y2) {
     g.fillStyle = '#d5ccbd'; g.fillRect(0, y1 - 22, w, 22);
     g.strokeStyle = 'rgba(0,0,0,.08)'; g.lineWidth = 1;
     for (let x = 0; x < w; x += 44) { g.beginPath(); g.moveTo(x, y1 - 22); g.lineTo(x, y1); g.stroke(); }
     g.fillStyle = '#9b9384'; g.fillRect(0, y1 - 3, w, 5);
     g.fillStyle = '#b8ad9a'; g.fillRect(0, y1, w, y2 - y1);
+    const r = ART.srand(w + y1);
     g.fillStyle = 'rgba(0,0,0,.05)';
-    for (let i = 0; i < w / 4; i++) g.fillRect(Math.random() * w, y1 + Math.random() * (y2 - y1), 3, 2);
+    for (let i = 0; i < w / 4; i++) g.fillRect(r() * w, y1 + r() * (y2 - y1), 3, 2);
     g.fillStyle = '#f1e9da';
     for (let x = 20; x < w; x += 90) g.fillRect(x, (y1 + y2) / 2 - 3, 50, 6);
     g.fillStyle = '#9b9384'; g.fillRect(0, y2 - 2, w, 5);
@@ -78,11 +91,30 @@ const MAPS = (() => {
     obj(m, y, (ctx) => ART.lamp(ctx, x, y, false));
     col(m, x - 6, y - 6, 12, 8);
   }
+  function addPot(m, x, y, kind) {
+    obj(m, y, (ctx) => ART.flowerPot(ctx, x, y, kind));
+    col(m, x - 16, y - 10, 32, 12);
+  }
+  function addBench(m, x, y) {
+    obj(m, y, (ctx) => ART.bench(ctx, x, y));
+    col(m, x - 42, y - 10, 84, 12);
+  }
   function addBusStop(m, x, y) {
     m.busStop = { x, y };
     obj(m, y, (ctx) => ART.busStop(ctx, x, y));
     col(m, x - 5, y - 5, 10, 6);
-    inter(m, { x: x - 30, y: y - 128, w: 60, h: 132, ax: x + 44, ay: y + 12, name: 'Trạm xe buýt', use: () => AV.useBusStop() });
+    inter(m, { x: x - 30, y: y - 128, w: 60, h: 132, ax: x + 44, ay: y + 12, name: 'Trạm xe buýt (bản đồ thành phố)', use: () => AV.useBusStop() });
+  }
+
+  /** Đường nhựa, trạm xe buýt và hàng cây phía dưới — giống nhau ở mọi khu */
+  function street(m, variants) {
+    addBusStop(m, 1000, 862);
+    [160, 640, 1380, 1860].forEach((x, i) => addTree(m, x, 1240, variants[i % variants.length]));
+    [380, 1150, 1650].forEach((x, i) => addBush(m, x, 1110, FLOWERS[i % 4]));
+  }
+
+  function treeRow(m, variants, step = 150, y1 = 190, y2 = 255) {
+    for (let i = 0, x = 40; x < m.w + 40; x += step, i++) addTree(m, x, i % 2 ? y1 : y2, variants[i % variants.length]);
   }
 
   function picketPen(m, L, T, R, B) {
@@ -126,6 +158,10 @@ const MAPS = (() => {
     m.animals.push({ kind, x, y, tx: x, ty: y, area, wait: Math.random() * 3, dir: Math.random() > 0.5 ? 1 : -1, t: Math.random() * 10, moving: false, seed });
   }
 
+  function npc(m, name, look, area, x, y, pet) {
+    m.npcs.push({ name, look: { pet: pet || 'none', ...look }, kind: 'npc', x, y, tx: x, ty: y, area, wait: 1 + Math.random() * 3, dir: 1, t: Math.random() * 5, moving: false, nextTalk: 3 + Math.random() * 10, bubble: null, px: x - 30, py: y });
+  }
+
   /* ---------- Nông trại ---------- */
   function farm() {
     const m = base('farm', 'Nông trại', 2200, 1250);
@@ -140,9 +176,8 @@ const MAPS = (() => {
     });
 
     const variants = ['green', 'pink', 'fruit', 'pink', 'green', 'fruit'];
-    for (let i = 0, x = 40; x < m.w + 40; x += 150, i++) addTree(m, x, i % 2 ? 190 : 255, variants[i % 6]);
+    treeRow(m, variants);
 
-    // Chuồng gà
     picketPen(m, 180, 370, 520, 590);
     obj(m, 430, (ctx) => ART.nestBox(ctx, 240, 430));
     obj(m, 610, (ctx) => ART.hayBale(ctx, 120, 610));
@@ -156,7 +191,6 @@ const MAPS = (() => {
       use: () => AV.useCoop(), indicator: () => AV.coopIndicator(), ix: 440, iy: 420,
     });
 
-    // Chuồng gia súc
     woodPen(m, 620, 360, 1180, 615);
     obj(m, 440, (ctx) => ART.hayStack(ctx, 1110, 440));
     const penArea = { l: 670, t: 430, r: 1050, b: 595 };
@@ -170,7 +204,6 @@ const MAPS = (() => {
       use: () => AV.usePen(), indicator: () => AV.penIndicator(), ix: 900, iy: 415,
     });
 
-    // Ruộng
     m.labels.push({ text: '🌾 Ruộng', x: 1555, y: 330 });
     for (let row = 0; row < 2; row++) for (let c = 0; c < 5; c++) {
       const i = row * 5 + c;
@@ -185,25 +218,21 @@ const MAPS = (() => {
       });
     }
 
-    // Nhà
     obj(m, 600, (ctx) => ART.house(ctx, 2040, 600));
     col(m, 1935, 500, 210, 100);
     inter(m, { x: 1935, y: 420, w: 210, h: 180, ax: 2040, ay: 628, name: 'Nhà của bạn (thay đồ)', use: () => AV.useHouse() });
     obj(m, 640, (ctx) => ART.mailbox(ctx, 1905, 640));
     col(m, 1898, 632, 14, 10);
-    m.labels.push({ text: '🏠 Nhà ' + (AV.S && AV.S.name ? AV.S.name : 'của bạn'), x: 2040, y: 395, dynamic: 'home' });
+    m.labels.push({ text: '', x: 2040, y: 395, dynamic: 'home' });
 
-    // Hàng bụi hoa & đèn
-    const flowers = ['#ff8fab', '#ffd43b', '#fff', '#da77f2'];
-    [80, 320, 600, 820, 1180, 1420, 1700, 2120].forEach((x, i) => addBush(m, x, 810, flowers[i % 4]));
+    [80, 320, 600, 820, 1180, 1420, 1700, 2120].forEach((x, i) => addBush(m, x, 810, FLOWERS[i % 4]));
     [460, 1300, 1950].forEach((x) => addLamp(m, x, 815));
     addBusStop(m, 1000, 862);
 
-    // Dưới đường
     obj(m, 1060, (ctx, t) => ART.pond(ctx, 480, 1120, t));
     col(m, 345, 1075, 270, 90);
     [150, 900, 1300, 1720, 2080].forEach((x, i) => addTree(m, x, 1240, variants[(i + 2) % 6]));
-    [760, 1500, 1950].forEach((x, i) => addBush(m, x, 1110, flowers[(i + 1) % 4]));
+    [760, 1500, 1950].forEach((x, i) => addBush(m, x, 1110, FLOWERS[(i + 1) % 4]));
     obj(m, 1130, (ctx) => ART.hayBale(ctx, 1150, 1130));
     col(m, 1124, 1104, 52, 26);
 
@@ -212,63 +241,195 @@ const MAPS = (() => {
     return m;
   }
 
-  /* ---------- Thị trấn ---------- */
+  const plazaArea = { l: 240, t: 380, r: 1760, b: 790 };
+
+  /* ---------- Quảng trường ---------- */
   function town() {
-    const m = base('town', 'Thị trấn', 2000, 1250);
+    const m = base('town', 'Quảng trường', 2000, 1250);
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 29);
-      g.fillStyle = '#e9dcc4';
-      g.beginPath(); g.roundRect(180, 300, 1640, 510, 40); g.fill();
-      g.strokeStyle = 'rgba(150,120,80,.18)'; g.lineWidth = 2;
-      for (let y = 330; y < 800; y += 34) for (let x = 210 + ((y / 34) % 2) * 22; x < 1800; x += 44) {
-        g.beginPath(); g.roundRect(x, y, 40, 30, 6); g.stroke();
-      }
+      paintPaved(g, 180, 300, 1640, 510);
       g.fillStyle = '#d6c3a1';
       g.beginPath(); g.roundRect(960, 800, 80, 50, 6); g.fill();
       paintStreet(g, m.w, 870, 1000);
     });
-
     const variants = ['pink', 'green', 'fruit', 'green', 'pink'];
-    for (let i = 0, x = 60; x < m.w + 40; x += 160, i++) addTree(m, x, i % 2 ? 200 : 260, variants[i % 5]);
-
-    obj(m, 500, (ctx, t) => ART.stall(ctx, 520, 500, t));
-    col(m, 415, 452, 210, 50);
-    inter(m, { x: 410, y: 330, w: 220, h: 172, ax: 520, ay: 532, name: 'Chợ (mua bán)', use: () => UI.shop() });
-
-    obj(m, 500, (ctx) => ART.boutique(ctx, 1480, 500));
-    col(m, 1355, 420, 250, 82);
-    inter(m, { x: 1350, y: 320, w: 260, h: 182, ax: 1480, ay: 532, name: 'Tiệm Thời Trang', use: () => UI.boutique() });
+    treeRow(m, variants, 160, 200, 260);
 
     obj(m, 575, (ctx, t) => ART.fountain(ctx, 1000, 575, t));
     col(m, 885, 530, 230, 62);
     inter(m, { x: 880, y: 470, w: 240, h: 130, ax: 1000, ay: 625, name: 'Đài phun nước (ước nguyện 1 xu)', use: () => AV.useFountain() });
     m.labels.push({ text: '⛲ Quảng Trường', x: 1000, y: 445 });
 
-    [[760, 760], [1240, 760]].forEach(([x, y]) => { obj(m, y, (ctx) => ART.bench(ctx, x, y)); col(m, x - 42, y - 10, 84, 12); });
+    [[700, 470, 'mai'], [1300, 470, 'dao'], [700, 680, 'dao'], [1300, 680, 'mai'], [420, 560, 'mai'], [1580, 560, 'dao']].forEach(([x, y, k]) => addPot(m, x, y, k));
+    addBench(m, 760, 760); addBench(m, 1240, 760);
     [[300, 580], [1700, 580], [760, 360], [1240, 360]].forEach(([x, y]) => addLamp(m, x, y));
-    const flowers = ['#ff8fab', '#ffd43b', '#fff', '#da77f2'];
-    [[230, 340], [1770, 340], [230, 790], [1770, 790], [640, 790], [1360, 790]].forEach(([x, y], i) => addBush(m, x, y, flowers[i % 4]));
-    addBusStop(m, 1000, 862);
+    [[230, 340], [1770, 340], [230, 790], [1770, 790], [640, 790], [1360, 790]].forEach(([x, y], i) => addBush(m, x, y, FLOWERS[i % 4]));
+    obj(m, 470, (ctx) => ART.signBoard(ctx, 480, 470, 'BẢNG TIN\nĐi xe buýt 🚌\nkhám phá TP!'));
+    col(m, 440, 460, 80, 12);
+    inter(m, { x: 430, y: 360, w: 100, h: 112, ax: 480, ay: 500, name: 'Bảng tin', use: () => UI.cityMap(false) });
 
-    [120, 520, 1450, 1880].forEach((x, i) => addTree(m, x, 1240, variants[(i + 1) % 5]));
-    [300, 800, 1200, 1650].forEach((x, i) => addBush(m, x, 1120, flowers[i % 4]));
+    npc(m, 'Bé Na', { skin: '#ffe0c4', hair: 'pigtails', hairColor: '#6b3e26', shirt: '#e64980', shirtStyle: 'heart', pants: '#dee2e6', hat: 'bow' }, plazaArea, 440, 690, 'bunny');
+    npc(m, 'Anh Tú', { skin: '#e3a979', hair: 'spiky', hairColor: '#2b2b33', shirt: '#4c6ef5', shirtStyle: 'stripes', pants: '#343a40', hat: 'cap' }, plazaArea, 800, 690, 'dog');
+    npc(m, 'Cô Mai', { skin: '#f8c9a2', hair: 'long', hairColor: '#2b2b33', shirt: '#fcc419', shirtStyle: 'plain', pants: '#8b5a2b', hat: 'nonla' }, plazaArea, 1160, 690);
+    npc(m, 'Bác Ba', { skin: '#b97a51', hair: 'bald', hairColor: '#e9ecef', shirt: '#40c057', shirtStyle: 'overall', pants: '#364fc7', hat: 'none' }, plazaArea, 1520, 690, 'pug');
 
-    const area = { l: 240, t: 380, r: 1760, b: 790 };
-    const npcs = [
-      { name: 'Bé Na', look: { skin: '#ffe0c4', hair: 'pigtails', hairColor: '#6b3e26', shirt: '#e64980', shirtStyle: 'heart', pants: '#dee2e6', hat: 'bow' } },
-      { name: 'Anh Tú', look: { skin: '#e3a979', hair: 'spiky', hairColor: '#2b2b33', shirt: '#4c6ef5', shirtStyle: 'stripes', pants: '#343a40', hat: 'cap' } },
-      { name: 'Cô Mai', look: { skin: '#f8c9a2', hair: 'long', hairColor: '#2b2b33', shirt: '#fcc419', shirtStyle: 'plain', pants: '#8b5a2b', hat: 'nonla' } },
-      { name: 'Bác Ba', look: { skin: '#b97a51', hair: 'bald', hairColor: '#e9ecef', shirt: '#40c057', shirtStyle: 'overall', pants: '#364fc7', hat: 'none' } },
-    ];
-    npcs.forEach((n, i) => {
-      const x = area.l + 200 + i * 360, y = 690;
-      m.npcs.push({ ...n, kind: 'npc', x, y, tx: x, ty: y, area, wait: 1 + i, dir: 1, t: i, moving: false, nextTalk: 4 + i * 5, bubble: null });
-    });
-
+    street(m, variants);
     m.spawn = { x: 1050, y: 875 };
     m.bounds = { l: 20, t: 300, r: m.w - 20, b: m.h - 20 };
     return m;
   }
 
-  return { farm, town };
+  /* ---------- Khu mua sắm ---------- */
+  function mall() {
+    const m = base('mall', 'Khu mua sắm', 2000, 1250);
+    ground(m, (g) => {
+      paintGrass(g, m.w, m.h, 41);
+      paintPaved(g, 120, 300, 1760, 520, '#e7e1f5');
+      paintStreet(g, m.w, 870, 1000);
+    });
+    const variants = ['green', 'fruit', 'pink'];
+    treeRow(m, variants, 170, 200, 250);
+
+    obj(m, 520, (ctx, t) => ART.stall(ctx, 450, 520, t));
+    col(m, 345, 472, 210, 50);
+    inter(m, { x: 340, y: 350, w: 220, h: 172, ax: 450, ay: 552, name: 'Chợ (mua hạt, bán nông sản)', use: () => UI.shop() });
+
+    obj(m, 520, (ctx) => ART.boutique(ctx, 1000, 520));
+    col(m, 875, 440, 250, 82);
+    inter(m, { x: 870, y: 340, w: 260, h: 182, ax: 1000, ay: 552, name: 'Tiệm Thời Trang', use: () => UI.boutique() });
+
+    const petShop = { w: 240, wall: '#e6fcf5', roof: '#20c997', awning: '#0ca678', sign: '🐶 THÚ CƯNG', icons: ['🐕', '🐈'], door: '#087f5b' };
+    obj(m, 520, (ctx) => ART.building(ctx, 1550, 520, petShop));
+    col(m, 1430, 440, 240, 82);
+    inter(m, { x: 1420, y: 340, w: 260, h: 182, ax: 1550, ay: 552, name: 'Tiệm Thú Cưng', use: () => UI.petShop() });
+
+    [[720, 600, 'mai'], [1280, 600, 'dao'], [200, 700, 'dao'], [1800, 700, 'mai']].forEach(([x, y, k]) => addPot(m, x, y, k));
+    [[300, 780], [820, 780], [1700, 780]].forEach(([x, y]) => addLamp(m, x, y));
+    addBench(m, 650, 770); addBench(m, 1350, 770);
+    m.labels.push({ text: '🛍️ Khu Mua Sắm', x: 1000, y: 300 });
+
+    npc(m, 'Chị Lan', { skin: '#f8c9a2', hair: 'bun', hairColor: '#6b3e26', shirt: '#cc5de8', shirtStyle: 'star', pants: '#343a40', hat: 'flower' }, { l: 200, t: 600, r: 1800, b: 800 }, 800, 680, 'cat');
+
+    street(m, variants);
+    m.spawn = { x: 1050, y: 875 };
+    m.bounds = { l: 20, t: 300, r: m.w - 20, b: m.h - 20 };
+    return m;
+  }
+
+  /* ---------- Khu giải trí ---------- */
+  function fun() {
+    const m = base('fun', 'Khu giải trí', 2000, 1250);
+    ground(m, (g) => {
+      paintGrass(g, m.w, m.h, 53);
+      paintPaved(g, 120, 330, 1760, 500, '#f6e3d0');
+      paintStreet(g, m.w, 870, 1000);
+    });
+    const variants = ['pink', 'fruit', 'green'];
+    treeRow(m, variants, 160, 200, 250);
+
+    obj(m, 640, (ctx, t) => ART.gameTable(ctx, 400, 640, 'baucua', t));
+    col(m, 300, 590, 200, 50);
+    inter(m, { x: 290, y: 520, w: 220, h: 140, ax: 400, ay: 690, name: 'Bàn Bầu Cua', use: () => UI.bauCua() });
+
+    obj(m, 640, (ctx, t) => ART.gameTable(ctx, 760, 640, 'baicao', t));
+    col(m, 660, 590, 200, 50);
+    inter(m, { x: 650, y: 520, w: 220, h: 140, ax: 760, ay: 690, name: 'Bàn Bài Cào', use: () => UI.baiCao() });
+
+    obj(m, 570, (ctx, t) => ART.stage(ctx, 1160, 570, t));
+    col(m, 990, 524, 340, 50);
+    inter(m, { x: 990, y: 380, w: 340, h: 195, ax: 1160, ay: 605, name: 'Sân khấu (nhảy múa)', use: () => AV.useStage() });
+
+    obj(m, 690, (ctx, t) => ART.ferrisWheel(ctx, 1680, 690, t));
+    col(m, 1580, 660, 200, 40);
+    inter(m, { x: 1520, y: 340, w: 320, h: 350, ax: 1680, ay: 730, name: 'Vòng quay (5 xu)', use: () => AV.useFerris() });
+
+    obj(m, 790, (ctx) => ART.iceCart(ctx, 1260, 790));
+    col(m, 1214, 770, 92, 24);
+    inter(m, { x: 1210, y: 650, w: 100, h: 145, ax: 1260, ay: 825, name: 'Xe kem (5 xu)', use: () => AV.buyIceCream() });
+
+    [[180, 420], [580, 420], [1820, 420]].forEach(([x, y]) => addLamp(m, x, y));
+    [[200, 790, 'mai'], [580, 790, 'dao'], [940, 790, 'mai']].forEach(([x, y, k]) => addPot(m, x, y, k));
+    m.labels.push({ text: '🎡 Khu Giải Trí', x: 1000, y: 330 });
+
+    npc(m, 'Bé Bin', { skin: '#ffe0c4', hair: 'spiky', hairColor: '#c68642', shirt: '#fd7e14', shirtStyle: 'star', pants: '#364fc7', hat: 'beanie' }, { l: 200, t: 700, r: 1800, b: 830 }, 1000, 760, 'chick');
+
+    street(m, variants);
+    m.spawn = { x: 1050, y: 875 };
+    m.bounds = { l: 20, t: 330, r: m.w - 20, b: m.h - 20 };
+    return m;
+  }
+
+  /* ---------- Công viên ---------- */
+  function park() {
+    const m = base('park', 'Công viên', 2000, 1250);
+    ground(m, (g) => {
+      paintGrass(g, m.w, m.h, 67);
+      paintDirtRoad(g, m.w, 770, 830, 3);
+      paintStreet(g, m.w, 870, 1000);
+    });
+    const variants = ['green', 'pink', 'green', 'fruit'];
+    treeRow(m, variants, 140, 200, 260);
+
+    obj(m, 410, (ctx, t) => ART.lake(ctx, 1000, 560, 330, 140, t));
+    col(m, 690, 440, 620, 230);
+    col(m, 740, 420, 520, 20);
+    obj(m, 745, (ctx) => ART.dock(ctx, 1180, 745));
+    inter(m, { x: 1135, y: 640, w: 90, h: 135, ax: 1180, ay: 790, name: 'Bến câu cá', use: () => UI.fishing() });
+    m.labels.push({ text: '🌳 Công Viên', x: 1000, y: 390 });
+
+    obj(m, 760, (ctx, t) => ART.swing(ctx, 380, 760, t));
+    col(m, 318, 748, 124, 14);
+    [[300, 460, 'fruit'], [1700, 460, 'pink'], [220, 640, 'green'], [1780, 660, 'fruit'], [560, 420, 'pink'], [1440, 420, 'green']].forEach(([x, y, v]) => addTree(m, x, y, v));
+    addBench(m, 620, 740); addBench(m, 1380, 740); addBench(m, 1640, 740);
+    [[150, 560], [1850, 560], [500, 640], [1500, 640]].forEach(([x, y], i) => addBush(m, x, y, FLOWERS[i % 4]));
+
+    npc(m, 'Ông Tư', { skin: '#e3a979', hair: 'bald', hairColor: '#adb5bd', shirt: '#868e96', shirtStyle: 'plain', pants: '#8b5a2b', hat: 'nonla' }, { l: 200, t: 700, r: 1800, b: 840 }, 1300, 800, 'dog');
+
+    street(m, variants);
+    m.spawn = { x: 1050, y: 875 };
+    m.bounds = { l: 20, t: 300, r: m.w - 20, b: m.h - 20 };
+    return m;
+  }
+
+  /* ---------- Bãi biển ---------- */
+  function beach() {
+    const m = base('beach', 'Bãi biển', 2000, 1250);
+    ground(m, (g) => {
+      paintGrass(g, m.w, m.h, 79);
+      const sea = g.createLinearGradient(0, 0, 0, 480);
+      sea.addColorStop(0, '#1971c2'); sea.addColorStop(1, '#4dabf7');
+      g.fillStyle = sea; g.fillRect(0, 0, m.w, 480);
+      g.fillStyle = '#f3d9a4'; g.fillRect(0, 470, m.w, 380);
+      const r = ART.srand(5);
+      for (let i = 0; i < 900; i++) {
+        g.fillStyle = r() > 0.5 ? 'rgba(200,160,90,.25)' : 'rgba(255,250,230,.5)';
+        g.fillRect(r() * m.w, 480 + r() * 370, 2, 2);
+      }
+      paintStreet(g, m.w, 870, 1000);
+    });
+    obj(m, 0, (ctx, t) => ART.seaWaves(ctx, m.w, 478, t));
+    [[220, 640], [1780, 600], [1500, 820], [520, 820]].forEach(([x, y]) => {
+      obj(m, y, (ctx, t) => ART.palm(ctx, x, y, t));
+      col(m, x - 10, y - 8, 30, 10);
+    });
+    [[650, 650, '#fa5252'], [1000, 610, '#4dabf7'], [1340, 690, '#fcc419']].forEach(([x, y, c]) => {
+      obj(m, y, (ctx) => ART.umbrella(ctx, x, y, c));
+      col(m, x - 30, y - 12, 54, 14);
+    });
+    obj(m, 820, (ctx) => ART.signBoard(ctx, 300, 820, 'BÃI BIỂN\nNhặt vỏ sò 🐚\nbán ở Chợ'));
+    col(m, 262, 810, 80, 12);
+    m.labels.push({ text: '🏖️ Bãi Biển', x: 1000, y: 520 });
+    m.pickupArea = { l: 150, t: 540, r: 1850, b: 830 };
+    m.pickupTable = DATA.SHELLS;
+
+    npc(m, 'Cô Hoa', { skin: '#b97a51', hair: 'long', hairColor: '#f4d06f', shirt: '#15aabf', shirtStyle: 'stripes', pants: '#fd7e14', hat: 'flower' }, { l: 200, t: 560, r: 1800, b: 830 }, 1200, 760, 'cat');
+
+    street(m, ['fruit', 'green']);
+    m.spawn = { x: 1050, y: 875 };
+    m.bounds = { l: 20, t: 520, r: m.w - 20, b: m.h - 20 };
+    return m;
+  }
+
+  return { farm, town, mall, fun, park, beach };
 })();

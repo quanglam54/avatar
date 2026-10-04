@@ -11,10 +11,10 @@
   function defaultState() {
     return {
       name: '',
-      look: { skin: DATA.SKINS[0], hair: 'short', hairColor: DATA.HAIR_COLORS[0], shirt: DATA.SHIRT_COLORS[5], shirtStyle: 'plain', pants: DATA.PANTS_COLORS[0], hat: 'none' },
+      look: { skin: DATA.SKINS[0], hair: 'short', hairColor: DATA.HAIR_COLORS[0], shirt: DATA.SHIRT_COLORS[5], shirtStyle: 'plain', pants: DATA.PANTS_COLORS[0], hat: 'none', pet: 'none' },
       coins: 50, xp: 0, level: 1,
       inv: { seed_wheat: 6, seed_carrot: 3, wheat: 3 },
-      owned: { hats: ['none'], shirtStyles: ['plain'] },
+      owned: { hats: ['none'], shirtStyles: ['plain'], pets: ['none'] },
       plots: DATA.PLOT_PRICES.map((p) => ({ unlocked: p === 0, crop: null, plantedAt: 0 })),
       coop: { fedAt: 0 },
       pen: { fedAt: 0 },
@@ -37,7 +37,8 @@
   const S = load();
   AV.S = S;
 
-  const maps = { farm: MAPS.farm(), town: MAPS.town() };
+  const maps = {};
+  Object.keys(MAPS).forEach((id) => { maps[id] = MAPS[id](); });
   let map = maps.farm;
 
   function saveNow() {
@@ -47,8 +48,9 @@
   }
 
   /* ---------- Thực thể ---------- */
-  const player = { x: 0, y: 0, dir: 1, moving: false, t: 0, target: null, pending: null, hidden: false, bubble: null, stuck: 0 };
-  const bus = { x: -999, state: 'away', timer: 5, v: 0, carrying: false, wantsBoard: false };
+  const player = { x: 0, y: 0, dir: 1, moving: false, t: 0, target: null, pending: null, hidden: false, bubble: null, stuck: 0, dancing: 0 };
+  const myPet = { x: 0, y: 0, dir: 1, t: 0, moving: false };
+  const bus = { x: -999, state: 'away', timer: 5, v: 0, carrying: false, wantsBoard: false, dest: 'town' };
   const floats = [];
   const fade = { a: 0, mode: null };
   let marker = null;
@@ -63,6 +65,7 @@
     if (blocked(player.x, player.y)) { player.x = map.spawn.x; player.y = map.spawn.y; }
     player.target = null;
     player.pending = null;
+    myPet.x = player.x - 30; myPet.y = player.y + 3;
     UI.setLocation(map.name);
     NET.enter(id);
   }
@@ -276,16 +279,121 @@
     changed();
   };
 
+  /* ---------- Khu giải trí, thú cưng, nhặt đồ ---------- */
+  AV.spend = (n) => {
+    if (S.coins < n) { UI.toast('Không đủ xu 😢'); return false; }
+    S.coins -= n;
+    changed();
+    return true;
+  };
+  AV.earn = (n, xp = 0) => {
+    S.coins += n;
+    if (xp) addXP(xp);
+    if (n > 0) float(`+${n} 💰`, player.x, player.y - 100, '#ffd43b');
+    changed();
+  };
+  AV.addItem = (id, n) => { addItem(id, n); changed(); };
+  AV.sayMine = (text) => say(player, text);
+
+  AV.useStage = () => {
+    player.dancing = Date.now() + 10000;
+    say(player, ['🎵 Quẩy lên nào!', '💃🕺', '🎶 La la la~', 'Cùng nhảy nhé! ✨'][Math.floor(Math.random() * 4)]);
+    UI.toast('💃 Đang nhảy trên sân khấu! (10 giây)');
+    NET.sendState();
+  };
+
+  AV.useFerris = () => {
+    if (!AV.spend(5)) return;
+    addXP(3);
+    say(player, ['Ngắm cả thành phố từ trên cao, đẹp quá! 🎡', 'Woaa, thấy cả bãi biển luôn! 🌊', 'Gió mát ghê~ 🌤️'][Math.floor(Math.random() * 3)]);
+    float('-5 💰', player.x, player.y - 100, '#ffd43b');
+  };
+
+  AV.buyIceCream = () => {
+    if (!AV.spend(5)) return;
+    addXP(2);
+    say(player, ['🍦', '🍧', '🍨'][Math.floor(Math.random() * 3)]);
+    UI.toast('Mát lạnh! 🍦 +2 XP');
+  };
+
+  AV.buyPet = (id) => {
+    const p = DATA.PETS.find((x) => x.id === id);
+    if (!p || S.owned.pets.includes(id)) return;
+    if (!AV.spend(p.price)) return;
+    S.owned.pets.push(id);
+    AV.wearPet(id);
+    UI.toast(`Đã nhận nuôi ${p.name}! 🐾`);
+  };
+  AV.wearPet = (id) => {
+    S.look.pet = id;
+    myPet.x = player.x - player.dir * 30;
+    myPet.y = player.y + 2;
+    changed();
+  };
+
+  function spawnPickups(dt) {
+    if (!map.pickupArea) return;
+    map.pickupTimer = (map.pickupTimer || 0) - dt;
+    if (map.pickups.length >= 7 || map.pickupTimer > 0) return;
+    map.pickupTimer = 5 + Math.random() * 5;
+    const a = map.pickupArea;
+    for (let tries = 0; tries < 10; tries++) {
+      const x = a.l + Math.random() * (a.r - a.l), y = a.t + Math.random() * (a.b - a.t);
+      if (blocked(x, y)) continue;
+      let r = Math.random() * map.pickupTable.reduce((s, it) => s + it.w, 0);
+      const it = map.pickupTable.find((p) => (r -= p.w) < 0) || map.pickupTable[0];
+      map.pickups.push({ x, y, item: it });
+      return;
+    }
+  }
+
+  function collectPickup(p) {
+    const i = map.pickups.indexOf(p);
+    if (i < 0) return;
+    map.pickups.splice(i, 1);
+    addItem(p.item.id, 1);
+    addXP(1);
+    float(`+1 ${p.item.icon}`, player.x, player.y - 100);
+    if (p.item.id === 'pearl') UI.toast('✨ Wow! Bạn nhặt được Ngọc trai quý hiếm!');
+    changed();
+  }
+
+  function followPet(pet, owner, dt, dir) {
+    const tx = owner.x - dir * 30, ty = owner.y + 3;
+    const dx = tx - pet.x, dy = ty - pet.y, d = Math.hypot(dx, dy);
+    pet.t += dt;
+    if (d > 300) { pet.x = tx; pet.y = ty; }
+    if (d > 6) {
+      const sp = Math.min(d, Math.max(90, d * 4) * dt);
+      pet.x += dx / d * sp; pet.y += dy / d * sp;
+      pet.moving = true;
+      if (Math.abs(dx) > 2) pet.dir = dx > 0 ? 1 : -1;
+    } else pet.moving = false;
+  }
+  AV.followPet = followPet;
+
   /* ---------- Xe buýt ---------- */
   const busStopX = () => map.busStop.x - 57;
-  const destName = () => (map.id === 'farm' ? maps.town.name : maps.farm.name);
+  const destName = () => (maps[bus.dest] || maps.town).name;
 
-  AV.useBusStop = () => {
-    UI.confirm(`Đi xe buýt tới <b>${destName()}</b>?`, 'Lên xe 🚌', () => {
-      bus.wantsBoard = true;
-      if (bus.state === 'away') bus.timer = 0;
-      if (bus.state !== 'waiting') UI.toast('Đang đợi xe buýt tới… 🚌');
-    });
+  AV.useBusStop = () => UI.cityMap(true);
+  AV.currentMap = () => map.id;
+
+  /** Chọn điểm đến trên bản đồ thành phố: tự đi ra trạm và lên xe */
+  AV.travelTo = (id) => {
+    if (!maps[id]) return;
+    if (id === map.id) return UI.toast(`Bạn đang ở ${map.name} rồi 😄`);
+    if (player.hidden || bus.carrying) return;
+    bus.dest = id;
+    bus.wantsBoard = true;
+    if (bus.state === 'away') bus.timer = 0;
+    const st = map.busStop;
+    if (Math.hypot(player.x - st.x, player.y - st.y) > 150) {
+      player.target = { x: st.x + 44, y: st.y + 12 };
+      player.pending = null;
+      marker = { x: st.x + 44, y: st.y + 12, t: 0 };
+      UI.toast(`Đang ra trạm xe buýt đi ${maps[id].name} 🚌`);
+    } else if (bus.state !== 'waiting') UI.toast(`Đang đợi xe buýt đi ${maps[id].name}… 🚌`);
   };
 
   function boardBus() {
@@ -294,6 +402,7 @@
     player.hidden = true;
     player.target = null;
     player.pending = null;
+    player.dancing = 0;
     bus.timer = Math.min(bus.timer, 0.8);
     UI.toast(`Lên xe! Đang đi tới ${destName()}…`);
   }
@@ -337,11 +446,28 @@
     }
   }
 
+  /** Chuyển thẳng tới một khu (dùng khi mới vào game) */
+  AV.teleport = (id, showHelp) => {
+    if (!maps[id] || fade.mode) return;
+    fade.teleport = id;
+    fade.afterHelp = !!showHelp;
+    fade.mode = 'out';
+  };
+
   function updateFade(dt) {
     if (fade.mode === 'out') {
       fade.a = Math.min(1, fade.a + dt * 2.5);
-      if (fade.a >= 1) {
-        const dest = map.id === 'farm' ? 'town' : 'farm';
+      if (fade.a >= 1 && fade.teleport) {
+        const id = fade.teleport;
+        fade.teleport = null;
+        enterMap(id, maps[id].busStop.x + 50, maps[id].busStop.y + 12);
+        player.hidden = false;
+        fade.mode = 'in';
+        UI.toast(`📍 Chào mừng tới ${map.name}!`);
+        saveNow();
+        if (fade.afterHelp) { fade.afterHelp = false; setTimeout(UI.help, 800); }
+      } else if (fade.a >= 1) {
+        const dest = maps[bus.dest] && bus.dest !== map.id ? bus.dest : (map.id === 'farm' ? 'town' : 'farm');
         enterMap(dest, maps[dest].busStop.x + 50, maps[dest].busStop.y + 12);
         player.hidden = true;
         bus.state = 'arriving';
@@ -366,8 +492,8 @@
     if (/chào|hello|\bhi\b|xin chào|alo/.test(t)) r = `Chào ${S.name}! 👋`;
     else if (/tên/.test(t)) r = `Mình là ${npc.name} nè!`;
     else if (/bạn/.test(t)) r = 'Làm bạn với nhau nhé! 🤝';
-    else if (/mua|bán|chợ|hạt/.test(t)) r = 'Chợ ở bên trái quảng trường đó!';
-    else if (/áo|mũ|nón|đồ|thời trang/.test(t)) r = 'Tiệm Thời Trang ở bên phải nha, đồ xinh lắm!';
+    else if (/mua|bán|chợ|hạt/.test(t)) r = 'Chợ ở Khu mua sắm nha, bấm 🗺️ Bản đồ rồi đi xe buýt!';
+    else if (/áo|mũ|nón|đồ|thời trang/.test(t)) r = 'Tiệm Thời Trang ở Khu mua sắm, đồ xinh lắm!';
     else if (/xe|buýt|bus|nông trại/.test(t)) r = 'Trạm xe buýt ở ngay dưới đường kìa.';
     else if (/\p{Extended_Pictographic}/u.test(t) && t.length <= 4) r = text;
     else r = ['Haha, vui ghê!', 'Thật hả? 😮', 'Mình cũng nghĩ vậy!', '😄', 'Hay quá đi!', 'Ừ ừ!', 'Kể tiếp đi!'][Math.floor(Math.random() * 7)];
@@ -491,7 +617,16 @@
         n.nextTalk = 10 + Math.random() * 14;
         if (!n.bubble || n.bubble.until < now) say(n, DATA.NPC_LINES[Math.floor(Math.random() * DATA.NPC_LINES.length)]);
       }
+      if (n.look.pet && n.look.pet !== 'none') {
+        n.petState = n.petState || { x: n.x - 30, y: n.y, dir: 1, t: 0, moving: false };
+        followPet(n.petState, n, dt, n.dir);
+      }
     });
+    if (S.look.pet && S.look.pet !== 'none') followPet(myPet, player, dt, player.dir);
+    if (player.dancing && player.dancing < now) { player.dancing = 0; NET.sendState(); }
+    spawnPickups(dt);
+    const nearPk = !player.hidden && map.pickups.find((p) => Math.hypot(p.x - player.x, p.y - player.y) < 20);
+    if (nearPk) collectPickup(nearPk);
     updateBus(dt);
     NET.tick(dt);
     NET.update(dt);
@@ -549,10 +684,21 @@
       else if (a.kind === 'sheep') ART.sheep(ctx, a.x, a.y, a.dir, a.t, a.moving);
       else ART.pig(ctx, a.x, a.y, a.dir, a.t, a.moving);
     } }));
-    map.npcs.forEach((n) => list.push({ y: n.y, draw: () => ART.character(ctx, n.x, n.y, n.look, n) }));
+    map.pickups.forEach((p) => list.push({ y: p.y, draw: () => ART.pickup(ctx, p.x, p.y, p.item.icon, clock) }));
+    const petDraw = (p, kind) => list.push({ y: p.y, draw: () => ART.pet(ctx, p.x, p.y, kind, p.dir, p.t, p.moving) });
+    map.npcs.forEach((n) => {
+      list.push({ y: n.y, draw: () => ART.character(ctx, n.x, n.y, n.look, n) });
+      if (n.petState) petDraw(n.petState, n.look.pet);
+    });
     const others = NET.players().filter((r) => !r.hidden);
-    others.forEach((r) => list.push({ y: r.ry, draw: () => ART.character(ctx, r.rx, r.ry, r.look, { t: r.t, dir: r.dir, moving: r.walking }) }));
-    if (!player.hidden) list.push({ y: player.y, draw: () => ART.character(ctx, player.x, player.y, S.look, player) });
+    others.forEach((r) => {
+      list.push({ y: r.ry, draw: () => ART.character(ctx, r.rx, r.ry, r.look, { t: r.t, dir: r.dir, moving: r.walking, dance: r.dance }) });
+      if (r.pet && r.look.pet && r.look.pet !== 'none') petDraw(r.pet, r.look.pet);
+    });
+    if (!player.hidden) {
+      list.push({ y: player.y, draw: () => ART.character(ctx, player.x, player.y, S.look, { ...player, dance: player.dancing > now }) });
+      if (S.look.pet && S.look.pet !== 'none') petDraw(myPet, S.look.pet);
+    }
     if (bus.state !== 'away' && bus.state !== 'travel') {
       list.push({ y: BUS_Y, draw: () => ART.bus(ctx, bus.x, BUS_Y, clock, bus.state !== 'waiting') });
     }
@@ -656,6 +802,13 @@
     if (UI.isBlocking() || player.hidden || fade.mode) return;
     document.activeElement && document.activeElement.blur();
     const w = toWorld(e.clientX, e.clientY);
+    const pk = map.pickups.find((p) => Math.abs(p.x - w.x) < 22 && w.y > p.y - 30 && w.y < p.y + 8);
+    if (pk) {
+      player.target = { x: pk.x, y: pk.y + 4 };
+      player.pending = { ax: pk.x, ay: pk.y + 4, use: () => collectPickup(pk) };
+      marker = { x: pk.x, y: pk.y + 4, t: 0 };
+      return;
+    }
     const ent = entityAt(w.x, w.y);
     if (ent) { poke(ent); return; }
     const o = interAt(w.x, w.y);
