@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Nông Trại Vui Vẻ</title>
+  <meta name="description" content="Game nông trại 2D phong cách Avatar tuổi thơ — chơi ngay trên trình duyệt.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐔</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div class="hud">
+    <div class="hud-card">
+      <canvas id="hudAvatar"></canvas>
+      <div class="hud-info">
+        <b id="hudName">Người chơi</b>
+        <div class="lv">Cấp <span id="hudLv">1</span> · <span id="hudXpText"></span></div>
+        <div class="xpbar"><i id="hudXp"></i></div>
+      </div>
+    </div>
+    <div class="pill coins">💰 <b id="hudCoins">0</b></div>
+    <div class="pill loc" id="hudLoc">📍 Nông trại</div>
+    <button class="pill net" id="netStatus" title="Người chơi online">⚪ Offline</button>
+  </div>
+
+  <div class="hud-right">
+    <button id="btnBag" title="Túi đồ">🎒<span>Túi đồ</span></button>
+    <button id="btnWardrobe" title="Tủ đồ">👕<span>Tủ đồ</span></button>
+    <button id="btnHelp" title="Cách chơi">❓</button>
+    <button id="btnSettings" title="Cài đặt">⚙️</button>
+  </div>
+
+  <div class="chatbar">
+    <div class="chatlog" id="chatLog"></div>
+    <div class="emotes" id="emotes"></div>
+    <form id="chatForm" autocomplete="off">
+      <button type="button" class="emo-toggle" id="emoToggle" title="Biểu cảm">😀</button>
+      <input id="chatInput" maxlength="80" placeholder="Nói gì đó… (Enter)">
+      <button class="send">Gửi</button>
+    </form>
+  </div>
+
+  <div id="toasts"></div>
+  <div id="panels"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/art.js"></script>
+  <script src="js/maps.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/net.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
