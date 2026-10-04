@@ -233,6 +233,7 @@
     const keys = Object.keys(got);
     if (!keys.length) return false;
     keys.forEach((k) => addItem(k, got[k]));
+    AV.quest('harvest', keys.reduce((a, k) => a + got[k], 0));
     addXP(xp);
     float(keys.map((k) => `+${got[k]} ${DATA.CROPS[k].icon}`).join('  '), player.x, player.y - 110);
     changed();
@@ -299,6 +300,7 @@
     } else if (t - st.fedAt >= cfg.time * 1000) {
       opts.collect();
       st.fedAt = 0;
+      AV.quest('collect');
       addXP(cfg.xp);
     } else {
       UI.toast(`${opts.waitMsg} còn ${Math.ceil(cfg.time - (t - st.fedAt) / 1000)}s`);
@@ -343,6 +345,7 @@
     Object.entries(r.need).forEach(([k, n]) => { S.inv[k] -= n; });
     addItem(r.id, 1);
     addXP(r.xp);
+    AV.quest('cook');
     float(`+1 ${r.icon}`, player.x, player.y - 110);
     UI.toast(`Đã nấu xong ${r.icon} ${r.name}! (bán ${r.sell} xu ở Chợ)`);
     changed();
@@ -381,6 +384,7 @@
   AV.sayMine = (text) => say(player, text);
 
   AV.useStage = () => {
+    if (player.dancing < Date.now()) AV.quest('dance');
     player.dancing = Date.now() + 10000;
     say(player, ['🎵 Quẩy lên nào!', '💃🕺', '🎶 La la la~', 'Cùng nhảy nhé! ✨'][Math.floor(Math.random() * 4)]);
     UI.toast('💃 Đang nhảy trên sân khấu! (10 giây)');
@@ -438,6 +442,7 @@
     map.pickups.splice(i, 1);
     addItem(p.item.id, 1);
     addXP(1);
+    AV.quest('shell');
     float(`+1 ${p.item.icon}`, player.x, player.y - 100);
     if (p.item.id === 'pearl') UI.toast('✨ Wow! Bạn nhặt được Ngọc trai quý hiếm!');
     changed();
@@ -456,6 +461,131 @@
     } else pet.moving = false;
   }
   AV.followPet = followPet;
+
+  /* ---------- Nhiệm vụ hằng ngày ---------- */
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  }
+
+  function ensureQuests() {
+    const key = todayKey();
+    if (S.quests && S.quests.date === key) return;
+    const r = ART.srand([...key].reduce((a, c) => a * 31 + c.charCodeAt(0), 7) % 2147483646);
+    const others = DATA.QUESTS.filter((q) => q.id !== 'quiz');
+    const picks = [DATA.QUESTS.find((q) => q.id === 'quiz')];
+    while (picks.length < 4) picks.push(others.splice(Math.floor(r() * others.length), 1)[0]);
+    S.quests = { date: key, list: picks.map((q) => ({ id: q.id, n: q.n, prog: 0, claimed: false })) };
+  }
+
+  AV.quests = () => { ensureQuests(); return S.quests.list; };
+
+  /** Cộng tiến độ nhiệm vụ */
+  AV.quest = (id, amount = 1) => {
+    ensureQuests();
+    const q = S.quests.list.find((x) => x.id === id);
+    if (!q || q.prog >= q.n) return;
+    q.prog = Math.min(q.n, q.prog + amount);
+    if (q.prog >= q.n) {
+      const def = DATA.QUESTS.find((x) => x.id === id);
+      UI.toast(`📜 Hoàn thành nhiệm vụ: ${def.text.replace('{n}', q.n)}! Bấm 📜 để nhận thưởng`, 4000);
+    }
+    UI.updateQuestDot();
+  };
+
+  AV.claimQuest = (id) => {
+    ensureQuests();
+    const q = S.quests.list.find((x) => x.id === id);
+    if (!q || q.prog < q.n || q.claimed) return;
+    const def = DATA.QUESTS.find((x) => x.id === id);
+    q.claimed = true;
+    S.coins += def.coins;
+    addXP(def.xp);
+    float(`+${def.coins} 💰`, player.x, player.y - 120, '#ffd43b');
+    UI.toast(`🎁 Nhận ${def.coins} xu và ${def.xp} XP!`);
+    changed();
+    UI.updateQuestDot();
+  };
+
+  /* ---------- Đố vui tiếng Anh ở Trường học ---------- */
+  const quizState = { round: -1, answered: false, firstWinner: null, revealed: false };
+
+  function syncQuizRound(q) {
+    if (quizState.round === q.round) return;
+    Object.assign(quizState, { round: q.round, answered: false, firstWinner: null, revealed: false });
+    const teacher = map.npcs.find((n) => n.teacher);
+    if (teacher) teacher.bubble = { text: q.q, until: Date.now() + 15000, big: false };
+  }
+
+  function updateQuiz() {
+    if (map.id !== 'school') return;
+    const q = QUIZ.current();
+    syncQuizRound(q);
+    if (!q.open && !quizState.revealed) {
+      quizState.revealed = true;
+      UI.chatLog('', `📢 Đáp án là: ${q.answer}${quizState.firstWinner ? ` — ${quizState.firstWinner} trả lời nhanh nhất!` : ''}`, false, true);
+      const teacher = map.npcs.find((n) => n.teacher);
+      if (teacher) teacher.bubble = { text: `Đáp án: ${q.answer} ✨`, until: Date.now() + 4500 };
+    }
+  }
+
+  /** Kiểm tra câu trả lời gõ vào chat. Trả về true nếu là câu trả lời đúng */
+  function checkQuizAnswer(text) {
+    if (map.id !== 'school') return false;
+    const q = QUIZ.current();
+    syncQuizRound(q);
+    if (!q.open || quizState.answered) return false;
+    const teacher = map.npcs.find((n) => n.teacher);
+    if (!q.check(text)) {
+      if (teacher && QUIZ.norm(text).length > 0 && q.choices.some((c) => QUIZ.norm(c) === QUIZ.norm(text))) {
+        teacher.bubble = { text: 'Chưa đúng rồi, thử lại nhé! 🤔', until: Date.now() + 2000 };
+      }
+      return false;
+    }
+    quizState.answered = true;
+    const first = !quizState.firstWinner;
+    quizState.firstWinner = quizState.firstWinner || S.name;
+    const coins = first ? 15 : 5, xp = first ? 5 : 2;
+    S.coins += coins;
+    addXP(xp);
+    float(`+${coins} 💰`, player.x, player.y - 120, '#ffd43b');
+    const msg = `${S.name} trả lời đúng${first ? ' đầu tiên' : ''}: ${q.answer} 🎉 (+${coins} xu)`;
+    UI.chatLog('', msg, true, true);
+    NET.sendSys(msg);
+    NET.sendQuiz(q.round);
+    if (teacher) teacher.bubble = { text: first ? `Giỏi lắm ${S.name}! 👏` : 'Chính xác! 👍', until: Date.now() + 2500 };
+    AV.quest('quiz');
+    changed();
+    return true;
+  }
+
+  /** Người khác báo đã trả lời đúng vòng này */
+  AV.onQuizWin = (round, name) => {
+    if (round === quizState.round && !quizState.firstWinner) quizState.firstWinner = name;
+  };
+
+  AV.quizHelp = () => {
+    const q = QUIZ.current();
+    UI.toast(q.open ? `❓ ${q.q} — gõ đáp án vào khung chat hoặc bấm nút chọn!` : 'Chờ câu hỏi tiếp theo nhé ⏳', 3500);
+    document.getElementById('chatInput').focus();
+  };
+
+  /** Thanh nút chọn đáp án (cho điện thoại) */
+  const quizBar = document.getElementById('quizBar');
+  let quizBarKey = '';
+  function updateQuizBar() {
+    let key = '';
+    let q = null;
+    if (map.id === 'school' && !player.hidden && !UI.isBlocking()) {
+      q = QUIZ.current();
+      key = q.open && !quizState.answered ? 'q' + q.round : '';
+    }
+    if (key === quizBarKey) return;
+    quizBarKey = key;
+    quizBar.classList.toggle('show', !!key);
+    quizBar.innerHTML = key ? q.choices.map((c, i) => `<button data-c="${i}"><b>${'ABCD'[i]}</b> ${c}</button>`).join('') : '';
+    quizBar.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => AV.say(q.choices[+b.dataset.c]));
+  }
 
   /* ---------- Câu cá ngay trên bản đồ (không popup) ---------- */
   /** Có đang đứng ở bờ hồ không */
@@ -510,6 +640,7 @@
     const fish = DATA.FISH.find((x) => (r -= x.w) < 0) || DATA.FISH[0];
     addItem(fish.id, 1);
     addXP(fish.id === 'boot' ? 0 : 2);
+    if (fish.id !== 'boot') AV.quest('fish');
     float(`+1 ${fish.icon}`, player.x, player.y - 120);
     say(player, fish.id === 'boot' ? 'Ơ… chiếc giày cũ 👢😂' : `Câu được ${fish.icon} ${fish.name}!`);
     const msg = fish.id === 'boot' ? 'đã câu phải một chiếc giày cũ 👢' : `đã câu được một ${fish.name.toLowerCase()} ${fish.icon}`;
@@ -697,9 +828,11 @@
     say(player, text);
     NET.sendChat(text);
     UI.chatLog(S.name, text, true);
+    if (checkQuizAnswer(text)) return;
+    if (!/^\p{Extended_Pictographic}/u.test(text)) AV.quest('chat');
     const near = map.npcs
       .map((n) => ({ n, d: Math.hypot(n.x - player.x, n.y - player.y) }))
-      .filter((o) => o.d < 320)
+      .filter((o) => o.d < 320 && !o.n.teacher)
       .sort((a, b) => a.d - b.d)[0];
     if (near) setTimeout(() => reply(near.n, text), 900 + Math.random() * 600);
   };
@@ -707,6 +840,11 @@
   function poke(e) {
     if (e.kind === 'remote') {
       UI.toast(`👤 ${e.name} · Cấp ${e.level}`);
+      return;
+    }
+    if (e.teacher) {
+      const q = QUIZ.current();
+      say(e, q.open ? q.q : `Đáp án: ${q.answer} ✨`);
       return;
     }
     if (e.kind === 'npc') {
@@ -813,6 +951,8 @@
     spawnPickups(dt);
     updateFishing();
     updateActionButton();
+    updateQuiz();
+    updateQuizBar();
     const nearPk = !player.hidden && map.pickups.find((p) => Math.hypot(p.x - player.x, p.y - player.y) < 20);
     if (nearPk) collectPickup(nearPk);
     updateBus(dt);
@@ -859,6 +999,27 @@
     m.paintGround(gc);
     m.ground = c;
     m.groundScale = gs;
+  }
+
+  /** Viết câu hỏi lên bảng đen bằng chữ phấn */
+  function drawBoard(b) {
+    const q = QUIZ.current();
+    const x = b.x, top = b.y - 222;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffe066'; ctx.font = '800 13px "Be Vietnam Pro", system-ui';
+    ctx.fillText(q.open ? `❓ ĐỐ VUI TIẾNG ANH · còn ${q.left}s` : `✨ ĐÁP ÁN · câu mới sau ${q.left}s`, x, top + 16);
+    ctx.fillStyle = '#fff'; ctx.font = '800 17px "Be Vietnam Pro", system-ui';
+    const words = q.q.split(' '); const lines = []; let cur = '';
+    for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > 300 && cur) { lines.push(cur); cur = w; } else cur = t; }
+    lines.push(cur);
+    lines.slice(0, 2).forEach((l, i) => ctx.fillText(l, x, top + 44 + i * 22));
+    if (q.open) {
+      ctx.font = '700 13px "Be Vietnam Pro", system-ui'; ctx.fillStyle = '#d3f9d8';
+      q.choices.forEach((c, i) => ctx.fillText(`${'ABCD'[i]}. ${c}`, x - 80 + (i % 2) * 160, top + 98 + Math.floor(i / 2) * 20));
+    } else {
+      ctx.font = '900 22px "Be Vietnam Pro", system-ui'; ctx.fillStyle = '#ffe066';
+      ctx.fillText(q.answer, x, top + 108);
+    }
   }
 
   /** Mức tối của trời (0 = ngày, 1 = đêm) theo giờ thật hoặc theo cài đặt */
@@ -967,6 +1128,8 @@
       if (typeof r === 'object') ART.timerLabel(ctx, o.ix, o.iy, r.left, r.p);
       else ART.iconBubble(ctx, r, o.ix, o.iy - 14, clock);
     });
+
+    if (map.board) drawBoard(map.board);
 
     // mũi tên vàng "Vào" trước cửa
     map.inter.forEach((o) => { if (o.arrow) ART.doorArrow(ctx, o.arrow.x, o.arrow.y, clock, o.arrow.text); });

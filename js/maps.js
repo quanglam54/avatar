@@ -493,5 +493,48 @@ const MAPS = (() => {
     return m;
   }
 
-  return { farm, town, mall, fun, park, beach };
+  /* ---------- Trường học: đố vui tiếng Anh ---------- */
+  function school() {
+    const m = base('school', 'Trường học', 2000, 1070);
+    ground(m, (g) => {
+      paintGrass(g, m.w, m.h, 91);
+      paintPaved(g, 120, 370, 1760, 455, '#efe6d4');
+      paintStreet(g, m.w, 870, 1000);
+    });
+    addTree(m, 70, 470, 'green'); addTree(m, 1930, 470, 'pink');
+
+    const bld = { w: 260, wall: '#fff4e0', roof: '#e8590c', awning: '#f59f00', sign: '🏫 TRƯỜNG HỌC', icons: ['📚', '✏️'], door: '#8a4b22' };
+    sobj(m, 420, 540, (c) => ART.building(c, 420, 540, bld));
+    col(m, 290, 460, 260, 82);
+    aobj(m, 690, 560, (c, t) => ART.flagPole(c, 690, 560, t), { l: -20, t: -200, w: 110, h: 206 });
+    col(m, 684, 552, 12, 10);
+
+    sobj(m, 1150, 560, (c) => ART.blackboard(c, 1150, 560), { l: -190, t: -245, w: 380, h: 252 });
+    col(m, 975, 540, 350, 22);
+    m.board = { x: 1150, y: 560 };
+    inter(m, { x: 970, y: 320, w: 360, h: 240, ax: 1150, ay: 600, name: 'Bảng đố vui (gõ đáp án vào khung chat)', use: () => AV.quizHelp() });
+
+    sobj(m, 1430, 645, (c) => ART.podium(c, 1430, 645), { l: -80, t: -30, w: 160, h: 36 });
+    npc(m, 'Cô giáo Hoa', { skin: '#f8c9a2', hair: 'long', hairColor: '#2b2b33', shirt: '#f8f9fa', shirtStyle: 'plain', pants: '#4c6ef5', hat: 'none' }, { l: 1415, t: 628, r: 1445, b: 640 }, 1430, 634);
+    const teacher = m.npcs[m.npcs.length - 1];
+    teacher.teacher = true;
+    teacher.nextTalk = 1e9;
+
+    for (const y of [720, 800]) for (const x of [900, 1020, 1140, 1260, 1380]) {
+      sobj(m, x, y, (c) => ART.desk(c, x, y), { l: -40, t: -46, w: 80, h: 50 });
+      col(m, x - 34, y - 12, 68, 14);
+    }
+    [[220, 790], [1780, 790], [1700, 420]].forEach(([x, y], i) => addBush(m, x, y, FLOWERS[i % 4]));
+    m.labels.push({ text: '🏫 Trường Học', x: 1000, y: 318 });
+
+    npc(m, 'Bé Tí', { skin: '#ffe0c4', hair: 'short', hairColor: '#6b3e26', shirt: '#4c6ef5', shirtStyle: 'plain', pants: '#343a40', hat: 'cap' }, { l: 200, t: 640, r: 850, b: 830 }, 400, 720);
+    npc(m, 'Bé Mơ', { skin: '#f8c9a2', hair: 'pigtails', hairColor: '#2b2b33', shirt: '#e64980', shirtStyle: 'heart', pants: '#dee2e6', hat: 'bow' }, { l: 200, t: 640, r: 850, b: 830 }, 700, 780);
+
+    street(m);
+    m.spawn = { x: 1050, y: 875 };
+    m.bounds = { l: 20, t: 380, r: m.w - 20, b: m.h - 40 };
+    return m;
+  }
+
+  return { farm, town, mall, fun, park, beach, school };
 })();

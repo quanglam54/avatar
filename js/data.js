@@ -74,6 +74,7 @@ DATA.ZONES = [
   { id: 'fun', name: 'Khu giải trí', icon: '🎡', x: 25, y: 26, desc: 'Bầu cua, bài cào, sân khấu' },
   { id: 'park', name: 'Công viên', icon: '🌳', x: 20, y: 72, desc: 'Câu cá, dạo hồ' },
   { id: 'beach', name: 'Bãi biển', icon: '🏖️', x: 90, y: 12, desc: 'Nhặt vỏ sò, tắm nắng' },
+  { id: 'school', name: 'Trường học', icon: '🏫', x: 48, y: 86, desc: 'Đố vui tiếng Anh' },
 ];
 
 DATA.FISH = [
@@ -96,6 +97,18 @@ DATA.BAUCUA = [
   { id: 'ca', name: 'Cá', icon: '🐟' },
   { id: 'cua', name: 'Cua', icon: '🦀' },
   { id: 'tom', name: 'Tôm', icon: '🦐' },
+];
+
+/** Nhiệm vụ hằng ngày: luôn có nhiệm vụ tiếng Anh + 3 nhiệm vụ ngẫu nhiên theo ngày */
+DATA.QUESTS = [
+  { id: 'quiz', icon: '🏫', text: 'Trả lời đúng {n} câu tiếng Anh ở Trường học', n: 5, coins: 60, xp: 20 },
+  { id: 'fish', icon: '🎣', text: 'Câu được {n} con cá ở Công viên', n: 3, coins: 40, xp: 12 },
+  { id: 'harvest', icon: '🌾', text: 'Thu hoạch {n} nông sản', n: 20, coins: 40, xp: 12 },
+  { id: 'cook', icon: '🍳', text: 'Nấu {n} món ở Nhà bếp', n: 2, coins: 50, xp: 15 },
+  { id: 'shell', icon: '🐚', text: 'Nhặt {n} vỏ sò / sao biển ở Bãi biển', n: 5, coins: 35, xp: 10 },
+  { id: 'collect', icon: '🥚', text: 'Thu trứng / sữa ở chuồng {n} lần', n: 2, coins: 35, xp: 10 },
+  { id: 'chat', icon: '💬', text: 'Trò chuyện {n} câu với mọi người', n: 5, coins: 25, xp: 8 },
+  { id: 'dance', icon: '💃', text: 'Nhảy trên sân khấu Khu giải trí {n} lần', n: 1, coins: 25, xp: 8 },
 ];
 
 DATA.RECIPES = [

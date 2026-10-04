@@ -664,6 +664,56 @@ Object.assign(ART, (() => {
     }
   }
 
+  /* ---------- Trường học ---------- */
+  /** Bảng đen trên giá gỗ. (x,y) = chân giữa; vùng viết chữ: x±160, y-220..y-70 */
+  function blackboard(ctx, x, y) {
+    shadow(ctx, x, y, 150, 12);
+    ctx.fillStyle = '#7a4a26';
+    ctx.fillRect(x - 150, y - 70, 10, 70); ctx.fillRect(x + 140, y - 70, 10, 70);
+    ctx.fillStyle = '#9c5b2e';
+    rr(ctx, x - 180, y - 236, 360, 176, 8); ctx.fill();
+    ctx.fillStyle = '#2f5d3a';
+    rr(ctx, x - 168, y - 224, 336, 152, 4); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.06)';
+    ctx.fillRect(x - 160, y - 216, 120, 10);
+    ctx.fillStyle = '#b8743f';
+    ctx.fillRect(x - 170, y - 66, 340, 8);
+    ctx.fillStyle = '#fff'; ctx.fillRect(x - 120, y - 70, 18, 4);
+    ctx.fillStyle = '#ffd43b'; ctx.fillRect(x - 96, y - 70, 14, 4);
+    ctx.fillStyle = '#c0c0c0'; rr(ctx, x + 80, y - 72, 30, 7, 2); ctx.fill();
+  }
+
+  function desk(ctx, x, y) {
+    shadow(ctx, x, y, 34, 6);
+    ctx.fillStyle = '#7a4a26';
+    ctx.fillRect(x - 28, y - 26, 5, 26); ctx.fillRect(x + 23, y - 26, 5, 26);
+    ctx.fillStyle = '#c98a4b';
+    rr(ctx, x - 34, y - 34, 68, 12, 3); ctx.fill();
+    ctx.fillStyle = '#e8b46a'; ctx.fillRect(x - 32, y - 34, 64, 3);
+    ctx.fillStyle = '#4c6ef5'; ctx.fillRect(x - 14, y - 40, 16, 6);
+    ctx.fillStyle = '#e03131'; ctx.fillRect(x + 6, y - 39, 12, 5);
+  }
+
+  function podium(ctx, x, y) {
+    shadow(ctx, x, y, 70, 10);
+    ctx.fillStyle = '#8a4b22';
+    rr(ctx, x - 70, y - 22, 140, 22, 4); ctx.fill();
+    ctx.fillStyle = '#b0703a'; ctx.fillRect(x - 70, y - 22, 140, 5);
+  }
+
+  function flagPole(ctx, x, y, t) {
+    shadow(ctx, x, y, 14, 4);
+    ctx.fillStyle = '#adb5bd'; ctx.fillRect(x - 3, y - 190, 6, 190);
+    circle(ctx, x, y - 192, 5, '#fcc419');
+    ctx.fillStyle = '#da251d';
+    ctx.beginPath();
+    ctx.moveTo(x + 3, y - 186);
+    for (let i = 0; i <= 10; i++) { const fx = x + 3 + i * 7, wv = Math.sin(t * 4 + i * 0.7) * 3 * (i / 10); ctx.lineTo(fx, y - 186 + wv); }
+    for (let i = 10; i >= 0; i--) { const fx = x + 3 + i * 7, wv = Math.sin(t * 4 + i * 0.7) * 3 * (i / 10); ctx.lineTo(fx, y - 138 + wv); }
+    ctx.closePath(); ctx.fill();
+    ART.star(ctx, x + 38, y - 162 + Math.sin(t * 4 + 3.5) * 1.5, 11, 4.5, '#ffde00');
+  }
+
   /* ---------- Ban đêm ---------- */
   function nightSky(ctx, w, hz, n, t) {
     if (n <= 0) return;
@@ -695,5 +745,5 @@ Object.assign(ART, (() => {
     }
   }
 
-  return { fishingRod, biteMark, stonePath, BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
+  return { blackboard, desk, podium, flagPole, fishingRod, biteMark, stonePath, BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
 })());

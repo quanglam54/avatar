@@ -532,6 +532,36 @@ const UI = (() => {
     render();
   }
 
+  /* ---------- Nhiệm vụ hằng ngày ---------- */
+  function questsPanel() {
+    const p = panel('📜 Nhiệm vụ hôm nay', '', { wide: true });
+    const render = () => {
+      const list = AV.quests();
+      p.body.innerHTML = `
+        <p class="muted">Nhiệm vụ đổi mới mỗi ngày. Hoàn thành rồi bấm <b>Nhận thưởng</b> nhé!</p>
+        <div class="shop-list">${list.map((q) => {
+          const d = DATA.QUESTS.find((x) => x.id === q.id);
+          const done = q.prog >= q.n;
+          const btn = q.claimed ? '<button class="btn small ghost" disabled>✅ Đã nhận</button>'
+            : done ? `<button class="btn small" data-claim="${q.id}">🎁 Nhận thưởng</button>`
+              : `<button class="btn small ghost" disabled>${q.prog}/${q.n}</button>`;
+          return `<div class="shop-row quest ${done && !q.claimed ? 'ready' : ''}"><span class="ic">${d.icon}</span>
+            <div class="info"><b>${d.text.replace('{n}', q.n)}</b>
+              <div class="qbar"><i style="width:${Math.min(100, q.prog / q.n * 100)}%"></i></div>
+              <small>Thưởng: ${d.coins} xu · ${d.xp} XP</small></div>${btn}</div>`;
+        }).join('')}</div>`;
+      p.body.querySelectorAll('[data-claim]').forEach((b) => b.onclick = () => { AV.claimQuest(b.dataset.claim); render(); });
+    };
+    render();
+  }
+
+  function updateQuestDot() {
+    const btn = $('#btnQuest');
+    if (!btn) return;
+    const ready = AV.quests().some((q) => q.prog >= q.n && !q.claimed);
+    btn.classList.toggle('dot', ready);
+  }
+
   /* ---------- Hướng dẫn & cài đặt ---------- */
   function help() {
     const p = panel('❓ Cách chơi', `
@@ -539,6 +569,8 @@ const UI = (() => {
         <li>👆 <b>Chạm / click</b> vào mặt đất để đi, hoặc dùng <b>phím mũi tên / WASD</b>.</li>
         <li>🌾 Bấm <b>ô ruộng</b> để gieo hạt (gieo 1 ô hoặc cả luống). Cây khát nước 😟 thì bấm để tưới, chín thì bấm thu hoạch cả luống.</li>
         <li>🐔 Cho <b>gà</b> ăn 3 lúa mì → có 5 trứng. 🐄 Cho <b>gia súc</b> ăn 4 lúa mì → có sữa & len.</li>
+        <li>🏫 Tới <b>Trường học</b>: cô giáo ra câu đố tiếng Anh mỗi 20 giây, gõ đáp án vào chat (hoặc bấm nút A/B/C/D). Ai đúng đầu tiên được thưởng nhiều nhất!</li>
+        <li>📜 Bấm nút <b>📜</b> xem nhiệm vụ hằng ngày để nhận thêm xu.</li>
         <li>🍳 Vào <b>Nhà Bếp</b> ở Nông trại nấu bánh, súp, khăn len… bán được giá cao hơn nhiều.</li>
         <li>🗺️ Ra <b>trạm xe buýt</b> hoặc bấm <b>Bản đồ</b> để đi 6 khu: Nông trại, Quảng trường, Khu mua sắm, Khu giải trí, Công viên, Bãi biển.</li>
         <li>🛍️ <b>Khu mua sắm</b>: Chợ, Tiệm Thời Trang, Tiệm Thú Cưng. 🎡 <b>Khu giải trí</b>: Bầu cua, Bài cào, sân khấu, vòng quay.</li>
@@ -558,6 +590,7 @@ const UI = (() => {
       ['bag', '🎒', 'Túi đồ', inventory],
       ['wear', '👕', 'Tủ đồ', () => characterEditor(false)],
       ['map', '🗺️', 'Bản đồ', () => cityMap(false)],
+      ['quest', '📜', 'Nhiệm vụ', questsPanel],
       ['people', '👥', 'Người chơi', playersPanel],
       ['help', '❓', 'Cách chơi', help],
       ['set', '⚙️', 'Cài đặt', settings],
@@ -630,6 +663,8 @@ const UI = (() => {
     $('#netStatus').onclick = playersPanel;
     $('#chatLog').onclick = () => $('#chatLog').classList.toggle('active');
     $('#btnMenu').onclick = menu;
+    $('#btnQuest').onclick = questsPanel;
+    updateQuestDot();
     $('#btnMap').onclick = () => cityMap(false);
     $('#btnChat').onclick = () => { $('#chatLog').classList.add('active'); $('#chatInput').focus(); };
     const emo = $('#emotes');
@@ -645,5 +680,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot };
 })();

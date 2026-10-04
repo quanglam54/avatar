@@ -106,6 +106,10 @@ const NET = (() => {
     send('chat', { name: AV.S.name, text });
   }
 
+  function sendQuiz(round) {
+    send('quiz', { round, name: AV.S.name });
+  }
+
   /** Thông báo hệ thống cho cả khu, vd: "Lâm đã câu được một cá chép" */
   function sendSys(text) {
     send('sys', { text });
@@ -162,6 +166,8 @@ const NET = (() => {
       r.dance = !!m.dance;
       r.fish = readFish(m.fish);
       r.seen = Date.now();
+    } else if (m.t === 'quiz') {
+      AV.onQuizWin(num(m.round, -1), clean(m.name, 16));
     } else if (m.t === 'sys') {
       const text = clean(m.text, 120);
       if (text) UI.chatLog('', text, false, true);
@@ -297,7 +303,7 @@ const NET = (() => {
   }
 
   return {
-    init, enter, tick, update, sendState, sendChat, sendSys, remotes, zoneCounts, announce,
+    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, remotes, zoneCounts, announce,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],

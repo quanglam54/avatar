@@ -337,3 +337,19 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @keyframes bitePulse { from { transform: scale(1); } to { transform: scale(1.1); } }
 .chatlog .msg.sys { color: #ffe066; font-weight: 700; }
 @media (max-width: 680px) { .action-btn { bottom: 84px; right: 10px; font-size: 16px; min-width: 120px; } }
+
+/* Nhiệm vụ & đố vui */
+.av-btn.dot { position: relative; }
+.av-btn.dot::after { content: '!'; position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%; background: #e03131; color: #fff; font-size: 14px; font-weight: 900; display: grid; place-items: center; border: 2px solid #fff; box-shadow: 0 0 0 2px #1b2f48; }
+.qbar { height: 8px; border-radius: 99px; background: #e9dfc7; overflow: hidden; margin: 5px 0 3px; }
+.qbar i { display: block; height: 100%; background: linear-gradient(90deg, #ffb547, #ff7a1a); }
+.shop-row.quest.ready { border-color: #51cf66; background: #ebfbee; }
+.quiz-bar { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 6; display: none; gap: 8px; flex-wrap: wrap; justify-content: center; width: min(620px, calc(100% - 24px)); }
+.quiz-bar.show { display: flex; }
+.quiz-bar button {
+  flex: 1 1 40%; border: 2px solid #1b2f48; border-radius: 14px; padding: 9px 10px; font: inherit; font-weight: 800; font-size: 15px;
+  background: linear-gradient(#ffffff, #fff3d6); box-shadow: 0 4px 0 #1b2f48; cursor: pointer; text-align: left;
+}
+.quiz-bar button b { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #2d8fe6; color: #fff; margin-right: 6px; font-size: 13px; }
+.quiz-bar button:active { transform: translateY(3px); box-shadow: 0 1px 0 #1b2f48; }
+@media (max-width: 560px) { .quiz-bar button { font-size: 13px; padding: 7px 8px; } }
