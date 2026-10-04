@@ -271,17 +271,23 @@ const UI = (() => {
   }
 
   /* ---------- Chọn hạt giống ---------- */
-  function seedPicker(plotIndex) {
+  function seedPicker(tileIndex) {
     const S = AV.S;
     const seeds = Object.keys(DATA.CROPS).filter((id) => (S.inv['seed_' + id] || 0) > 0);
+    const empty = AV.emptyInBed(tileIndex);
     const p = panel('🌱 Gieo hạt', seeds.length
-      ? `<div class="shop-list">${seeds.map((id) => {
+      ? `<p class="muted">Luống này còn <b>${empty}</b> ô trống. Cây lớn được nửa chừng sẽ khát nước 😟 — nhớ quay lại tưới nhé!</p>
+        <div class="shop-list">${seeds.map((id) => {
         const c = DATA.CROPS[id];
-        return `<button class="shop-row pick" data-seed="${id}"><span class="ic">${c.icon}</span>
-          <div class="info"><b>${c.name}</b><small>⏱ ${c.time}s · còn ${S.inv['seed_' + id]} hạt</small></div><span class="go">Gieo ▶</span></button>`;
+        const have = S.inv['seed_' + id];
+        return `<div class="shop-row"><span class="ic">${c.icon}</span>
+          <div class="info"><b>${c.name}</b><small>⏱ ${c.time}s · còn ${have} hạt · bán ${c.sell} xu</small></div>
+          <button class="btn small ghost" data-one="${id}">Gieo 1 ô</button>
+          <button class="btn small" data-all="${id}">Cả luống (${Math.min(have, empty)})</button></div>`;
       }).join('')}</div>`
-      : '<p class="muted">Bạn hết hạt giống rồi! Đi xe buýt 🚌 tới <b>Thị trấn</b> và ghé <b>Chợ</b> để mua thêm nhé.</p>');
-    p.body.querySelectorAll('[data-seed]').forEach((b) => b.onclick = () => { p.close(); AV.plant(plotIndex, b.dataset.seed); });
+      : '<p class="muted">Bạn hết hạt giống rồi! Bấm 🗺️ đi xe buýt tới <b>Khu mua sắm</b> và ghé <b>Chợ</b> để mua thêm nhé.</p>');
+    p.body.querySelectorAll('[data-one]').forEach((b) => b.onclick = () => { p.close(); AV.plant(tileIndex, b.dataset.one); });
+    p.body.querySelectorAll('[data-all]').forEach((b) => b.onclick = () => { p.close(); AV.plantBed(tileIndex, b.dataset.all); });
   }
 
   /* ---------- Bản đồ thành phố ---------- */
@@ -543,13 +549,38 @@ const UI = (() => {
     render();
   }
 
+  /* ---------- Nhà bếp ---------- */
+  function kitchen() {
+    const S = AV.S;
+    const p = panel('🍳 Nhà Bếp', '', { wide: true });
+    const render = () => {
+      p.body.innerHTML = `
+        <p class="muted">Nấu món ăn từ nông sản để bán được giá cao hơn ở Chợ.</p>
+        <div class="shop-list">${DATA.RECIPES.map((r) => {
+          const ok = AV.canCook(r);
+          const need = Object.entries(r.need).map(([id, n]) => {
+            const have = S.inv[id] || 0;
+            return `<span class="${have >= n ? 'ok' : 'lack'}">${DATA.ITEMS[id].icon} ${have}/${n}</span>`;
+          }).join(' ');
+          return `<div class="shop-row">
+            <span class="ic">${r.icon}</span>
+            <div class="info"><b>${r.name}</b><small class="need">${need} · bán ${r.sell} xu · +${r.xp} XP</small></div>
+            <button class="btn small" data-cook="${r.id}" ${ok ? '' : 'disabled'}>🔥 Nấu</button>
+          </div>`;
+        }).join('')}</div>`;
+      p.body.querySelectorAll('[data-cook]').forEach((b) => b.onclick = () => { AV.cook(b.dataset.cook); render(); });
+    };
+    render();
+  }
+
   /* ---------- Hướng dẫn & cài đặt ---------- */
   function help() {
     const p = panel('❓ Cách chơi', `
       <ul class="help">
         <li>👆 <b>Chạm / click</b> vào mặt đất để đi, hoặc dùng <b>phím mũi tên / WASD</b>.</li>
-        <li>🌾 Bấm vào <b>ô ruộng</b> để gieo hạt, đợi cây lớn rồi bấm lần nữa để thu hoạch.</li>
+        <li>🌾 Bấm <b>ô ruộng</b> để gieo hạt (gieo 1 ô hoặc cả luống). Cây khát nước 😟 thì bấm để tưới, chín thì bấm thu hoạch cả luống.</li>
         <li>🐔 Cho <b>gà</b> ăn 3 lúa mì → có 5 trứng. 🐄 Cho <b>gia súc</b> ăn 4 lúa mì → có sữa & len.</li>
+        <li>🍳 Vào <b>Nhà Bếp</b> ở Nông trại nấu bánh, súp, khăn len… bán được giá cao hơn nhiều.</li>
         <li>🗺️ Ra <b>trạm xe buýt</b> hoặc bấm <b>Bản đồ</b> để đi 6 khu: Nông trại, Quảng trường, Khu mua sắm, Khu giải trí, Công viên, Bãi biển.</li>
         <li>🛍️ <b>Khu mua sắm</b>: Chợ, Tiệm Thời Trang, Tiệm Thú Cưng. 🎡 <b>Khu giải trí</b>: Bầu cua, Bài cào, sân khấu, vòng quay.</li>
         <li>🎣 Câu cá ở <b>Công viên</b>, 🐚 nhặt vỏ sò ở <b>Bãi biển</b> rồi đem bán ở Chợ.</li>
@@ -586,11 +617,15 @@ const UI = (() => {
   function settings() {
     const S = AV.S;
     const p = panel('⚙️ Cài đặt', `
-      <label class="toggle"><input type="checkbox" data-pixel ${S.settings && S.settings.pixel === false ? '' : 'checked'}> Đồ hoạ pixel kiểu Avatar (tắt nếu máy chạy chậm)</label>
+      <label class="toggle">🌙 Ngày / đêm <select data-time><option value="real">Theo giờ thật</option><option value="day">Luôn ban ngày</option><option value="night">Luôn ban đêm</option></select></label>
+      <label class="toggle"><input type="checkbox" data-pixel ${S.settings && S.settings.pixelArt ? 'checked' : ''}> Hiệu ứng ô vuông pixel (nét to hơn, hơi nhoè)</label>
       <p class="muted">Dữ liệu được lưu tự động trên trình duyệt này.</p>
       <div class="row-end"><button class="btn danger" data-reset>🗑 Chơi lại từ đầu</button></div>`);
+    const ts = p.body.querySelector('[data-time]');
+    ts.value = (S.settings && S.settings.time) || 'real';
+    ts.onchange = () => { S.settings = { ...(S.settings || {}), time: ts.value }; AV.saveNow(); };
     p.body.querySelector('[data-pixel]').onchange = (e) => {
-      S.settings = { ...(S.settings || {}), pixel: e.target.checked };
+      S.settings = { ...(S.settings || {}), pixelArt: e.target.checked };
       AV.saveNow();
     };
     p.body.querySelector('[data-reset]').onclick = () => {
@@ -649,5 +684,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, fishing, menu };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, fishing, menu, kitchen };
 })();

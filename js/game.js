@@ -15,11 +15,12 @@
       coins: 50, xp: 0, level: 1,
       inv: { seed_wheat: 6, seed_carrot: 3, wheat: 3 },
       owned: { hats: ['none'], shirtStyles: ['plain'], pets: ['none'] },
-      plots: DATA.PLOT_PRICES.map((p) => ({ unlocked: p === 0, crop: null, plantedAt: 0 })),
+      tiles: Array.from({ length: 48 }, () => ({ crop: null, plantedAt: 0, watered: false })),
+      beds: [true, false, false, false],
       coop: { fedAt: 0 },
       pen: { fedAt: 0 },
       map: 'farm', x: null, y: null,
-      settings: { pixel: true },
+      settings: { pixelArt: false },
     };
   }
 
@@ -29,6 +30,12 @@
       if (raw) {
         const s = JSON.parse(raw);
         const d = defaultState();
+        if (!s.tiles) {
+          // chuyển dữ liệu từ ruộng cũ (10 ô) sang luống mới
+          s.tiles = d.tiles;
+          (s.plots || []).forEach((p, i) => { if (p && p.crop && i < 12) s.tiles[i] = { crop: p.crop, plantedAt: p.plantedAt, watered: true }; });
+          s.beds = [true, (s.plots || []).filter((p) => p && p.unlocked).length > 6, false, false];
+        }
         return { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned }, settings: { ...d.settings, ...s.settings } };
       }
     } catch (e) { /* dùng dữ liệu mặc định */ }
@@ -60,6 +67,7 @@
   let clock = 0;
 
   function enterMap(id, x, y) {
+    if (map && map.id !== id) { map.ground = null; }
     map = maps[id];
     player.x = x ?? map.spawn.x;
     player.y = y ?? map.spawn.y;
@@ -160,56 +168,120 @@
     changed();
   };
 
-  /* ---------- Ruộng ---------- */
-  AV.plotStage = (p) => {
-    if (!p.crop) return -1;
-    const prog = (now - p.plantedAt) / (DATA.CROPS[p.crop].time * 1000);
-    return prog >= 1 ? 2 : prog >= 0.35 ? 1 : 0;
+  /* ---------- Ruộng: 4 luống × 12 ô, cây khát nước phải tưới ---------- */
+  const TPB = DATA.TILES_PER_BED;
+  const bedOf = (i) => Math.floor(i / TPB);
+  const bedTiles = (bed) => S.tiles.slice(bed * TPB, bed * TPB + TPB);
+
+  /** Trạng thái một ô: tiến độ (0..1), khát nước, giai đoạn cây */
+  function tileState(t) {
+    if (!t || !t.crop) return { stage: -1 };
+    const total = DATA.CROPS[t.crop].time * 1000;
+    let p = (now - t.plantedAt) / total;
+    const thirsty = !t.watered && p >= DATA.THIRSTY_AT;
+    if (thirsty) p = DATA.THIRSTY_AT;
+    p = Math.min(1, p);
+    return { p, thirsty, left: Math.max(0, (1 - p) * total / 1000), stage: p >= 1 ? 2 : p >= 0.3 ? 1 : 0 };
+  }
+  AV.tileState = tileState;
+
+  /** Chỉ báo của cả luống: số ô chín, ô khát nước, thời gian ô sớm nhất */
+  AV.bedIndicator = (bed) => {
+    if (!S.beds[bed]) return null;
+    let ready = 0, thirsty = 0, minLeft = Infinity, p = 0;
+    bedTiles(bed).forEach((t) => {
+      const st = tileState(t);
+      if (st.stage < 0) return;
+      if (st.stage === 2) ready++;
+      else if (st.thirsty) thirsty++;
+      else if (st.left < minLeft) { minLeft = st.left; p = st.p; }
+    });
+    if (ready) return '🧺';
+    if (thirsty) return '💧';
+    if (minLeft < Infinity) return { p, left: minLeft };
+    return null;
   };
 
-  AV.plotIndicator = (i) => {
-    const p = S.plots[i];
-    if (!p.unlocked || !p.crop) return null;
-    const c = DATA.CROPS[p.crop];
-    const prog = (now - p.plantedAt) / (c.time * 1000);
-    return prog >= 1 ? c.icon : prog;
-  };
+  function waterBed(bed) {
+    let n = 0;
+    bedTiles(bed).forEach((t) => {
+      const st = tileState(t);
+      if (!st.thirsty) return;
+      const total = DATA.CROPS[t.crop].time * 1000;
+      t.plantedAt += now - (t.plantedAt + DATA.THIRSTY_AT * total);
+      t.watered = true;
+      n++;
+    });
+    if (n) {
+      addXP(Math.ceil(n / 3));
+      float(`💧 Tưới ${n} cây`, player.x, player.y - 110, '#a5d8ff');
+      changed();
+    }
+    return n;
+  }
 
-  AV.usePlot = (i) => {
-    const p = S.plots[i];
-    if (!p.unlocked) {
-      const price = DATA.PLOT_PRICES[i];
-      UI.confirm(`Mở khoá ô ruộng này với giá <b>${price} xu</b>?`, 'Mở khoá', () => {
+  function harvestBed(bed) {
+    const got = {};
+    let xp = 0;
+    bedTiles(bed).forEach((t) => {
+      if (tileState(t).stage !== 2) return;
+      const c = DATA.CROPS[t.crop];
+      got[t.crop] = (got[t.crop] || 0) + c.yield;
+      xp += c.xp;
+      t.crop = null; t.plantedAt = 0; t.watered = false;
+    });
+    const keys = Object.keys(got);
+    if (!keys.length) return false;
+    keys.forEach((k) => addItem(k, got[k]));
+    addXP(xp);
+    float(keys.map((k) => `+${got[k]} ${DATA.CROPS[k].icon}`).join('  '), player.x, player.y - 110);
+    changed();
+    return true;
+  }
+
+  AV.useTile = (i) => {
+    const bed = bedOf(i);
+    if (!S.beds[bed]) {
+      const price = DATA.BED_PRICES[bed];
+      UI.confirm(`Mua luống ruộng này (12 ô) với giá <b>${price} xu</b>?`, 'Mua luống', () => {
         if (S.coins < price) return UI.toast('Không đủ xu 😢');
         S.coins -= price;
-        p.unlocked = true;
-        UI.toast('Đã mở khoá ô ruộng mới! 🌱');
+        S.beds[bed] = true;
+        UI.toast('Đã mua luống mới! Gieo hạt thôi 🌱');
         changed();
       });
       return;
     }
-    if (!p.crop) return UI.seedPicker(i);
-    const c = DATA.CROPS[p.crop];
-    if (AV.plotStage(p) === 2) {
-      addItem(p.crop, c.yield);
-      addXP(c.xp);
-      float(`+${c.yield} ${c.icon}`, player.x, player.y - 100);
-      p.crop = null;
-      changed();
-    } else {
-      const left = Math.ceil(c.time - (now - p.plantedAt) / 1000);
-      UI.toast(`${c.icon} ${c.name} còn ${left}s nữa mới thu hoạch được`);
-    }
+    const t = S.tiles[i];
+    const st = tileState(t);
+    if (st.stage === 2 || (st.stage >= 0 && bedTiles(bed).some((x) => tileState(x).stage === 2))) { harvestBed(bed); return; }
+    if (st.thirsty || bedTiles(bed).some((x) => tileState(x).thirsty)) { waterBed(bed); return; }
+    if (st.stage < 0) return UI.seedPicker(i);
+    const c = DATA.CROPS[t.crop];
+    UI.toast(`${c.icon} ${c.name} còn ${Math.ceil(st.left)}s nữa mới thu hoạch được`);
   };
 
-  AV.plant = (i, crop) => {
+  function plantTile(i, crop) {
     const key = 'seed_' + crop;
-    if (!S.inv[key]) return;
+    if (!S.inv[key] || S.tiles[i].crop) return false;
     S.inv[key]--;
-    S.plots[i] = { unlocked: true, crop, plantedAt: Date.now() };
-    float('🌱 Gieo hạt', player.x, player.y - 100);
-    changed();
+    S.tiles[i] = { crop, plantedAt: Date.now(), watered: false };
+    return true;
+  }
+
+  AV.plant = (i, crop) => {
+    if (plantTile(i, crop)) { float('🌱 Gieo hạt', player.x, player.y - 110); changed(); }
   };
+
+  /** Gieo tất cả ô trống trong luống bằng một loại hạt */
+  AV.plantBed = (i, crop) => {
+    const bed = bedOf(i);
+    let n = 0;
+    for (let k = bed * TPB; k < bed * TPB + TPB; k++) if (plantTile(k, crop)) n++;
+    if (n) { float(`🌱 Gieo ${n} ô`, player.x, player.y - 110); changed(); }
+    if (!S.inv['seed_' + crop] && n < bedTiles(bed).length) UI.toast('Hết hạt giống — mua thêm ở Chợ (Khu mua sắm)');
+  };
+  AV.emptyInBed = (i) => bedTiles(bedOf(i)).filter((t) => !t.crop).length;
 
   /* ---------- Chuồng trại ---------- */
   function farmBuilding(st, cfg, opts) {
@@ -237,7 +309,7 @@
   function buildingIndicator(st, cfg) {
     if (!st.fedAt) return '🌾';
     const prog = (now - st.fedAt) / (cfg.time * 1000);
-    return prog >= 1 ? null : prog;
+    return prog >= 1 ? null : { p: prog, left: cfg.time - (now - st.fedAt) / 1000 };
   }
 
   AV.useCoop = () => farmBuilding(S.coop, DATA.COOP, {
@@ -263,6 +335,18 @@
   };
 
   AV.useHouse = () => UI.characterEditor(false);
+
+  AV.canCook = (r) => Object.entries(r.need).every(([id, n]) => (S.inv[id] || 0) >= n);
+  AV.cook = (id) => {
+    const r = DATA.RECIPES.find((x) => x.id === id);
+    if (!r || !AV.canCook(r)) return UI.toast('Chưa đủ nguyên liệu 🥲');
+    Object.entries(r.need).forEach(([k, n]) => { S.inv[k] -= n; });
+    addItem(r.id, 1);
+    addXP(r.xp);
+    float(`+1 ${r.icon}`, player.x, player.y - 110);
+    UI.toast(`Đã nấu xong ${r.icon} ${r.name}! (bán ${r.sell} xu ở Chợ)`);
+    changed();
+  };
 
   AV.useFountain = () => {
     if (S.coins < 1) return UI.toast('Cần 1 xu để ước nguyện');
@@ -503,7 +587,7 @@
     say(npc, r);
   }
 
-  const SOUNDS = { chicken: 'Cục ta cục tác!', cow: 'Ùmm boò~', sheep: 'Be be be~', pig: 'Ụt ịt!' };
+  const SOUNDS = { chicken: 'Cục ta cục tác!', cow: 'Ùmm boò~', sheep: 'Be be be~', pig: 'Ụt ịt!', dog: 'Gâu gâu! 🐶' };
 
   AV.showBubble = (ent, text) => say(ent, text);
 
@@ -604,7 +688,7 @@
     e.peck = false;
   }
 
-  const ANIMAL_SPEED = { chicken: 45, cow: 26, sheep: 30, pig: 32 };
+  const ANIMAL_SPEED = { chicken: 45, cow: 26, sheep: 30, pig: 32, dog: 70 };
 
   function update(dt) {
     clock += dt;
@@ -656,9 +740,35 @@
   /* Thế giới được vẽ vào bộ đệm độ phân giải thấp rồi phóng to không làm mịn → nét pixel kiểu Avatar */
   const wbuf = document.createElement('canvas');
   const wctx = wbuf.getContext('2d');
-  const pixelSize = () => (S.settings && S.settings.pixel === false ? 0 : 2);
+  const pixelSize = () => (S.settings && S.settings.pixelArt ? 2 : 0);
   const BOX_BUS = { l: -168, t: -145, w: 336, h: 155 };
   const BOX_PICK = { l: -16, t: -32, w: 32, h: 36 };
+
+  /** Vẽ nền của khu ở độ phân giải phù hợp (tối đa 2x để tiết kiệm bộ nhớ) */
+  function ensureGround(m, scale) {
+    const gs = Math.max(1, Math.min(2, scale));
+    if (m.ground && m.groundScale === gs) return;
+    const c = m.ground || document.createElement('canvas');
+    c.width = Math.round(m.w * gs);
+    c.height = Math.round(m.h * gs);
+    const gc = c.getContext('2d');
+    gc.setTransform(gs, 0, 0, gs, 0, 0);
+    m.paintGround(gc);
+    m.ground = c;
+    m.groundScale = gs;
+  }
+
+  /** Mức tối của trời (0 = ngày, 1 = đêm) theo giờ thật hoặc theo cài đặt */
+  function nightFactor() {
+    const mode = (S.settings && S.settings.time) || 'real';
+    if (mode === 'day') return 0;
+    if (mode === 'night') return 1;
+    const d = new Date(), h = d.getHours() + d.getMinutes() / 60;
+    if (h >= 19 || h < 5) return 1;
+    if (h >= 17.5) return (h - 17.5) / 1.5;
+    if (h < 6) return 1 - (h - 5);
+    return 0;
+  }
 
   function worldTransform(c, scale, offX, offY) {
     c.setTransform(scale, 0, 0, scale, offX, offY);
@@ -684,8 +794,11 @@
       worldTransform(ctx, DPR * ZOOM, DPR * (W / 2 - cam.x * ZOOM), DPR * (H / 2 - cam.y * ZOOM));
     }
     g.imageSmoothingEnabled = true;
-    g.drawImage(map.ground, 0, 0);
+    ensureGround(map, px ? 1 : FX.scale);
+    g.drawImage(map.ground, 0, 0, map.w, map.h);
     ART.backdrop(g, map.w, map.hz, cam.x, clock, map.id === 'beach');
+    const night = nightFactor();
+    ART.nightSky(g, map.w, map.hz, night, clock);
 
     if (marker) {
       const sc = 1 + (marker.t % 0.8);
@@ -700,6 +813,7 @@
       if (a.kind === 'chicken') out((c) => ART.chicken(c, a.x, a.y, a.dir, a.t, a.moving, a.peck), a.x, a.y, FX.BOX.chicken, a);
       else if (a.kind === 'cow') out((c) => ART.cow(c, a.x, a.y, a.dir, a.t, a.moving, a.seed), a.x, a.y, FX.BOX.cow, a);
       else if (a.kind === 'sheep') out((c) => ART.sheep(c, a.x, a.y, a.dir, a.t, a.moving), a.x, a.y, FX.BOX.sheep, a);
+      else if (a.kind === 'dog') out((c) => { c.save(); c.translate(a.x, a.y); c.scale(1.5, 1.5); ART.pet(c, 0, 0, 'dog', a.dir, a.t, a.moving); c.restore(); }, a.x, a.y, { l: -55, t: -80, w: 110, h: 86 }, a);
       else out((c) => ART.pig(c, a.x, a.y, a.dir, a.t, a.moving), a.x, a.y, FX.BOX.pig, a);
     } }));
     map.pickups.forEach((p) => list.push({ y: p.y, draw: () => out((c) => ART.pickup(c, p.x, p.y, p.item.icon, clock), p.x, p.y, BOX_PICK, p, 120) }));
@@ -723,6 +837,12 @@
     }
     list.sort((a, b) => a.y - b.y);
     list.forEach((o) => o.draw(g, clock));
+    if (night > 0) {
+      const vw = W / ZOOM, vh = H / ZOOM;
+      g.fillStyle = `rgba(16,26,72,${0.45 * night})`;
+      g.fillRect(cam.x - vw / 2 - 10, map.hz, vw + 20, vh + 400);
+      ART.fireflies(g, cam.x, cam.y, vw, vh, night, clock);
+    }
 
     if (px) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -738,9 +858,12 @@
       if (!o.indicator) return;
       const r = o.indicator();
       if (r == null) return;
-      if (typeof r === 'number') progressBar(o.ix, o.iy, r);
+      if (typeof r === 'object') ART.timerLabel(ctx, o.ix, o.iy, r.left, r.p);
       else ART.iconBubble(ctx, r, o.ix, o.iy - 14, clock);
     });
+
+    // mũi tên vàng "Vào" trước cửa
+    map.inter.forEach((o) => { if (o.arrow) ART.doorArrow(ctx, o.arrow.x, o.arrow.y, clock, o.arrow.text); });
 
     // bảng tên gỗ dưới chân như Avatar
     map.npcs.forEach((n) => ART.namePlate(ctx, n.name, n.x, n.y + 6, 'npc'));
@@ -807,6 +930,7 @@
     canvas.style.width = W + 'px';
     canvas.style.height = H + 'px';
     ZOOM = Math.max(0.62, Math.min(1.15, Math.min(W / 1050, H / 720)));
+    FX.setScale(DPR * ZOOM);
   }
 
   function toWorld(cx, cy) {

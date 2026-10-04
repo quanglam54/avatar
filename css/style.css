@@ -317,3 +317,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .hud-left { gap: 6px; }
   .av-btn.sq, .av-btn.menu { width: 44px; height: 44px; }
 }
+
+.need .ok { color: #2b8a3e; font-weight: 700; }
+.need .lack { color: #e03131; font-weight: 700; }

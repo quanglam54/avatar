@@ -392,6 +392,7 @@ const ART = (() => {
 
   /* ---------------- Cảnh vật ---------------- */
   function tree(ctx, x, y, variant) {
+    if (variant === 'mai') return maiTree(ctx, x, y);
     const r = srand(x * 13 + y * 7);
     shadow(ctx, x, y, 48, 12, 0.16);
     ctx.fillStyle = '#8b5a2b';
@@ -419,6 +420,39 @@ const ART = (() => {
         circle(ctx, fx - 1.5, fy - 2, 1.6, '#fff3bf');
       }
     }
+  }
+
+  /** Cây mai vàng ngày Tết: thân gỗ phân nhánh, chùm hoa vàng rực */
+  function maiTree(ctx, x, y) {
+    const r = srand(x * 7 + y * 3);
+    shadow(ctx, x, y, 52, 12, 0.16);
+    ctx.strokeStyle = '#6f4420'; ctx.lineCap = 'round';
+    const branches = [];
+    const grow = (bx, by, ang, len, wdt, depth) => {
+      const ex = bx + Math.cos(ang) * len, ey = by + Math.sin(ang) * len;
+      ctx.lineWidth = wdt;
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex, ey); ctx.stroke();
+      if (depth <= 0) { branches.push([ex, ey]); return; }
+      grow(ex, ey, ang - 0.45 - r() * 0.3, len * 0.72, wdt * 0.65, depth - 1);
+      grow(ex, ey, ang + 0.45 + r() * 0.3, len * 0.72, wdt * 0.65, depth - 1);
+      if (depth === 2) branches.push([ex, ey]);
+    };
+    grow(x, y, -Math.PI / 2, 62, 14, 3);
+    const cols = ['#ffd21f', '#ffe36b', '#ffc400', '#fff3a0'];
+    branches.forEach(([bx, by]) => {
+      for (let i = 0; i < 9; i++) {
+        const fx = bx - 20 + r() * 40, fy = by - 18 + r() * 34;
+        for (let k = 0; k < 5; k++) {
+          const a = k * Math.PI * 2 / 5;
+          circle(ctx, fx + Math.cos(a) * 3.4, fy + Math.sin(a) * 3.4, 3, cols[i % 4]);
+        }
+        circle(ctx, fx, fy, 1.8, '#e8590c');
+      }
+      for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = '#5cb83c';
+        ctx.beginPath(); ctx.ellipse(bx - 14 + r() * 28, by - 10 + r() * 20, 5, 2.6, r() * 3, 0, Math.PI * 2); ctx.fill();
+      }
+    });
   }
 
   function bush(ctx, x, y, flower) {
@@ -559,11 +593,12 @@ const ART = (() => {
       if ((i + j) % 2) ctx.fillRect(x + 3 + i * (w - 6) / 3, y + 3 + j * (h - 6) / 2, (w - 6) / 3, (h - 6) / 2);
     }
     if (!crop) return;
-    const cols = 3, rows = 2;
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      const px = x + (c + 0.5) * w / cols, py = y + (r + 0.75) * h / rows;
-      plant(ctx, px, py, crop, stage, now + r * 0.7 + c);
-    }
+    // mỗi ô một cây to như Avatar
+    ctx.save();
+    ctx.translate(x + w / 2, y + h * 0.78);
+    ctx.scale(2.4, 2.4);
+    plant(ctx, 0, 0, crop, stage, now);
+    ctx.restore();
   }
 
   function plant(ctx, x, y, crop, stage, t) {
@@ -575,12 +610,28 @@ const ART = (() => {
       return;
     }
     if (stage === 1) {
-      ctx.strokeStyle = '#2f9e44'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + sway, y - 14); ctx.stroke();
-      ctx.fillStyle = '#51cf66';
-      [[-5, -8, -0.6], [5, -10, 0.6], [-4, -14, -0.5], [4, -16, 0.5]].forEach(([dx, dy, a]) => {
-        ctx.beginPath(); ctx.ellipse(x + dx + sway, y + dy, 5, 2.4, a, 0, Math.PI * 2); ctx.fill();
+      // cây non lá to xoè ra như Avatar
+      [[-6, -6, -0.9], [6, -6, 0.9], [-3, -11, -0.4], [3, -11, 0.4], [0, -13, 0]].forEach(([dx, dy, ang], i) => {
+        ctx.save(); ctx.translate(x + dx * 0.4 + sway * 0.5, y + dy * 0.3); ctx.rotate(ang);
+        ctx.fillStyle = i < 2 ? '#2f8f2f' : '#4cb33f';
+        ctx.beginPath(); ctx.ellipse(0, -6, 3.6, 7, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -11); ctx.stroke();
+        ctx.restore();
       });
+      return;
+    }
+    if (crop === 'rose') {
+      ctx.strokeStyle = '#2f8f2f'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + sway, y - 15); ctx.stroke();
+      ctx.fillStyle = '#3c9e36';
+      ctx.beginPath(); ctx.ellipse(x - 4, y - 6, 4, 2, -0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x + 4, y - 9, 4, 2, 0.5, 0, Math.PI * 2); ctx.fill();
+      circle(ctx, x + sway, y - 18, 5.5, '#c2185b');
+      circle(ctx, x + sway, y - 18.5, 4.2, '#e64980');
+      circle(ctx, x + sway - 1, y - 19.5, 2.4, '#f783ac');
+      ctx.strokeStyle = '#a61e4d'; ctx.lineWidth = 0.6;
+      ctx.beginPath(); ctx.arc(x + sway, y - 18.5, 2.6, 0.5, 4); ctx.stroke();
       return;
     }
     if (crop === 'wheat') {
