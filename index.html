@@ -14,8 +14,15 @@
 <body>
   <canvas id="game"></canvas>
 
-  <div class="hud">
-    <div class="hud-card">
+  <div class="hud-left">
+    <button class="av-btn menu" id="btnMenu" title="Menu"><i class="burger"></i><span>MENU</span></button>
+    <button class="av-btn sq" id="btnMap" title="Bản đồ thành phố">🗺️</button>
+    <button class="av-btn sq" id="btnChat" title="Tin nhắn">💬</button>
+  </div>
+
+  <div class="hud-right">
+    <div class="money"><span class="coin"></span><b id="hudCoins">0</b></div>
+    <div class="lvbox">
       <canvas id="hudAvatar"></canvas>
       <div class="hud-info">
         <b id="hudName">Người chơi</b>
@@ -23,18 +30,10 @@
         <div class="xpbar"><i id="hudXp"></i></div>
       </div>
     </div>
-    <div class="pill coins">💰 <b id="hudCoins">0</b></div>
-    <div class="pill loc" id="hudLoc">📍 Nông trại</div>
-    <button class="pill net" id="netStatus" title="Người chơi online">⚪ Offline</button>
+    <button class="net" id="netStatus" title="Người chơi online">⚪ Offline</button>
   </div>
 
-  <div class="hud-right">
-    <button id="btnMap" title="Bản đồ">🗺️<span>Bản đồ</span></button>
-    <button id="btnBag" title="Túi đồ">🎒<span>Túi đồ</span></button>
-    <button id="btnWardrobe" title="Tủ đồ">👕<span>Tủ đồ</span></button>
-    <button id="btnHelp" title="Cách chơi">❓</button>
-    <button id="btnSettings" title="Cài đặt">⚙️</button>
-  </div>
+  <div class="loc-banner" id="hudLoc">Nông trại</div>
 
   <div class="chatbar">
     <div class="chatlog" id="chatLog"></div>
@@ -51,6 +50,7 @@
 
   <script src="js/config.js"></script>
   <script src="js/data.js"></script>
+  <script src="js/fx.js"></script>
   <script src="js/art.js"></script>
   <script src="js/art2.js"></script>
   <script src="js/maps.js"></script>

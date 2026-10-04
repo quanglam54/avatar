@@ -233,3 +233,87 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .bc-cell .ic { font-size: 28px; }
   .die { width: 54px; height: 54px; font-size: 30px; }
 }
+
+/* =========================================================
+   Phong cách Avatar: HUD, nút, bảng gỗ, viền đậm
+   ========================================================= */
+.hud-left { position: fixed; top: 10px; left: 10px; display: flex; gap: 8px; z-index: 6; }
+.av-btn {
+  height: 48px; border: 3px solid #fff; border-radius: 13px; cursor: pointer;
+  box-shadow: 0 0 0 2px #1b2f48, 0 5px 0 2px #1b2f48; transition: transform .08s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+}
+.av-btn:active { transform: translateY(3px); box-shadow: 0 0 0 2px #1b2f48, 0 2px 0 2px #1b2f48; }
+.av-btn.menu {
+  padding: 0 14px 0 12px; color: #fff; font-weight: 900; font-size: 17px; letter-spacing: .04em;
+  background: linear-gradient(#7fd7ff, #2d8fe6 55%, #1f73c4); text-shadow: 0 2px 0 #134a80;
+}
+.burger { width: 20px; height: 3.5px; background: #fff; border-radius: 2px; box-shadow: 0 -6.5px 0 #fff, 0 6.5px 0 #fff; display: block; }
+.av-btn.sq { width: 48px; font-size: 23px; background: linear-gradient(#ffffff, #d7eeff); padding: 0; }
+
+.hud-right { position: fixed; top: 10px; right: 10px; display: flex; gap: 8px; align-items: center; z-index: 6; flex-direction: row; }
+.money, .lvbox, .hud-right .net {
+  background: rgba(22, 32, 52, .78); color: #fff; border: 2px solid rgba(255,255,255,.85);
+  box-shadow: 0 0 0 2px #1b2f48; border-radius: 999px; font-weight: 800; backdrop-filter: blur(4px);
+}
+.money { display: flex; align-items: center; gap: 8px; padding: 4px 16px 4px 5px; font-size: 16px; height: 40px; }
+.money .coin { width: 28px; height: 28px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6b0, #ffc928 45%, #d98e04); box-shadow: inset 0 0 0 2px #a86a00; }
+.lvbox { display: flex; align-items: center; gap: 8px; padding: 3px 14px 3px 3px; height: 48px; border-radius: 26px; }
+.lvbox #hudAvatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #d0ebff, #b2f2bb); display: block; }
+.lvbox .hud-info b { font-size: 13px; color: #fff; display: block; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lvbox .hud-info .lv { font-size: 11px; color: #c9dcf5; }
+.lvbox .xpbar { width: 110px; height: 6px; background: rgba(255,255,255,.2); }
+.hud-right .net { height: 40px; padding: 0 14px; font-size: 13px; cursor: pointer; }
+.hud-right button.net:hover { transform: none; }
+
+.loc-banner {
+  position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 5; pointer-events: none;
+  background: linear-gradient(#ffd99a, #f2b25e); color: #3d1f08; font-weight: 900; font-size: 15px;
+  padding: 6px 20px; border-radius: 10px; border: 3px solid #5a3010; box-shadow: 0 4px 0 #5a3010;
+  white-space: nowrap;
+}
+.loc-banner.show { animation: banner 2.4s ease-out; }
+@keyframes banner { 0% { transform: translateX(-50%) scale(.6); opacity: 0; } 12% { transform: translateX(-50%) scale(1.12); opacity: 1; } 22% { transform: translateX(-50%) scale(1); } }
+
+/* Bảng (panel) kiểu Avatar */
+.panel { border: 3px solid #2b1a10; box-shadow: 0 8px 0 #2b1a10, 0 20px 40px -10px rgba(0,0,0,.5); }
+.panel header { background: linear-gradient(#7fd7ff, #2d8fe6 60%, #1f73c4); border-bottom: 3px solid #2b1a10; }
+.panel header h3 { color: #fff; text-shadow: 0 2px 0 #134a80, 0 0 6px rgba(0,0,0,.25); }
+.panel .x { background: linear-gradient(#ff8a8a, #e03131); color: #fff; border: 2px solid #2b1a10; box-shadow: 0 3px 0 #2b1a10; }
+.btn { border: 2px solid #2b1a10; box-shadow: 0 4px 0 #2b1a10; }
+.btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 #2b1a10; }
+.btn.ghost { border: 2px solid #2b1a10; box-shadow: 0 4px 0 #2b1a10; background: linear-gradient(#ffffff, #e9eef7); }
+.chip { border: 2px solid #2b1a10; }
+.shop-row, .b-card, .inv-item { border: 2px solid #c9b48a; background: #fff8e6; }
+
+.menu-head { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 16px; background: #fff3d6; border: 2px solid #c9a46a; margin-bottom: 14px; }
+.menu-head .menu-av { width: 64px; height: 72px; border-radius: 12px; display: block; }
+.menu-head b { font-size: 17px; display: block; }
+.menu-head small { color: var(--muted); }
+.menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.menu-item {
+  border: 2px solid #2b1a10; border-radius: 16px; background: linear-gradient(#ffffff, #dff1ff);
+  box-shadow: 0 4px 0 #2b1a10; padding: 12px 6px; display: grid; justify-items: center; gap: 4px; font-weight: 800; font-size: 13px;
+}
+.menu-item span { font-size: 30px; }
+.menu-item:active { transform: translateY(3px); box-shadow: 0 1px 0 #2b1a10; }
+.toggle { display: flex; gap: 10px; align-items: center; font-weight: 700; padding: 10px 12px; background: #f1f6ff; border-radius: 12px; cursor: pointer; }
+.toggle input { width: 20px; height: 20px; }
+
+.chatbar form { border: 2px solid #1b2f48; box-shadow: 0 4px 0 #1b2f48; }
+.chatbar .send { border: 2px solid #1b2f48; background: linear-gradient(#7fd7ff, #2d8fe6 60%, #1f73c4); text-shadow: 0 1px 0 #134a80; }
+
+@media (max-width: 760px) {
+  .lvbox .hud-info { display: none; }
+  .lvbox { padding: 3px; }
+  .av-btn.menu span { display: none; }
+  .av-btn.menu { width: 48px; padding: 0; }
+  .loc-banner { top: 66px; font-size: 13px; padding: 4px 14px; }
+  .hud-right .net { padding: 0 10px; font-size: 12px; }
+}
+@media (max-width: 560px) {
+  .hud-right .net { display: none; }
+  .money { padding-right: 10px; font-size: 14px; }
+  .hud-left { gap: 6px; }
+  .av-btn.sq, .av-btn.menu { width: 44px; height: 44px; }
+}

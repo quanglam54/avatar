@@ -84,7 +84,11 @@ const UI = (() => {
     drawAvatar($('#hudAvatar'), S.look, { scale: 1, headOnly: true, bg: false });
   }
 
-  function setLocation(name) { $('#hudLoc').textContent = '📍 ' + name; }
+  function setLocation(name) {
+    const el = $('#hudLoc');
+    el.textContent = name;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  }
 
   /* ---------- Tạo / sửa nhân vật ---------- */
   function swatches(key, colors, cur) {
@@ -558,10 +562,37 @@ const UI = (() => {
     p.body.querySelector('[data-ok]').onclick = p.close;
   }
 
+  function menu() {
+    const S = AV.S;
+    const items = [
+      ['bag', '🎒', 'Túi đồ', inventory],
+      ['wear', '👕', 'Tủ đồ', () => characterEditor(false)],
+      ['map', '🗺️', 'Bản đồ', () => cityMap(false)],
+      ['people', '👥', 'Người chơi', playersPanel],
+      ['help', '❓', 'Cách chơi', help],
+      ['set', '⚙️', 'Cài đặt', settings],
+    ];
+    const p = panel('☰ MENU', `
+      <div class="menu-head"><canvas class="menu-av"></canvas><div><b>${esc(S.name)}</b><small>Cấp ${S.level} · 💰 ${S.coins.toLocaleString('vi-VN')} xu</small></div></div>
+      <div class="menu-grid">${items.map(([id, ic, label]) => `<button class="menu-item" data-m="${id}"><span>${ic}</span>${label}</button>`).join('')}</div>`);
+    drawAvatar(p.body.querySelector('.menu-av'), S.look, { scale: 0.9 });
+    p.body.querySelectorAll('[data-m]').forEach((b) => b.onclick = () => {
+      const it = items.find((x) => x[0] === b.dataset.m);
+      p.close();
+      it[3]();
+    });
+  }
+
   function settings() {
+    const S = AV.S;
     const p = panel('⚙️ Cài đặt', `
+      <label class="toggle"><input type="checkbox" data-pixel ${S.settings && S.settings.pixel === false ? '' : 'checked'}> Đồ hoạ pixel kiểu Avatar (tắt nếu máy chạy chậm)</label>
       <p class="muted">Dữ liệu được lưu tự động trên trình duyệt này.</p>
       <div class="row-end"><button class="btn danger" data-reset>🗑 Chơi lại từ đầu</button></div>`);
+    p.body.querySelector('[data-pixel]').onchange = (e) => {
+      S.settings = { ...(S.settings || {}), pixel: e.target.checked };
+      AV.saveNow();
+    };
     p.body.querySelector('[data-reset]').onclick = () => {
       p.close();
       confirm('Xoá toàn bộ tiến trình và tạo nhân vật mới?', 'Xoá hết', () => AV.resetGame());
@@ -602,11 +633,9 @@ const UI = (() => {
   function init() {
     $('#netStatus').onclick = playersPanel;
     $('#chatLog').onclick = () => $('#chatLog').classList.toggle('active');
-    $('#btnBag').onclick = inventory;
+    $('#btnMenu').onclick = menu;
     $('#btnMap').onclick = () => cityMap(false);
-    $('#btnWardrobe').onclick = () => characterEditor(false);
-    $('#btnHelp').onclick = help;
-    $('#btnSettings').onclick = settings;
+    $('#btnChat').onclick = () => { $('#chatLog').classList.add('active'); $('#chatInput').focus(); };
     const emo = $('#emotes');
     emo.innerHTML = DATA.EMOTES.map((e) => `<button data-e="${e}">${e}</button>`).join('');
     emo.querySelectorAll('[data-e]').forEach((b) => b.onclick = () => AV.say(b.dataset.e));
@@ -620,5 +649,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, fishing };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, fishing, menu };
 })();

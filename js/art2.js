@@ -355,5 +355,100 @@ Object.assign(ART, (() => {
     });
   }
 
-  return { pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
+  /* ---------- Phong cách Avatar: bầu trời, đồng xa, hàng rào, tulip, bảng tên ---------- */
+  function cloud(ctx, x, y, s) {
+    ctx.fillStyle = '#dbefff';
+    [[0, 6, 22], [24, 2, 26], [50, 8, 20], [14, -10, 20], [36, -12, 22]].forEach(([dx, dy, r]) => circle(ctx, x + dx * s, y + dy * s + 4, r * s, '#cfe8fb'));
+    [[0, 6, 22], [24, 2, 26], [50, 8, 20], [14, -10, 20], [36, -12, 22]].forEach(([dx, dy, r]) => circle(ctx, x + dx * s, y + dy * s, r * s, '#fff'));
+  }
+
+  function backdrop(ctx, w, hz, camX, t, sea) {
+    const g = ctx.createLinearGradient(0, 0, 0, hz);
+    g.addColorStop(0, '#4fb0f0'); g.addColorStop(1, '#c6ebff');
+    ctx.fillStyle = g; ctx.fillRect(-800, -200, w + 1600, hz + 200);
+    for (let i = 0; i < 8; i++) {
+      const span = w + 900;
+      const cx = ((i * 397 + t * (6 + i)) % span) - 450;
+      cloud(ctx, cx, 30 + (i * 61) % 120, 0.8 + (i % 3) * 0.25);
+    }
+    if (sea) return;
+    const par = (f, fn) => { ctx.save(); ctx.translate((camX - w / 2) * f, 0); fn(); ctx.restore(); };
+    par(0.6, () => {
+      ctx.fillStyle = '#a5dc8c';
+      for (let x = -900; x < w + 900; x += 240) { ctx.beginPath(); ctx.ellipse(x, hz - 30, 190, 80, 0, Math.PI, 0); ctx.fill(); }
+    });
+    par(0.45, () => {
+      for (let x = -900; x < w + 900; x += 44) {
+        const yy = hz - 52 + ((x / 44) % 3) * 4, r = 22 + ((x / 44) % 4) * 3;
+        circle(ctx, x, yy + 4, r, '#3c9a3c');
+        circle(ctx, x, yy, r, '#57b84a');
+        circle(ctx, x - 6, yy - 7, r * 0.45, '#7fd36a');
+      }
+    });
+    par(0.25, () => {
+      const cols = ['#c9e47f', '#9fd468', '#e3d27a', '#b4dc6e'];
+      for (let x = -900, i = 0; x < w + 900; x += 200, i++) {
+        ctx.fillStyle = cols[i % 4];
+        ctx.fillRect(x, hz - 34, 198, 34);
+        ctx.strokeStyle = 'rgba(80,120,40,.35)'; ctx.lineWidth = 2;
+        for (let k = 1; k < 4; k++) { ctx.beginPath(); ctx.moveTo(x, hz - 34 + k * 8.5); ctx.lineTo(x + 198, hz - 34 + k * 8.5); ctx.stroke(); }
+      }
+    });
+  }
+
+  function woodFence(ctx, x1, x2, y) {
+    ctx.fillStyle = '#c98a4b';
+    ctx.fillRect(x1, y - 30, x2 - x1, 6);
+    ctx.fillRect(x1, y - 16, x2 - x1, 6);
+    for (let x = x1 + 6; x < x2; x += 34) {
+      ctx.fillStyle = '#b97a3e';
+      ctx.beginPath(); ctx.moveTo(x - 6, y); ctx.lineTo(x - 6, y - 36); ctx.lineTo(x, y - 42); ctx.lineTo(x + 6, y - 36); ctx.lineTo(x + 6, y); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#dba468'; ctx.fillRect(x - 4, y - 36, 3, 34);
+    }
+  }
+
+  function tulips(ctx, x1, x2, y) {
+    const r = srand(x1 * 3 + y);
+    for (let x = x1; x < x2; x += 16) {
+      ctx.fillStyle = '#2f8f2f';
+      ctx.beginPath(); ctx.ellipse(x, y - 6, 9, 8, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#46b23e';
+      ctx.beginPath(); ctx.ellipse(x - 4, y - 8, 4, 10, -0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x + 5, y - 8, 4, 10, 0.4, 0, Math.PI * 2); ctx.fill();
+    }
+    const cols = ['#e8202a', '#ffd21f', '#ff4f7a', '#ff8c1a', '#e8202a'];
+    for (let x = x1 + 4; x < x2; x += 12) {
+      const fx = x + r() * 6, fy = y - 18 - r() * 10;
+      ctx.strokeStyle = '#2f8f2f'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(fx, fy + 4); ctx.lineTo(fx, y - 6); ctx.stroke();
+      ctx.fillStyle = cols[Math.floor(r() * cols.length)];
+      ctx.beginPath();
+      ctx.moveTo(fx - 5, fy - 4); ctx.lineTo(fx - 2.5, fy - 1); ctx.lineTo(fx, fy - 5); ctx.lineTo(fx + 2.5, fy - 1); ctx.lineTo(fx + 5, fy - 4);
+      ctx.quadraticCurveTo(fx + 5, fy + 5, fx, fy + 5); ctx.quadraticCurveTo(fx - 5, fy + 5, fx - 5, fy - 4);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(fx - 3, fy - 2, 1.5, 4);
+    }
+  }
+
+  function namePlate(ctx, text, x, y, kind) {
+    ctx.font = '800 12px "Be Vietnam Pro", system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const w = Math.max(44, ctx.measureText(text).width + 18);
+    const bg = kind === 'me' ? '#ffb547' : kind === 'npc' ? '#efe2bf' : '#f6c77e';
+    ctx.fillStyle = '#5a3010';
+    rr(ctx, x - w / 2 - 2, y - 2, w + 4, 22, 6); ctx.fill();
+    ctx.fillStyle = bg;
+    rr(ctx, x - w / 2, y, w, 18, 5); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(x - w / 2 + 4, y + 2, w - 8, 3);
+    ctx.fillStyle = '#7a4316'; circle(ctx, x - w / 2 + 5, y + 9, 1.6, '#7a4316'); circle(ctx, x + w / 2 - 5, y + 9, 1.6, '#7a4316');
+    ctx.fillStyle = '#3d1f08';
+    ctx.fillText(text, x, y + 9.5);
+    if (kind === 'me') {
+      ctx.fillStyle = '#ffd43b';
+      ctx.beginPath(); ctx.moveTo(x - 6, y + 26); ctx.lineTo(x + 6, y + 26); ctx.lineTo(x, y + 34); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#5a3010'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+  }
+
+  return { backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
 })());

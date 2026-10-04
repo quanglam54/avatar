@@ -19,6 +19,7 @@
       coop: { fedAt: 0 },
       pen: { fedAt: 0 },
       map: 'farm', x: null, y: null,
+      settings: { pixel: true },
     };
   }
 
@@ -28,7 +29,7 @@
       if (raw) {
         const s = JSON.parse(raw);
         const d = defaultState();
-        return { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned } };
+        return { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned }, settings: { ...d.settings, ...s.settings } };
       }
     } catch (e) { /* dùng dữ liệu mặc định */ }
     return defaultState();
@@ -641,71 +642,97 @@
   function updateCamera() {
     const vw = W / ZOOM, vh = H / ZOOM;
     const tx = vw >= map.w ? map.w / 2 : Math.max(vw / 2, Math.min(map.w - vw / 2, player.x));
-    const ty = vh >= map.h ? map.h / 2 : Math.max(vh / 2, Math.min(map.h - vh / 2, player.y - 30));
+    const ty = vh >= map.h ? map.h / 2 : Math.max(vh / 2, Math.min(map.h - vh / 2, player.y - 150));
     cam.x = tx; cam.y = ty;
   }
 
-  function nameTag(text, x, y, mine, remote) {
-    ctx.font = '700 13px "Be Vietnam Pro", system-ui, sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const w = ctx.measureText(text).width + 14;
-    ctx.fillStyle = mine ? 'rgba(76,110,245,.85)' : remote ? 'rgba(47,158,68,.85)' : 'rgba(30,30,45,.55)';
-    ART.rr(ctx, x - w / 2, y - 10, w, 20, 10); ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.fillText(text, x, y + 0.5);
+  function progressBar(x, y, p) {
+    ctx.fillStyle = '#3d2410';
+    ART.rr(ctx, x - 27, y - 6, 54, 12, 4); ctx.fill();
+    ctx.fillStyle = '#69db7c';
+    ART.rr(ctx, x - 25, y - 4, 50 * Math.min(1, p), 8, 3); ctx.fill();
   }
 
-  function progressBar(x, y, p) {
-    ctx.fillStyle = 'rgba(0,0,0,.35)';
-    ART.rr(ctx, x - 26, y - 5, 52, 10, 5); ctx.fill();
-    ctx.fillStyle = '#69db7c';
-    ART.rr(ctx, x - 24, y - 3, 48 * Math.min(1, p), 6, 3); ctx.fill();
+  /* Thế giới được vẽ vào bộ đệm độ phân giải thấp rồi phóng to không làm mịn → nét pixel kiểu Avatar */
+  const wbuf = document.createElement('canvas');
+  const wctx = wbuf.getContext('2d');
+  const pixelSize = () => (S.settings && S.settings.pixel === false ? 0 : 2);
+  const BOX_BUS = { l: -168, t: -145, w: 336, h: 155 };
+  const BOX_PICK = { l: -16, t: -32, w: 32, h: 36 };
+
+  function worldTransform(c, scale, offX, offY) {
+    c.setTransform(scale, 0, 0, scale, offX, offY);
   }
 
   function draw() {
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    ctx.fillStyle = '#86cf55';
-    ctx.fillRect(0, 0, W, H);
     updateCamera();
-    ctx.setTransform(DPR * ZOOM, 0, 0, DPR * ZOOM, DPR * (W / 2 - cam.x * ZOOM), DPR * (H / 2 - cam.y * ZOOM));
-    ctx.drawImage(map.ground, 0, 0);
+    const px = pixelSize();
+    let g, bw = 0, bh = 0;
+    if (px) {
+      bw = Math.ceil(W / px); bh = Math.ceil(H / px);
+      if (wbuf.width !== bw || wbuf.height !== bh) { wbuf.width = bw; wbuf.height = bh; }
+      g = wctx;
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.fillStyle = '#72c844';
+      g.fillRect(0, 0, bw, bh);
+      worldTransform(g, ZOOM / px, (W / 2 - cam.x * ZOOM) / px, (H / 2 - cam.y * ZOOM) / px);
+    } else {
+      g = ctx;
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      ctx.fillStyle = '#72c844';
+      ctx.fillRect(0, 0, W, H);
+      worldTransform(ctx, DPR * ZOOM, DPR * (W / 2 - cam.x * ZOOM), DPR * (H / 2 - cam.y * ZOOM));
+    }
+    g.imageSmoothingEnabled = true;
+    g.drawImage(map.ground, 0, 0);
+    ART.backdrop(g, map.w, map.hz, cam.x, clock, map.id === 'beach');
 
     if (marker) {
-      const s = 1 + (marker.t % 0.8);
-      ctx.strokeStyle = `rgba(255,255,255,${Math.max(0, 0.9 - (marker.t % 0.8))})`;
-      ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.ellipse(marker.x, marker.y, 10 * s, 4 * s, 0, 0, Math.PI * 2); ctx.stroke();
+      const sc = 1 + (marker.t % 0.8);
+      g.strokeStyle = `rgba(255,255,255,${Math.max(0, 0.9 - (marker.t % 0.8))})`;
+      g.lineWidth = 2.5;
+      g.beginPath(); g.ellipse(marker.x, marker.y, 10 * sc, 4 * sc, 0, 0, Math.PI * 2); g.stroke();
     }
 
+    const out = (fn, x, y, box, key, ms = 55) => FX.drawCached(g, key, fn, x, y, box, ms);
     const list = map.objects.slice();
     map.animals.forEach((a) => list.push({ y: a.y, draw: () => {
-      if (a.kind === 'chicken') ART.chicken(ctx, a.x, a.y, a.dir, a.t, a.moving, a.peck);
-      else if (a.kind === 'cow') ART.cow(ctx, a.x, a.y, a.dir, a.t, a.moving, a.seed);
-      else if (a.kind === 'sheep') ART.sheep(ctx, a.x, a.y, a.dir, a.t, a.moving);
-      else ART.pig(ctx, a.x, a.y, a.dir, a.t, a.moving);
+      if (a.kind === 'chicken') out((c) => ART.chicken(c, a.x, a.y, a.dir, a.t, a.moving, a.peck), a.x, a.y, FX.BOX.chicken, a);
+      else if (a.kind === 'cow') out((c) => ART.cow(c, a.x, a.y, a.dir, a.t, a.moving, a.seed), a.x, a.y, FX.BOX.cow, a);
+      else if (a.kind === 'sheep') out((c) => ART.sheep(c, a.x, a.y, a.dir, a.t, a.moving), a.x, a.y, FX.BOX.sheep, a);
+      else out((c) => ART.pig(c, a.x, a.y, a.dir, a.t, a.moving), a.x, a.y, FX.BOX.pig, a);
     } }));
-    map.pickups.forEach((p) => list.push({ y: p.y, draw: () => ART.pickup(ctx, p.x, p.y, p.item.icon, clock) }));
-    const petDraw = (p, kind) => list.push({ y: p.y, draw: () => ART.pet(ctx, p.x, p.y, kind, p.dir, p.t, p.moving) });
+    map.pickups.forEach((p) => list.push({ y: p.y, draw: () => out((c) => ART.pickup(c, p.x, p.y, p.item.icon, clock), p.x, p.y, BOX_PICK, p, 120) }));
+    const petDraw = (p, kind) => list.push({ y: p.y, draw: () => out((c) => ART.pet(c, p.x, p.y, kind, p.dir, p.t, p.moving), p.x, p.y, FX.BOX.pet, p) });
+    const charDraw = (x, y, look, o, key) => list.push({ y, draw: () => out((c) => ART.character(c, x, y, look, o), x, y, FX.BOX.character, key) });
     map.npcs.forEach((n) => {
-      list.push({ y: n.y, draw: () => ART.character(ctx, n.x, n.y, n.look, n) });
+      charDraw(n.x, n.y, n.look, n, n);
       if (n.petState) petDraw(n.petState, n.look.pet);
     });
     const others = NET.players().filter((r) => !r.hidden);
     others.forEach((r) => {
-      list.push({ y: r.ry, draw: () => ART.character(ctx, r.rx, r.ry, r.look, { t: r.t, dir: r.dir, moving: r.walking, dance: r.dance }) });
+      charDraw(r.rx, r.ry, r.look, { t: r.t, dir: r.dir, moving: r.walking, dance: r.dance }, r);
       if (r.pet && r.look.pet && r.look.pet !== 'none') petDraw(r.pet, r.look.pet);
     });
     if (!player.hidden) {
-      list.push({ y: player.y, draw: () => ART.character(ctx, player.x, player.y, S.look, { ...player, dance: player.dancing > now }) });
+      charDraw(player.x, player.y, S.look, { ...player, dance: player.dancing > now }, player);
       if (S.look.pet && S.look.pet !== 'none') petDraw(myPet, S.look.pet);
     }
     if (bus.state !== 'away' && bus.state !== 'travel') {
-      list.push({ y: BUS_Y, draw: () => ART.bus(ctx, bus.x, BUS_Y, clock, bus.state !== 'waiting') });
+      list.push({ y: BUS_Y, draw: () => out((c) => ART.bus(c, bus.x, BUS_Y, clock, bus.state !== 'waiting'), bus.x, BUS_Y, BOX_BUS, bus, 70) });
     }
     list.sort((a, b) => a.y - b.y);
-    list.forEach((o) => o.draw(ctx, clock));
+    list.forEach((o) => o.draw(g, clock));
 
-    // nhãn khu vực & chỉ báo trạng thái
+    if (px) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(wbuf, 0, 0, bw, bh, 0, 0, bw * px * DPR, bh * px * DPR);
+      ctx.imageSmoothingEnabled = true;
+    }
+
+    // Lớp chữ & giao diện trong thế giới: vẽ ở độ phân giải đầy đủ cho sắc nét
+    worldTransform(ctx, DPR * ZOOM, DPR * (W / 2 - cam.x * ZOOM), DPR * (H / 2 - cam.y * ZOOM));
     map.labels.forEach((l) => ART.label(ctx, l.dynamic === 'home' ? `🏠 Nhà ${S.name || 'của bạn'}` : l.text, l.x, l.y));
     map.inter.forEach((o) => {
       if (!o.indicator) return;
@@ -715,20 +742,22 @@
       else ART.iconBubble(ctx, r, o.ix, o.iy - 14, clock);
     });
 
-    // tên & bong bóng chat
-    map.npcs.forEach((n) => nameTag(n.name, n.x, n.y - (n.look.hat === 'nonla' ? 112 : 94)));
-    others.forEach((r) => nameTag(r.name, r.rx, r.ry - (r.look.hat === 'nonla' ? 112 : 94), false, true));
-    if (!player.hidden) nameTag(S.name || 'Bạn', player.x, player.y - (S.look.hat === 'nonla' ? 112 : 94), true);
+    // bảng tên gỗ dưới chân như Avatar
+    map.npcs.forEach((n) => ART.namePlate(ctx, n.name, n.x, n.y + 6, 'npc'));
+    others.forEach((r) => ART.namePlate(ctx, r.name, r.rx, r.ry + 6, 'other'));
+    if (!player.hidden) ART.namePlate(ctx, S.name || 'Bạn', player.x, player.y + 6, 'me');
+
+    const headTop = (look) => (look && look.hat === 'nonla' ? 134 : 120);
     const bubbleOf = (e) => {
       if (e.bubble && e.bubble.until > now) {
-        const top = e.kind === 'npc' || e === player ? (e.look?.hat === 'nonla' || (e === player && S.look.hat === 'nonla') ? 118 : 104) : 52;
+        const top = e.kind === 'npc' || e === player ? headTop(e === player ? S.look : e.look) : 52;
         ART.bubble(ctx, e.bubble.text, e.x, e.y - top, e.bubble.big);
       }
     };
     map.animals.forEach(bubbleOf);
     map.npcs.forEach(bubbleOf);
     others.forEach((r) => {
-      if (r.bubble && r.bubble.until > now) ART.bubble(ctx, r.bubble.text, r.rx, r.ry - (r.look.hat === 'nonla' ? 118 : 104), r.bubble.big);
+      if (r.bubble && r.bubble.until > now) ART.bubble(ctx, r.bubble.text, r.rx, r.ry - headTop(r.look), r.bubble.big);
     });
     if (!player.hidden) bubbleOf(player);
 
@@ -747,9 +776,11 @@
       const hx = hover.x + hover.w / 2;
       ctx.font = '700 13px "Be Vietnam Pro", system-ui';
       const w = ctx.measureText(hover.name).width + 18;
-      ctx.fillStyle = 'rgba(255,255,255,.95)';
-      ART.rr(ctx, hx - w / 2, hover.y + hover.h + 4, w, 24, 12); ctx.fill();
-      ctx.fillStyle = '#1f2433'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#5a3010';
+      ART.rr(ctx, hx - w / 2 - 2, hover.y + hover.h + 2, w + 4, 28, 9); ctx.fill();
+      ctx.fillStyle = '#fff3d6';
+      ART.rr(ctx, hx - w / 2, hover.y + hover.h + 4, w, 24, 8); ctx.fill();
+      ctx.fillStyle = '#3d1f08'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(hover.name, hx, hover.y + hover.h + 16.5);
     }
 
@@ -783,11 +814,11 @@
   }
 
   function entityAt(x, y) {
-    const remote = NET.players().find((r) => !r.hidden && Math.abs(x - r.rx) < 22 && y < r.ry + 6 && y > r.ry - 80);
+    const remote = NET.players().find((r) => !r.hidden && Math.abs(x - r.rx) < 26 && y < r.ry + 6 && y > r.ry - 100);
     if (remote) return remote;
     return [...map.npcs, ...map.animals].find((e) => {
-      const h = e.kind === 'npc' ? 80 : e.kind === 'chicken' ? 34 : 54;
-      const w = e.kind === 'npc' ? 22 : e.kind === 'chicken' ? 18 : 34;
+      const h = e.kind === 'npc' ? 100 : e.kind === 'chicken' ? 34 : 54;
+      const w = e.kind === 'npc' ? 26 : e.kind === 'chicken' ? 18 : 34;
       return Math.abs(x - e.x) < w && y < e.y + 6 && y > e.y - h;
     });
   }
