@@ -6,6 +6,6 @@
  * - Để trống = chế độ thử: chỉ thấy nhau giữa các tab trên cùng một máy.
  */
 window.AVATAR_CONFIG = {
-  supabaseUrl: '',
-  supabaseAnonKey: '',
+  supabaseUrl: 'https://pdmqatnknikjcykeubyg.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkbXFhdG5rbmlramN5a2V1YnlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEwOTg3NzUsImV4cCI6MjEwNjY3NDc3NX0.fJxGkqwNAsD1rN4SfT92nNkxRuVbWWNR6KfKD7zSvZY',
 };
