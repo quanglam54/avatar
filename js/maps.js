@@ -420,15 +420,23 @@ const MAPS = (() => {
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 67);
       paintDirtRoad(g, m.w, 770, 830, 3);
+      // lối đá lát vòng quanh hồ câu
+      g.save();
+      g.beginPath(); g.ellipse(1000, 560, 420, 205, 0, 0, Math.PI * 2); g.clip();
+      ART.stonePath(g, 560, 340, 880, 440);
+      g.restore();
+      g.strokeStyle = '#8f887a'; g.lineWidth = 4;
+      g.beginPath(); g.ellipse(1000, 560, 420, 205, 0, 0, Math.PI * 2); g.stroke();
       paintStreet(g, m.w, 870, 1000);
     });
+    m.lake = { x: 1000, y: 560, rx: 330, ry: 140 };
 
     obj(m, 410, (ctx, t) => ART.lake(ctx, 1000, 560, 330, 140, t));
     col(m, 690, 440, 620, 230);
     col(m, 740, 420, 520, 20);
     sobj(m, 1180, 745, (c) => ART.dock(c, 1180, 745));
-    inter(m, { x: 1135, y: 640, w: 90, h: 135, ax: 1180, ay: 790, name: 'Bến câu cá', use: () => UI.fishing() });
-    m.labels.push({ text: '🌳 Công Viên', x: 1000, y: 390 });
+    inter(m, { x: 1135, y: 640, w: 90, h: 135, ax: 1180, ay: 690, name: 'Bến câu cá (bấm để thả câu)', use: () => AV.startFishing() });
+    m.labels.push({ text: '🎣 Hồ Câu Cá', x: 1000, y: 385 });
 
     aobj(m, 380, 760, (c, t) => ART.swing(c, 380, 760, t), { l: -70, t: -125, w: 140, h: 135 });
     col(m, 318, 748, 124, 14);

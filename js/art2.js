@@ -616,6 +616,54 @@ Object.assign(ART, (() => {
     ctx.fill(); ctx.stroke();
   }
 
+  /* ---------- Câu cá ngay trên bản đồ ---------- */
+  /** Cần câu, dây câu và phao. (x,y) = chân nhân vật, (bx,by) = vị trí phao trên mặt nước */
+  function fishingRod(ctx, x, y, bx, by, t, bite) {
+    const dir = bx >= x ? 1 : -1;
+    const hx = x + dir * 15, hy = y - 36;
+    const tx = x + dir * 58, ty = y - 104;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#3d2410'; ctx.lineWidth = 4.5;
+    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tx, ty); ctx.stroke();
+    ctx.strokeStyle = '#c98a4b'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tx, ty); ctx.stroke();
+    circle(ctx, hx + dir * 4, hy - 6, 3.5, '#868e96');
+    const shake = bite ? Math.sin(t * 40) * 2 : 0;
+    const bobY = by + (bite ? 4 + Math.abs(Math.sin(t * 18)) * 3 : Math.sin(t * 3) * 1.5);
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo((tx + bx) / 2, Math.max(ty, by) + 10, bx + shake, bobY - 4); ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${bite ? 0.9 : 0.5})`; ctx.lineWidth = 1.5;
+    const rp = (t * (bite ? 2.5 : 0.8)) % 1;
+    ctx.beginPath(); ctx.ellipse(bx, by + 2, 8 + rp * 16, 3 + rp * 6, 0, 0, Math.PI * 2); ctx.stroke();
+    circle(ctx, bx + shake, bobY, 4.5, '#fff');
+    ctx.fillStyle = '#e03131';
+    ctx.beginPath(); ctx.arc(bx + shake, bobY, 4.5, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = '#3d2410'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(bx + shake, bobY, 4.5, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  /** Dấu "!" đỏ nhấp nháy trên đầu khi cá cắn câu */
+  function biteMark(ctx, x, y, t) {
+    const s = 1 + Math.abs(Math.sin(t * 10)) * 0.25;
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    circle(ctx, 0, 0, 14, '#3d2410');
+    circle(ctx, 0, 0, 12, '#ff3b30');
+    ctx.fillStyle = '#fff'; ctx.font = '900 18px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('!', 0, 1);
+    ctx.restore();
+  }
+
+  /** Lối đá lát quanh hồ câu */
+  function stonePath(ctx, x, y, w, h) {
+    const r = srand(x + y);
+    ctx.fillStyle = '#b9b2a4'; rr(ctx, x, y, w, h, 8); ctx.fill();
+    for (let yy = y + 4; yy < y + h - 4; yy += 22) {
+      for (let xx = x + 4 + ((yy - y) / 22 % 2) * 12; xx < x + w - 8; xx += 26) {
+        ctx.fillStyle = ['#d8d2c4', '#cfc8b8', '#e2dccf'][Math.floor(r() * 3)];
+        rr(ctx, xx, yy, 22, 18, 4); ctx.fill();
+      }
+    }
+  }
+
   /* ---------- Ban đêm ---------- */
   function nightSky(ctx, w, hz, n, t) {
     if (n <= 0) return;
@@ -647,5 +695,5 @@ Object.assign(ART, (() => {
     }
   }
 
-  return { BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
+  return { fishingRod, biteMark, stonePath, BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
 })());

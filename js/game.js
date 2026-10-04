@@ -56,7 +56,7 @@
   }
 
   /* ---------- Thực thể ---------- */
-  const player = { x: 0, y: 0, dir: 1, moving: false, t: 0, target: null, pending: null, hidden: false, bubble: null, stuck: 0, dancing: 0 };
+  const player = { x: 0, y: 0, dir: 1, moving: false, t: 0, target: null, pending: null, hidden: false, bubble: null, stuck: 0, dancing: 0, fishing: null };
   const myPet = { x: 0, y: 0, dir: 1, t: 0, moving: false };
   const bus = { x: -999, state: 'away', timer: 5, v: 0, carrying: false, wantsBoard: false, dest: 'town' };
   const floats = [];
@@ -457,6 +457,107 @@
   }
   AV.followPet = followPet;
 
+  /* ---------- Câu cá ngay trên bản đồ (không popup) ---------- */
+  /** Có đang đứng ở bờ hồ không */
+  function nearShore() {
+    const L = map.lake;
+    if (!L || player.hidden) return false;
+    const dx = (player.x - L.x) / (L.rx + 95), dy = (player.y - L.y) / (L.ry + 85);
+    return dx * dx + dy * dy <= 1;
+  }
+  AV.nearShore = nearShore;
+
+  /** Chọn điểm thả phao trên mặt nước, hướng về giữa hồ */
+  function bobberSpot() {
+    const L = map.lake;
+    const vx = L.x - player.x, vy = L.y - player.y, d = Math.hypot(vx, vy) || 1;
+    for (let k = 150; k < d + 150; k += 10) {
+      const bx = player.x + vx / d * k, by = player.y + vy / d * k;
+      const ex = (bx - L.x) / (L.rx - 25), ey = (by - L.y) / (L.ry - 20);
+      if (ex * ex + ey * ey <= 1) return { bx, by };
+    }
+    return { bx: L.x, by: L.y };
+  }
+
+  AV.startFishing = () => {
+    if (player.fishing) return;
+    if (!nearShore()) return UI.toast('Ra sát bờ hồ ở Công viên mới câu được cá nhé 🎣');
+    const { bx, by } = bobberSpot();
+    player.target = null; player.pending = null; marker = null;
+    player.dir = bx >= player.x ? 1 : -1;
+    player.fishing = { state: 'wait', bx, by, biteAt: Date.now() + 2500 + Math.random() * 5000, endAt: 0 };
+    UI.toast('🎣 Đã thả câu — chờ phao giật rồi bấm GIẬT CẦN!');
+    NET.sendState();
+  };
+
+  AV.stopFishing = (silent) => {
+    if (!player.fishing) return;
+    player.fishing = null;
+    if (!silent) UI.toast('Đã thu cần');
+    NET.sendState();
+  };
+
+  /** Giật cần: đúng lúc cá cắn thì câu được, giật sớm thì cá sợ bỏ đi */
+  AV.pullRod = () => {
+    const f = player.fishing;
+    if (!f) return;
+    if (f.state !== 'bite') {
+      f.biteAt = Date.now() + 2500 + Math.random() * 4500;
+      UI.toast('Giật sớm quá, cá sợ bơi mất rồi 😅');
+      return;
+    }
+    let r = Math.random() * DATA.FISH.reduce((a, x) => a + x.w, 0);
+    const fish = DATA.FISH.find((x) => (r -= x.w) < 0) || DATA.FISH[0];
+    addItem(fish.id, 1);
+    addXP(fish.id === 'boot' ? 0 : 2);
+    float(`+1 ${fish.icon}`, player.x, player.y - 120);
+    say(player, fish.id === 'boot' ? 'Ơ… chiếc giày cũ 👢😂' : `Câu được ${fish.icon} ${fish.name}!`);
+    const msg = fish.id === 'boot' ? 'đã câu phải một chiếc giày cũ 👢' : `đã câu được một ${fish.name.toLowerCase()} ${fish.icon}`;
+    UI.chatLog('', `${S.name} ${msg}`, true, true);
+    NET.sendSys(`${S.name} ${msg}`);
+    f.state = 'wait';
+    f.biteAt = Date.now() + 2500 + Math.random() * 5000;
+    changed();
+  };
+
+  function updateFishing() {
+    const f = player.fishing;
+    if (!f) return;
+    if (player.target || player.moving || player.hidden || !map.lake) { AV.stopFishing(true); return; }
+    const t = Date.now();
+    if (f.state === 'wait' && t >= f.biteAt) {
+      f.state = 'bite'; f.endAt = t + 1400;
+      if (navigator.vibrate) navigator.vibrate(80);
+      NET.sendState();
+    } else if (f.state === 'bite' && t >= f.endAt) {
+      f.state = 'wait'; f.biteAt = t + 2500 + Math.random() * 5000;
+      UI.toast('Chậm quá, cá chạy mất rồi 😢');
+      NET.sendState();
+    }
+  }
+
+  /** Nút hành động góc phải: Thả câu / Đang câu / GIẬT CẦN */
+  const actionBtn = document.getElementById('actionBtn');
+  let actionKey = '';
+  function updateActionButton() {
+    let key = '', text = '';
+    if (player.fishing) {
+      key = player.fishing.state === 'bite' ? 'bite' : 'wait';
+      text = key === 'bite' ? '‼️ GIẬT CẦN!' : '🎣 Đang câu… <small>bấm để thu cần</small>';
+    } else if (nearShore() && !UI.isBlocking()) {
+      key = 'cast'; text = '🎣 Thả câu';
+    }
+    if (key === actionKey) return;
+    actionKey = key;
+    actionBtn.className = 'action-btn' + (key ? ' show ' + key : '');
+    actionBtn.innerHTML = text;
+  }
+  actionBtn.addEventListener('click', () => {
+    if (actionKey === 'cast') AV.startFishing();
+    else if (actionKey === 'bite') AV.pullRod();
+    else if (actionKey === 'wait') AV.stopFishing();
+  });
+
   /* ---------- Xe buýt ---------- */
   const busStopX = () => map.busStop.x - 57;
   const destName = () => (maps[bus.dest] || maps.town).name;
@@ -710,6 +811,8 @@
     if (S.look.pet && S.look.pet !== 'none') followPet(myPet, player, dt, player.dir);
     if (player.dancing && player.dancing < now) { player.dancing = 0; NET.sendState(); }
     spawnPickups(dt);
+    updateFishing();
+    updateActionButton();
     const nearPk = !player.hidden && map.pickups.find((p) => Math.hypot(p.x - player.x, p.y - player.y) < 20);
     if (nearPk) collectPickup(nearPk);
     updateBus(dt);
@@ -828,6 +931,9 @@
       charDraw(r.rx, r.ry, r.look, { t: r.t, dir: r.dir, moving: r.walking, dance: r.dance }, r);
       if (r.pet && r.look.pet && r.look.pet !== 'none') petDraw(r.pet, r.look.pet);
     });
+    const rodDraw = (x, y, f) => list.push({ y: y + 1, draw: () => ART.fishingRod(g, x, y, f.bx, f.by, clock, f.state === 'bite' || f.bite) });
+    others.forEach((r) => { if (r.fish) rodDraw(r.rx, r.ry, r.fish); });
+    if (player.fishing && !player.hidden) rodDraw(player.x, player.y, player.fishing);
     if (!player.hidden) {
       charDraw(player.x, player.y, S.look, { ...player, dance: player.dancing > now }, player);
       if (S.look.pet && S.look.pet !== 'none') petDraw(myPet, S.look.pet);
@@ -883,6 +989,8 @@
       if (r.bubble && r.bubble.until > now) ART.bubble(ctx, r.bubble.text, r.rx, r.ry - headTop(r.look), r.bubble.big);
     });
     if (!player.hidden) bubbleOf(player);
+    if (player.fishing && player.fishing.state === 'bite') ART.biteMark(ctx, player.x, player.y - headTop(S.look) - 6, clock);
+    others.forEach((r) => { if (r.fish && r.fish.bite) ART.biteMark(ctx, r.rx, r.ry - headTop(r.look) - 6, clock); });
 
     floats.forEach((f) => {
       ctx.globalAlpha = Math.max(0, 1 - f.t / 1.4);
@@ -956,6 +1064,7 @@
   canvas.addEventListener('pointerdown', (e) => {
     if (UI.isBlocking() || player.hidden || fade.mode) return;
     document.activeElement && document.activeElement.blur();
+    if (player.fishing && player.fishing.state === 'bite') { AV.pullRod(); return; }
     const w = toWorld(e.clientX, e.clientY);
     const pk = map.pickups.find((p) => Math.abs(p.x - w.x) < 22 && w.y > p.y - 30 && w.y < p.y + 8);
     if (pk) {
@@ -994,6 +1103,10 @@
     const k = KEYMAP[e.key] || KEYMAP[e.key.toLowerCase?.()];
     if (k) { keys.add(k); e.preventDefault(); return; }
     if (e.key === 'Enter' && !UI.isBlocking()) { e.preventDefault(); document.getElementById('chatInput').focus(); }
+    if ((e.key === ' ' || e.key.toLowerCase() === 'f') && !UI.isBlocking()) {
+      if (player.fishing) { e.preventDefault(); if (player.fishing.state === 'bite') AV.pullRod(); }
+      else if (nearShore()) { e.preventDefault(); AV.startFishing(); }
+    }
   });
   window.addEventListener('keyup', (e) => {
     const k = KEYMAP[e.key] || KEYMAP[e.key.toLowerCase?.()];

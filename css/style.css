@@ -320,3 +320,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 .need .ok { color: #2b8a3e; font-weight: 700; }
 .need .lack { color: #e03131; font-weight: 700; }
+
+/* Nút hành động (câu cá) */
+.action-btn {
+  position: fixed; right: 16px; bottom: 92px; z-index: 6; display: none;
+  border: 3px solid #fff; border-radius: 18px; padding: 12px 20px; min-width: 150px;
+  font: inherit; font-weight: 900; font-size: 18px; color: #fff; cursor: pointer;
+  background: linear-gradient(#7fd7ff, #2d8fe6 60%, #1f73c4); text-shadow: 0 2px 0 #134a80;
+  box-shadow: 0 0 0 2px #1b2f48, 0 6px 0 2px #1b2f48; display: none; line-height: 1.15;
+}
+.action-btn.show { display: block; }
+.action-btn small { display: block; font-size: 11px; font-weight: 700; opacity: .9; }
+.action-btn.wait { background: linear-gradient(#ffe08a, #f5a623 60%, #d9840a); text-shadow: 0 2px 0 #8a4b00; }
+.action-btn.bite { background: linear-gradient(#ff8a80, #ff3b30 60%, #c62828); text-shadow: 0 2px 0 #7a0e0e; animation: bitePulse .35s infinite alternate; font-size: 22px; }
+.action-btn:active { transform: translateY(3px); box-shadow: 0 0 0 2px #1b2f48, 0 3px 0 2px #1b2f48; }
+@keyframes bitePulse { from { transform: scale(1); } to { transform: scale(1.1); } }
+.chatlog .msg.sys { color: #ffe066; font-weight: 700; }
+@media (max-width: 680px) { .action-btn { bottom: 84px; right: 10px; font-size: 16px; min-width: 120px; } }

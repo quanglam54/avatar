@@ -508,47 +508,6 @@ const UI = (() => {
     render();
   }
 
-  /* ---------- Câu cá ---------- */
-  function fishing() {
-    const p = panel('🎣 Câu cá', '');
-    let state = 'idle', timers = [], msg = 'Thả câu, đợi phao giật thì bấm <b>Giật cần!</b> thật nhanh.';
-    const clear = () => { timers.forEach(clearTimeout); timers = []; };
-    const render = () => {
-      p.body.innerHTML = `
-        <div class="pond-view ${state}"><span class="bobber">${state === 'bite' ? '💦' : '🔴'}</span><span class="fishes">🐟 🐠 🐟</span></div>
-        <p class="game-msg">${msg}</p>
-        <div class="row-end">
-          ${state === 'idle' ? '<button class="btn" data-cast>🎣 Thả câu</button>' : ''}
-          ${state === 'wait' ? '<button class="btn ghost" disabled>Đang chờ…</button>' : ''}
-          ${state === 'bite' ? '<button class="btn danger big" data-pull>‼️ Giật cần!</button>' : ''}
-        </div>`;
-      const cast = p.body.querySelector('[data-cast]');
-      if (cast) cast.onclick = () => {
-        state = 'wait'; msg = 'Đang chờ cá cắn câu… 🤫';
-        render();
-        timers.push(setTimeout(() => {
-          state = 'bite'; msg = 'Cá cắn câu rồi!!!';
-          render();
-          timers.push(setTimeout(() => { if (state === 'bite') { state = 'idle'; msg = '😢 Chậm quá, cá chạy mất rồi! Thử lại nhé.'; render(); } }, 1300));
-        }, 1800 + Math.random() * 4000));
-      };
-      const pull = p.body.querySelector('[data-pull]');
-      if (pull) pull.onclick = () => {
-        clear();
-        let r = Math.random() * DATA.FISH.reduce((s, f) => s + f.w, 0);
-        const f = DATA.FISH.find((x) => (r -= x.w) < 0) || DATA.FISH[0];
-        AV.addItem(f.id, 1);
-        AV.earn(0, f.id === 'boot' ? 0 : 2);
-        AV.sayMine(f.id === 'boot' ? 'Ơ… một chiếc giày cũ 👢😂' : `Câu được ${f.icon} ${f.name}!`);
-        state = 'idle';
-        msg = f.id === 'boot' ? 'Câu phải chiếc giày cũ 👢 haha!' : `🎉 Bạn câu được <b>${f.icon} ${f.name}</b> (bán ${f.sell} xu ở Chợ)`;
-        render();
-      };
-    };
-    p.onClose = clear;
-    render();
-  }
-
   /* ---------- Nhà bếp ---------- */
   function kitchen() {
     const S = AV.S;
@@ -635,13 +594,15 @@ const UI = (() => {
   }
 
   /* ---------- Chat & người chơi online ---------- */
-  function chatLog(name, text, mine) {
+  function chatLog(name, text, mine, sys) {
     const box = $('#chatLog');
     const row = document.createElement('div');
-    row.className = 'msg' + (mine ? ' mine' : '');
-    const b = document.createElement('b');
-    b.textContent = name + ': ';
-    row.appendChild(b);
+    row.className = 'msg' + (mine ? ' mine' : '') + (sys ? ' sys' : '');
+    if (!sys) {
+      const b = document.createElement('b');
+      b.textContent = name + ': ';
+      row.appendChild(b);
+    }
     row.appendChild(document.createTextNode(text));
     box.appendChild(row);
     while (box.children.length > 30) box.firstChild.remove();
@@ -684,5 +645,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, fishing, menu, kitchen };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen };
 })();

@@ -86,8 +86,15 @@ const NET = (() => {
       name: S.name, look: S.look, level: S.level,
       x: Math.round(player.x), y: Math.round(player.y), dir: player.dir, moving: player.moving, hidden: player.hidden,
       dance: player.dancing > Date.now(),
+      fish: fishMsg(),
     };
   }
+
+  function fishMsg() {
+    const f = player && player.fishing;
+    return f ? [Math.round(f.bx), Math.round(f.by), f.state === 'bite' ? 1 : 0] : 0;
+  }
+  const readFish = (v) => (Array.isArray(v) ? { bx: num(v[0]), by: num(v[1]), bite: !!v[2] } : null);
 
   function sendState(t = 'state') {
     if (!player || !AV.S.name) return;
@@ -97,6 +104,11 @@ const NET = (() => {
 
   function sendChat(text) {
     send('chat', { name: AV.S.name, text });
+  }
+
+  /** Thông báo hệ thống cho cả khu, vd: "Lâm đã câu được một cá chép" */
+  function sendSys(text) {
+    send('sys', { text });
   }
 
   /* ---------- Nhận ---------- */
@@ -126,6 +138,7 @@ const NET = (() => {
     r.moving = !!m.moving;
     r.hidden = !!m.hidden;
     r.dance = !!m.dance;
+    r.fish = readFish(m.fish);
     r.seen = Date.now();
     if (isNew) renderStatus();
     return isNew;
@@ -147,7 +160,11 @@ const NET = (() => {
       r.moving = !!m.moving;
       r.hidden = !!m.hidden;
       r.dance = !!m.dance;
+      r.fish = readFish(m.fish);
       r.seen = Date.now();
+    } else if (m.t === 'sys') {
+      const text = clean(m.text, 120);
+      if (text) UI.chatLog('', text, false, true);
     } else if (m.t === 'chat') {
       const r = remotes.get(m.id);
       const text = clean(m.text, 80);
@@ -217,7 +234,7 @@ const NET = (() => {
     const d = Math.hypot(player.x - last.x, player.y - last.y);
     const changed = d > 1.5 || player.moving !== last.moving || player.hidden !== last.hidden || player.dir !== last.dir;
     if (changed && sinceMove > 0.11) {
-      send('move', { x: Math.round(player.x), y: Math.round(player.y), dir: player.dir, moving: player.moving, hidden: player.hidden, dance: player.dancing > Date.now() });
+      send('move', { x: Math.round(player.x), y: Math.round(player.y), dir: player.dir, moving: player.moving, hidden: player.hidden, dance: player.dancing > Date.now(), fish: fishMsg() });
       Object.assign(last, { x: player.x, y: player.y, dir: player.dir, moving: player.moving, hidden: player.hidden });
       sinceMove = 0;
     }
@@ -280,7 +297,7 @@ const NET = (() => {
   }
 
   return {
-    init, enter, tick, update, sendState, sendChat, remotes, zoneCounts, announce,
+    init, enter, tick, update, sendState, sendChat, sendSys, remotes, zoneCounts, announce,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],
