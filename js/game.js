@@ -24,23 +24,25 @@
     };
   }
 
+  /** Ghép bản lưu (trong máy hoặc trên mạng) với dữ liệu mặc định, nâng cấp dữ liệu cũ */
+  function mergeSave(s) {
+    const d = defaultState();
+    if (!s.tiles) {
+      // chuyển dữ liệu từ ruộng cũ (10 ô) sang luống mới
+      s.tiles = d.tiles;
+      (s.plots || []).forEach((p, i) => { if (p && p.crop && i < 12) s.tiles[i] = { crop: p.crop, plantedAt: p.plantedAt, watered: true }; });
+      s.beds = [true, (s.plots || []).filter((p) => p && p.unlocked).length > 6, false, false];
+    }
+    // nông trại mở rộng: 8 luống × 12 ô
+    while (s.tiles.length < 96) s.tiles.push({ crop: null, plantedAt: 0, watered: false });
+    while ((s.beds || []).length < 8) s.beds = [...(s.beds || [true]), false];
+    return { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned }, settings: { ...d.settings, ...s.settings } };
+  }
+
   function load() {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
-      if (raw) {
-        const s = JSON.parse(raw);
-        const d = defaultState();
-        if (!s.tiles) {
-          // chuyển dữ liệu từ ruộng cũ (10 ô) sang luống mới
-          s.tiles = d.tiles;
-          (s.plots || []).forEach((p, i) => { if (p && p.crop && i < 12) s.tiles[i] = { crop: p.crop, plantedAt: p.plantedAt, watered: true }; });
-          s.beds = [true, (s.plots || []).filter((p) => p && p.unlocked).length > 6, false, false];
-        }
-        // nông trại mở rộng: 8 luống × 12 ô
-        while (s.tiles.length < 96) s.tiles.push({ crop: null, plantedAt: 0, watered: false });
-        while ((s.beds || []).length < 8) s.beds = [...(s.beds || [true]), false];
-        return { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned }, settings: { ...d.settings, ...s.settings } };
-      }
+      if (raw) return mergeSave(JSON.parse(raw));
     } catch (e) { /* dùng dữ liệu mặc định */ }
     return defaultState();
   }
@@ -55,7 +57,9 @@
   function saveNow() {
     if (map) { S.map = map.id; }
     if (!player.hidden) { S.x = Math.round(player.x); S.y = Math.round(player.y); }
+    S.savedAt = Date.now();
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* bỏ qua */ }
+    if (CLOUD.user) CLOUD.markDirty();
   }
 
   /* ---------- Thực thể ---------- */
@@ -214,8 +218,11 @@
     }
   }
 
+  let cloudTimer = null;
   function changed() {
     saveNow();
+    // có thay đổi quan trọng: lưu lên mạng sau 3 giây (gom nhiều thay đổi liền nhau)
+    if (CLOUD.user && !cloudTimer) cloudTimer = setTimeout(() => { cloudTimer = null; CLOUD.push(S); }, 3000);
     UI.updateHud();
     NET.sendState();
   }
@@ -1440,12 +1447,78 @@
   TABLE.init();
   UI.updateHud();
   NET.init(player);
-  if (!S.name) UI.characterEditor(true);
-  else UI.toast(`Chào mừng trở lại, ${S.name}! 🌾`);
+  /* ---------- Tài khoản: đăng nhập rồi mới vào chơi ---------- */
+  function startLocal() {
+    if (!S.name) UI.characterEditor(true);
+    else UI.toast(`Chào mừng trở lại, ${S.name}! 🌾`);
+  }
+  AV.playAsGuest = startLocal;
+
+  /** Thay toàn bộ tiến trình bằng bản khác (vd: tải từ tài khoản) */
+  function replaceState(data) {
+    const m = mergeSave(JSON.parse(JSON.stringify(data)));
+    Object.keys(S).forEach((k) => { delete S[k]; });
+    Object.assign(S, m);
+    enterMap(maps[S.map] ? S.map : 'farm', S.x, S.y);
+    UI.updateHud();
+    UI.updateQuestDot();
+    NET.sendState();
+  }
+
+  AV.afterLogin = async () => {
+    const uid = CLOUD.user.id;
+    let cloud = null;
+    try { cloud = await CLOUD.pull(); } catch (e) { UI.toast('⚠️ ' + e.message, 6000); }
+    if (cloud && cloud.data && cloud.data.name) {
+      const cloudAt = new Date(cloud.updated_at).getTime();
+      const localNewer = S.owner === uid && (S.savedAt || 0) > cloudAt + 2000;
+      if (!localNewer) replaceState(cloud.data);
+      S.owner = uid;
+      saveNow();
+      if (localNewer) CLOUD.push(S);
+      UI.toast(`Chào mừng trở lại, ${S.name}! ☁️ Đã tải nhân vật từ tài khoản`, 3500);
+    } else if (S.name && (!S.owner || S.owner === uid)) {
+      // tài khoản mới: chuyển nhân vật đang chơi trong máy lên tài khoản
+      S.owner = uid;
+      saveNow();
+      const ok = await CLOUD.push(S);
+      UI.toast(ok ? `☁️ Đã lưu nhân vật ${S.name} vào tài khoản — giờ chơi máy nào cũng được!` : '⚠️ Chưa lưu được lên mạng, game sẽ thử lại', 4000);
+    } else {
+      replaceState(defaultState());
+      S.owner = uid;
+      saveNow();
+      UI.characterEditor(true);
+    }
+  };
+
+  AV.cloudSaveNow = async () => {
+    saveNow();
+    const ok = await CLOUD.push(S);
+    UI.toast(ok ? '☁️ Đã lưu lên tài khoản' : '⚠️ Lưu thất bại, kiểm tra mạng');
+  };
+
+  AV.logout = async () => {
+    saveNow();
+    await CLOUD.push(S);
+    await CLOUD.signOut();
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* bỏ qua */ }
+    window.removeEventListener('beforeunload', saveNow);
+    location.reload();
+  };
+
+  (async () => {
+    const u = await CLOUD.init();
+    if (!CLOUD.available) return startLocal();
+    if (u) return AV.afterLogin();
+    UI.authPanel(true);
+  })();
+
+  setInterval(() => { if (CLOUD.user && CLOUD.dirty) CLOUD.push(S); }, 10000);
+  window.addEventListener('pagehide', () => { saveNow(); CLOUD.pushOnExit(S); });
 
   setInterval(saveNow, 5000);
   window.addEventListener('beforeunload', saveNow);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { saveNow(); if (CLOUD.user) CLOUD.push(S); } });
 
   AV._debug = { player, bus, maps, get map() { return map; }, enterMap, update, draw, goTo, findPath, clickWorld };
   requestAnimationFrame(loop);

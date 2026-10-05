@@ -621,9 +621,55 @@ const UI = (() => {
     });
   }
 
+  /* ---------- Đăng nhập / đăng ký ---------- */
+  function authPanel(first) {
+    let tab = 'login';
+    const p = panel('🔐 Tài khoản', '', { locked: first });
+    const render = (err = '') => {
+      p.body.innerHTML = `
+        <p class="muted">Đăng nhập để lưu nhân vật lên mạng — chơi trên điện thoại hay máy tính đều ra đúng nhân vật của bạn.</p>
+        <div class="tabs"><button class="chip ${tab === 'login' ? 'on' : ''}" data-tab="login">Đăng nhập</button><button class="chip ${tab === 'signup' ? 'on' : ''}" data-tab="signup">Tạo tài khoản mới</button></div>
+        <form class="auth-form" autocomplete="on">
+          <input class="field" name="u" autocomplete="username" placeholder="Tên đăng nhập (vd: lam_2024)" maxlength="20">
+          <input class="field" name="pw" type="password" autocomplete="${tab === 'login' ? 'current-password' : 'new-password'}" placeholder="Mật khẩu (ít nhất 6 ký tự)">
+          ${tab === 'signup' ? '<input class="field" name="pw2" type="password" autocomplete="new-password" placeholder="Nhập lại mật khẩu">' : ''}
+          <div class="err">${esc(err)}</div>
+          <button class="btn big" type="submit">${tab === 'login' ? '▶ Đăng nhập' : '✨ Tạo tài khoản'}</button>
+        </form>
+        ${tab === 'signup' && AV.S.name ? `<p class="muted small-note">Nhân vật <b>${esc(AV.S.name)}</b> đang chơi trên máy này sẽ được chuyển vào tài khoản mới.</p>` : ''}
+        ${first ? '<div class="row-end"><button class="btn ghost small" data-guest>Chơi thử không cần tài khoản (chỉ lưu trên máy này)</button></div>' : ''}`;
+      p.body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
+      const g = p.body.querySelector('[data-guest]');
+      if (g) g.onclick = () => { p.close(); AV.playAsGuest(); };
+      const f = p.body.querySelector('form');
+      setTimeout(() => f.u.focus(), 50);
+      f.onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = f.querySelector('[type=submit]');
+        const u = f.u.value, pw = f.pw.value;
+        if (tab === 'signup' && pw !== f.pw2.value) return render('Hai mật khẩu không giống nhau');
+        btn.disabled = true; btn.textContent = '⏳ Đang xử lý…';
+        try {
+          if (tab === 'login') await CLOUD.signIn(u, pw); else await CLOUD.signUp(u, pw);
+          p.close();
+          await AV.afterLogin();
+        } catch (er) {
+          const keepU = u;
+          render(er.message);
+          p.body.querySelector('form').u.value = keepU;
+        }
+      };
+    };
+    render();
+  }
+
   function settings() {
     const S = AV.S;
-    const p = panel('⚙️ Cài đặt', `
+    const account = CLOUD.user
+      ? `<div class="acct">👤 Tài khoản: <b>${esc(CLOUD.username)}</b><small>☁️ Tiến trình tự lưu lên mạng${CLOUD.lastPush ? ' · lần cuối ' + new Date(CLOUD.lastPush).toLocaleTimeString('vi-VN') : ''}</small>
+          <div class="row-end"><button class="btn small ghost" data-cloudsave>☁️ Lưu ngay</button><button class="btn small ghost" data-logout>🚪 Đăng xuất</button></div></div>`
+      : CLOUD.available ? '<div class="acct warn">⚠️ Bạn đang chơi không tài khoản — tiến trình chỉ lưu trên máy này.<div class="row-end"><button class="btn small" data-login>🔐 Đăng nhập / Tạo tài khoản</button></div></div>' : '';
+    const p = panel('⚙️ Cài đặt', `${account}
       <label class="toggle">🌙 Ngày / đêm <select data-time><option value="real">Theo giờ thật</option><option value="day">Luôn ban ngày</option><option value="night">Luôn ban đêm</option></select></label>
       <label class="toggle"><input type="checkbox" data-pixel ${S.settings && S.settings.pixelArt ? 'checked' : ''}> Hiệu ứng ô vuông pixel (nét to hơn, hơi nhoè)</label>
       <p class="muted">Dữ liệu được lưu tự động trên trình duyệt này.</p>
@@ -631,6 +677,10 @@ const UI = (() => {
     const ts = p.body.querySelector('[data-time]');
     ts.value = (S.settings && S.settings.time) || 'real';
     ts.onchange = () => { S.settings = { ...(S.settings || {}), time: ts.value }; AV.saveNow(); };
+    const q = (sel) => p.body.querySelector(sel);
+    if (q('[data-cloudsave]')) q('[data-cloudsave]').onclick = () => AV.cloudSaveNow();
+    if (q('[data-logout]')) q('[data-logout]').onclick = () => { p.close(); confirm('Đăng xuất khỏi tài khoản? Tiến trình đã được lưu lên mạng.', 'Đăng xuất', () => AV.logout()); };
+    if (q('[data-login]')) q('[data-login]').onclick = () => { p.close(); authPanel(false); };
     p.body.querySelector('[data-pixel]').onchange = (e) => {
       S.settings = { ...(S.settings || {}), pixelArt: e.target.checked };
       AV.saveNow();
@@ -695,5 +745,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel };
 })();

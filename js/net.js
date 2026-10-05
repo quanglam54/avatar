@@ -286,9 +286,8 @@ const NET = (() => {
     player = p;
     if (cfg.supabaseUrl && cfg.supabaseAnonKey) {
       setStatus('connecting');
-      const ok = await loadSupabase();
-      if (ok) {
-        client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, { realtime: { params: { eventsPerSecond: 12 } } });
+      client = await window.getSupabase();
+      if (client) {
         mode = 'online';
       } else {
         UI.toast('Không tải được thư viện Supabase — chuyển sang chế độ thử', 3500);
