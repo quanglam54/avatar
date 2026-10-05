@@ -103,15 +103,16 @@
     const g = new Uint8Array(cols * rows);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const x = c * NAV + NAV / 2, y = r * NAV + NAV / 2;
-      g[r * cols + c] = blockedIn(m, x, y) || blockedIn(m, x - 6, y) || blockedIn(m, x + 6, y) ? 1 : 0;
+      g[r * cols + c] = blockedIn(m, x, y) || blockedIn(m, x - 10, y) || blockedIn(m, x + 10, y) || blockedIn(m, x, y - 6) || blockedIn(m, x, y + 6) ? 1 : 0;
     }
     m._nav = { cols, rows, g };
     return m._nav;
   }
 
+  const fat = (x, y) => blocked(x, y) || blocked(x - 9, y) || blocked(x + 9, y) || blocked(x, y - 5) || blocked(x, y + 5);
   function lineFree(x1, y1, x2, y2) {
-    const d = Math.hypot(x2 - x1, y2 - y1), n = Math.ceil(d / 8);
-    for (let i = 1; i <= n; i++) if (blocked(x1 + (x2 - x1) * i / n, y1 + (y2 - y1) * i / n)) return false;
+    const d = Math.hypot(x2 - x1, y2 - y1), n = Math.ceil(d / 6);
+    for (let i = 1; i <= n; i++) if (fat(x1 + (x2 - x1) * i / n, y1 + (y2 - y1) * i / n)) return false;
     return true;
   }
 
@@ -179,6 +180,8 @@
 
   /** Đi tới (x,y): đi thẳng nếu không vướng, không thì tự tìm đường vòng */
   function goTo(x, y) {
+    player.goal = { x, y };
+    player.repath = 0;
     if (lineFree(player.x, player.y, x, y)) { player.path = []; player.target = { x, y }; return; }
     const p = findPath(player.x, player.y, x, y);
     if (p && p.length) { player.target = p.shift(); player.path = p; } else { player.path = []; player.target = { x, y }; }
@@ -997,7 +1000,15 @@
       if (Math.abs(vx) > 1) player.dir = vx > 0 ? 1 : -1;
       if (!moved && player.target) {
         player.stuck += dt;
-        if (player.stuck > 0.35) { player.target = null; player.path = []; marker = null; }
+        if (player.stuck > 0.35) {
+          player.stuck = 0;
+          if (player.goal && (player.repath || 0) < 2) {
+            const g = player.goal, n = (player.repath || 0) + 1;
+            const p = findPath(player.x, player.y, g.x, g.y);
+            if (p && p.length) { player.target = p.shift(); player.path = p; player.repath = n; }
+            else { player.target = null; player.path = []; marker = null; }
+          } else { player.target = null; player.path = []; marker = null; }
+        }
       } else player.stuck = 0;
     } else player.moving = false;
 
@@ -1353,7 +1364,11 @@
     document.activeElement && document.activeElement.blur();
     if (player.fishing && player.fishing.state === 'bite') { AV.pullRod(); return; }
     if (TABLE.seated()) { TABLE.openView(); return; }
-    const w = toWorld(e.clientX, e.clientY);
+    clickWorld(toWorld(e.clientX, e.clientY));
+  });
+
+  /** Xử lý một cú bấm tại toạ độ thế giới w */
+  function clickWorld(w) {
     const pk = map.pickups.find((p) => Math.abs(p.x - w.x) < 22 && w.y > p.y - 30 && w.y < p.y + 8);
     if (pk) {
       goTo(pk.x, pk.y + 4);
@@ -1361,9 +1376,15 @@
       marker = { x: pk.x, y: pk.y + 4, t: 0 };
       return;
     }
-    const ent = entityAt(w.x, w.y);
-    if (ent) { poke(ent); return; }
-    const o = interAt(w.x, w.y);
+    // bấm vào biểu tượng trạng thái (🥛 🥚 🌾 đồng hồ…) = bấm vào chỗ đó
+    const ind = map.inter.find((o) => o.indicator && o.indicator() != null && Math.hypot(w.x - o.ix, w.y - (o.iy - 14)) < 28);
+    const ent = ind ? null : entityAt(w.x, w.y);
+    // bấm vào con vật trong nông trại = vào chuồng thu hoạch / cho ăn
+    const herd = ent && map.id === 'farm' && ent.kind !== 'npc' && ent.kind !== 'remote' && ent.kind !== 'dog'
+      ? map.inter.find((o) => o.group === (ent.kind === 'chicken' ? 'coop' : 'pen')) : null;
+    if (ent && !herd) { poke(ent); return; }
+    if (herd) say(ent, SOUNDS[ent.kind]);
+    const o = ind || herd || interAt(w.x, w.y);
     if (o) {
       goTo(o.ax, o.ay);
       player.pending = { ax: o.ax, ay: o.ay, use: o.use };
@@ -1373,7 +1394,7 @@
     goTo(w.x, w.y);
     player.pending = null;
     marker = { x: w.x, y: w.y, t: 0 };
-  });
+  }
 
   canvas.addEventListener('pointermove', (e) => {
     if (e.pointerType !== 'mouse') return;
@@ -1426,6 +1447,6 @@
   window.addEventListener('beforeunload', saveNow);
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
 
-  AV._debug = { player, bus, maps, get map() { return map; }, enterMap, update, draw, goTo, findPath };
+  AV._debug = { player, bus, maps, get map() { return map; }, enterMap, update, draw, goTo, findPath, clickWorld };
   requestAnimationFrame(loop);
 })();

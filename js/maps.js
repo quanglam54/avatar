@@ -247,7 +247,7 @@ const MAPS = (() => {
     for (let i = 0; i < 8; i++) animal(m, 'chicken', { l: 450, t: 520, r: 735, b: 742 }, i);
     m.labels.push({ text: '🐔 Khu Gà', x: 480, y: 442 });
     inter(m, {
-      x: 220, y: 480, w: 230, h: 170, ax: 330, ay: 795, name: 'Chuồng gà (cho ăn / nhặt trứng)', arrow: { x: 330, y: 585 },
+      x: 220, y: 480, w: 230, h: 170, ax: 330, ay: 795, name: 'Chuồng gà (cho ăn / nhặt trứng)', arrow: { x: 330, y: 585 }, group: 'coop',
       use: () => AV.useCoop(), indicator: () => AV.coopIndicator(), ix: 330, iy: 470,
     });
 
@@ -294,8 +294,11 @@ const MAPS = (() => {
       animal(m, k, { l: 500, t: 960, r: 960, b: 1222 }, seed);
     }
     m.labels.push({ text: '🐄 Khu Bò Cừu', x: 600, y: 852 });
+    // bấm bất kỳ đâu trong đồng cỏ / sân gà cũng thu hoạch được
+    inter(m, { x: 200, y: 884, w: 800, h: 356, ax: 600, ay: 1272, name: 'Đồng cỏ bò cừu (cho ăn / thu sữa, len)', use: () => AV.usePen(), group: 'pen' });
+    inter(m, { x: 200, y: 472, w: 560, h: 288, ax: 330, ay: 795, name: 'Sân gà (cho ăn / nhặt trứng)', use: () => AV.useCoop(), group: 'coop' });
     inter(m, {
-      x: 220, y: 860, w: 260, h: 190, ax: 600, ay: 1272, name: 'Chuồng bò cừu (cho ăn / thu sữa, len)', arrow: { x: 340, y: 935 },
+      x: 220, y: 860, w: 260, h: 190, ax: 600, ay: 1272, name: 'Chuồng bò cừu (cho ăn / thu sữa, len)', arrow: { x: 340, y: 935 }, group: 'pen',
       use: () => AV.usePen(), indicator: () => AV.penIndicator(), ix: 600, iy: 930,
     });
 
