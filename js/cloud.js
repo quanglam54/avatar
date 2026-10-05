@@ -105,6 +105,25 @@ const CLOUD = (() => {
     return data || [];
   }
 
+  /** Báo đã hái trộm 1 ô ruộng (chủ nông trại tự xử lý khi online) */
+  async function sendSteal(row) {
+    const { error } = await client.from('farm_steals').insert({ ...row, thief: user.id });
+    if (!error) return;
+    const m = String(error.message || '');
+    if (/steal_limit/.test(m)) throw new Error('Hôm nay bạn đã hái trộm nông trại này 3 lần rồi, mai quay lại nhé 😅');
+    if (/duplicate key|unique/i.test(m)) throw new Error('Ô này hôm nay bạn đã hái trộm rồi');
+    if (/farm_steals|does not exist|Could not find the table/i.test(m)) throw new Error('Chủ game chưa cài tính năng hái trộm trên Supabase (chạy file supabase/04-trom-va-thu-giu-nha.sql)');
+    throw new Error(viError(error));
+  }
+
+  /** Lấy các lần bị hái trộm chưa xử lý rồi đánh dấu đã xử lý */
+  async function pullSteals() {
+    const { data, error } = await client.from('farm_steals').select('id, thief_name, tile, crop, qty, bitten, coins').eq('owner', user.id).eq('done', false);
+    if (error) throw new Error(viError(error));
+    if (data && data.length) await client.from('farm_steals').update({ done: true }).in('id', data.map((r) => r.id));
+    return data || [];
+  }
+
   /** Các bản lưu cũ trên máy chủ (cần chạy supabase/03-lich-su-ban-luu.sql) */
   async function history() {
     const { data, error } = await client.from('saves_history').select('id, saved_at, data').eq('user_id', user.id).order('saved_at', { ascending: false }).limit(30);
@@ -134,6 +153,7 @@ const CLOUD = (() => {
       if (error) throw error;
       dirty = false;
       lastPush = Date.now();
+      if (api.onPushed) try { api.onPushed(state); } catch (e) { /* bỏ qua */ }
       return true;
     } catch (e) {
       console.warn('[cloud] lưu thất bại:', viError(e));
@@ -163,8 +183,9 @@ const CLOUD = (() => {
     } catch (e) { /* bỏ qua */ }
   }
 
-  return {
-    init, signUp, signIn, signOut, pull, push, pushOnExit, getFarm, recentFarms, sendHelp, pullHelps, history,
+  const api = {
+    init, signUp, signIn, signOut, pull, push, pushOnExit, getFarm, recentFarms, sendHelp, pullHelps, sendSteal, pullSteals, history,
+    onPushed: null,
     markDirty: () => { dirty = true; },
     get user() { return user; },
     get username() { return nameOf(user); },
@@ -173,4 +194,5 @@ const CLOUD = (() => {
     get lastPush() { return lastPush; },
     get client() { return client; },
   };
+  return api;
 })();

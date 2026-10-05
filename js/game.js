@@ -14,9 +14,10 @@
       look: { skin: DATA.SKINS[0], hair: 'short', hairColor: DATA.HAIR_COLORS[0], shirt: DATA.SHIRT_COLORS[5], shirtStyle: 'plain', pants: DATA.PANTS_COLORS[0], hat: 'none', pet: 'none', acc: 'none' },
       coins: 50, xp: 0, level: 1,
       inv: { seed_wheat: 6, seed_carrot: 3, wheat: 3, fertilizer: 5 },
-      owned: { hats: ['none'], shirtStyles: ['plain'], pets: ['none'], accs: ['none'] },
-      tiles: Array.from({ length: 144 }, () => ({ crop: null, plantedAt: 0, watered: false })),
-      beds: [true, false, false, false, false, false, false, false, true, false, false, false],
+      owned: { hats: ['none'], shirtStyles: ['plain'], pets: ['none'], accs: ['none'], guards: ['none'] },
+      tiles: Array.from({ length: DATA.BED_COUNT * DATA.TILES_PER_BED }, () => ({ crop: null, plantedAt: 0, watered: false })),
+      beds: Array.from({ length: DATA.BED_COUNT }, (_, i) => i === 0 || i === DATA.FIELD_BEDS),
+      guard: 'none',
       trees: DATA.ORCHARD.map(() => ({ at: 0 })),
       storage: {},
       coop: { fedAt: 0 },
@@ -41,6 +42,9 @@
     // vườn hoa: thêm 4 luống hoa (luống đầu tiên miễn phí)
     while (s.tiles.length < 144) s.tiles.push({ crop: null, plantedAt: 0, watered: false });
     if (s.beds.length < 12) { while (s.beds.length < 12) s.beds.push(false); s.beds[8] = true; }
+    // khu đất mở rộng: thêm 8 luống ruộng (luống 13–20)
+    while (s.tiles.length < d.tiles.length) s.tiles.push({ crop: null, plantedAt: 0, watered: false });
+    while (s.beds.length < d.beds.length) s.beds.push(false);
     s.trees = s.trees || [];
     while (s.trees.length < DATA.ORCHARD.length) s.trees.push({ at: 0 });
     return { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned }, settings: { ...d.settings, ...s.settings } };
@@ -310,10 +314,10 @@
     changed();
   };
 
-  /* ---------- Ruộng: 4 luống × 12 ô, cây khát nước phải tưới ---------- */
+  /* ---------- Ruộng: 20 luống × 12 ô (0–7 và 12–19 rau củ, 8–11 hoa), cây khát nước phải tưới ---------- */
   const TPB = DATA.TILES_PER_BED;
   /** Luống 0–7 trồng rau củ, 8–11 trồng hoa */
-  const isFlowerBed = (bed) => bed >= DATA.FIELD_BEDS;
+  const isFlowerBed = (bed) => bed >= DATA.FIELD_BEDS && bed < DATA.FIELD_BEDS + DATA.FLOWER_BEDS;
   AV.cropAllowed = (i, crop) => { const k = DATA.CROPS[crop].kind; return isFlowerBed(Math.floor(i / TPB)) ? (k === 'flower' || k === 'both') : k !== 'flower'; };
   AV.isFlowerTile = (i) => isFlowerBed(Math.floor(i / TPB));
   const bedOf = (i) => Math.floor(i / TPB);
@@ -435,7 +439,7 @@
   }
 
   AV.useTile = (i) => {
-    if (VISIT) return AV.helpWater();
+    if (VISIT) return VISIT.data.beds[bedOf(i)] && tileState(VISIT.data.tiles[i]).stage === 2 ? AV.stealTile(i) : AV.helpWater();
     const bed = bedOf(i);
     if (!S.beds[bed]) {
       const price = DATA.BED_PRICES[bed];
@@ -715,6 +719,7 @@
 
   /** Cộng tiến độ nhiệm vụ */
   AV.quest = (id, amount = 1) => {
+    wheelProgress(id, amount);
     ensureQuests();
     const q = S.quests.list.find((x) => x.id === id);
     if (!q || q.prog >= q.n) return;
@@ -1077,13 +1082,14 @@
   /** Ghép dữ liệu nông trại tải về với mặc định (bản lưu cũ có thể thiếu) */
   function farmData(f) {
     const d = defaultState();
-    const pad = (arr, n, mk) => { const a = Array.isArray(arr) ? arr.map((x) => ({ ...x })) : []; while (a.length < n) a.push(mk()); return a; };
+    const pad = (arr, n, mk) => { const a = Array.isArray(arr) ? arr.map((x) => (x && typeof x === 'object' ? { ...x } : x)) : []; while (a.length < n) a.push(mk()); return a; };
     return {
       name: f.name || f.username, level: f.level || 1, look: { ...d.look, ...(f.look || {}) },
       tiles: pad(f.tiles, d.tiles.length, () => ({ crop: null, plantedAt: 0, watered: false })),
-      beds: pad(f.beds, d.beds.length, () => false).map((b, i) => (typeof b === 'object' ? false : b) || (i === 0 || i === 8)),
+      beds: pad(f.beds, d.beds.length, () => false).map((b, i) => b === true || i === 0 || i === DATA.FIELD_BEDS),
       trees: pad(f.trees, d.trees.length, () => ({ at: 0 })),
       coop: f.coop || { fedAt: 0 }, pen: f.pen || { fedAt: 0 },
+      guard: DATA.GUARDS.some((g) => g.id === f.guard) ? f.guard : 'none',
     };
   }
 
@@ -1098,12 +1104,14 @@
     try { f = await CLOUD.getFarm(u); } catch (e) { return UI.toast('⚠️ ' + e.message, 6000); }
     if (!f || !f.user_id) return UI.toast(`Không tìm thấy người chơi "${u}" — kiểm tra lại tên đăng nhập nhé`, 4000);
     if (swingRide) AV.leaveSwing();
-    VISIT = { uid: f.user_id, username: u, data: farmData(f), helped: false };
+    VISIT = { uid: f.user_id, username: u, data: farmData(f), helped: false, stolen: {}, rev: f.updated_at };
+    guard.x = 0;
     AV.teleport('farm', false, 1600, 1350, `🏡 Đi thăm nông trại của ${VISIT.data.name}…`);
   };
 
   AV.goHomeFarm = () => {
     VISIT = null;
+    guard.x = 0;
     if (fade.mode) return;
     AV.teleport('farm', false, 1600, 1350, '🌾 Về nông trại của bạn…');
   };
@@ -1122,6 +1130,7 @@
     float('💧 Tưới giúp +12 XP', player.x, player.y - 120, '#a5d8ff');
     say(player, `💧 Tưới giúp ${name} nè!`);
     NET.sendSys(`${S.name} đã tưới giúp ${need} cây cho ${name} 💧`);
+    NET.farmPing('farmhit', VISIT.uid);
     AV.quest('help');
     changed();
   };
@@ -1141,7 +1150,199 @@
     changed();
   }
   AV.receiveHelps = receiveHelps;
-  setInterval(receiveHelps, 60000);
+  setInterval(() => { receiveHelps(); receiveSteals(); }, 60000);
+
+  /* ---------- Nông trại bạn bè cập nhật liên tục ---------- */
+  /** Tải lại nông trại đang thăm: giữ lại những gì mình vừa làm (tưới giúp, hái trộm) mà chủ chưa nhận */
+  let visitLoading = false;
+  async function refreshVisit() {
+    if (!VISIT || map.id !== 'farm' || visitLoading || !CLOUD.user) return;
+    visitLoading = true;
+    const v = VISIT;
+    try {
+      const f = await CLOUD.getFarm(v.username);
+      if (VISIT !== v || !f || f.user_id !== v.uid || f.updated_at === v.rev) return;
+      const d = farmData(f);
+      if (v.helped) d.tiles.forEach((t) => { if (t.crop) t.watered = true; });
+      Object.entries(v.stolen).forEach(([i, at]) => { const t = d.tiles[i]; if (t && t.plantedAt === at) Object.assign(t, { crop: null, plantedAt: 0, watered: false, fert: false }); });
+      v.data = d;
+      v.rev = f.updated_at;
+      UI.updateVisitBar(v);
+    } catch (e) { /* thử lại lần sau */ } finally { visitLoading = false; }
+  }
+  setInterval(refreshVisit, 12000);
+
+  // chủ nông trại lưu xong lên mạng → báo cho người đang thăm tải lại ngay
+  let farmSig = '';
+  CLOUD.onPushed = (st) => {
+    const sig = JSON.stringify([st.tiles, st.beds, st.trees, st.coop, st.pen, st.guard, st.name, st.level]);
+    if (sig === farmSig) return;
+    farmSig = sig;
+    NET.farmPing('farmrev', st.owner);
+  };
+  /** Tin nhắn ngắn qua phòng chung: farmrev = nông trại vừa đổi, farmhit = có người tưới giúp / hái trộm */
+  AV.onFarmPing = (t, uid) => {
+    if (t === 'farmrev' && VISIT && VISIT.uid === uid) refreshVisit();
+    if (t === 'farmhit' && uid === S.owner) setTimeout(() => { receiveHelps(); receiveSteals(); }, 1500);
+  };
+
+  /* ---------- Thú giữ nhà + hái trộm ---------- */
+  const guard = { x: 0, y: 0, tx: 0, ty: 0, dir: 1, t: 0, moving: false, wait: 0, chase: null, angry: 0, bubble: null, kind: 'guard' };
+  const GUARD_YARD = { l: 3900, t: 1120, r: 5140, b: 1235 }, GUARD_LANE = { l: 260, t: 805, r: 5140, b: 840 };
+  const guardDef = (id) => DATA.GUARDS.find((g) => g.id === id) || DATA.GUARDS[0];
+  AV.guardOf = () => (map.id === 'farm' ? FD().guard || 'none' : 'none');
+
+  function updateGuard(dt) {
+    const kind = AV.guardOf();
+    if (kind === 'none') return;
+    guard.t += dt;
+    if (!guard.x) { guard.x = guard.tx = 4300; guard.y = guard.ty = 1180; }
+    let tx = guard.tx, ty = guard.ty, speed = 70;
+    if (guard.chase) {
+      tx = player.x + 46 * (player.x > guard.x ? -1 : 1); ty = player.y + 4; speed = 520;
+      if (Math.hypot(tx - guard.x, ty - guard.y) > 1100) { guard.x = tx - Math.sign(tx - guard.x) * 500; guard.y = ty; }
+      if (now > guard.chase.until) { guard.chase = null; guard.tx = guard.x; guard.ty = guard.y; }
+    }
+    const dx = tx - guard.x, dy = ty - guard.y, d = Math.hypot(dx, dy);
+    if (guard.wait > 0 && !guard.chase) { guard.wait -= dt; guard.moving = false; return; }
+    if (d < 4) {
+      guard.moving = false;
+      if (guard.chase) { guard.dir = player.x > guard.x ? 1 : -1; return; }
+      guard.wait = 2 + Math.random() * 5;
+      const a = Math.random() < 0.55 ? GUARD_YARD : GUARD_LANE;
+      guard.tx = a.l + Math.random() * (a.r - a.l); guard.ty = a.t + Math.random() * (a.b - a.t);
+      return;
+    }
+    const step = Math.min(d, speed * dt);
+    guard.x += dx / d * step; guard.y += dy / d * step;
+    guard.dir = dx > 0 ? 1 : -1;
+    guard.moving = true;
+  }
+
+  /** Hái trộm 1 ô đã chín ở nông trại bạn. Thú giữ nhà có thể cắn → bị phạt xu (xu về túi chủ nhà) */
+  AV.stealTile = async (i) => {
+    const v = VISIT;
+    if (!v || v.busy) return;
+    const t = v.data.tiles[i];
+    if (tileState(t).stage !== 2) return;
+    if (v.stolen[i] !== undefined) return UI.toast('Ô này bạn vừa hái rồi 😅');
+    if (Object.keys(v.stolen).length >= DATA.STEAL.perFarm) return UI.toast(`Hôm nay bạn đã hái trộm ${DATA.STEAL.perFarm} ô ở nông trại này rồi, đừng tham quá 😅`, 3500);
+    const g = guardDef(v.data.guard), crop = t.crop, c = DATA.CROPS[crop], name = v.data.name;
+    const bitten = g.bite > 0 && Math.random() < g.bite;
+    const qty = bitten ? 0 : Math.max(1, Math.round(c.yield * DATA.STEAL.share));
+    const fine = bitten ? Math.min(g.fine, S.coins) : 0;
+    v.busy = true;
+    try { await CLOUD.sendSteal({ owner: v.uid, thief_name: S.name, tile: i, crop, qty, bitten, coins: fine }); }
+    catch (e) { return UI.toast('⚠️ ' + e.message, 4500); }
+    finally { v.busy = false; }
+    v.stolen[i] = bitten ? -1 : t.plantedAt;
+    NET.farmPing('farmhit', v.uid);
+    if (bitten) {
+      S.coins -= fine;
+      guard.chase = { until: Date.now() + 3500 };
+      guard.angry = Date.now() + 3500;
+      guard.bubble = { text: g.id === 'lion' || g.id === 'tiger' ? 'GRÀOOO! 🦷' : 'GÂU GÂU! 🦷', until: Date.now() + 3000, big: true };
+      say(player, 'Á á á! Đau quá 😭');
+      float(`🦷 -${fine} 💰`, player.x, player.y - 120, '#ff6b6b');
+      UI.toast(`🦷 ${g.icon} ${g.name} nhà ${name} cắn bạn! Bị phạt ${fine} xu (xu về túi chủ nhà)`, 5000);
+      NET.sendSys(`🦷 ${S.name} hái trộm ở nông trại ${name} và bị ${g.name} cắn!`);
+    } else {
+      Object.assign(t, { crop: null, plantedAt: 0, watered: false, fert: false });
+      addItem(crop, qty);
+      addXP(2);
+      float(`🥷 +${qty} ${c.icon}`, player.x, player.y - 110);
+      if (g.id !== 'none') guard.bubble = { text: '💤', until: Date.now() + 2500 };
+      UI.toast(`🥷 Hái trộm được ${qty} ${c.icon} ${c.name.toLowerCase()}${g.id === 'none' ? '' : ` — ${g.name} không để ý 😏`}`, 3500);
+      NET.sendSys(`🥷 ${S.name} vừa hái trộm ${qty} ${c.icon} ở nông trại ${name}!`);
+    }
+    changed();
+  };
+
+  /** Chủ nông trại: xử lý các lần bị hái trộm (mất cây chín / nhận tiền phạt kẻ bị cắn) */
+  async function receiveSteals() {
+    if (!CLOUD.user || VISIT || !cloudReady) return;
+    let rows = [];
+    try { rows = await CLOUD.pullSteals(); } catch (e) { return; }
+    if (!rows.length) return;
+    let lost = 0, fines = 0;
+    const thieves = new Set(), bitten = new Set();
+    rows.forEach((r) => {
+      const who = r.thief_name || 'Ai đó';
+      if (r.bitten) { fines += Math.max(0, r.coins | 0); bitten.add(who); return; }
+      const t = S.tiles[r.tile];
+      if (t && t.crop === r.crop && tileState(t).stage === 2) { Object.assign(t, { crop: null, plantedAt: 0, watered: false, fert: false }); lost++; }
+      thieves.add(who);
+    });
+    if (fines) { S.coins += fines; float(`+${fines} 💰`, player.x, player.y - 120, '#ffd43b'); }
+    const g = guardDef(S.guard);
+    const msgs = [];
+    if (thieves.size) msgs.push(`🥷 ${[...thieves].join(', ')} đã hái trộm ${lost} ô ruộng của bạn!${g.id === 'none' ? ' Mua thú giữ nhà ở Chuồng Thú (góc phải nông trại) nhé 🐕' : ''}`);
+    if (bitten.size) msgs.push(`${g.icon} ${g.id === 'none' ? 'Thú giữ nhà' : g.name} đã cắn ${[...bitten].join(', ')} khi hái trộm — bạn nhận ${fines} xu tiền phạt!`);
+    msgs.forEach((m, k) => { setTimeout(() => UI.toast(m, 6000), k * 600); UI.chatLog('', m, false, true); });
+    changed();
+  }
+  AV.receiveSteals = receiveSteals;
+
+  AV.buyGuard = (id) => {
+    const g = DATA.GUARDS.find((x) => x.id === id);
+    S.owned.guards = S.owned.guards || ['none'];
+    if (!g || S.owned.guards.includes(id)) return;
+    if (!AV.spend(g.price)) return;
+    S.owned.guards.push(id);
+    AV.useGuard(id);
+    UI.toast(`${g.icon} Đã mua ${g.name}! Nó sẽ canh nông trại cho bạn`, 3500);
+  };
+  AV.useGuard = (id) => {
+    if (!(S.owned.guards || ['none']).includes(id)) return;
+    S.guard = id;
+    guard.x = 0; guard.chase = null;
+    changed();
+  };
+  AV.useKennel = () => {
+    if (!VISIT) return UI.guardShop();
+    const g = guardDef(VISIT.data.guard);
+    UI.toast(g.id === 'none' ? `Chuồng thú của ${VISIT.data.name} đang trống — hái trộm thoải mái 😏` : `${g.icon} ${g.name} nhà ${VISIT.data.name} đang canh — hái trộm có ${Math.round(g.bite * 100)}% bị cắn, phạt ${g.fine} xu!`, 4000);
+  };
+
+  /* ---------- Vòng quay may mắn: nhiệm vụ → lượt quay (tối đa 2 lượt / ngày) ---------- */
+  function wheelState() {
+    const key = todayKey();
+    if (!S.wheel || S.wheel.day !== key) S.wheel = { day: key, prog: {}, earned: [], used: 0 };
+    return S.wheel;
+  }
+  AV.wheel = wheelState;
+  AV.wheelSpins = () => { const w = wheelState(); return Math.max(0, w.earned.length - w.used); };
+
+  function wheelProgress(id, n) {
+    const task = DATA.WHEEL.tasks.find((x) => x.id === id);
+    if (!task) return;
+    const w = wheelState();
+    if (w.earned.includes(id)) return;
+    w.prog[id] = Math.min(task.n, (w.prog[id] || 0) + n);
+    if (w.prog[id] >= task.n && w.earned.length < DATA.WHEEL.maxPerDay) {
+      w.earned.push(id);
+      setTimeout(() => UI.toast('🎡 Nhận được 1 lượt Vòng quay may mắn! Bấm nút 🎡 để quay', 4500), 900);
+    }
+    UI.updateWheelDot();
+  }
+
+  /** Quay: trả về vị trí ô trúng thưởng (phần thưởng cộng ngay) hoặc -1 nếu hết lượt */
+  AV.spinWheel = () => {
+    const w = wheelState();
+    if (w.used >= w.earned.length) { UI.toast('Hết lượt quay — làm nhiệm vụ để nhận thêm (tối đa 2 lượt/ngày)'); return -1; }
+    const P = DATA.WHEEL.prizes;
+    let r = Math.random() * P.reduce((a, p) => a + p.w, 0);
+    let idx = P.findIndex((p) => (r -= p.w) < 0);
+    if (idx < 0) idx = 0;
+    const p = P[idx];
+    w.used++;
+    if (p.coins) S.coins += p.coins;
+    if (p.item) addItem(p.item, p.n);
+    if (p.xp) addXP(p.xp);
+    changed();
+    UI.updateWheelDot();
+    return idx;
+  };
 
   /* ---------- Máy game: nhận điểm từ trò chơi, đổi ra xu ---------- */
   window.addEventListener('message', (e) => {
@@ -1197,6 +1398,8 @@
 
   /* ---------- Vào / ra nhà ---------- */
   AV.enterHome = () => VISIT ? UI.toast(`🏠 Nhà của ${VISIT.data.name} đang khoá cửa`) : AV.teleport('home', false, 800, 900, '🏠 Vào nhà…');
+  AV.enterCasino = () => AV.teleport('casino', false, 1000, 880, '🎰 Vào Nhà Casino…');
+  AV.leaveCasino = () => AV.teleport('fun', false, 2260, 815, '🎡 Ra Khu giải trí…');
   AV.leaveHome = () => AV.teleport('farm', false, 2520, 762, '🌾 Ra nông trại…');
 
   /** Hoạt động trong nhà, có thời gian chờ để không spam XP */
@@ -1416,6 +1619,7 @@
     });
     if (S.look.pet && S.look.pet !== 'none') followPet(myPet, player, dt, player.dir);
     if (player.dancing && player.dancing < now) { player.dancing = 0; NET.sendState(); }
+    if (map.id === 'farm') updateGuard(dt);
     spawnPickups(dt);
     updateFishing();
     updateActionButton();
@@ -1541,7 +1745,14 @@
     }
     g.imageSmoothingEnabled = true;
     ensureGround(map, px ? 1 : FX.scale);
-    g.drawImage(map.ground, 0, 0, map.w, map.h);
+    const VW = W / ZOOM, VH = H / ZOOM;
+    const vl = cam.x - VW / 2 - 160, vr = cam.x + VW / 2 + 160, vt = cam.y - VH / 2 - 220, vb = cam.y + VH / 2 + 220;
+    const inView = (x, y) => x > vl && x < vr && y > vt && y < vb;
+    {
+      const gs = map.groundScale, sx = Math.max(0, Math.floor(cam.x - VW / 2 - 4)), sy = Math.max(0, Math.floor(cam.y - VH / 2 - 4));
+      const sw = Math.min(map.w - sx, Math.ceil(VW + 8)), sh = Math.min(map.h - sy, Math.ceil(VH + 8));
+      if (sw > 0 && sh > 0) g.drawImage(map.ground, sx * gs, sy * gs, sw * gs, sh * gs, sx, sy, sw, sh);
+    }
     if (!map.indoor) ART.backdrop(g, map.w, map.hz, cam.x, clock, map.id === 'beach');
     const night = map.indoor ? 0 : nightFactor();
     ART.nightSky(g, map.w, map.hz, night, clock);
@@ -1554,19 +1765,23 @@
     }
 
     const out = (fn, x, y, box, key, ms = 55) => FX.drawCached(g, key, fn, x, y, box, ms);
-    const list = map.objects.slice();
-    map.animals.forEach((a) => list.push({ y: a.y, draw: () => {
+    const list = map.objects.filter((o) => !o.bb || (o.bb[0] < vr && o.bb[2] > vl && o.bb[1] < vb && o.bb[3] > vt));
+    map.animals.forEach((a) => inView(a.x, a.y) && list.push({ y: a.y, draw: () => {
       if (a.kind === 'chicken') out((c) => ART.chicken(c, a.x, a.y, a.dir, a.t, a.moving, a.peck), a.x, a.y, FX.BOX.chicken, a);
       else if (a.kind === 'cow') out((c) => ART.cow(c, a.x, a.y, a.dir, a.t, a.moving, a.seed), a.x, a.y, FX.BOX.cow, a);
       else if (a.kind === 'sheep') out((c) => ART.sheep(c, a.x, a.y, a.dir, a.t, a.moving), a.x, a.y, FX.BOX.sheep, a);
       else if (a.kind === 'dog') out((c) => { c.save(); c.translate(a.x, a.y); c.scale(1.5, 1.5); ART.pet(c, 0, 0, 'dog', a.dir, a.t, a.moving); c.restore(); }, a.x, a.y, { l: -55, t: -80, w: 110, h: 86 }, a);
       else out((c) => ART.pig(c, a.x, a.y, a.dir, a.t, a.moving), a.x, a.y, FX.BOX.pig, a);
     } }));
-    map.pickups.forEach((p) => list.push({ y: p.y, draw: () => out((c) => ART.pickup(c, p.x, p.y, p.item.icon, clock), p.x, p.y, BOX_PICK, p, 120) }));
+    if (map.id === 'farm' && AV.guardOf() !== 'none' && guard.x) {
+      const gk = AV.guardOf(), ang = guard.angry > now;
+      list.push({ y: guard.y, draw: () => out((c) => ART.guard(c, guard.x, guard.y, gk, guard.dir, guard.t, guard.moving, ang), guard.x, guard.y, { l: -80, t: -100, w: 160, h: 106 }, guard, ang ? 30 : 55) });
+    }
+    map.pickups.forEach((p) => inView(p.x, p.y) && list.push({ y: p.y, draw: () => out((c) => ART.pickup(c, p.x, p.y, p.item.icon, clock), p.x, p.y, BOX_PICK, p, 120) }));
     const petDraw = (p, kind) => list.push({ y: p.y, draw: () => out((c) => ART.pet(c, p.x, p.y, kind, p.dir, p.t, p.moving), p.x, p.y, FX.BOX.pet, p) });
     const charDraw = (x, y, look, o, key) => list.push({ y, draw: () => out((c) => ART.character(c, x, y, look, o), x, y, FX.BOX.character, key) });
     map.npcs.forEach((n) => {
-      if (n.hw && !AV.hw()) return;
+      if ((n.hw && !AV.hw()) || !inView(n.x, n.y)) return;
       charDraw(n.x, n.y, n.look, n, n);
       if (n.petState) petDraw(n.petState, n.look.pet);
     });
@@ -1623,7 +1838,7 @@
     worldTransform(ctx, DPR * ZOOM, DPR * (W / 2 - cam.x * ZOOM), DPR * (H / 2 - cam.y * ZOOM));
     map.labels.forEach((l) => ART.label(ctx, l.dynamic === 'home' ? `🏠 Nhà ${FD().name || 'của bạn'}` : l.dynamic === 'gate' ? `Nông trại của ${FD().name || 'bạn'}` : l.text, l.x, l.y));
     map.inter.forEach((o) => {
-      if (!o.indicator) return;
+      if (!o.indicator || !inView(o.ix, o.iy)) return;
       const r = o.indicator();
       if (r == null) return;
       if (typeof r === 'object') ART.timerLabel(ctx, o.ix, o.iy, r.left, r.p);
@@ -1635,26 +1850,28 @@
     // mũi tên vàng "Vào" trước cửa
     map.inter.forEach((o) => { if (o.arrow && (!o.hw || AV.hw())) ART.doorArrow(ctx, o.arrow.x, o.arrow.y, clock, o.arrow.text); });
 
-    // bảng tên gỗ dưới chân như Avatar
-    map.npcs.forEach((n) => { if (!n.hw || AV.hw()) ART.namePlate(ctx, n.name, n.x, n.y + 6, 'npc'); });
-    others.forEach((r) => ART.namePlate(ctx, r.name, r.rx, r.ry + 6, 'other'));
-    if (!player.hidden) ART.namePlate(ctx, S.name || 'Bạn', player.x, player.y + 6, 'me');
+    // bảng tên gỗ trên đầu nhân vật
+    // bảng tên nằm sát trên đỉnh đầu (cao hơn khi đội mũ); bong bóng chat nằm trên bảng tên
+    const nameTop = (look) => (!look || look.hat === 'none' ? 118 : look.hat === 'nonla' ? 138 : 130);
+    map.npcs.forEach((n) => { if (!n.hw || AV.hw()) ART.namePlate(ctx, n.name, n.x, n.y - nameTop(n.look), 'npc'); });
+    others.forEach((r) => ART.namePlate(ctx, r.name, r.rx, r.ry - nameTop(r.look), 'other'));
+    if (!player.hidden) ART.namePlate(ctx, S.name || 'Bạn', player.x, player.y - nameTop(S.look), 'me');
 
-    const headTop = (look) => (look && look.hat === 'nonla' ? 134 : 120);
     const bubbleOf = (e) => {
       if (e.bubble && e.bubble.until > now) {
-        const top = e.kind === 'npc' || e === player ? headTop(e === player ? S.look : e.look) : 52;
+        const top = e.kind === 'npc' || e === player ? nameTop(e === player ? S.look : e.look) + 4 : 52;
         ART.bubble(ctx, e.bubble.text, e.x, e.y - top, e.bubble.big);
       }
     };
     map.animals.forEach(bubbleOf);
+    if (map.id === 'farm' && guard.bubble && guard.bubble.until > now) ART.bubble(ctx, guard.bubble.text, guard.x, guard.y - 78, guard.bubble.big);
     map.npcs.forEach(bubbleOf);
     others.forEach((r) => {
-      if (r.bubble && r.bubble.until > now) ART.bubble(ctx, r.bubble.text, r.rx, r.ry - headTop(r.look), r.bubble.big);
+      if (r.bubble && r.bubble.until > now) ART.bubble(ctx, r.bubble.text, r.rx, r.ry - nameTop(r.look) - 4, r.bubble.big);
     });
     if (!player.hidden) bubbleOf(player);
-    if (player.fishing && player.fishing.state === 'bite') ART.biteMark(ctx, player.x, player.y - headTop(S.look) - 6, clock);
-    others.forEach((r) => { if (r.fish && r.fish.bite) ART.biteMark(ctx, r.rx, r.ry - headTop(r.look) - 6, clock); });
+    if (player.fishing && player.fishing.state === 'bite') ART.biteMark(ctx, player.x, player.y - nameTop(S.look) - 10, clock);
+    others.forEach((r) => { if (r.fish && r.fish.bite) ART.biteMark(ctx, r.rx, r.ry - nameTop(r.look) - 10, clock); });
 
     floats.forEach((f) => {
       ctx.globalAlpha = Math.max(0, 1 - f.t / 1.4);
@@ -1693,8 +1910,14 @@
   }
 
   /* ---------- Điều khiển ---------- */
+  /* ---------- Tiết kiệm pin: điện thoại tự bật — 30 hình/giây, độ nét vừa phải, chỉ vẽ phần đang thấy ---------- */
+  const IS_PHONE = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || Math.min(screen.width, screen.height) < 820;
+  const saver = () => { const g = (S.settings && S.settings.gfx) || 'auto'; return g === 'saver' || (g === 'auto' && IS_PHONE); };
+  AV.saverOn = saver;
+  AV.applyGfx = () => { resize(); FX.setSlow(saver() ? 1.8 : 1); };
+
   function resize() {
-    DPR = Math.min(2, window.devicePixelRatio || 1);
+    DPR = Math.min(saver() ? 1.3 : 2, window.devicePixelRatio || 1);
     W = window.innerWidth;
     H = window.innerHeight;
     canvas.width = Math.round(W * DPR);
@@ -1707,7 +1930,7 @@
   function applyZoom() {
     const baseZoom = Math.max(0.62, Math.min(1.15, Math.min(W / 1050, H / 720)));
     ZOOM = baseZoom * (typeof zoomMul === 'number' ? zoomMul : 1);
-    FX.setScale(DPR * ZOOM);
+    FX.setScale(Math.min(saver() ? 1.5 : 3, DPR * ZOOM));
   }
 
   function toWorld(cx, cy) {
@@ -1853,17 +2076,21 @@
   /* ---------- Khởi động ---------- */
   let last = 0;
   function loop(t) {
+    requestAnimationFrame(loop);
+    // tiết kiệm pin: tối đa ~30 hình/giây
+    if (saver() && last && t - last < 30) return;
     const dt = Math.min(0.05, (t - (last || t)) / 1000);
     last = t;
     update(dt);
     draw();
-    requestAnimationFrame(loop);
   }
 
-  resize();
+  AV.applyGfx();
   window.addEventListener('resize', resize);
   enterMap(maps[S.map] ? S.map : 'farm', S.x, S.y);
   UI.init();
+  MUSIC.init(S.settings || {});
+  UI.updateMusicBtn();
   TABLE.init();
   UI.updateHud();
   NET.init(player);
@@ -1912,7 +2139,7 @@
   const summary = (d) => ({ name: d.name, level: d.level || 1, coins: d.coins || 0, beds: (d.beds || []).filter(Boolean).length, at: d.changedAt || 0 });
 
   AV.afterLogin = async () => {
-    setTimeout(receiveHelps, 4000);
+    setTimeout(() => { receiveHelps(); receiveSteals(); }, 4000);
     cloudReady = false;
     const uid = CLOUD.user.id;
     let cloud = null;
@@ -2010,6 +2237,6 @@
   window.addEventListener('beforeunload', saveNow);
   document.addEventListener('visibilitychange', () => { if (document.hidden) { saveNow(); if (CLOUD.user && cloudReady) CLOUD.push(S); } });
 
-  AV._debug = { player, bus, maps, get map() { return map; }, enterMap, update, draw, goTo, findPath, clickWorld, camOff, cam, get zoom() { return ZOOM; } };
+  AV._debug = { player, bus, maps, get map() { return map; }, enterMap, update, draw, goTo, findPath, clickWorld, camOff, cam, get zoom() { return ZOOM; }, guard, refreshVisit, get visit() { return VISIT; }, set visit(v) { VISIT = v; } };
   requestAnimationFrame(loop);
 })();

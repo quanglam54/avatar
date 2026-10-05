@@ -8,6 +8,7 @@ const FX = (() => {
   const ensure = (c, w, h) => { if (c.width < w || c.height < h) { c.width = Math.max(c.width, w); c.height = Math.max(c.height, h); } };
   let SCALE = 1;
   let gen = 0;
+  let SLOW = 1;
 
   /** Đặt độ phân giải vẽ sprite (= DPR × zoom). Đổi scale sẽ vẽ lại toàn bộ sprite tĩnh. */
   function setScale(s) {
@@ -75,7 +76,7 @@ const FX = (() => {
   function drawCached(ctx, key, drawFn, x, y, box, interval) {
     const now = performance.now();
     let e = live.get(key);
-    if (!e || e.gen !== gen || now - e.t > interval) {
+    if (!e || e.gen !== gen || now - e.t > interval * SLOW) {
       const r = render(drawFn, x, y, box);
       if (!e) { e = { c: mk(r.W, r.H) }; live.set(key, e); }
       if (e.c.width < r.W || e.c.height < r.H) { e.c.width = Math.max(e.c.width, r.W); e.c.height = Math.max(e.c.height, r.H); }
@@ -112,5 +113,5 @@ const FX = (() => {
     object: { l: -150, t: -215, w: 300, h: 235 },
   };
 
-  return { render, drawOutlined, drawCached, sprite, setScale, BOX, get scale() { return SCALE; } };
+  return { render, drawOutlined, drawCached, sprite, setScale, setSlow: (k) => { SLOW = k; }, BOX, get scale() { return SCALE; } };
 })();

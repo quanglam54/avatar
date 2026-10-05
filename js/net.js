@@ -208,13 +208,19 @@ const NET = (() => {
       if (!m || m.id === pid) return;
       if (m.t === 'where') where.set(m.id, { map: String(m.map), seen: Date.now() });
       else if (m.t === 'bye') where.delete(m.id);
+      else if ((m.t === 'farmrev' || m.t === 'farmhit') && m.u) AV.onFarmPing(m.t, String(m.u));
     });
     announce();
   }
 
   function announce() {
     lobbyBeat = 0;
-    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId.split('-')[0] });
+    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId === 'casino' ? 'fun' : mapId.split('-')[0] });
+  }
+
+  /** Báo ngắn cho mọi người: nông trại của uid vừa thay đổi / vừa bị tưới giúp, hái trộm */
+  function farmPing(t, uid) {
+    if (lobby && uid) lobby.send({ t, id: pid, u: uid });
   }
 
   function zoneCounts() {
@@ -315,7 +321,7 @@ const NET = (() => {
   }
 
   return {
-    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce,
+    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],

@@ -32,9 +32,9 @@
       howto: ['Click để mở ô, chuột phải để cắm cờ', 'Điện thoại: bật chế độ 🚩 hoặc nhấn giữ', 'Số trên ô = số mìn xung quanh', 'Thời gian càng ngắn càng xếp hạng cao'],
     },
     {
-      id: 'keobo', title: 'Kéo Bò', icon: '🐄', cat: 'arcade', c1: '#e03131', c2: '#f59f00', unit: 'điểm',
-      desc: 'Bấm thật nhanh để kéo bò về vạch đích trước các cao bồi khác!',
-      howto: ['Bấm nút KÉO! hoặc phím Space thật nhanh', 'Bấm liên tục được COMBO kéo mạnh hơn', 'Bò vùng vẫy kéo ngược lại, đừng dừng tay', 'Về nhất thì sang màn khó hơn'],
+      id: 'keobo', title: 'Bắt Bò', icon: '🐄', cat: 'arcade', c1: '#e03131', c2: '#f59f00', unit: 'điểm',
+      desc: 'Quăng dây thòng lọng bắt bò đang chạy rồi kéo về chuồng!',
+      howto: ['Mũi tên ngắm tự lắc qua lại', 'Bấm QUĂNG DÂY (hoặc Space) khi mũi tên chỉ đúng con bò', 'Bắt trúng thì bấm thật nhanh để KÉO bò về', 'Kéo chậm quá bò sẽ giật đứt dây chạy mất', 'Bò đen chạy nhanh, bò vàng hiếm được nhiều điểm'],
     },
     {
       id: 'goldminer', title: 'Đào Vàng', icon: '⛏️', cat: 'arcade', c1: '#f59f00', c2: '#8a4b22', unit: 'điểm',

@@ -516,3 +516,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hw-head b { font-size: 20px; color: #ffc078; }
 .hw-help { margin-bottom: 4px; }
 @media (max-width: 560px) { .av-btn.sq.event-btn { width: 44px; } }
+
+/* ---------- Vòng quay may mắn ---------- */
+.wheel-wrap { position: relative; width: min(300px, 78vw); aspect-ratio: 1; margin: 6px auto 14px; }
+.wheel { position: absolute; inset: 0; border-radius: 50%; border: 6px solid #fff; box-shadow: 0 0 0 4px #1b2f48, 0 8px 18px rgba(0,0,0,.25); transition: transform 4.2s cubic-bezier(.17,.67,.21,1); overflow: hidden; }
+.wheel span { position: absolute; inset: 0; display: flex; justify-content: center; padding-top: 10%; pointer-events: none; }
+.wheel span b { font-size: 11px; line-height: 1.15; color: #1b2f48; text-align: center; font-weight: 900; text-shadow: 0 1px 0 rgba(255,255,255,.6); }
+.wheel-pin { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 14px solid transparent; border-right: 14px solid transparent; border-top: 30px solid #e03131; z-index: 2; filter: drop-shadow(0 2px 0 #1b2f48); }
+.wheel-go { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 30%; aspect-ratio: 1; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 0 0 3px #1b2f48; background: radial-gradient(#ffe066, #f59f00); color: #5c3010; font-weight: 900; font-size: 13px; cursor: pointer; z-index: 2; }
+.wheel-go:disabled { background: radial-gradient(#e9ecef, #adb5bd); color: #495057; cursor: default; }
+
+/* Điện thoại: hàng nút bên trái tự xuống dòng, không đè lên ô xu / cấp độ */
+@media (max-width: 560px) {
+  .hud-left { flex-wrap: wrap; max-width: calc(100vw - 150px); gap: 5px; }
+  .av-btn.sq, .av-btn.menu { width: 40px; height: 40px; font-size: 19px; }
+  .av-btn.sq.event-btn { width: 40px; }
+  .loc-banner { top: 104px; }
+}

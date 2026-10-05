@@ -661,7 +661,7 @@ Object.assign(ART, (() => {
     ctx.fillText(text, x, y + 9.5);
     if (kind === 'me') {
       ctx.fillStyle = '#ffd43b';
-      ctx.beginPath(); ctx.moveTo(x - 6, y + 26); ctx.lineTo(x + 6, y + 26); ctx.lineTo(x, y + 34); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x - 5, y + 21); ctx.lineTo(x + 5, y + 21); ctx.lineTo(x, y + 27); ctx.closePath(); ctx.fill();
       ctx.strokeStyle = '#5a3010'; ctx.lineWidth = 1.5; ctx.stroke();
     }
   }
@@ -1300,4 +1300,234 @@ Object.assign(ART, (() => {
   }
 
   return { jackLantern, gravestone, hwSky, hwBunting, cauldronStall, arcadeCabinet, grandstand, raceCar, startGate, swingFrame, swingSeat, gazebo, innerWallH, innerWallV, sofa, tvSet, coffeeTable, bookshelf, plantPot, kitchenCounter, fridge, diningTable, bedFurn, wardrobe, nightstand, bathtub, sinkMirror, storageShelf, chest, homeDoor, treeFruits, lantern, pillar, wallH, wallV, farmGate, barn, windmill, flowerBed, trough, blackboard, desk, podium, flagPole, fishingRod, biteMark, stonePath, BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
+})());
+
+/* Thú giữ nhà (chó cỏ, béc-giê, hổ, sư tử) + chuồng thú */
+Object.assign(ART, (() => {
+  const { rr, shadow, circle } = ART;
+  const LOOK = {
+    dog: { s: 1.3, body: '#d9a066', dark: '#a8723a', belly: '#f6e3c3' },
+    shepherd: { s: 1.5, body: '#c98d4a', dark: '#2b2622', belly: '#ecc48e' },
+    tiger: { s: 1.75, body: '#f08c00', dark: '#1f1a17', belly: '#fff4e6' },
+    lion: { s: 1.85, body: '#e2ab55', dark: '#8a5a19', belly: '#f7e1b5', mane: '#9c5418' },
+  };
+
+  /** Thú giữ nhà nhìn sang phải (dir = -1 thì lật). angry = đang đuổi cắn kẻ trộm */
+  function guard(ctx, x, y, kind, dir, t, moving, angry) {
+    const L = LOOK[kind];
+    if (!L) return;
+    const s = L.s, run = angry ? 20 : 12;
+    const hop = moving ? Math.abs(Math.sin(t * run)) * 2.2 : 0;
+    shadow(ctx, x, y, 17 * s, 4.5 * s);
+    ctx.save();
+    ctx.translate(x, y - hop * s);
+    ctx.scale(dir * s, s);
+    const cat = kind === 'tiger' || kind === 'lion';
+
+    // đuôi
+    const wag = angry ? Math.sin(t * 22) * 3 : moving ? Math.sin(t * 12) * 3 : Math.sin(t * 3) * 1.5;
+    ctx.strokeStyle = L.body; ctx.lineWidth = cat ? 3 : 3.6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-13, -16);
+    if (cat) ctx.quadraticCurveTo(-26, -12, -27 + wag * 0.3, -26 + wag);
+    else ctx.quadraticCurveTo(-21, -20, -20 + wag * 0.4, -28 + Math.abs(wag));
+    ctx.stroke();
+    if (kind === 'lion') circle(ctx, -27 + wag * 0.3, -27 + wag, 3.2, L.mane);
+    if (kind === 'tiger') { ctx.strokeStyle = L.dark; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-22, -15); ctx.lineTo(-23, -18); ctx.moveTo(-25, -20); ctx.lineTo(-27, -21); ctx.stroke(); }
+
+    // chân (sau trước)
+    [-10, -5, 5, 10].forEach((lx, i) => {
+      const lift = moving ? Math.max(0, Math.sin(t * run + i * 1.7)) * 3.2 : 0;
+      ctx.fillStyle = i === 1 || i === 3 ? L.body : L.dark;
+      if (kind === 'shepherd' || cat) ctx.fillStyle = i === 1 || i === 3 ? L.body : shadeOf(L.body);
+      rr(ctx, lx - 2.4, -9 - lift, 4.8, 9, 2.2); ctx.fill();
+      circle(ctx, lx, -0.6 - lift, 2.6, cat ? L.belly : L.dark);
+    });
+
+    // thân
+    ctx.fillStyle = L.body;
+    ctx.beginPath(); ctx.ellipse(0, -15, 15.5, 8.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = L.belly;
+    ctx.beginPath(); ctx.ellipse(2, -10.5, 10, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+    if (kind === 'shepherd') { ctx.fillStyle = L.dark; ctx.beginPath(); ctx.ellipse(-2, -19.5, 11, 5, 0, 0, Math.PI * 2); ctx.fill(); }
+    if (kind === 'tiger') {
+      ctx.strokeStyle = L.dark; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      for (let k = -10; k <= 8; k += 4.5) { ctx.beginPath(); ctx.moveTo(k, -23); ctx.quadraticCurveTo(k + 2, -18, k, -13); ctx.stroke(); }
+    }
+
+    // bờm sư tử
+    const hx = 13, hy = -22;
+    if (kind === 'lion') {
+      for (let k = 0; k < 14; k++) {
+        const a = (k / 14) * Math.PI * 2;
+        circle(ctx, hx - 1 + Math.cos(a) * 9.5, hy + Math.sin(a) * 9.5, 4.6, L.mane);
+      }
+      circle(ctx, hx - 1, hy, 9.5, L.mane);
+    }
+
+    // đầu
+    circle(ctx, hx, hy, 7.6, L.body);
+    // tai
+    if (kind === 'dog') { ctx.fillStyle = L.dark; ctx.beginPath(); ctx.ellipse(hx - 5, hy - 2, 3.2, 6, 0.5, 0, Math.PI * 2); ctx.fill(); }
+    else if (kind === 'shepherd') {
+      ctx.fillStyle = L.dark;
+      ctx.beginPath(); ctx.moveTo(hx - 6, hy - 4); ctx.lineTo(hx - 5, hy - 15); ctx.lineTo(hx - 1, hy - 6); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(hx - 1, hy - 6); ctx.lineTo(hx + 1, hy - 16); ctx.lineTo(hx + 4, hy - 6); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = L.dark; ctx.beginPath(); ctx.ellipse(hx - 2, hy - 2, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+    } else {
+      circle(ctx, hx - 5, hy - 6, 3, L.body); circle(ctx, hx + 2, hy - 7.5, 3, L.body);
+      circle(ctx, hx - 5, hy - 6, 1.5, kind === 'tiger' ? L.dark : L.mane); circle(ctx, hx + 2, hy - 7.5, 1.5, kind === 'tiger' ? L.dark : L.mane);
+    }
+    if (kind === 'tiger') {
+      ctx.strokeStyle = L.dark; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(hx - 2, hy - 7); ctx.lineTo(hx - 1, hy - 4); ctx.moveTo(hx + 2, hy - 7); ctx.lineTo(hx + 2, hy - 4); ctx.moveTo(hx - 7, hy - 1); ctx.lineTo(hx - 4, hy); ctx.stroke();
+    }
+
+    // mõm + mũi + mắt
+    ctx.fillStyle = L.belly;
+    ctx.beginPath(); ctx.ellipse(hx + 6, hy + 2.5, kind === 'shepherd' ? 6 : 5, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+    circle(ctx, hx + 10.5, hy + 0.8, 1.9, '#2b1d14');
+    circle(ctx, hx + 2.5, hy - 2.5, 1.5, angry ? '#c92a2a' : '#111');
+    if (angry) {
+      ctx.strokeStyle = '#111'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(hx, hy - 5.5); ctx.lineTo(hx + 4.5, hy - 3.8); ctx.stroke();
+      // há miệng nhe răng
+      ctx.fillStyle = '#8b1a1a';
+      ctx.beginPath(); ctx.moveTo(hx + 3, hy + 4.5); ctx.lineTo(hx + 11, hy + 3.5); ctx.lineTo(hx + 8, hy + 8.5); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.moveTo(hx + 5, hy + 4.2); ctx.lineTo(hx + 6, hy + 6.4); ctx.lineTo(hx + 7, hy + 4); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(hx + 8, hy + 3.9); ctx.lineTo(hx + 9, hy + 6); ctx.lineTo(hx + 10, hy + 3.7); ctx.closePath(); ctx.fill();
+    } else {
+      ctx.strokeStyle = 'rgba(40,25,15,.7)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(hx + 7, hy + 4, 2.2, 0.2, Math.PI - 0.4); ctx.stroke();
+    }
+    // vòng cổ chó
+    if (!cat) { ctx.fillStyle = '#e03131'; rr(ctx, hx - 7, hy + 5, 6, 3.2, 1.5); ctx.fill(); circle(ctx, hx - 3.5, hy + 9, 1.6, '#fcc419'); }
+    ctx.restore();
+  }
+  const shadeOf = (hex) => {
+    const n = parseInt(hex.slice(1), 16);
+    const f = (c) => Math.round(c * 0.8);
+    return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
+  };
+
+  /** Chuồng thú bằng gỗ mái đỏ, có hình khúc xương */
+  function kennel(ctx, x, y) {
+    shadow(ctx, x, y, 66, 12);
+    ctx.fillStyle = '#b5773e';
+    rr(ctx, x - 52, y - 64, 104, 64, 4); ctx.fill();
+    ctx.strokeStyle = 'rgba(90,50,20,.35)'; ctx.lineWidth = 2;
+    for (let k = 1; k < 5; k++) { ctx.beginPath(); ctx.moveTo(x - 52, y - 64 + k * 13); ctx.lineTo(x + 52, y - 64 + k * 13); ctx.stroke(); }
+    ctx.fillStyle = '#c92a2a';
+    ctx.beginPath(); ctx.moveTo(x - 66, y - 56); ctx.lineTo(x, y - 112); ctx.lineTo(x + 66, y - 56); ctx.lineTo(x + 56, y - 50); ctx.lineTo(x, y - 98); ctx.lineTo(x - 56, y - 50); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e8b46a';
+    ctx.beginPath(); ctx.moveTo(x - 56, y - 50); ctx.lineTo(x, y - 98); ctx.lineTo(x + 56, y - 50); ctx.lineTo(x + 52, y - 64); ctx.lineTo(x - 52, y - 64); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#9c6a36';
+    ctx.beginPath(); ctx.moveTo(x - 52, y - 64); ctx.lineTo(x, y - 98); ctx.lineTo(x + 52, y - 64); ctx.closePath(); ctx.fill();
+    // cửa vòm
+    ctx.fillStyle = '#3b2412';
+    ctx.beginPath(); ctx.moveTo(x - 22, y); ctx.lineTo(x - 22, y - 26); ctx.arc(x, y - 26, 22, Math.PI, 0); ctx.lineTo(x + 22, y); ctx.closePath(); ctx.fill();
+    // khúc xương
+    ctx.fillStyle = '#fff';
+    rr(ctx, x - 13, y - 81, 26, 7, 3); ctx.fill();
+    [[-13, -82], [-13, -73], [13, -82], [13, -73]].forEach(([dx, dy]) => circle(ctx, x + dx, y + dy, 4, '#fff'));
+  }
+
+  function dogBowl(ctx, x, y) {
+    shadow(ctx, x, y, 16, 4);
+    ctx.fillStyle = '#1c7ed6';
+    ctx.beginPath(); ctx.ellipse(x, y - 4, 15, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8b5a2b';
+    ctx.beginPath(); ctx.ellipse(x, y - 6, 11, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+    circle(ctx, x - 4, y - 7, 2, '#a0703a'); circle(ctx, x + 3, y - 7, 2, '#a0703a');
+  }
+
+  return { guard, kennel, dogBowl };
+})());
+
+/* Nhà Casino ở Khu giải trí: mặt tiền + bảng hiệu đèn nhấp nháy */
+Object.assign(ART, (() => {
+  const { rr, shadow, circle } = ART;
+  const CW = 560, CH = 300;
+
+  function casino(ctx, x, y) {
+    const L = x - CW / 2, T = y - CH;
+    shadow(ctx, x, y + 6, 310, 24, 0.2);
+    // thân nhà
+    const body = ctx.createLinearGradient(0, T, 0, y);
+    body.addColorStop(0, '#7b1f45'); body.addColorStop(1, '#4a0f2a');
+    ctx.fillStyle = body; rr(ctx, L, T, CW, CH, 10); ctx.fill();
+    // hoạ tiết kim cương
+    ctx.strokeStyle = 'rgba(255,212,59,.16)'; ctx.lineWidth = 2;
+    for (let k = -CH; k < CW; k += 34) { ctx.beginPath(); ctx.moveTo(L + k, y); ctx.lineTo(L + k + CH, T + 20); ctx.moveTo(L + k + CH, y); ctx.lineTo(L + k, T + 20); ctx.stroke(); }
+    // cột vàng
+    for (let k = 0; k < 5; k++) {
+      const px = L + 26 + k * (CW - 52) / 4;
+      const g = ctx.createLinearGradient(px - 11, 0, px + 11, 0);
+      g.addColorStop(0, '#c78b00'); g.addColorStop(0.5, '#ffe066'); g.addColorStop(1, '#b07800');
+      ctx.fillStyle = g; ctx.fillRect(px - 11, T + 36, 22, CH - 36);
+      ctx.fillStyle = '#ffd43b'; ctx.fillRect(px - 15, T + 30, 30, 10); ctx.fillRect(px - 15, y - 10, 30, 10);
+    }
+    // mái + diềm vàng
+    ctx.fillStyle = '#ffd43b'; rr(ctx, L - 16, T - 8, CW + 32, 28, 8); ctx.fill();
+    ctx.fillStyle = '#e8a200'; ctx.fillRect(L - 10, T + 12, CW + 20, 6);
+    // cửa sổ vòm sáng ấm
+    [L + 92, L + 196, L + CW - 196, L + CW - 92].forEach((wx, wi) => {
+      ctx.fillStyle = '#2b0a1f'; rr(ctx, wx - 36, T + 70, 72, 118, 30); ctx.fill();
+      const gl = ctx.createLinearGradient(0, T + 76, 0, T + 184);
+      gl.addColorStop(0, '#fff3bf'); gl.addColorStop(1, '#ffa94d');
+      ctx.fillStyle = gl; rr(ctx, wx - 30, T + 76, 60, 106, 26); ctx.fill();
+      ctx.fillStyle = '#c92a2a';
+      ctx.beginPath(); ctx.moveTo(wx - 30, T + 90); ctx.quadraticCurveTo(wx - 14, T + 120, wx - 26, T + 182); ctx.lineTo(wx - 30, T + 182); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(wx + 30, T + 90); ctx.quadraticCurveTo(wx + 14, T + 120, wx + 26, T + 182); ctx.lineTo(wx + 30, T + 182); ctx.closePath(); ctx.fill();
+      ctx.font = '22px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+      ctx.fillText(['🎲', '🃏', '🎰', '🕹️'][wi], wx, T + 140);
+    });
+    // cửa kính đôi
+    ctx.fillStyle = '#ffd43b'; rr(ctx, x - 78, y - 150, 156, 150, 10); ctx.fill();
+    ctx.fillStyle = '#1b1430'; rr(ctx, x - 70, y - 142, 140, 142, 6); ctx.fill();
+    [-1, 1].forEach((sd) => {
+      const gl = ctx.createLinearGradient(x + sd * 34 - 30, y - 136, x + sd * 34 + 30, y);
+      gl.addColorStop(0, '#ffe8a3'); gl.addColorStop(1, '#e8590c');
+      ctx.fillStyle = gl; rr(ctx, x + sd * 34 - 30, y - 136, 60, 136, 4); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(x + sd * 34 - 22, y - 128, 8, 110);
+      ctx.fillStyle = '#ffd43b'; rr(ctx, x + sd * 8 - 3, y - 80, 6, 26, 3); ctx.fill();
+    });
+    // mái hiên đỏ
+    ctx.fillStyle = '#e03131';
+    ctx.beginPath(); ctx.moveTo(x - 104, y - 168); ctx.lineTo(x + 104, y - 168); ctx.lineTo(x + 92, y - 146); ctx.lineTo(x - 92, y - 146); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff';
+    for (let k = -96; k < 96; k += 24) { ctx.beginPath(); ctx.moveTo(x + k, y - 146); ctx.lineTo(x + k + 12, y - 146); ctx.lineTo(x + k + 6, y - 138); ctx.closePath(); ctx.fill(); }
+    // thảm đỏ trước cửa
+    ctx.fillStyle = '#c92a2a';
+    ctx.beginPath(); ctx.moveTo(x - 66, y); ctx.lineTo(x + 66, y); ctx.lineTo(x + 88, y + 34); ctx.lineTo(x - 88, y + 34); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffd43b'; ctx.fillRect(x - 88, y + 30, 176, 4);
+    // bảng hiệu
+    ctx.fillStyle = '#ffd43b'; rr(ctx, x - 182, T - 104, 364, 100, 18); ctx.fill();
+    ctx.fillStyle = '#2b0a3d'; rr(ctx, x - 174, T - 96, 348, 84, 14); ctx.fill();
+    ctx.font = '900 52px "Be Vietnam Pro", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tg = ctx.createLinearGradient(0, T - 80, 0, T - 28);
+    tg.addColorStop(0, '#fff3bf'); tg.addColorStop(1, '#fcc419');
+    ctx.lineWidth = 6; ctx.strokeStyle = '#7a2e00'; ctx.strokeText('CASINO', x, T - 53);
+    ctx.fillStyle = tg; ctx.fillText('CASINO', x, T - 53);
+    ctx.font = '22px system-ui, "Segoe UI Emoji"';
+    ctx.fillStyle = '#000'; ctx.fillText('♠️', x - 150, T - 54); ctx.fillText('♥️', x + 150, T - 54);
+  }
+
+  /** Bóng đèn quanh bảng hiệu: nhấp nháy chạy vòng (vẽ mỗi khung, rất nhẹ) */
+  function casinoBulbs(ctx, x, y, t) {
+    const T = y - CH, l = x - 178, r = x + 178, top = T - 100, bot = T - 8;
+    const pts = [];
+    for (let px = l; px <= r; px += 22) { pts.push([px, top]); }
+    for (let py = top + 22; py <= bot; py += 22) pts.push([r, py]);
+    for (let px = r - 22; px >= l; px -= 22) pts.push([px, bot]);
+    for (let py = bot - 22; py > top; py -= 22) pts.push([l, py]);
+    const step = Math.floor(t * 7);
+    pts.forEach(([px, py], i) => {
+      const lit = (i + step) % 3 === 0;
+      circle(ctx, px, py, 4.2, lit ? '#fff9db' : '#f08c00');
+      if (lit) circle(ctx, px, py, 7, 'rgba(255,240,170,.35)');
+    });
+  }
+
+  return { casino, casinoBulbs, CASINO: { w: CW, h: CH } };
 })());

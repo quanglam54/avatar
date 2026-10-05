@@ -54,7 +54,7 @@ const DATA = {
     { id: 'pikachu', name: 'Pikachu', icon: '⚡', color: '#fcc419', div: 30 },
     { id: 'flappy', name: 'Flappy Bird', icon: '🐤', color: '#38bdf8', div: 0.5 },
     { id: 'goldminer', name: 'Đào Vàng', icon: '⛏️', color: '#f59f00', div: 60 },
-    { id: 'keobo', name: 'Kéo Bò', icon: '🐄', color: '#e03131', div: 60 },
+    { id: 'keobo', name: 'Bắt Bò', icon: '🐄', color: '#e03131', div: 60 },
   ],
   CROPS: {
     wheat: { name: 'Lúa mì', icon: '🌾', seed: 2, sell: 5, time: 300, xp: 4, lvl: 1, yield: 4 },
@@ -77,7 +77,10 @@ const DATA = {
   COOP: { time: 900, feed: 3, eggs: 10, xp: 16 },
   PEN: { time: 1800, feed: 4, milk: 8, wool: 4, pork: 3, xp: 24 },
   PLOT_PRICES: [0, 0, 0, 0, 0, 0, 40, 80, 120, 200],
-  BED_PRICES: [0, 150, 400, 900, 1500, 2200, 3000, 4000, 0, 300, 800, 1500],
+  BED_PRICES: [0, 150, 400, 900, 1500, 2200, 3000, 4000, 0, 300, 800, 1500, 4500, 5000, 5500, 6000, 7000, 8000, 9000, 10000],
+  /** Luống 12–19: khu đất mở rộng (trồng rau củ) */
+  EXTRA_BEDS: 8,
+  BED_COUNT: 20,
   FIELD_BEDS: 8,
   FLOWER_BEDS: 4,
   TILES_PER_BED: 12,
@@ -104,11 +107,42 @@ DATA.PETS = [
   { id: 'bat', name: 'Dơi con', price: 0, event: true },
 ];
 
+/** Thú giữ nhà: canh nông trại, kẻ hái trộm có thể bị cắn và bị phạt xu (xu phạt về túi chủ nhà) */
+DATA.GUARDS = [
+  { id: 'none', name: 'Không nuôi', icon: '🚫', price: 0, bite: 0, fine: 0 },
+  { id: 'dog', name: 'Chó cỏ', icon: '🐕', price: 500, bite: 0.35, fine: 40 },
+  { id: 'shepherd', name: 'Chó béc-giê', icon: '🐺', price: 1500, bite: 0.5, fine: 80 },
+  { id: 'tiger', name: 'Hổ vằn', icon: '🐯', price: 4000, bite: 0.65, fine: 150 },
+  { id: 'lion', name: 'Sư tử', icon: '🦁', price: 8000, bite: 0.8, fine: 250 },
+];
+/** Hái trộm: tối đa 3 ô / nông trại / ngày, lấy được một nửa sản lượng của ô */
+DATA.STEAL = { perFarm: 3, share: 0.5 };
+
+/** Vòng quay may mắn: làm nhiệm vụ để nhận lượt, tối đa 2 lượt / ngày */
+DATA.WHEEL = {
+  maxPerDay: 2,
+  tasks: [
+    { id: 'fish', icon: '🎣', text: 'Câu được {n} con cá', n: 3 },
+    { id: 'harvest', icon: '🌾', text: 'Thu hoạch {n} nông sản', n: 20 },
+    { id: 'quiz', icon: '🏫', text: 'Trả lời đúng {n} câu tiếng Anh ở Trường học', n: 2 },
+  ],
+  prizes: [
+    { label: '50 xu', icon: '💰', coins: 50, w: 26, color: '#ffd43b' },
+    { label: '100 xu', icon: '💰', coins: 100, w: 20, color: '#ff922b' },
+    { label: '10 phân bón', icon: '🧪', item: 'fertilizer', n: 10, w: 16, color: '#69db7c' },
+    { label: '300 xu', icon: '💎', coins: 300, w: 9, color: '#4dabf7' },
+    { label: '40 XP', icon: '⭐', xp: 40, w: 14, color: '#da77f2' },
+    { label: '6 hạt bí ngô', icon: '🎃', item: 'seed_pumpkin', n: 6, w: 10, color: '#ffa94d' },
+    { label: '1000 xu', icon: '👑', coins: 1000, w: 2, color: '#f03e3e' },
+    { label: '6 hạt dâu', icon: '🍓', item: 'seed_strawberry', n: 6, w: 12, color: '#ff8fab' },
+  ],
+};
+
 DATA.ZONES = [
   { id: 'farm', name: 'Nông trại', icon: '🌾', x: 80, y: 80, desc: 'Trồng trọt, chăn nuôi' },
   { id: 'town', name: 'Quảng trường', icon: '⛲', x: 50, y: 52, desc: 'Gặp gỡ, trò chuyện' },
   { id: 'mall', name: 'Khu mua sắm', icon: '🛍️', x: 74, y: 28, desc: 'Chợ, thời trang, thú cưng' },
-  { id: 'fun', name: 'Khu giải trí', icon: '🎡', x: 25, y: 26, desc: 'Bầu cua, bài cào, sân khấu' },
+  { id: 'fun', name: 'Khu giải trí', icon: '🎡', x: 25, y: 26, desc: 'Nhà Casino, sân khấu, vòng quay' },
   { id: 'park', name: 'Công viên', icon: '🌳', x: 20, y: 72, desc: 'Câu cá, dạo hồ' },
   { id: 'beach', name: 'Bãi biển', icon: '🏖️', x: 90, y: 12, desc: 'Nhặt vỏ sò, tắm nắng' },
   { id: 'school', name: 'Trường học', icon: '🏫', x: 48, y: 86, desc: 'Đố vui tiếng Anh' },
@@ -147,7 +181,7 @@ DATA.QUESTS = [
   { id: 'collect', icon: '🥚', text: 'Thu trứng / sữa ở chuồng {n} lần', n: 2, coins: 35, xp: 20 },
   { id: 'chat', icon: '💬', text: 'Trò chuyện {n} câu với mọi người', n: 5, coins: 25, xp: 16 },
   { id: 'race', icon: '🏎️', text: 'Tham gia {n} cuộc đua ở Khu Đua Xe', n: 2, coins: 40, xp: 24 },
-  { id: 'arcade', icon: '🕹️', text: 'Chơi {n} ván ở máy game Khu giải trí', n: 2, coins: 30, xp: 20 },
+  { id: 'arcade', icon: '🕹️', text: 'Chơi {n} ván máy game ở Nhà Casino (Khu giải trí)', n: 2, coins: 30, xp: 20 },
   { id: 'help', icon: '💧', text: 'Thăm và tưới giúp nông trại {n} người bạn', n: 1, coins: 35, xp: 24 },
   { id: 'dance', icon: '💃', text: 'Nhảy trên sân khấu Khu giải trí {n} lần', n: 1, coins: 25, xp: 16 },
 ];

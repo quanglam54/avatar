@@ -2,7 +2,7 @@
  * Không có máy chủ riêng: máy của CHỦ BÀN (người ngồi đầu tiên) chia bài, kiểm tra luật, điều khiển máy chơi thay,
  * rồi gửi trạng thái công khai cho mọi người qua kênh Realtime của khu. Bài trên tay gửi riêng tới từng người. */
 const TABLE = (() => {
-  const T = { id: 'tl1', x: 760, y: 640, zone: 'fun' };
+  const T = { id: 'tl1', x: 940, y: 640, zone: 'casino' };
   const SEAT_POS = [[0, 42], [118, -2], [0, -50], [-118, -2]];
   const TURN_MS = 25000;
   const BOT_NAMES = ['Máy Tí', 'Máy Tèo', 'Máy Bin', 'Máy Na'];

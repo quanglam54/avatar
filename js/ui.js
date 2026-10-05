@@ -699,7 +699,7 @@ const UI = (() => {
     }
     const visiting = AV.visiting();
     p.body.innerHTML = `
-      <p class="muted">Gõ <b>tên đăng nhập</b> của bạn bè hoặc chọn trong danh sách. Ở nông trại bạn bè, bấm ô ruộng để <b>💧 tưới giúp</b> (mỗi ngày 1 lần mỗi bạn, cả hai đều được thưởng). Tên đăng nhập của bạn: <b>@${esc(CLOUD.username)}</b></p>
+      <p class="muted">Gõ <b>tên đăng nhập</b> của bạn bè hoặc chọn trong danh sách. Ở nông trại bạn bè, bấm ô ruộng để <b>💧 tưới giúp</b> (mỗi ngày 1 lần mỗi bạn, cả hai đều được thưởng), hoặc bấm ô đã chín để <b>🥷 hái trộm</b> (tối đa 3 ô/ngày — coi chừng thú giữ nhà cắn bị phạt xu!). Tên đăng nhập của bạn: <b>@${esc(CLOUD.username)}</b></p>
       <form class="fsearch"><input class="field" name="u" placeholder="Tên đăng nhập của bạn bè" maxlength="20" autocomplete="off"><button class="btn">🔍 Thăm</button></form>
       ${visiting ? '<div class="row-end"><button class="btn ghost" data-home>🌾 Về nông trại của mình</button></div>' : ''}
       <h4>Người chơi gần đây</h4>
@@ -726,7 +726,7 @@ const UI = (() => {
     if (!bar) return;
     bar.classList.toggle('show', !!v);
     if (v) {
-      bar.innerHTML = `🏡 Đang thăm nông trại của <b>${esc(v.data.name)}</b> <small>· bấm ô ruộng để 💧 tưới giúp</small><button data-home>🌾 Về nhà mình</button>`;
+      bar.innerHTML = `🏡 Đang thăm nông trại của <b>${esc(v.data.name)}</b> <small>· bấm ô ruộng để 💧 tưới giúp, ô chín để 🥷 hái trộm</small><button data-home>🌾 Về nhà mình</button>`;
       bar.querySelector('[data-home]').onclick = () => AV.goHomeFarm();
     }
   }
@@ -790,6 +790,116 @@ const UI = (() => {
     render();
   }
 
+  /* ---------- Chuồng thú giữ nhà ---------- */
+  function guardShop() {
+    const S = AV.S;
+    const p = panel('🐕 Chuồng Thú Giữ Nhà', '', { wide: true });
+    const render = () => {
+      const owned = S.owned.guards || ['none'];
+      p.body.innerHTML = `
+        <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
+        <p class="muted">Thú giữ nhà đi tuần quanh nông trại. Bạn bè sang <b>hái trộm</b> ô ruộng đã chín có thể bị cắn và <b>bị phạt xu</b> — số xu đó về túi bạn!</p>
+        <div class="b-grid">${DATA.GUARDS.map((g) => {
+          const has = owned.includes(g.id), using = (S.guard || 'none') === g.id;
+          const btn = using ? `<button class="btn small ghost" disabled>${g.id === 'none' ? 'Đang để trống' : 'Đang canh nhà'}</button>`
+            : has ? `<button class="btn small" data-use="${g.id}">${g.id === 'none' ? 'Cho nghỉ' : 'Cho canh nhà'}</button>`
+              : `<button class="btn small" data-buy="${g.id}">Mua · ${g.price.toLocaleString('vi-VN')}💰</button>`;
+          const stat = g.id === 'none' ? '<small>Không ai canh</small>' : `<small>🦷 Cắn ${Math.round(g.bite * 100)}% · phạt ${g.fine} xu</small>`;
+          return `<div class="b-card"><canvas data-guard="${g.id}"></canvas><b>${g.icon} ${g.name}</b>${stat}${btn}</div>`;
+        }).join('')}</div>`;
+      p.body.querySelectorAll('[data-guard]').forEach((c) => {
+        const ctx = c.getContext('2d');
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const gr = ctx.createLinearGradient(0, 0, 0, c.clientHeight);
+        gr.addColorStop(0, '#fff4e6'); gr.addColorStop(1, '#b2f2bb');
+        ctx.fillStyle = gr; ctx.fillRect(0, 0, c.clientWidth, c.clientHeight);
+        if (c.dataset.guard === 'none') { ctx.font = '40px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🏚️', c.clientWidth / 2, c.clientHeight / 2); return; }
+        const sc = { dog: 1.6, shepherd: 1.4, tiger: 1.2, lion: 1.15 }[c.dataset.guard] || 1.3;
+        ctx.save(); ctx.translate(c.clientWidth / 2 - 8, c.clientHeight - 16); ctx.scale(sc, sc);
+        ART.guard(ctx, 0, 0, c.dataset.guard, 1, 0, false, false);
+        ctx.restore();
+      });
+      p.body.querySelectorAll('[data-buy]').forEach((b) => b.onclick = () => { AV.buyGuard(b.dataset.buy); render(); });
+      p.body.querySelectorAll('[data-use]').forEach((b) => b.onclick = () => { AV.useGuard(b.dataset.use); render(); });
+    };
+    render();
+  }
+
+  /* ---------- Vòng quay may mắn ---------- */
+  function wheelPanel() {
+    const P = DATA.WHEEL.prizes, seg = 360 / P.length;
+    const p = panel('🎡 Vòng Quay May Mắn', '', { wide: true });
+    const grad = P.map((z, i) => `${z.color} ${i * seg}deg ${(i + 1) * seg}deg`).join(', ');
+    p.body.innerHTML = `
+      <div class="wheel-wrap">
+        <div class="wheel-pin"></div>
+        <div class="wheel" style="background: conic-gradient(${grad})">
+          ${P.map((z, i) => `<span style="transform: rotate(${(i + 0.5) * seg}deg)"><b>${z.icon}<br>${z.label}</b></span>`).join('')}
+        </div>
+        <button class="wheel-go" data-spin>QUAY</button>
+      </div>
+      <div class="wheel-info"></div>`;
+    const wheel = p.body.querySelector('.wheel'), go = p.body.querySelector('[data-spin]'), info = p.body.querySelector('.wheel-info');
+    let rot = 0, spinning = false;
+    const renderInfo = () => {
+      const w = AV.wheel(), left = AV.wheelSpins(), full = w.earned.length >= DATA.WHEEL.maxPerDay;
+      go.disabled = spinning || left < 1;
+      go.textContent = left > 0 ? `QUAY (${left})` : 'HẾT LƯỢT';
+      info.innerHTML = `
+        <p class="muted">Làm nhiệm vụ bên dưới để nhận lượt quay — <b>tối đa ${DATA.WHEEL.maxPerDay} lượt mỗi ngày</b>. Hôm nay đã nhận <b>${w.earned.length}/${DATA.WHEEL.maxPerDay}</b> lượt, đã quay <b>${w.used}</b>.</p>
+        <div class="shop-list">${DATA.WHEEL.tasks.map((t) => {
+          const prog = Math.min(t.n, w.prog[t.id] || 0), got = w.earned.includes(t.id);
+          const tag = got ? '<button class="btn small ghost" disabled>✅ +1 lượt</button>'
+            : full ? '<button class="btn small ghost" disabled>Đủ lượt hôm nay</button>'
+              : `<button class="btn small ghost" disabled>${prog}/${t.n}</button>`;
+          return `<div class="shop-row quest"><span class="ic">${t.icon}</span><div class="info"><b>${t.text.replace('{n}', t.n)}</b>
+            <div class="qbar"><i style="width:${prog / t.n * 100}%"></i></div><small>Thưởng: 1 lượt quay 🎡</small></div>${tag}</div>`;
+        }).join('')}</div>`;
+    };
+    go.onclick = () => {
+      if (spinning) return;
+      const idx = AV.spinWheel();
+      if (idx < 0) return renderInfo();
+      spinning = true;
+      renderInfo();
+      const target = -(idx + 0.5) * seg + (Math.random() - 0.5) * seg * 0.6;
+      const cur = ((rot % 360) + 360) % 360;
+      rot += 360 * 6 + ((((target - cur) % 360) + 360) % 360);
+      wheel.style.transform = `rotate(${rot}deg)`;
+      setTimeout(() => {
+        spinning = false;
+        const z = P[idx];
+        toast(`🎉 Vòng quay trúng: ${z.icon} ${z.label}!`, 4000);
+        AV.sayMine(`🎡 Trúng ${z.icon} ${z.label}!`);
+        if (p.el.isConnected) renderInfo();
+      }, 4300);
+    };
+    renderInfo();
+  }
+
+  /* ---------- Nhạc nền ---------- */
+  function setMusic(v) {
+    const S = AV.S;
+    S.settings = { ...(S.settings || {}), music: v };
+    MUSIC.setOn(v);
+    AV.saveNow();
+    updateMusicBtn();
+    toast(v ? '🎵 Đã bật nhạc nền' : '🔇 Đã tắt nhạc nền');
+  }
+  function updateMusicBtn() {
+    const b = $('#btnMusic');
+    if (b) { b.textContent = MUSIC.on ? '🎵' : '🔇'; b.title = MUSIC.on ? 'Tắt nhạc nền' : 'Bật nhạc nền'; }
+  }
+
+  function updateWheelDot() {
+    const b = $('#btnWheel');
+    if (!b) return;
+    const n = AV.wheelSpins();
+    b.classList.toggle('dot', n > 0);
+  }
+
   /* ---------- Nhiệm vụ hằng ngày ---------- */
   function questsPanel() {
     const p = panel('📜 Nhiệm vụ hôm nay', '', { wide: true });
@@ -832,7 +942,7 @@ const UI = (() => {
         <li>📜 Bấm nút <b>📜</b> xem nhiệm vụ hằng ngày để nhận thêm xu.</li>
         <li>🌼 <b>Vườn Hoa</b> trồng hoa cúc, tulip, hướng dương, dâm bụt, hồng — bán lấy tiền hoặc gói <b>💐 Bó hoa</b> ở Nhà bếp. 🎠 <b>Sân Chơi</b> cạnh vườn hoa có xích đu và vọng lâu.</li>
         <li>🏡 Mỗi người có <b>nông trại riêng</b>. Bấm vào người chơi khác → <b>Thăm nông trại</b>, hoặc MENU → <b>Thăm bạn bè</b>. Ở nông trại bạn, bấm ô ruộng để <b>💧 tưới giúp</b>.</li>
-        <li>🕹️ <b>Khu Game</b> trong Khu giải trí: máy chơi Pikachu, Flappy Bird, Đào Vàng, Kéo Bò — điểm cao được thưởng xu.</li>
+        <li>🕹️ <b>Khu Game</b> trong Khu giải trí: máy chơi Pikachu, Flappy Bird, Đào Vàng, Bắt Bò — điểm cao được thưởng xu.</li>
         <li>🏎️ <b>Khu Đua Xe</b>: bấm cổng xuất phát để đua 3 vòng (đua một mình với máy hoặc với người chơi khác cùng lúc), về nhất được thưởng. Mua xe nhanh hơn ở Gara.</li>
         <li>🍊 <b>Vườn Cây</b> trong nông trại tự ra quả (cam, táo, xoài, đào) — không cần trồng, quả chín để lâu không hỏng, ghé hái rồi đem bán.</li>
         <li>🍳 Vào <b>Nhà Bếp</b> ở Nông trại nấu bánh, súp, khăn len… bán được giá cao hơn nhiều.</li>
@@ -954,6 +1064,8 @@ const UI = (() => {
     const p = panel('⚙️ Cài đặt', `${account}
       <label class="toggle">🎃 Halloween <select data-hw><option value="auto">Tự động (tháng 10)</option><option value="on">Luôn bật</option><option value="off">Tắt</option></select></label>
       <label class="toggle">🌙 Ngày / đêm <select data-time><option value="real">Theo giờ thật</option><option value="day">Luôn ban ngày</option><option value="night">Luôn ban đêm</option></select></label>
+      <label class="toggle">📱 Đồ hoạ <select data-gfx><option value="auto">Tự động (điện thoại: tiết kiệm pin)</option><option value="saver">Tiết kiệm pin — mát máy</option><option value="high">Đẹp nhất — nét, mượt hơn</option></select></label>
+      <label class="toggle"><input type="checkbox" data-music ${MUSIC.on ? 'checked' : ''}> 🎵 Nhạc nền chill <input type="range" data-vol min="0" max="100" value="${Math.round(MUSIC.volume * 100)}" style="flex:1;min-width:90px"></label>
       <label class="toggle"><input type="checkbox" data-pixel ${S.settings && S.settings.pixelArt ? 'checked' : ''}> Hiệu ứng ô vuông pixel (nét to hơn, hơi nhoè)</label>
       <form class="fsearch" data-gift><input class="field" name="code" placeholder="🎁 Nhập mã quà tặng" maxlength="20" autocomplete="off"><button class="btn small">Nhận</button></form>
       <div class="row-end"><button class="btn small ghost" data-restore>🕘 Khôi phục bản lưu cũ</button></div>
@@ -965,6 +1077,11 @@ const UI = (() => {
     const ts = p.body.querySelector('[data-time]');
     ts.value = (S.settings && S.settings.time) || 'real';
     ts.onchange = () => { S.settings = { ...(S.settings || {}), time: ts.value }; AV.saveNow(); };
+    p.body.querySelector('[data-music]').onchange = (e) => setMusic(e.target.checked);
+    p.body.querySelector('[data-vol]').oninput = (e) => { const v = e.target.value / 100; MUSIC.setVolume(v); S.settings = { ...(S.settings || {}), musicVol: v }; AV.saveNow(); };
+    const gx = p.body.querySelector('[data-gfx]');
+    gx.value = (S.settings && S.settings.gfx) || 'auto';
+    gx.onchange = () => { S.settings = { ...(S.settings || {}), gfx: gx.value }; AV.saveNow(); AV.applyGfx(); toast(AV.saverOn() ? '🔋 Đang tiết kiệm pin' : '✨ Đồ hoạ đẹp nhất'); };
     const q = (sel) => p.body.querySelector(sel);
     if (q('[data-cloudsave]')) q('[data-cloudsave]').onclick = () => AV.cloudSaveNow();
     if (q('[data-logout]')) q('[data-logout]').onclick = () => { p.close(); confirm('Đăng xuất khỏi tài khoản? Tiến trình đã được lưu lên mạng.', 'Đăng xuất', () => AV.logout()); };
@@ -1025,6 +1142,9 @@ const UI = (() => {
     $('#recenterBtn').onclick = () => AV.recenter();
     $('#btnQuest').onclick = questsPanel;
     updateQuestDot();
+    $('#btnWheel').onclick = wheelPanel;
+    $('#btnMusic').onclick = () => setMusic(!MUSIC.on);
+    updateWheelDot();
     $('#btnMap').onclick = () => cityMap(false);
     $('#btnChat').onclick = () => { $('#chatLog').classList.add('active'); $('#chatInput').focus(); };
     const emo = $('#emotes');
@@ -1040,5 +1160,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn };
 })();

@@ -4,11 +4,13 @@ const MAPS = (() => {
     return { id, name, w, h, hz: HZ, objects: [], colliders: [], inter: [], animals: [], npcs: [], labels: [], pickups: [] };
   }
   const HZ = 340;
-  const obj = (m, y, draw) => m.objects.push({ y, draw });
+  /** bb = [trái, trên, phải, dưới]: ngoài màn hình thì không vẽ (đỡ nóng máy) */
+  const obj = (m, y, draw, bb) => m.objects.push({ y, draw, bb });
+  const bbOf = (x, y, box) => [x + box.l, y + box.t, x + box.l + box.w, y + box.t + box.h];
   /** Đồ vật tĩnh: vẽ sẵn một lần, có viền đậm kiểu Avatar */
-  const sobj = (m, x, y, draw, box = FX.BOX.object, sortY = y) => m.objects.push({ y: sortY, draw: FX.sprite(draw, x, y, box) });
+  const sobj = (m, x, y, draw, box = FX.BOX.object, sortY = y) => m.objects.push({ y: sortY, draw: FX.sprite(draw, x, y, box), bb: bbOf(x, y, box) });
   /** Đồ vật chuyển động: vẽ lại mỗi khung hình, có viền */
-  const aobj = (m, x, y, draw, box) => { const key = {}; m.objects.push({ y, draw: (ctx, t) => FX.drawCached(ctx, key, (c) => draw(c, t), x, y, box, 90) }); };
+  const aobj = (m, x, y, draw, box) => { const key = {}; m.objects.push({ y, draw: (ctx, t) => FX.drawCached(ctx, key, (c) => draw(c, t), x, y, box, 90), bb: bbOf(x, y, box) }); };
   const col = (m, x, y, w, h) => m.colliders.push({ x, y, w, h });
   const inter = (m, o) => m.inter.push(o);
   const FLOWERS = ['#ff8fab', '#ffd43b', '#fff', '#da77f2'];
@@ -200,14 +202,15 @@ const MAPS = (() => {
 
   /* ---------- Nông trại mở rộng: tường bao, cổng, 8 luống, khu gà, khu bò cừu, ao, vườn ---------- */
   function farm() {
-    const m = base('farm', 'Nông trại', 3900, 1600);
+    const m = base('farm', 'Nông trại', 5400, 1600);
     m.busY = 1555;
     m.lights = [];
-    const WL = 140, WR = 3760, WT = 420, WB = 1300, GATE = 1600;
+    const WL = 140, WR = 5260, WT = 420, WB = 1300, GATE = 1600;
     const BL = {
       chick: [180, 450, 600, 330], field: [860, 450, 1400, 330], home: [2340, 450, 700, 330],
       pasture: [180, 860, 840, 400], pond: [1100, 860, 440, 400], orchard: [1660, 860, 680, 400], garden: [2420, 860, 620, 400],
       play: [3120, 450, 600, 810],
+      field2: [3800, 450, 1380, 330], yard: [3800, 860, 1380, 400],
     };
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 11);
@@ -261,7 +264,7 @@ const MAPS = (() => {
       obj(m, by + BD.h - 25, (ctx, t) => {
         const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert }));
         ART.bed(ctx, bx, by, AV.F().beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
-      });
+      }, [bx - 10, by - 70, bx + BD.w + 10, by + BD.h + 20]);
       for (let k = 0; k < 12; k++) {
         const i = bedIdx * 12 + k;
         const tx = bx + BD.padX + (k % 6) * BD.step, ty = by + BD.padY + Math.floor(k / 6) * BD.step;
@@ -335,7 +338,7 @@ const MAPS = (() => {
       obj(m, by + BDf.h - 25, (ctx, t) => {
         const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert }));
         ART.bed(ctx, bx, by, AV.F().beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
-      });
+      }, [bx - 10, by - 70, bx + BD.w + 10, by + BD.h + 20]);
       for (let j = 0; j < 12; j++) {
         const i = bedIdx * 12 + j;
         const tx = bx + BDf.padX + (j % 6) * BDf.step, ty = by + BDf.padY + Math.floor(j / 6) * BDf.step;
@@ -345,6 +348,41 @@ const MAPS = (() => {
         });
       }
     }
+
+    /* ----- Đất mở rộng: 8 luống ruộng (luống 13–20) ----- */
+    m.labels.push({ text: '🌾 Đất Mở Rộng', x: 4490, y: 442 });
+    const fx2 = 3800 + (1380 - (BD.w * 4 + 40 * 3)) / 2;
+    for (let k = 0; k < DATA.EXTRA_BEDS; k++) {
+      const bedIdx = DATA.FIELD_BEDS + DATA.FLOWER_BEDS + k;
+      const bx = fx2 + (k % 4) * (BD.w + 40), by = 478 + Math.floor(k / 4) * (BD.h + 21);
+      obj(m, by + BD.h - 25, (ctx, t) => {
+        const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert }));
+        ART.bed(ctx, bx, by, AV.F().beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
+      }, [bx - 10, by - 70, bx + BD.w + 10, by + BD.h + 20]);
+      for (let j = 0; j < 12; j++) {
+        const i = bedIdx * 12 + j;
+        const tx = bx + BD.padX + (j % 6) * BD.step, ty = by + BD.padY + Math.floor(j / 6) * BD.step;
+        inter(m, {
+          x: tx - 2, y: ty - 2, w: BD.tile + 4, h: BD.tile + 4, ax: tx + BD.tile / 2, ay: by + BD.h + 8, name: 'Ô ruộng',
+          use: () => AV.useTile(i), indicator: j === 0 ? () => AV.bedIndicator(bedIdx) : null, ix: bx + BD.w / 2, iy: by - 2,
+        });
+      }
+    }
+
+    /* ----- Chuồng thú giữ nhà: mua chó, hổ, sư tử canh nông trại ----- */
+    m.labels.push({ text: '🐕 Chuồng Thú Giữ Nhà', x: 4490, y: 852 });
+    sobj(m, 4060, 1070, (c) => ART.kennel(c, 4060, 1070), { l: -95, t: -125, w: 190, h: 135 });
+    col(m, 4004, 1030, 112, 40);
+    inter(m, { x: 3980, y: 950, w: 160, h: 122, ax: 4060, ay: 1100, name: 'Chuồng thú giữ nhà (mua chó, hổ, sư tử)', use: () => AV.useKennel(), arrow: { x: 4060, y: 985 } });
+    sobj(m, 4300, 1010, (c) => ART.signBoard(c, 4300, 1010, 'CẨN THẬN\nCÓ THÚ DỮ 🦷\nCấm hái trộm!'));
+    col(m, 4262, 1000, 80, 12);
+    sobj(m, 4180, 1092, (c) => ART.dogBowl(c, 4180, 1092), { l: -22, t: -14, w: 44, h: 20 });
+    sobj(m, 4560, 960, (c) => ART.hayBale(c, 4560, 960));
+    [[4760, 1000, 'green'], [5080, 960, 'fruit'], [4980, 1230, 'pink'], [3880, 1230, 'green']].forEach(([x, y, v]) => addTree(m, x, y, v));
+    addBush(m, 4420, 1245, '#ff8fab'); addBush(m, 4660, 1250, '#ffd43b');
+    addBench(m, 4820, 1180);
+    sobj(m, 5180, 700, (c) => ART.scarecrow(c, 5180, 700), { l: -45, t: -100, w: 90, h: 106 });
+    [[3760, 830], [4500, 830], [5100, 830]].forEach(([x, y]) => { addLamp(m, x, y); m.lights.push([x - 24, y - 112, 58], [x + 24, y - 112, 58]); });
 
     /* ----- Sân Chơi: xích đu, vọng lâu, cối xay gió ----- */
     m.labels.push({ text: '🌳 Sân Chơi', x: 3420, y: 442 });
@@ -377,7 +415,7 @@ const MAPS = (() => {
     });
 
     /* ----- Bên ngoài cổng ----- */
-    [[300, 1395, 'green'], [820, 1400, 'pink'], [2380, 1395, 'fruit'], [2900, 1400, 'green'], [3420, 1395, 'pink'], [3760, 1400, 'fruit']].forEach(([x, y, v]) => addTree(m, x, y, v));
+    [[300, 1395, 'green'], [820, 1400, 'pink'], [2380, 1395, 'fruit'], [2900, 1400, 'green'], [3420, 1395, 'pink'], [3760, 1400, 'fruit'], [4300, 1395, 'green'], [4800, 1400, 'pink'], [5250, 1395, 'fruit']].forEach(([x, y, v]) => addTree(m, x, y, v));
     addPot(m, 1450, 1360, 'mai'); addPot(m, 1750, 1360, 'dao');
     sobj(m, 1880, 1385, (c) => ART.signBoard(c, 1880, 1385, 'NÔNG TRẠI\nVào cổng để\ntrồng trọt 🌱'));
     col(m, 1842, 1375, 80, 12);
@@ -473,13 +511,10 @@ const MAPS = (() => {
       paintStreet(g, m.w, 870, 1000);
     });
 
-    sobj(m, 400, 640, (c) => ART.gameTable(c, 400, 640, 'baucua', 0));
-    col(m, 300, 590, 200, 50);
-    inter(m, { x: 290, y: 520, w: 220, h: 140, ax: 400, ay: 690, name: 'Bàn Bầu Cua', use: () => UI.bauCua() });
-
-    sobj(m, 760, 640, (c) => ART.gameTable(c, 760, 640, 'baicao', 0));
-    col(m, 660, 590, 200, 50);
-    inter(m, { x: 630, y: 520, w: 260, h: 170, ax: 760, ay: 700, name: 'Bàn Tiến lên (ngồi chơi với mọi người)', use: () => TABLE.openView(), arrow: { x: 760, y: 505, text: 'Chơi bài' } });
+    /* Vườn hoa nhỏ + ghế đá (chỗ bàn chơi cũ — các trò đã vào Nhà Casino) */
+    addTree(m, 330, 600, 'pink'); addTree(m, 860, 590, 'green');
+    addBench(m, 520, 660); addBench(m, 700, 660);
+    addBush(m, 420, 760, '#ff8fab'); addBush(m, 800, 760, '#ffd43b');
 
     aobj(m, 1160, 570, (c, t) => ART.stage(c, 1160, 570, t), { l: -185, t: -265, w: 370, h: 275 });
     col(m, 990, 524, 340, 50);
@@ -496,21 +531,86 @@ const MAPS = (() => {
     [[180, 420], [580, 420], [1820, 420]].forEach(([x, y]) => addLamp(m, x, y));
     [[200, 790, 'mai'], [580, 790, 'dao'], [860, 790, 'mai']].forEach(([x, y, k]) => addPot(m, x, y, k));
     m.labels.push({ text: '🎡 Khu Giải Trí', x: 700, y: 318 });
-    m.labels.push({ text: '🕹️ Khu Game', x: 2265, y: 402 });
-    DATA.ARCADE.forEach((g, i) => {
-      const x = 2040 + i * 150, y = 620;
-      aobj(m, x, y, (c, t) => ART.arcadeCabinet(c, x, y, g.color, g.name, g.icon, t), { l: -50, t: -158, w: 100, h: 166 });
-      col(m, x - 38, y - 14, 76, 16);
-      inter(m, { x: x - 40, y: y - 150, w: 80, h: 152, ax: x, ay: y + 30, name: `Máy game ${g.name}`, use: () => UI.arcade(g.id), arrow: { x, y: y - 160, text: 'Chơi' } });
-    });
-    addLamp(m, 1960, 760); addLamp(m, 2560, 760);
-    addBench(m, 2260, 760);
+    /* ----- Nhà Casino: vào trong mới có Bầu Cua, Tiến lên, máy game ----- */
+    const CX = 2260, CY = 760;
+    sobj(m, CX, CY, (c) => ART.casino(c, CX, CY), { l: -300, t: -420, w: 600, h: 465 });
+    obj(m, CY, (ctx, t) => ART.casinoBulbs(ctx, CX, CY, t), [CX - 190, CY - 420, CX + 190, CY - 290]);
+    col(m, CX - 280, CY - 70, 190, 64); col(m, CX + 90, CY - 70, 190, 64);
+    col(m, CX - 90, CY - 70, 180, 30);
+    inter(m, { x: CX - 80, y: CY - 160, w: 160, h: 170, ax: CX, ay: CY + 46, name: 'Nhà Casino (Bầu Cua, Tiến lên, máy game)', use: () => AV.enterCasino(), arrow: { x: CX, y: CY - 180, text: 'Vào Casino' } });
+    addLamp(m, 1940, 790); addLamp(m, 2580, 790);
+    addPot(m, CX - 130, CY + 40, 'mai'); addPot(m, CX + 130, CY + 40, 'dao');
 
     npc(m, 'Bé Bin', { skin: '#ffe0c4', hair: 'spiky', hairColor: '#c68642', shirt: '#fd7e14', shirtStyle: 'star', pants: '#364fc7', hat: 'beanie' }, { l: 200, t: 700, r: 1800, b: 830 }, 1000, 760, 'chick');
 
     street(m);
     m.spawn = { x: 1050, y: 875 };
     m.bounds = { l: 20, t: 380, r: m.w - 20, b: m.h - 40 };
+    return m;
+  }
+
+  /* ---------- Trong Nhà Casino ---------- */
+  function casino() {
+    const m = base('casino', 'Nhà Casino', 2000, 1000);
+    m.indoor = true;
+    m.hz = 0;
+    ground(m, (g) => {
+      g.fillStyle = '#1a0a14'; g.fillRect(0, 0, m.w, m.h);
+      // tường đỏ đô hoạ tiết vàng
+      const wg = g.createLinearGradient(0, 20, 0, 240);
+      wg.addColorStop(0, '#5c1232'); wg.addColorStop(1, '#3a0a20');
+      g.fillStyle = wg; g.fillRect(40, 20, 1920, 220);
+      g.strokeStyle = 'rgba(255,212,59,.22)'; g.lineWidth = 2;
+      for (let x = 40; x < 1960; x += 48) { g.beginPath(); g.moveTo(x, 20); g.lineTo(x + 24, 60); g.lineTo(x, 100); g.lineTo(x - 24, 60); g.closePath(); g.stroke(); }
+      g.fillStyle = '#ffd43b'; g.fillRect(40, 104, 1920, 6); g.fillRect(40, 226, 1920, 14);
+      // bảng neon
+      g.fillStyle = '#2b0a3d'; g.beginPath(); g.roundRect(760, 128, 480, 84, 18); g.fill();
+      g.strokeStyle = '#f783ac'; g.lineWidth = 5; g.stroke();
+      g.font = '900 46px "Be Vietnam Pro", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.shadowColor = '#ff8fab'; g.shadowBlur = 18; g.fillStyle = '#fff0f6'; g.fillText('🎰 CASINO', 1000, 172); g.shadowBlur = 0;
+      // thảm đỏ hoa văn kim cương
+      g.fillStyle = '#8b1a2b'; g.fillRect(40, 240, 1920, 720);
+      g.strokeStyle = 'rgba(255,212,59,.14)'; g.lineWidth = 2;
+      for (let k = -720; k < 1920; k += 60) { g.beginPath(); g.moveTo(40 + k, 960); g.lineTo(40 + k + 720, 240); g.moveTo(40 + k + 720, 960); g.lineTo(40 + k, 240); g.stroke(); }
+      // thảm xanh dưới các bàn chơi
+      [[180, 470, 520, 300], [700, 470, 480, 300], [1260, 290, 640, 260]].forEach(([x, y, w, h]) => {
+        g.fillStyle = '#ffd43b'; g.beginPath(); g.roundRect(x - 6, y - 6, w + 12, h + 12, 26); g.fill();
+        g.fillStyle = '#1b5e3b'; g.beginPath(); g.roundRect(x, y, w, h, 22); g.fill();
+      });
+      g.fillStyle = '#a61e4d'; g.fillRect(940, 900, 120, 46);
+      g.fillStyle = '#1a0a14'; g.fillRect(0, 960, m.w, 40); g.fillRect(0, 0, 40, m.h); g.fillRect(1960, 0, 40, m.h);
+    });
+
+    sobj(m, 440, 640, (c) => ART.gameTable(c, 440, 640, 'baucua', 0));
+    col(m, 340, 590, 200, 50);
+    inter(m, { x: 330, y: 520, w: 220, h: 140, ax: 440, ay: 690, name: 'Bàn Bầu Cua', use: () => UI.bauCua(), arrow: { x: 440, y: 505, text: 'Chơi' } });
+
+    sobj(m, 940, 640, (c) => ART.gameTable(c, 940, 640, 'baicao', 0));
+    col(m, 840, 590, 200, 50);
+    inter(m, { x: 810, y: 520, w: 260, h: 170, ax: 940, ay: 700, name: 'Bàn Tiến lên (ngồi chơi với mọi người)', use: () => TABLE.openView(), arrow: { x: 940, y: 505, text: 'Chơi bài' } });
+
+    m.labels.push({ text: '🕹️ Máy Game', x: 1580, y: 585 });
+    DATA.ARCADE.forEach((g, i) => {
+      const x = 1355 + i * 150, y = 470;
+      aobj(m, x, y, (c, t) => ART.arcadeCabinet(c, x, y, g.color, g.name, g.icon, t), { l: -50, t: -158, w: 100, h: 166 });
+      col(m, x - 38, y - 14, 76, 16);
+      inter(m, { x: x - 40, y: y - 150, w: 80, h: 152, ax: x, ay: y + 30, name: `Máy game ${g.name}`, use: () => UI.arcade(g.id), arrow: { x, y: y - 160, text: 'Chơi' } });
+    });
+
+    // ghế sofa, chậu cây, quầy đổi xu
+    sobj(m, 1500, 840, (c) => ART.sofa(c, 1500, 840, '#c92a2a'), { l: -125, t: -85, w: 250, h: 92 });
+    col(m, 1385, 805, 230, 36);
+    sobj(m, 1800, 840, (c) => ART.sofa(c, 1800, 840, '#7048e8'), { l: -125, t: -85, w: 250, h: 92 });
+    col(m, 1685, 805, 230, 36);
+    [[90, 330], [1910, 330], [90, 900], [1910, 900], [640, 330]].forEach(([x, y]) => { sobj(m, x, y, (c) => ART.plantPot(c, x, y), { l: -30, t: -95, w: 60, h: 100 }); col(m, x - 17, y - 12, 34, 14); });
+
+    npc(m, 'Chú Lộc', { skin: '#f1c27d', hair: 'short', hairColor: '#222', shirt: '#212529', shirtStyle: 'plain', pants: '#212529', hat: 'cowboy' }, { l: 200, t: 760, r: 1200, b: 900 }, 600, 820, 'none');
+
+    sobj(m, 1000, 962, (c) => ART.homeDoor(c, 1000, 962), { l: -50, t: -22, w: 100, h: 28 });
+    inter(m, { x: 940, y: 900, w: 120, h: 70, ax: 1000, ay: 930, name: 'Ra Khu giải trí', use: () => AV.leaveCasino(), arrow: { x: 1000, y: 905, text: 'Ra ngoài' } });
+
+    m.spawn = { x: 1000, y: 900 };
+    m.bounds = { l: 56, t: 262, r: m.w - 56, b: 940 };
     return m;
   }
 
@@ -816,7 +916,7 @@ const MAPS = (() => {
     return m;
   };
 
-  const all = { farm, town, mall, fun, park, beach, school, home, race };
+  const all = { farm, town, mall, fun, casino, park, beach, school, home, race };
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
   return all;
 })();

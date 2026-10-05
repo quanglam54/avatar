@@ -3,35 +3,36 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Kéo Bò</title>
+  <title>Bắt Bò</title>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../assets/style.css">
   <style>
-    #cv { width: 100%; max-width: 860px; height: auto; touch-action: manipulation; }
+    #cv { width: 100%; max-width: 860px; height: auto; touch-action: manipulation; cursor: pointer; }
     .pull-btn {
       width: 150px; height: 150px; border-radius: 50%; border: 8px solid #2b1a10; cursor: pointer;
       background: radial-gradient(circle at 40% 35%, #ff8787, #e03131 55%, #a61e1e); color: #fff;
-      font: 900 26px "Be Vietnam Pro", system-ui; text-shadow: 0 3px 0 #7a0e0e; box-shadow: 0 10px 0 #2b1a10, 0 0 0 10px #ced4da;
+      font: 900 21px/1.1 "Be Vietnam Pro", system-ui; text-shadow: 0 3px 0 #7a0e0e; box-shadow: 0 10px 0 #2b1a10, 0 0 0 10px #ced4da;
       touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
     }
+    .pull-btn.pull { background: radial-gradient(circle at 40% 35%, #8ce99a, #2f9e44 55%, #1b6e2e); text-shadow: 0 3px 0 #0b4d1a; }
     .pull-btn:active, .pull-btn.hit { transform: translateY(7px); box-shadow: 0 3px 0 #2b1a10, 0 0 0 10px #ced4da; }
     .pad-wrap { display: flex; gap: 22px; align-items: center; justify-content: center; padding: 10px 0 6px; }
-    .pad-wrap small { color: var(--muted); max-width: 200px; line-height: 1.4; }
+    .pad-wrap small { color: var(--muted); max-width: 220px; line-height: 1.45; }
   </style>
 </head>
 <body>
   <main class="game-layout">
     <section class="stage">
       <div class="hud">
-        <div>Lượt kéo<b id="taps">0</b></div>
-        <div>Thời gian<b id="time">30</b></div>
-        <div>Màn<b id="level">1</b></div>
+        <div>Điểm<b id="score">0</b></div>
+        <div>Bò bắt được<b id="caught">0</b></div>
+        <div>Thời gian<b id="time">45</b></div>
         <div>Kỷ lục<b data-best>—</b></div>
       </div>
       <div class="play-area" id="area"><canvas id="cv" width="860" height="520"></canvas></div>
       <div class="pad-wrap">
-        <button class="pull-btn" id="pull">KÉO!</button>
-        <small>Bấm nút đỏ (hoặc phím <b>Space</b>) thật nhanh để kéo bò của bạn về vạch đích trước 3 cao bồi kia!</small>
+        <button class="pull-btn" id="btn">QUĂNG<br>DÂY!</button>
+        <small>Canh mũi tên chỉ đúng con bò đang chạy rồi bấm <b>QUĂNG DÂY</b> (hoặc phím <b>Space</b>). Bắt được thì bấm thật nhanh để <b>KÉO</b> bò về!</small>
       </div>
     </section>
     <aside class="side" id="side"></aside>
@@ -41,100 +42,139 @@
   <script>
     GH.initGame('keobo');
     const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-    const area = document.getElementById('area'), btn = document.getElementById('pull');
-    const W = cv.width, H = cv.height, LANES = 4, ME = 1, TOP = 175, GOAL = 380, TIME = 30;
-    const COWS = [
-      { body: '#ffe066', spot: '#fab005', name: 'Cao bồi Tí' },
-      { body: '#dee2e6', spot: '#868e96', name: 'BẠN' },
-      { body: '#e5dbff', spot: '#9775fa', name: 'Cao bồi Tèo' },
-      { body: '#f8f9fa', spot: '#343a40', name: 'Cao bồi Bin' },
+    const area = document.getElementById('area'), btn = document.getElementById('btn');
+    const W = cv.width, H = cv.height, TIME = 45;
+    const HAND = { x: W / 2, y: 430 };
+    const KINDS = [
+      { id: 'white', body: '#f8f9fa', spot: '#343a40', speed: [80, 130], value: 100, power: 0.16, w: 50 },
+      { id: 'brown', body: '#c98a4b', spot: '#7a4520', speed: [110, 170], value: 150, power: 0.2, w: 30 },
+      { id: 'black', body: '#495057', spot: '#212529', speed: [170, 240], value: 250, power: 0.26, w: 15 },
+      { id: 'gold', body: '#ffd43b', spot: '#f59f00', speed: [230, 300], value: 500, power: 0.32, w: 5 },
     ];
-    let lanes, state = 'ready', timeLeft, level = 1, count = 0, last = 0, taps = 0, combo = 0, lastTap = 0, totalScore = 0, flash = [];
+    const LANES = [205, 262, 322];
+    let cows, state = 'ready', timeLeft, score, caught, last = 0;
+    let aim, aimDir, rope, combo, lastTap, floats, msg;
 
-    const laneX = (i) => 140 + i * 193;
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    function pickKind() { let r = Math.random() * KINDS.reduce((s, k) => s + k.w, 0); return KINDS.find((k) => (r -= k.w) < 0) || KINDS[0]; }
+    function newCow(lane, x) {
+      const k = pickKind(), dir = Math.random() < 0.5 ? 1 : -1;
+      return { k, lane, x: x ?? (dir > 0 ? -60 : W + 60), y: LANES[lane], dir, v: rnd(...k.speed), t: Math.random() * 10, turn: rnd(1.5, 4) };
+    }
 
     function reset() {
-      lanes = COWS.map((c, i) => ({
-        ...c, p: 0, taps: 0, wob: Math.random() * 6, done: null,
-        rate: i === ME ? 0 : 5.2 + level * 0.55 + Math.random() * 1.6, acc: 0, burst: 0,
-      }));
-      taps = 0; combo = 0; timeLeft = TIME;
-      hud();
+      cows = [newCow(0, rnd(100, 760)), newCow(1, rnd(100, 760)), newCow(2, rnd(100, 760)), newCow(0, rnd(100, 760)), newCow(1, rnd(100, 760))];
+      timeLeft = TIME; score = 0; caught = 0; aim = 0; aimDir = 1;
+      rope = { state: 'idle', len: 0, cow: null, p: 0, timer: 0 };
+      combo = 0; lastTap = 0; floats = []; msg = null;
+      hud(); setBtn();
     }
 
     function hud() {
-      document.getElementById('taps').textContent = taps;
+      document.getElementById('score').textContent = score.toLocaleString('vi-VN');
+      document.getElementById('caught').textContent = caught;
       document.getElementById('time').textContent = Math.ceil(Math.max(0, timeLeft));
-      document.getElementById('level').textContent = level;
+    }
+    function setBtn() {
+      const pull = rope && rope.state === 'pull';
+      btn.classList.toggle('pull', pull);
+      btn.innerHTML = pull ? 'KÉO!<br>KÉO!' : 'QUĂNG<br>DÂY!';
     }
 
     function start() {
       area.querySelectorAll('.overlay').forEach((o) => o.remove());
       reset();
-      state = 'count'; count = 2.99;
+      state = 'play';
     }
 
-    const PULL = 0.016, RESIST = 0.045;
-    function pull(l, k = 1) {
-      l.p = Math.min(1, l.p + PULL * k);
-      l.taps++;
-      l.jerk = 1;
-      if (l.p >= 1 && l.done == null) { l.done = TIME - timeLeft; finish(); }
-    }
-
-    function tap() {
+    function press() {
       if (state === 'ready') return start();
       if (state !== 'play') return;
-      const now = performance.now();
-      combo = now - lastTap < 160 ? Math.min(combo + 1, 20) : Math.max(0, combo - 3);
-      lastTap = now;
-      taps++;
-      pull(lanes[ME], 1 + combo * 0.025);
-      flash.push({ t: 0.35 });
       btn.classList.add('hit'); setTimeout(() => btn.classList.remove('hit'), 60);
-      hud();
+      if (rope.state === 'idle') {
+        rope.state = 'out'; rope.len = 0; rope.ang = aim;
+      } else if (rope.state === 'pull') {
+        const now = performance.now();
+        combo = now - lastTap < 170 ? Math.min(combo + 1, 15) : Math.max(0, combo - 2);
+        lastTap = now;
+        rope.p = Math.min(1.05, rope.p + 0.055 * (1 + combo * 0.04));
+        rope.jerk = 1;
+      }
     }
 
-    function finish() {
-      if (state !== 'play') return;
-      state = 'end';
-      const order = lanes.map((l, i) => ({ i, p: l.done != null ? 2 - l.done / TIME : l.p })).sort((a, b) => b.p - a.p);
-      const place = order.findIndex((o) => o.i === ME);
-      const score = taps * 10 + [500, 250, 100, 0][place];
-      totalScore += score;
-      setTimeout(() => {
-        if (place === 0) {
-          GH.overlay(area, `<h2>🏆 Bạn thắng màn ${level}!</h2><p>Kéo ${taps} lượt · +${score} điểm<br>Màn sau các cao bồi kéo khoẻ hơn đó!</p>`, 'Màn tiếp theo ▶', () => { level++; start(); });
-        } else {
-          GH.gameOver(area, 'keobo', totalScore, { title: `Bạn về hạng ${place + 1} 🐄`, note: `Màn ${level} · ${taps} lượt kéo` }, () => { level = 1; totalScore = 0; start(); });
-          level = 1; totalScore = 0;
-        }
-      }, 900);
-    }
+    const tipFor = (pos) => ({ x: HAND.x + Math.sin(rope.ang) * pos, y: HAND.y - Math.cos(rope.ang) * pos });
 
     function update(dt) {
-      if (state === 'count') { count -= dt; if (count <= 0) state = 'play'; }
-      lanes.forEach((l) => { l.jerk = Math.max(0, (l.jerk || 0) - dt * 6); l.wob += dt * (state === 'play' ? 9 : 2); });
+      cows.forEach((c) => {
+        c.t += dt;
+        if (rope.cow === c) return;
+        c.x += c.dir * c.v * dt;
+        c.turn -= dt;
+        if (c.turn <= 0) { c.turn = rnd(1.2, 3.5); if (Math.random() < 0.35) c.dir *= -1; c.v = rnd(...c.k.speed); }
+        if (c.x < -80 || c.x > W + 80) Object.assign(c, newCow(c.lane));
+      });
+      floats.forEach((f) => { f.t -= dt; f.y -= 40 * dt; });
+      floats = floats.filter((f) => f.t > 0);
+      if (msg) { msg.t -= dt; if (msg.t <= 0) msg = null; }
       if (state !== 'play') return;
       timeLeft -= dt;
-      lanes.forEach((l, i) => {
-        if (l.done != null) return;
-        // bò vùng vẫy kéo ngược lại, càng gần đích càng khoẻ
-        l.p = Math.max(0, l.p - RESIST * (0.6 + l.p) * dt);
-        if (i !== ME) {
-          l.burst -= dt;
-          if (l.burst < 0) l.burst = 0.6 + Math.random() * 1.4;
-          const r = l.rate * (l.burst > 0.3 ? 1.15 : 0.8);
-          l.acc += r * dt;
-          while (l.acc >= 1) { l.acc -= 1; pull(l, 1.05); }
+      if (timeLeft <= 0) { timeLeft = 0; return end(); }
+
+      if (rope.state === 'idle') {
+        aim += aimDir * dt * 1.15;
+        if (aim > 1.05) { aim = 1.05; aimDir = -1; }
+        if (aim < -1.05) { aim = -1.05; aimDir = 1; }
+      } else if (rope.state === 'out') {
+        rope.len += 1050 * dt;
+        const p = tipFor(rope.len);
+        const hit = cows.find((c) => Math.hypot(c.x - p.x, c.y - 4 - p.y) < 48);
+        if (hit) {
+          rope.state = 'pull'; rope.cow = hit; rope.p = 0; rope.timer = 9; rope.from = { x: hit.x, y: hit.y };
+          msg = { text: 'BẮT ĐƯỢC RỒI! KÉO ĐI!', t: 1.2, color: '#ffd43b' };
+          setBtn();
+        } else if (rope.len > 440 || p.x < 0 || p.x > W || p.y < 150) {
+          rope.state = 'back';
+          msg = { text: 'Trượt rồi! 😅', t: 0.9, color: '#ff8787' };
         }
-      });
-      flash.forEach((f) => { f.t -= dt; });
-      flash = flash.filter((f) => f.t > 0);
-      if (timeLeft <= 0) { timeLeft = 0; finish(); }
+      } else if (rope.state === 'back') {
+        rope.len -= 1000 * dt;
+        if (rope.len <= 0) { rope.state = 'idle'; rope.len = 0; }
+      } else if (rope.state === 'pull') {
+        const c = rope.cow;
+        rope.timer -= dt;
+        rope.jerk = Math.max(0, (rope.jerk || 0) - dt * 6);
+        // bò vùng vẫy kéo ngược lại
+        rope.p -= c.k.power * (0.5 + rope.p) * dt;
+        const q = Math.max(0, rope.p);
+        c.x = rope.from.x + (HAND.x - rope.from.x) * q + Math.sin(c.t * 18) * 4;
+        c.y = rope.from.y + (HAND.y - 40 - rope.from.y) * q;
+        c.dir = c.x > HAND.x ? 1 : -1;
+        if (rope.p >= 0.98) {
+          score += c.k.value; caught++;
+          floats.push({ text: `+${c.k.value}`, x: HAND.x, y: HAND.y - 80, t: 1.2, color: c.k.id === 'gold' ? '#ffd43b' : '#fff' });
+          msg = { text: c.k.id === 'gold' ? '🌟 BÒ VÀNG! +500' : 'Kéo về chuồng! 🐄', t: 1, color: '#69db7c' };
+          Object.assign(c, newCow(c.lane));
+          rope = { state: 'idle', len: 0, cow: null, p: 0 };
+          combo = 0; hud(); setBtn();
+        } else if (rope.p < -0.3 || rope.timer <= 0) {
+          msg = { text: 'Bò giật đứt dây chạy mất! 🐂💨', t: 1.2, color: '#ff8787' };
+          const len = Math.hypot(c.x - HAND.x, c.y - HAND.y);
+          c.y = LANES[c.lane]; c.v = c.k.speed[1] * 1.3; c.dir = c.x > W / 2 ? 1 : -1;
+          rope = { state: 'back', len, ang: rope.ang, cow: null, p: 0 };
+          combo = 0; setBtn();
+        }
+      }
       hud();
     }
 
+    function end() {
+      state = 'over';
+      rope = { state: 'idle', len: 0, cow: null, p: 0 };
+      setBtn();
+      GH.gameOver(area, 'keobo', score, { title: '⏰ Hết giờ!', note: `Bắt được ${caught} con bò` }, start);
+    }
+
+    /* ---------- Vẽ ---------- */
     function circle(x, y, r, c) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
 
     function drawScene() {
@@ -143,119 +183,127 @@
       ctx.fillStyle = sky; ctx.fillRect(0, 0, W, 160);
       ctx.fillStyle = '#e8b46a'; ctx.beginPath(); ctx.ellipse(160, 160, 260, 70, 0, Math.PI, 0); ctx.fill();
       ctx.fillStyle = '#d9a05a'; ctx.beginPath(); ctx.ellipse(700, 165, 300, 60, 0, Math.PI, 0); ctx.fill();
-      // chuồng xanh
       ctx.fillStyle = '#2f9e44'; ctx.fillRect(470, 40, 230, 110);
       ctx.fillStyle = '#2b8a3e'; ctx.beginPath(); ctx.moveTo(455, 44); ctx.lineTo(585, 6); ctx.lineTo(715, 44); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#c92a2a'; ctx.fillRect(560, 80, 50, 70);
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(560, 80, 50, 70);
       ctx.beginPath(); ctx.moveTo(560, 80); ctx.lineTo(610, 150); ctx.moveTo(610, 80); ctx.lineTo(560, 150); ctx.stroke();
-      // cây khô + cao bồi trên ngựa
       ctx.strokeStyle = '#7a4520'; ctx.lineWidth = 9; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(120, 160); ctx.lineTo(130, 60); ctx.moveTo(128, 90); ctx.lineTo(80, 60); ctx.moveTo(130, 75); ctx.lineTo(175, 45); ctx.stroke();
-      ctx.font = '42px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
-      ctx.fillText('🤠', 420, 72); ctx.fillText('🐎', 800, 72);
-      // nền đất
+      ctx.font = '40px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+      ctx.fillText('🐎', 790, 110);
       const ground = ctx.createLinearGradient(0, 160, 0, H);
       ground.addColorStop(0, '#f3d9a4'); ground.addColorStop(1, '#d9b382');
       ctx.fillStyle = ground; ctx.fillRect(0, 160, W, H - 160);
-      // hàng rào
-      for (let x = 10; x < W; x += 34) {
-        ctx.fillStyle = '#b97a3e'; ctx.fillRect(x, 140, 12, 44);
-        ctx.fillStyle = '#dba468'; ctx.fillRect(x + 2, 142, 4, 40);
-      }
+      for (let x = 10; x < W; x += 34) { ctx.fillStyle = '#b97a3e'; ctx.fillRect(x, 140, 12, 44); ctx.fillStyle = '#dba468'; ctx.fillRect(x + 2, 142, 4, 40); }
       ctx.fillStyle = '#c98a4b'; ctx.fillRect(0, 150, W, 7); ctx.fillRect(0, 168, W, 7);
-      // vạch đích
-      ctx.setLineDash([16, 10]); ctx.strokeStyle = '#e03131'; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.moveTo(30, GOAL + 64); ctx.lineTo(W - 30, GOAL + 64); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = '#e03131'; ctx.font = '900 14px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'left';
-      ctx.fillText('VẠCH ĐÍCH', 34, GOAL + 80);
+      for (let i = 0; i < 26; i++) { ctx.fillStyle = 'rgba(160,110,50,.18)'; ctx.beginPath(); ctx.ellipse((i * 97) % W, 200 + (i * 53) % 260, 14, 5, 0, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = '#a0602e'; ctx.fillRect(30, 400, 120, 8); ctx.fillRect(30, 440, 120, 8);
+      [30, 70, 110, 150].forEach((x) => ctx.fillRect(x - 4, 388, 8, 70));
+      ctx.fillStyle = '#5c3214'; ctx.font = '900 13px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center';
+      ctx.fillText(`CHUỒNG · ${caught} 🐄`, 90, 476);
     }
 
-    function drawCow(l, i) {
-      const x = laneX(i), y = TOP + l.p * (GOAL - TOP);
-      const shake = state === 'play' && l.done == null ? Math.sin(l.wob * 3) * 3 : 0;
-      const jy = (l.jerk || 0) * 5;
-      // dây thừng
-      ctx.strokeStyle = '#a0602e'; ctx.lineWidth = 7; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(x + shake, y + 30); ctx.quadraticCurveTo(x + Math.sin(l.wob) * 8, (y + H) / 2 + 20, x, H - 6); ctx.stroke();
-      ctx.strokeStyle = '#d9a05a'; ctx.lineWidth = 3; ctx.setLineDash([6, 6]);
-      ctx.beginPath(); ctx.moveTo(x + shake, y + 30); ctx.quadraticCurveTo(x + Math.sin(l.wob) * 8, (y + H) / 2 + 20, x, H - 6); ctx.stroke(); ctx.setLineDash([]);
-      ctx.save(); ctx.translate(x + shake, y + jy);
-      // thân bò
-      ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(0, 46, 48, 12, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = l.body; ctx.beginPath(); ctx.ellipse(0, 18, 46, 32, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = l.spot;
-      [[-20, 8, 11], [18, 22, 9], [-6, 30, 7], [24, 2, 6]].forEach(([sx, sy, r]) => circle(sx, sy, r, l.spot));
-      // chân bám đất
-      ctx.fillStyle = '#495057'; [-30, -12, 12, 30].forEach((lx) => ctx.fillRect(lx - 5, 40, 10, 12));
-      // dây buộc quanh người
-      ctx.strokeStyle = '#a0602e'; ctx.lineWidth = 5;
-      ctx.beginPath(); ctx.ellipse(0, 22, 47, 10, 0, 0, Math.PI); ctx.stroke();
-      // đầu
-      ctx.fillStyle = l.body; ctx.beginPath(); ctx.ellipse(0, -22, 30, 26, 0, 0, Math.PI * 2); ctx.fill();
+    function drawCow(c) {
+      const run = rope.cow === c ? 26 : 14;
+      const leg = Math.sin(c.t * run) * 6;
+      ctx.save(); ctx.translate(c.x, c.y); ctx.scale(c.dir, 1);
+      ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(0, 28, 38, 8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#343a40'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+      [[-20, 1], [-8, -1], [12, 1], [24, -1]].forEach(([lx, s]) => { ctx.beginPath(); ctx.moveTo(lx, 10); ctx.lineTo(lx + leg * s, 27); ctx.stroke(); });
+      ctx.fillStyle = c.k.body; ctx.beginPath(); ctx.ellipse(0, 0, 34, 20, 0, 0, Math.PI * 2); ctx.fill();
+      [[-14, -6, 8], [8, 5, 7], [16, -8, 5]].forEach(([sx, sy, r]) => circle(sx, sy, r, c.k.spot));
+      ctx.strokeStyle = c.k.body; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-32, -4); ctx.quadraticCurveTo(-42, -2 + Math.sin(c.t * 8) * 6, -40, 10); ctx.stroke();
+      ctx.fillStyle = c.k.body; ctx.beginPath(); ctx.ellipse(34, -12, 15, 13, 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffc9c9'; ctx.beginPath(); ctx.ellipse(44, -6, 8, 7, 0, 0, Math.PI * 2); ctx.fill();
+      circle(42, -6, 1.5, '#c2255c'); circle(47, -6, 1.5, '#c2255c');
+      circle(34, -16, 2.6, '#212529');
       ctx.fillStyle = '#e9d8a6';
-      ctx.beginPath(); ctx.moveTo(-22, -40); ctx.lineTo(-32, -58); ctx.lineTo(-14, -44); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(22, -40); ctx.lineTo(32, -58); ctx.lineTo(14, -44); ctx.fill();
-      ctx.fillStyle = l.spot; ctx.beginPath(); ctx.ellipse(-30, -26, 9, 5, -0.5, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.ellipse(30, -26, 9, 5, 0.5, 0, Math.PI * 2); ctx.fill();
-      // mắt nhắm tịt + miệng la hét
-      ctx.strokeStyle = '#212529'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(-15, -30); ctx.lineTo(-6, -26); ctx.lineTo(-15, -22); ctx.moveTo(15, -30); ctx.lineTo(6, -26); ctx.lineTo(15, -22); ctx.stroke();
-      ctx.fillStyle = '#ffc9c9'; ctx.beginPath(); ctx.ellipse(0, -8, 18, 13, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#c2255c'; ctx.beginPath(); ctx.ellipse(0, -5, 10, 8 + Math.abs(Math.sin(l.wob * 2)) * 3, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#ff8787'; ctx.beginPath(); ctx.ellipse(0, -1, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(28, -22); ctx.lineTo(24, -34); ctx.lineTo(33, -24); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(38, -24); ctx.lineTo(44, -34); ctx.lineTo(42, -22); ctx.fill();
+      if (c.k.id === 'gold') { const a = 0.5 + 0.5 * Math.sin(c.t * 6); ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.beginPath(); ctx.arc(-6, -14, 3, 0, 7); ctx.arc(14, -16, 2, 0, 7); ctx.fill(); }
       ctx.restore();
-      // số lượt kéo kiểu bảng điểm đỏ
-      ctx.font = '900 26px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.lineWidth = 5; ctx.strokeStyle = '#fff'; ctx.strokeText(String(l.taps).padStart(2, '0'), x, y - 66);
-      ctx.fillStyle = '#e03131'; ctx.fillText(String(l.taps).padStart(2, '0'), x, y - 66);
-      // tên người kéo dưới đáy
-      ctx.fillStyle = i === ME ? '#ffd43b' : 'rgba(255,255,255,.85)';
-      ctx.beginPath(); ctx.roundRect(x - 52, H - 34, 104, 24, 10); ctx.fill();
-      ctx.fillStyle = i === ME ? '#3d2410' : '#495057'; ctx.font = '800 13px "Be Vietnam Pro", system-ui';
-      ctx.fillText(l.done != null ? '🏁 ' + l.name : l.name, x, H - 22);
-      if (i === ME) {
-        ctx.fillStyle = '#ffd43b'; ctx.beginPath(); ctx.moveTo(x - 10, H - 46); ctx.lineTo(x + 10, H - 46); ctx.lineTo(x, H - 36); ctx.closePath(); ctx.fill();
-      }
+      if (rope.cow === c) { ctx.font = '22px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.fillText('💢', c.x + 30, c.y - 40); }
     }
 
-    function draw() {
+    function drawCowboy() {
+      const x = HAND.x, y = HAND.y + 50;
+      ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(x, y + 4, 34, 9, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1971c2'; ctx.fillRect(x - 12, y - 28, 10, 28); ctx.fillRect(x + 2, y - 28, 10, 28);
+      ctx.fillStyle = '#e03131'; ctx.beginPath(); ctx.roundRect(x - 18, y - 66, 36, 40, 8); ctx.fill();
+      ctx.fillStyle = '#ffd43b'; ctx.fillRect(x - 18, y - 32, 36, 6);
+      circle(x, y - 80, 16, '#ffe0c4');
+      ctx.fillStyle = '#8a4b22'; ctx.beginPath(); ctx.ellipse(x, y - 92, 30, 7, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x - 15, y - 92); ctx.quadraticCurveTo(x - 16, y - 116, x - 4, y - 112); ctx.quadraticCurveTo(x, y - 108, x + 4, y - 112); ctx.quadraticCurveTo(x + 16, y - 116, x + 15, y - 92); ctx.closePath(); ctx.fill();
+      circle(x - 6, y - 81, 2, '#212529'); circle(x + 6, y - 81, 2, '#212529');
+      ctx.strokeStyle = '#7a3b2e'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y - 76, 5, 0.2, Math.PI - 0.2); ctx.stroke();
+      ctx.strokeStyle = '#ffe0c4'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x + 14, y - 58); ctx.lineTo(HAND.x + 6, HAND.y + 6); ctx.stroke();
+    }
+
+    function drawRope(t) {
+      ctx.lineCap = 'round';
+      if (rope.state === 'idle') {
+        const sx = HAND.x + Math.sin(aim) * 60, sy = HAND.y - Math.cos(aim) * 60;
+        ctx.setLineDash([10, 9]); ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(HAND.x, HAND.y); ctx.lineTo(HAND.x + Math.sin(aim) * 440, HAND.y - Math.cos(aim) * 440); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle = '#a0602e'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(HAND.x, HAND.y); ctx.lineTo(sx, sy); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(sx, sy, 22, 8, t * 9, 0, Math.PI * 2); ctx.stroke();
+        return;
+      }
+      const p = rope.state === 'pull' ? { x: rope.cow.x, y: rope.cow.y - 6 } : tipFor(rope.len);
+      const sag = rope.state === 'pull' ? 6 - (rope.jerk || 0) * 6 : 14;
+      ctx.strokeStyle = '#7a4520'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(HAND.x, HAND.y); ctx.quadraticCurveTo((HAND.x + p.x) / 2, (HAND.y + p.y) / 2 + sag, p.x, p.y); ctx.stroke();
+      ctx.strokeStyle = '#d9a05a'; ctx.lineWidth = 2.5; ctx.setLineDash([6, 6]);
+      ctx.beginPath(); ctx.moveTo(HAND.x, HAND.y); ctx.quadraticCurveTo((HAND.x + p.x) / 2, (HAND.y + p.y) / 2 + sag, p.x, p.y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.strokeStyle = '#7a4520'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, rope.state === 'pull' ? 26 : 24, rope.state === 'pull' ? 12 : 10, rope.state === 'out' ? t * 12 : 0, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    function draw(t) {
       drawScene();
-      lanes.forEach((l, i) => drawCow(l, i));
-      // combo
-      if (state === 'play' && combo > 4) {
-        ctx.font = '900 24px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center';
-        ctx.lineWidth = 5; ctx.strokeStyle = '#3d2410'; ctx.strokeText(`🔥 COMBO x${combo}`, laneX(ME), 220);
-        ctx.fillStyle = '#ffd43b'; ctx.fillText(`🔥 COMBO x${combo}`, laneX(ME), 220);
+      [...cows].sort((a, b) => a.y - b.y).forEach(drawCow);
+      drawCowboy();
+      drawRope(t);
+      if (rope.state === 'pull') {
+        const bw = 220, bx = W / 2 - bw / 2, by = 186;
+        ctx.fillStyle = 'rgba(20,28,45,.75)'; ctx.beginPath(); ctx.roundRect(bx - 6, by - 6, bw + 12, 28, 10); ctx.fill();
+        ctx.fillStyle = '#ff8787'; ctx.fillRect(bx, by, bw, 16);
+        ctx.fillStyle = '#69db7c'; ctx.fillRect(bx, by, bw * Math.max(0, rope.p), 16);
+        ctx.fillStyle = '#fff'; ctx.font = '800 12px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(`KÉO! còn ${Math.ceil(rope.timer)}s`, W / 2, by + 8);
+        if (combo > 3) { ctx.font = '900 20px "Be Vietnam Pro", system-ui'; ctx.lineWidth = 4; ctx.strokeStyle = '#3d2410'; ctx.strokeText(`🔥 x${combo}`, W / 2 + 160, by + 8); ctx.fillStyle = '#ffd43b'; ctx.fillText(`🔥 x${combo}`, W / 2 + 160, by + 8); }
       }
-      if (state === 'count') {
-        const n = Math.ceil(count);
-        ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(0, 0, W, H);
-        ctx.font = '900 120px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.lineWidth = 10; ctx.strokeStyle = '#3d2410'; ctx.strokeText(n > 0 ? n : 'KÉO!', W / 2, H / 2);
-        ctx.fillStyle = n > 0 ? '#ffd43b' : '#ff6b6b'; ctx.fillText(n > 0 ? n : 'KÉO!', W / 2, H / 2);
-      }
-      // đồng hồ
+      floats.forEach((f) => { ctx.globalAlpha = Math.min(1, f.t); ctx.font = '900 30px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y); ctx.globalAlpha = 1; });
+      if (msg) { ctx.globalAlpha = Math.min(1, msg.t * 2); ctx.font = '900 26px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.lineWidth = 6; ctx.strokeStyle = '#3d2410'; ctx.strokeText(msg.text, W / 2, 380); ctx.fillStyle = msg.color; ctx.fillText(msg.text, W / 2, 380); ctx.globalAlpha = 1; }
       ctx.fillStyle = 'rgba(20,28,45,.75)'; ctx.beginPath(); ctx.roundRect(12, 12, 120, 40, 10); ctx.fill();
-      ctx.fillStyle = timeLeft < 8 ? '#ff8787' : '#fff'; ctx.font = '900 22px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = timeLeft < 10 ? '#ff8787' : '#fff'; ctx.font = '900 22px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
       ctx.fillText(`⏱ ${Math.ceil(Math.max(0, timeLeft))}s`, 24, 32);
+      ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.roundRect(W - 172, 12, 160, 64, 10); ctx.fill();
+      ctx.font = '700 11px "Be Vietnam Pro", system-ui'; ctx.fillStyle = '#3d2410';
+      [['Bò trắng', 100], ['Bò nâu', 150], ['Bò đen (nhanh)', 250], ['🌟 Bò vàng', 500]].forEach(([n, v], i) => {
+        ctx.textAlign = 'left'; ctx.fillText(n, W - 162, 24 + i * 14);
+        ctx.textAlign = 'right'; ctx.fillText(`+${v}`, W - 22, 24 + i * 14);
+      });
     }
 
     function loop(t) {
       const dt = Math.min(0.05, (t - (last || t)) / 1000);
       last = t;
       update(dt);
-      draw();
+      draw(t / 1000);
       requestAnimationFrame(loop);
     }
 
-    btn.addEventListener('pointerdown', (e) => { e.preventDefault(); tap(); });
-    document.addEventListener('keydown', (e) => {
-      if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); tap(); }
-    });
+    btn.addEventListener('pointerdown', (e) => { e.preventDefault(); press(); });
+    cv.addEventListener('pointerdown', (e) => { e.preventDefault(); press(); });
+    document.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); press(); } });
 
     reset();
     requestAnimationFrame(loop);
-    GH.overlay(area, '<h2>🐄 Kéo Bò</h2><p>Bấm nút <b>KÉO!</b> thật nhanh để kéo bò về vạch đích.<br>Bò vùng vẫy kéo ngược lại — đừng dừng tay!</p>', 'Bắt đầu', start);
+    GH.overlay(area, '<h2>🤠 Bắt Bò</h2><p>Bò chạy khắp đồng cỏ! Canh mũi tên rồi <b>quăng dây thòng lọng</b>.<br>Bắt trúng thì bấm thật nhanh để <b>kéo bò</b> về chuồng trước khi nó giật đứt dây!</p>', 'Bắt đầu', start);
   </script>
 </body>
 </html>
