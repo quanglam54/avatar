@@ -102,8 +102,37 @@ const MUSIC = (() => {
     });
   }
 
+  /** Tiếng "bùm" của pháo hoa (tắt nhạc thì cũng tắt tiếng pháo) */
+  function boom(size = 1) {
+    if (!ac || !on || ac.state !== 'running') return;
+    const t = ac.currentTime, len = 1.4;
+    const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * len), ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3.2);
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(1600, t); lp.frequency.exponentialRampToValueAtTime(160, t + 0.9);
+    const g = ac.createGain(); g.gain.value = 0.35 * vol * size;
+    src.connect(lp); lp.connect(g); g.connect(ac.destination);
+    src.start(t + Math.random() * 0.05);
+    // lách tách sau tiếng nổ
+    for (let k = 0; k < 6; k++) {
+      const o = ac.createOscillator(), og = ac.createGain(), at = t + 0.25 + Math.random() * 0.7;
+      o.type = 'square'; o.frequency.value = 1800 + Math.random() * 2400;
+      og.gain.setValueAtTime(0.0001, at); og.gain.exponentialRampToValueAtTime(0.025 * vol, at + 0.005); og.gain.exponentialRampToValueAtTime(0.0001, at + 0.04);
+      o.connect(og); og.connect(ac.destination); o.start(at); o.stop(at + 0.06);
+    }
+  }
+  /** Tiếng huýt khi pháo bay lên */
+  function whistle() {
+    if (!ac || !on || ac.state !== 'running') return;
+    const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(700, t); o.frequency.exponentialRampToValueAtTime(1900, t + 0.9);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.03 * vol, t + 0.1); g.gain.exponentialRampToValueAtTime(0.0001, t + 1);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 1.05);
+  }
+
   function setOn(v) { on = v; if (v) start(); else stop(); }
   function setVolume(v) { vol = Math.max(0, Math.min(1, v)); if (on && ac) fadeTo(vol * 0.9, 0.3); }
 
-  return { init, setOn, setVolume, get on() { return on; }, get volume() { return vol; } };
+  return { init, setOn, setVolume, boom, whistle, get on() { return on; }, get volume() { return vol; } };
 })();

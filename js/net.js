@@ -118,6 +118,10 @@ const NET = (() => {
     send('quiz', { round, name: AV.S.name });
   }
 
+  function sendFirework(kind, name) {
+    send('fw', { kind, name });
+  }
+
   /** Thông báo hệ thống cho cả khu, vd: "Lâm đã câu được một cá chép" */
   function sendSys(text) {
     send('sys', { text });
@@ -181,6 +185,8 @@ const NET = (() => {
       TABLE.onNet(m);
     } else if (m.t === 'quiz') {
       AV.onQuizWin(num(m.round, -1), clean(m.name, 16));
+    } else if (m.t === 'fw') {
+      AV.onFirework(clean(m.kind, 10), clean(m.name, 16));
     } else if (m.t === 'sys') {
       const text = clean(m.text, 120);
       if (text) UI.chatLog('', text, false, true);
@@ -321,7 +327,7 @@ const NET = (() => {
   }
 
   return {
-    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing,
+    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing, sendFirework,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],

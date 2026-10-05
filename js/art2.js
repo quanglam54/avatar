@@ -1531,3 +1531,28 @@ Object.assign(ART, (() => {
 
   return { casino, casinoBulbs, CASINO: { w: CW, h: CH } };
 })());
+
+/* Bệ bắn pháo hoa ở Sân Chơi nông trại */
+Object.assign(ART, (() => {
+  const { rr, shadow } = ART;
+  function fireworkPad(ctx, x, y) {
+    shadow(ctx, x, y, 62, 12);
+    ctx.fillStyle = '#8b5a2b'; rr(ctx, x - 56, y - 26, 112, 26, 5); ctx.fill();
+    ctx.fillStyle = '#a9733f'; rr(ctx, x - 56, y - 30, 112, 10, 4); ctx.fill();
+    ctx.strokeStyle = 'rgba(70,40,15,.45)'; ctx.lineWidth = 2;
+    for (let k = -40; k <= 40; k += 20) { ctx.beginPath(); ctx.moveTo(x + k, y - 20); ctx.lineTo(x + k, y - 2); ctx.stroke(); }
+    // ống pháo
+    [[-34, '#e03131', 34], [-12, '#fcc419', 44], [12, '#4dabf7', 40], [34, '#e64980', 30]].forEach(([dx, col, h]) => {
+      ctx.fillStyle = col; rr(ctx, x + dx - 8, y - 28 - h, 16, h, 3); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillRect(x + dx - 8, y - 28 - h * 0.6, 16, 4);
+      ctx.fillStyle = '#343a40'; rr(ctx, x + dx - 9, y - 31 - h, 18, 5, 2); ctx.fill();
+      ctx.strokeStyle = '#495057'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x + dx, y - 31 - h); ctx.quadraticCurveTo(x + dx + 5, y - 38 - h, x + dx + 2, y - 43 - h); ctx.stroke();
+    });
+    // biển nhỏ
+    ctx.fillStyle = '#fff3bf'; rr(ctx, x - 30, y - 22, 60, 16, 4); ctx.fill();
+    ctx.fillStyle = '#c92a2a'; ctx.font = '900 10px "Be Vietnam Pro", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('PHÁO HOA', x, y - 14);
+  }
+  return { fireworkPad };
+})());

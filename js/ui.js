@@ -794,35 +794,43 @@ const UI = (() => {
   function guardShop() {
     const S = AV.S;
     const p = panel('🐕 Chuồng Thú Giữ Nhà', '', { wide: true });
+    const paint = (c, id) => {
+      const ctx = c.getContext('2d');
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const gr = ctx.createLinearGradient(0, 0, 0, c.clientHeight);
+      gr.addColorStop(0, '#fff4e6'); gr.addColorStop(1, '#b2f2bb');
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, c.clientWidth, c.clientHeight);
+      const sc = ({ dog: 1.6, shepherd: 1.4, tiger: 1.2, lion: 1.15 }[id] || 1.3) * c.clientHeight / 120;
+      ctx.save(); ctx.translate(c.clientWidth / 2 - 8 * sc, c.clientHeight - 16 * c.clientHeight / 120); ctx.scale(sc, sc);
+      ART.guard(ctx, 0, 0, id, 1, 0, false, false);
+      ctx.restore();
+    };
     const render = () => {
-      const owned = S.owned.guards || ['none'];
+      const team = S.guard || [], full = team.length >= DATA.GUARD_MAX;
+      const safe = team.reduce((pr, id) => pr * (1 - DATA.GUARDS.find((g) => g.id === id).bite), 1);
+      const maxFine = Math.min(1000, team.reduce((sum, id) => sum + DATA.GUARDS.find((g) => g.id === id).fine, 0));
       p.body.innerHTML = `
         <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
-        <p class="muted">Thú giữ nhà đi tuần quanh nông trại. Bạn bè sang <b>hái trộm</b> ô ruộng đã chín có thể bị cắn và <b>bị phạt xu</b> — số xu đó về túi bạn!</p>
-        <div class="b-grid">${DATA.GUARDS.map((g) => {
-          const has = owned.includes(g.id), using = (S.guard || 'none') === g.id;
-          const btn = using ? `<button class="btn small ghost" disabled>${g.id === 'none' ? 'Đang để trống' : 'Đang canh nhà'}</button>`
-            : has ? `<button class="btn small" data-use="${g.id}">${g.id === 'none' ? 'Cho nghỉ' : 'Cho canh nhà'}</button>`
-              : `<button class="btn small" data-buy="${g.id}">Mua · ${g.price.toLocaleString('vi-VN')}💰</button>`;
-          const stat = g.id === 'none' ? '<small>Không ai canh</small>' : `<small>🦷 Cắn ${Math.round(g.bite * 100)}% · phạt ${g.fine} xu</small>`;
-          return `<div class="b-card"><canvas data-guard="${g.id}"></canvas><b>${g.icon} ${g.name}</b>${stat}${btn}</div>`;
+        <p class="muted">Nuôi tối đa <b>${DATA.GUARD_MAX} con</b> cùng canh nông trại (mua trùng loại cũng được). Bạn bè sang <b>hái trộm</b> ô đã chín có thể bị <b>nhiều con cắn cùng lúc</b> — tiền phạt cộng dồn và về túi bạn!</p>
+        <h4>🛡️ Đội canh nhà của bạn (${team.length}/${DATA.GUARD_MAX})</h4>
+        ${team.length ? `<div class="guard-team">${team.map((id, k) => { const g = DATA.GUARDS.find((x) => x.id === id); return `<div class="g-slot"><canvas data-team="${id}"></canvas><b>${g.name}</b><button class="btn small ghost" data-sell="${k}">Bán · ${Math.floor(g.price / 2).toLocaleString('vi-VN')}💰</button></div>`; }).join('')}</div>
+          <p class="muted small-note">Kẻ trộm có <b>${Math.min(99, Math.round((1 - safe) * 100))}%</b> bị cắn, bị phạt tới <b>${maxFine} xu</b> mỗi lần.</p>`
+          : '<p class="muted">Chưa có con nào canh nhà — bạn bè hái trộm thoải mái đó 😅</p>'}
+        <h4>🛒 Mua thêm</h4>
+        <div class="b-grid">${DATA.GUARDS.filter((g) => g.id !== 'none').map((g) => {
+          const n = team.filter((id) => id === g.id).length;
+          const btn = full ? '<button class="btn small ghost" disabled>Đã đủ 5 con</button>' : `<button class="btn small" data-buy="${g.id}">Mua · ${g.price.toLocaleString('vi-VN')}💰</button>`;
+          return `<div class="b-card"><canvas data-guard="${g.id}"></canvas><b>${g.icon} ${g.name}${n ? ` <small>× ${n}</small>` : ''}</b><small>🦷 Cắn ${Math.round(g.bite * 100)}% · phạt ${g.fine} xu</small>${btn}</div>`;
         }).join('')}</div>`;
-      p.body.querySelectorAll('[data-guard]').forEach((c) => {
-        const ctx = c.getContext('2d');
-        const dpr = Math.min(2, window.devicePixelRatio || 1);
-        c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        const gr = ctx.createLinearGradient(0, 0, 0, c.clientHeight);
-        gr.addColorStop(0, '#fff4e6'); gr.addColorStop(1, '#b2f2bb');
-        ctx.fillStyle = gr; ctx.fillRect(0, 0, c.clientWidth, c.clientHeight);
-        if (c.dataset.guard === 'none') { ctx.font = '40px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🏚️', c.clientWidth / 2, c.clientHeight / 2); return; }
-        const sc = { dog: 1.6, shepherd: 1.4, tiger: 1.2, lion: 1.15 }[c.dataset.guard] || 1.3;
-        ctx.save(); ctx.translate(c.clientWidth / 2 - 8, c.clientHeight - 16); ctx.scale(sc, sc);
-        ART.guard(ctx, 0, 0, c.dataset.guard, 1, 0, false, false);
-        ctx.restore();
+      p.body.querySelectorAll('[data-guard]').forEach((c) => paint(c, c.dataset.guard));
+      p.body.querySelectorAll('[data-team]').forEach((c) => paint(c, c.dataset.team));
+      p.body.querySelectorAll('[data-buy]').forEach((bt) => bt.onclick = () => { AV.buyGuard(bt.dataset.buy); render(); });
+      p.body.querySelectorAll('[data-sell]').forEach((bt) => bt.onclick = () => {
+        const g = DATA.GUARDS.find((x) => x.id === team[+bt.dataset.sell]);
+        confirm(`Bán ${g.icon} ${g.name} và nhận lại <b>${Math.floor(g.price / 2).toLocaleString('vi-VN')} xu</b>?`, 'Bán', () => { AV.sellGuard(+bt.dataset.sell); render(); });
       });
-      p.body.querySelectorAll('[data-buy]').forEach((b) => b.onclick = () => { AV.buyGuard(b.dataset.buy); render(); });
-      p.body.querySelectorAll('[data-use]').forEach((b) => b.onclick = () => { AV.useGuard(b.dataset.use); render(); });
     };
     render();
   }
@@ -877,6 +885,21 @@ const UI = (() => {
       }, 4300);
     };
     renderInfo();
+  }
+
+  /* ---------- Bệ bắn pháo hoa ---------- */
+  function fireworksPanel() {
+    const S = AV.S;
+    const p = panel('🎆 Bắn Pháo Hoa', '', { wide: true });
+    const render = () => {
+      p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
+        <p class="muted">Mọi người đang ở nông trại này đều thấy pháo hoa của bạn. Đẹp nhất vào buổi tối! Mỗi lần bắn +5 XP.</p>
+        <div class="shop-list">${DATA.FIREWORKS.map((f) => `<div class="shop-row"><span class="ic">${f.icon}</span>
+          <div class="info"><b>${f.name}</b><small>${f.desc}</small></div>
+          <button class="btn small" data-fw="${f.id}">Bắn · ${f.price}💰</button></div>`).join('')}</div>`;
+      p.body.querySelectorAll('[data-fw]').forEach((b) => b.onclick = () => { p.close(); AV.firework(b.dataset.fw); });
+    };
+    render();
   }
 
   /* ---------- Nhạc nền ---------- */
@@ -1160,5 +1183,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel };
 })();

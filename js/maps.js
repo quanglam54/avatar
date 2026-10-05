@@ -407,6 +407,10 @@ const MAPS = (() => {
     [[3700, 560, 'mai'], [3180, 900, 'dao']].forEach(([x, y, k]) => addPot(m, x, y, k));
     addBush(m, 3460, 1240, '#ff8fab');
     addLamp(m, 3420, 760); m.lights.push([3396, 648, 58], [3444, 648, 58]);
+    // bệ bắn pháo hoa
+    sobj(m, 3640, 900, (c) => ART.fireworkPad(c, 3640, 900), { l: -70, t: -90, w: 140, h: 100 });
+    col(m, 3586, 876, 108, 24);
+    inter(m, { x: 3580, y: 820, w: 120, h: 82, ax: 3640, ay: 935, name: 'Bệ bắn pháo hoa', use: () => UI.fireworksPanel(), arrow: { x: 3640, y: 800, text: 'Bắn pháo hoa' } });
 
     /* ----- Đèn đường dọc lối đi (sáng về đêm) ----- */
     [[820, 830], [1600, 830], [2300, 830], [1520, 1280], [1680, 1280], [1060, 1270], [2380, 1270]].forEach(([x, y]) => {

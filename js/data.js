@@ -115,6 +115,17 @@ DATA.GUARDS = [
   { id: 'tiger', name: 'Hổ vằn', icon: '🐯', price: 4000, bite: 0.65, fine: 150 },
   { id: 'lion', name: 'Sư tử', icon: '🦁', price: 8000, bite: 0.8, fine: 250 },
 ];
+/** Pháo hoa ở Sân Chơi nông trại */
+DATA.FIREWORKS = [
+  { id: 'basic', icon: '🎆', name: 'Pháo hoa thường', desc: 'Bắn 5 quả nổ tung nhiều màu', price: 20 },
+  { id: 'heart', icon: '💖', name: 'Pháo hoa trái tim', desc: '3 quả nổ thành hình trái tim', price: 50 },
+  { id: 'text', icon: '✨', name: 'Pháo hoa chữ', desc: 'Nổ thành tên của bạn trên trời', price: 100 },
+  { id: 'show', icon: '🎇', name: 'Màn pháo hoa lớn', desc: 'Bắn liên tục khoảng 20 giây, kết thúc bằng tên bạn', price: 300 },
+];
+
+/** Số thú giữ nhà tối đa cùng canh một nông trại */
+DATA.GUARD_MAX = 5;
+
 /** Hái trộm: tối đa 3 ô / nông trại / ngày, lấy được một nửa sản lượng của ô */
 DATA.STEAL = { perFarm: 3, share: 0.5 };
 

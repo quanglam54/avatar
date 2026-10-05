@@ -17,7 +17,7 @@
       owned: { hats: ['none'], shirtStyles: ['plain'], pets: ['none'], accs: ['none'], guards: ['none'] },
       tiles: Array.from({ length: DATA.BED_COUNT * DATA.TILES_PER_BED }, () => ({ crop: null, plantedAt: 0, watered: false })),
       beds: Array.from({ length: DATA.BED_COUNT }, (_, i) => i === 0 || i === DATA.FIELD_BEDS),
-      guard: 'none',
+      guard: [],
       trees: DATA.ORCHARD.map(() => ({ at: 0 })),
       storage: {},
       coop: { fedAt: 0 },
@@ -47,7 +47,16 @@
     while (s.beds.length < d.beds.length) s.beds.push(false);
     s.trees = s.trees || [];
     while (s.trees.length < DATA.ORCHARD.length) s.trees.push({ at: 0 });
-    return { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned }, settings: { ...d.settings, ...s.settings } };
+    const out = { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned }, settings: { ...d.settings, ...s.settings } };
+    out.guard = normTeam(s.guard, s.owned && s.owned.guards);
+    return out;
+  }
+
+  /** Đội thú giữ nhà (mảng id, tối đa 5). Bản lưu cũ chỉ có 1 con canh → cho mọi con đã mua cùng ra canh */
+  function normTeam(v, owned) {
+    const ok = (id) => id !== 'none' && DATA.GUARDS.some((g) => g.id === id);
+    const team = Array.isArray(v) ? v.filter(ok) : [...new Set([...(ok(v) ? [v] : []), ...(owned || []).filter(ok)])];
+    return team.slice(0, DATA.GUARD_MAX);
   }
 
   function load() {
@@ -102,6 +111,7 @@
     player.pending = null;
     myPet.x = player.x - 30; myPet.y = player.y + 3;
     if (id !== 'farm') VISIT = null;
+    rockets.length = 0; sparks.length = 0; flashes.length = 0; fwShow = null; fwDim = 0;
     UI.setLocation(id === 'farm' && VISIT ? `Nông trại của ${VISIT.data.name}` : map.name);
     UI.updateVisitBar(VISIT);
     joinRoom();
@@ -1089,7 +1099,7 @@
       beds: pad(f.beds, d.beds.length, () => false).map((b, i) => b === true || i === 0 || i === DATA.FIELD_BEDS),
       trees: pad(f.trees, d.trees.length, () => ({ at: 0 })),
       coop: f.coop || { fedAt: 0 }, pen: f.pen || { fedAt: 0 },
-      guard: DATA.GUARDS.some((g) => g.id === f.guard) ? f.guard : 'none',
+      guard: normTeam(f.guard),
     };
   }
 
@@ -1105,13 +1115,13 @@
     if (!f || !f.user_id) return UI.toast(`Không tìm thấy người chơi "${u}" — kiểm tra lại tên đăng nhập nhé`, 4000);
     if (swingRide) AV.leaveSwing();
     VISIT = { uid: f.user_id, username: u, data: farmData(f), helped: false, stolen: {}, rev: f.updated_at };
-    guard.x = 0;
+    guards.length = 0;
     AV.teleport('farm', false, 1600, 1350, `🏡 Đi thăm nông trại của ${VISIT.data.name}…`);
   };
 
   AV.goHomeFarm = () => {
     VISIT = null;
-    guard.x = 0;
+    guards.length = 0;
     if (fade.mode) return;
     AV.teleport('farm', false, 1600, 1350, '🌾 Về nông trại của bạn…');
   };
@@ -1186,40 +1196,52 @@
     if (t === 'farmhit' && uid === S.owner) setTimeout(() => { receiveHelps(); receiveSteals(); }, 1500);
   };
 
-  /* ---------- Thú giữ nhà + hái trộm ---------- */
-  const guard = { x: 0, y: 0, tx: 0, ty: 0, dir: 1, t: 0, moving: false, wait: 0, chase: null, angry: 0, bubble: null, kind: 'guard' };
+  /* ---------- Thú giữ nhà (tối đa 5 con cùng canh) + hái trộm ---------- */
   const GUARD_YARD = { l: 3900, t: 1120, r: 5140, b: 1235 }, GUARD_LANE = { l: 260, t: 805, r: 5140, b: 840 };
   const guardDef = (id) => DATA.GUARDS.find((g) => g.id === id) || DATA.GUARDS[0];
-  AV.guardOf = () => (map.id === 'farm' ? FD().guard || 'none' : 'none');
+  /** Đội thú đang canh của nông trại đang xem (mảng id) */
+  AV.guardTeam = () => (map.id === 'farm' ? FD().guard || [] : []);
+  const teamIcons = (team) => team.map((id) => guardDef(id).icon).join('');
+  /** Mỗi con có một thực thể đi tuần riêng */
+  const guards = [];
 
-  function updateGuard(dt) {
-    const kind = AV.guardOf();
-    if (kind === 'none') return;
-    guard.t += dt;
-    if (!guard.x) { guard.x = guard.tx = 4300; guard.y = guard.ty = 1180; }
-    let tx = guard.tx, ty = guard.ty, speed = 70;
-    if (guard.chase) {
-      tx = player.x + 46 * (player.x > guard.x ? -1 : 1); ty = player.y + 4; speed = 520;
-      if (Math.hypot(tx - guard.x, ty - guard.y) > 1100) { guard.x = tx - Math.sign(tx - guard.x) * 500; guard.y = ty; }
-      if (now > guard.chase.until) { guard.chase = null; guard.tx = guard.x; guard.ty = guard.y; }
+  function updateGuards(dt) {
+    const team = AV.guardTeam();
+    while (guards.length > team.length) guards.pop();
+    while (guards.length < team.length) {
+      const k = guards.length;
+      guards.push({ x: 4100 + k * 190, y: 1150 + (k % 2) * 60, tx: 0, ty: 0, dir: 1, t: Math.random() * 5, moving: false, wait: Math.random() * 3, chase: null, angry: 0, bubble: null, kind: 'guard' });
+      guards[k].tx = guards[k].x; guards[k].ty = guards[k].y;
     }
-    const dx = tx - guard.x, dy = ty - guard.y, d = Math.hypot(dx, dy);
-    if (guard.wait > 0 && !guard.chase) { guard.wait -= dt; guard.moving = false; return; }
-    if (d < 4) {
-      guard.moving = false;
-      if (guard.chase) { guard.dir = player.x > guard.x ? 1 : -1; return; }
-      guard.wait = 2 + Math.random() * 5;
-      const a = Math.random() < 0.55 ? GUARD_YARD : GUARD_LANE;
-      guard.tx = a.l + Math.random() * (a.r - a.l); guard.ty = a.t + Math.random() * (a.b - a.t);
-      return;
-    }
-    const step = Math.min(d, speed * dt);
-    guard.x += dx / d * step; guard.y += dy / d * step;
-    guard.dir = dx > 0 ? 1 : -1;
-    guard.moving = true;
+    guards.forEach((gd, k) => {
+      gd.id = team[k];
+      gd.t += dt;
+      let tx = gd.tx, ty = gd.ty, speed = 70;
+      if (gd.chase) {
+        // vây quanh kẻ trộm, mỗi con một phía
+        const side = k % 2 ? -1 : 1, row = Math.floor(k / 2);
+        tx = player.x + side * (46 + row * 34); ty = player.y + 4 + row * 14; speed = 520;
+        if (Math.hypot(tx - gd.x, ty - gd.y) > 1100) { gd.x = tx - Math.sign(tx - gd.x) * 500; gd.y = ty; }
+        if (now > gd.chase.until) { gd.chase = null; gd.tx = gd.x; gd.ty = gd.y; }
+      }
+      const dx = tx - gd.x, dy = ty - gd.y, d = Math.hypot(dx, dy);
+      if (gd.wait > 0 && !gd.chase) { gd.wait -= dt; gd.moving = false; return; }
+      if (d < 4) {
+        gd.moving = false;
+        if (gd.chase) { gd.dir = player.x > gd.x ? 1 : -1; return; }
+        gd.wait = 2 + Math.random() * 5;
+        const a = Math.random() < 0.55 ? GUARD_YARD : GUARD_LANE;
+        gd.tx = a.l + Math.random() * (a.r - a.l); gd.ty = a.t + Math.random() * (a.b - a.t);
+        return;
+      }
+      const step = Math.min(d, speed * dt);
+      gd.x += dx / d * step; gd.y += dy / d * step;
+      gd.dir = dx > 0 ? 1 : -1;
+      gd.moving = true;
+    });
   }
 
-  /** Hái trộm 1 ô đã chín ở nông trại bạn. Thú giữ nhà có thể cắn → bị phạt xu (xu về túi chủ nhà) */
+  /** Hái trộm 1 ô đã chín ở nông trại bạn. Mỗi thú giữ nhà có thể cắn riêng → bị phạt cộng dồn (xu về túi chủ nhà) */
   AV.stealTile = async (i) => {
     const v = VISIT;
     if (!v || v.busy) return;
@@ -1227,10 +1249,11 @@
     if (tileState(t).stage !== 2) return;
     if (v.stolen[i] !== undefined) return UI.toast('Ô này bạn vừa hái rồi 😅');
     if (Object.keys(v.stolen).length >= DATA.STEAL.perFarm) return UI.toast(`Hôm nay bạn đã hái trộm ${DATA.STEAL.perFarm} ô ở nông trại này rồi, đừng tham quá 😅`, 3500);
-    const g = guardDef(v.data.guard), crop = t.crop, c = DATA.CROPS[crop], name = v.data.name;
-    const bitten = g.bite > 0 && Math.random() < g.bite;
+    const team = v.data.guard || [], crop = t.crop, c = DATA.CROPS[crop], name = v.data.name;
+    const biters = team.map((id, k) => ({ k, g: guardDef(id) })).filter((b) => Math.random() < b.g.bite);
+    const bitten = biters.length > 0;
     const qty = bitten ? 0 : Math.max(1, Math.round(c.yield * DATA.STEAL.share));
-    const fine = bitten ? Math.min(g.fine, S.coins) : 0;
+    const fine = bitten ? Math.min(biters.reduce((a, b) => a + b.g.fine, 0), S.coins, 1000) : 0;
     v.busy = true;
     try { await CLOUD.sendSteal({ owner: v.uid, thief_name: S.name, tile: i, crop, qty, bitten, coins: fine }); }
     catch (e) { return UI.toast('⚠️ ' + e.message, 4500); }
@@ -1239,20 +1262,25 @@
     NET.farmPing('farmhit', v.uid);
     if (bitten) {
       S.coins -= fine;
-      guard.chase = { until: Date.now() + 3500 };
-      guard.angry = Date.now() + 3500;
-      guard.bubble = { text: g.id === 'lion' || g.id === 'tiger' ? 'GRÀOOO! 🦷' : 'GÂU GÂU! 🦷', until: Date.now() + 3000, big: true };
-      say(player, 'Á á á! Đau quá 😭');
+      biters.forEach(({ k, g }) => {
+        const gd = guards[k];
+        if (!gd) return;
+        gd.chase = { until: Date.now() + 3500 };
+        gd.angry = Date.now() + 3500;
+        gd.bubble = { text: g.id === 'lion' || g.id === 'tiger' ? 'GRÀOOO! 🦷' : 'GÂU GÂU! 🦷', until: Date.now() + 3000, big: true };
+      });
+      const who = biters.map((b) => `${b.g.icon} ${b.g.name}`).join(', ');
+      say(player, biters.length > 1 ? 'Á á á! Bị cả đàn cắn 😭' : 'Á á á! Đau quá 😭');
       float(`🦷 -${fine} 💰`, player.x, player.y - 120, '#ff6b6b');
-      UI.toast(`🦷 ${g.icon} ${g.name} nhà ${name} cắn bạn! Bị phạt ${fine} xu (xu về túi chủ nhà)`, 5000);
-      NET.sendSys(`🦷 ${S.name} hái trộm ở nông trại ${name} và bị ${g.name} cắn!`);
+      UI.toast(`🦷 ${who} nhà ${name} cắn bạn! Bị phạt ${fine} xu (xu về túi chủ nhà)`, 5000);
+      NET.sendSys(`🦷 ${S.name} hái trộm ở nông trại ${name} và bị ${biters.length > 1 ? biters.length + ' con thú' : biters[0].g.name} cắn!`);
     } else {
       Object.assign(t, { crop: null, plantedAt: 0, watered: false, fert: false });
       addItem(crop, qty);
       addXP(2);
       float(`🥷 +${qty} ${c.icon}`, player.x, player.y - 110);
-      if (g.id !== 'none') guard.bubble = { text: '💤', until: Date.now() + 2500 };
-      UI.toast(`🥷 Hái trộm được ${qty} ${c.icon} ${c.name.toLowerCase()}${g.id === 'none' ? '' : ` — ${g.name} không để ý 😏`}`, 3500);
+      guards.forEach((gd) => { gd.bubble = { text: '💤', until: Date.now() + 2500 }; });
+      UI.toast(`🥷 Hái trộm được ${qty} ${c.icon} ${c.name.toLowerCase()}${team.length ? ` — ${team.length > 1 ? 'đàn thú' : guardDef(team[0]).name} không để ý 😏` : ''}`, 3500);
       NET.sendSys(`🥷 ${S.name} vừa hái trộm ${qty} ${c.icon} ở nông trại ${name}!`);
     }
     changed();
@@ -1274,10 +1302,10 @@
       thieves.add(who);
     });
     if (fines) { S.coins += fines; float(`+${fines} 💰`, player.x, player.y - 120, '#ffd43b'); }
-    const g = guardDef(S.guard);
+    const team = S.guard || [];
     const msgs = [];
-    if (thieves.size) msgs.push(`🥷 ${[...thieves].join(', ')} đã hái trộm ${lost} ô ruộng của bạn!${g.id === 'none' ? ' Mua thú giữ nhà ở Chuồng Thú (góc phải nông trại) nhé 🐕' : ''}`);
-    if (bitten.size) msgs.push(`${g.icon} ${g.id === 'none' ? 'Thú giữ nhà' : g.name} đã cắn ${[...bitten].join(', ')} khi hái trộm — bạn nhận ${fines} xu tiền phạt!`);
+    if (thieves.size) msgs.push(`🥷 ${[...thieves].join(', ')} đã hái trộm ${lost} ô ruộng của bạn!${team.length ? '' : ' Mua thú giữ nhà ở Chuồng Thú (góc phải nông trại) nhé 🐕'}`);
+    if (bitten.size) msgs.push(`${teamIcons(team) || '🐕'} Thú giữ nhà đã cắn ${[...bitten].join(', ')} khi hái trộm — bạn nhận ${fines} xu tiền phạt!`);
     msgs.forEach((m, k) => { setTimeout(() => UI.toast(m, 6000), k * 600); UI.chatLog('', m, false, true); });
     changed();
   }
@@ -1285,24 +1313,188 @@
 
   AV.buyGuard = (id) => {
     const g = DATA.GUARDS.find((x) => x.id === id);
-    S.owned.guards = S.owned.guards || ['none'];
-    if (!g || S.owned.guards.includes(id)) return;
+    if (!g || id === 'none') return;
+    S.guard = S.guard || [];
+    if (S.guard.length >= DATA.GUARD_MAX) return UI.toast(`Đã đủ ${DATA.GUARD_MAX} con canh nhà — bán bớt một con nếu muốn đổi con khác`, 3500);
     if (!AV.spend(g.price)) return;
-    S.owned.guards.push(id);
-    AV.useGuard(id);
-    UI.toast(`${g.icon} Đã mua ${g.name}! Nó sẽ canh nông trại cho bạn`, 3500);
+    S.guard.push(id);
+    UI.toast(`${g.icon} Đã mua ${g.name}! Nó ra canh nông trại ngay (${S.guard.length}/${DATA.GUARD_MAX} con)`, 3500);
+    changed();
   };
-  AV.useGuard = (id) => {
-    if (!(S.owned.guards || ['none']).includes(id)) return;
-    S.guard = id;
-    guard.x = 0; guard.chase = null;
+  /** Bán lại một con trong đội (nhận lại một nửa giá) */
+  AV.sellGuard = (k) => {
+    const id = (S.guard || [])[k];
+    if (!id) return;
+    const g = guardDef(id), back = Math.floor(g.price / 2);
+    S.guard.splice(k, 1);
+    S.coins += back;
+    UI.toast(`Đã bán ${g.icon} ${g.name}, nhận lại ${back.toLocaleString('vi-VN')} xu`);
     changed();
   };
   AV.useKennel = () => {
     if (!VISIT) return UI.guardShop();
-    const g = guardDef(VISIT.data.guard);
-    UI.toast(g.id === 'none' ? `Chuồng thú của ${VISIT.data.name} đang trống — hái trộm thoải mái 😏` : `${g.icon} ${g.name} nhà ${VISIT.data.name} đang canh — hái trộm có ${Math.round(g.bite * 100)}% bị cắn, phạt ${g.fine} xu!`, 4000);
+    const team = VISIT.data.guard || [];
+    if (!team.length) return UI.toast(`Chuồng thú của ${VISIT.data.name} đang trống — hái trộm thoải mái 😏`, 4000);
+    const safe = team.reduce((p, id) => p * (1 - guardDef(id).bite), 1);
+    const maxFine = team.reduce((a, id) => a + guardDef(id).fine, 0);
+    UI.toast(`${teamIcons(team)} ${team.length} con thú đang canh nhà ${VISIT.data.name} — hái trộm có ${Math.min(99, Math.round((1 - safe) * 100))}% bị cắn, phạt tới ${maxFine} xu!`, 4500);
   };
+
+  /* ---------- Pháo hoa ở Sân Chơi nông trại (mọi người trong nông trại đều thấy) ---------- */
+  const FW_PAD = { x: 3640, y: 868 };
+  const rockets = [], sparks = [], flashes = [];
+  let fwShow = null, fwDim = 0;
+  /** Quầng sáng vẽ sẵn cho từng màu (vẽ ảnh nhanh hơn vẽ gradient mỗi khung) */
+  const glowCache = new Map();
+  function glowOf(col) {
+    let c = glowCache.get(col);
+    if (c) return c;
+    c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, '#fff'); gr.addColorStop(0.18, col); gr.addColorStop(0.5, col + '55'); gr.addColorStop(1, col + '00');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    glowCache.set(col, c);
+    return c;
+  }
+  const FW_COLORS = ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2', '#ff922b', '#f783ac', '#fff3bf', '#63e6be'];
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+
+  /** Lấy các điểm tạo thành chữ (tên người bắn) để pháo nổ thành chữ */
+  function textPoints(text) {
+    const c = document.createElement('canvas'), w = 260, h = 46;
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.font = '900 34px "Be Vietnam Pro", system-ui, sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    let fs = 34;
+    while (g.measureText(text).width > w - 10 && fs > 14) { fs -= 2; g.font = `900 ${fs}px "Be Vietnam Pro", system-ui, sans-serif`; }
+    g.fillText(text, w / 2, h / 2);
+    const d = g.getImageData(0, 0, w, h).data, pts = [];
+    const stepPx = saver() ? 4 : 3;
+    for (let y = 0; y < h; y += stepPx) for (let x = 0; x < w; x += stepPx) if (d[(y * w + x) * 4 + 3] > 128) pts.push([(x - w / 2) * 2.2, (y - h / 2) * 2.2]);
+    return pts;
+  }
+
+  function launch(shape, color, label) {
+    // nổ trên phần trời đang nhìn thấy; ở xa bệ pháo thì vẫn thấy pháo nổ trên đầu
+    const VH = H / ZOOM, cx = Math.abs(cam.x - FW_PAD.x) > 1100 ? cam.x : FW_PAD.x;
+    const tx = cx + (Math.random() - 0.5) * (shape === 'text' ? 160 : Math.min(700, W / ZOOM * 0.7));
+    const ty = Math.min(FW_PAD.y - 220, cam.y - VH / 2 + VH * (shape === 'text' ? 0.2 : 0.14 + Math.random() * 0.2));
+    rockets.push({ x: FW_PAD.x + (Math.random() - 0.5) * 30, y: FW_PAD.y - 50, tx, ty, t: 0, dur: 1 + Math.random() * 0.35, shape, color, label });
+    if (typeof MUSIC !== 'undefined' && MUSIC.whistle) MUSIC.whistle();
+  }
+
+  function burst(r) {
+    const k = saver() ? 0.5 : 1;
+    const add = (vx, vy, col, life, drag) => sparks.push({ x: r.x, y: r.y, vx, vy, life, max: life, col, drag });
+    if (r.shape === 'heart') {
+      const n = Math.round(70 * k);
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const hx = 16 * Math.pow(Math.sin(a), 3), hy = -(13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a));
+        add(hx * 9, hy * 9, r.color, 1.9, 1.6);
+      }
+    } else if (r.shape === 'text') {
+      textPoints(r.label || 'Avatar').forEach(([px, py]) => add(px * 1.6, py * 1.6, pick(['#fff3bf', '#ffd43b', r.color]), 2.6, 1.7));
+    } else {
+      const n = Math.round((90 + Math.random() * 50) * k), sp = 220 + Math.random() * 120, two = Math.random() < 0.4 ? pick(FW_COLORS) : null;
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2, v = sp * (0.35 + Math.random() * 0.65);
+        add(Math.cos(a) * v, Math.sin(a) * v, two && i % 2 ? two : r.color, 1.3 + Math.random() * 0.7, 1.1);
+      }
+    }
+    flashes.push({ x: r.x, y: r.y, life: 0.35, col: r.color });
+    if (typeof MUSIC !== 'undefined' && MUSIC.boom) MUSIC.boom(r.shape === 'text' ? 1.3 : 1);
+  }
+
+  /** Bắt đầu màn pháo hoa (gọi cả khi người khác trong nông trại bắn) */
+  function playFirework(kind, name) {
+    if (map.id !== 'farm') return;
+    const col = pick(FW_COLORS);
+    // đang có màn bắn thì nối thêm vào, không bỏ mất pháo đã mua
+    const queue = (n, shape) => { if (fwShow) { fwShow.left += n; if (shape === 'mix') { fwShow.shape = 'mix'; fwShow.name = name; } } else fwShow = { left: n, gap: shape === 'mix' ? 0.5 : 0.45, t: 0, shape, name }; };
+    if (kind === 'basic') queue(5, 'burst');
+    else if (kind === 'heart') { launch('heart', '#ff6b9d'); setTimeout(() => launch('heart', '#ff8fab'), 700); setTimeout(() => launch('heart', '#f06595'), 1400); }
+    else if (kind === 'text') { launch('text', col, name); setTimeout(() => launch('burst', pick(FW_COLORS)), 400); setTimeout(() => launch('burst', pick(FW_COLORS)), 900); }
+    else if (kind === 'show') queue(40, 'mix');
+  }
+
+  function updateFireworks(dt) {
+    // trời tối dần khi đang bắn pháo cho pháo nổi bật, bắn xong sáng lại
+    const active = rockets.length || sparks.length || fwShow;
+    fwDim += ((active ? 0.5 : 0) - fwDim) * Math.min(1, dt * (active ? 2.5 : 0.8));
+    for (let i = flashes.length - 1; i >= 0; i--) if ((flashes[i].life -= dt) <= 0) flashes.splice(i, 1);
+    if (fwShow) {
+      fwShow.t -= dt;
+      if (fwShow.t <= 0) {
+        fwShow.t = fwShow.gap * (0.6 + Math.random() * 0.8);
+        const shape = fwShow.shape === 'mix' ? (fwShow.left === 1 ? 'text' : Math.random() < 0.15 ? 'heart' : 'burst') : 'burst';
+        launch(shape, pick(FW_COLORS), fwShow.name);
+        if (--fwShow.left <= 0) fwShow = null;
+      }
+    }
+    for (let i = rockets.length - 1; i >= 0; i--) {
+      const r = rockets[i];
+      r.t += dt;
+      const p = Math.min(1, r.t / r.dur), e = 1 - (1 - p) * (1 - p);
+      r.px = r.x; r.py = r.y;
+      r.x = FW_PAD.x + (r.tx - FW_PAD.x) * e + Math.sin(r.t * 20) * 1.5;
+      r.y = FW_PAD.y - 50 + (r.ty - FW_PAD.y + 50) * e;
+      if (p >= 1) { burst(r); rockets.splice(i, 1); }
+    }
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i];
+      s.life -= dt;
+      if (s.life <= 0) { sparks.splice(i, 1); continue; }
+      const f = Math.exp(-s.drag * dt);
+      s.vx *= f; s.vy = s.vy * f + 70 * dt;
+      s.x += s.vx * dt; s.y += s.vy * dt;
+    }
+  }
+
+  function drawFireworks(g) {
+    if (fwDim > 0.01) {
+      const vw = W / ZOOM, vh = H / ZOOM;
+      g.fillStyle = `rgba(8,12,40,${fwDim})`;
+      g.fillRect(cam.x - vw / 2 - 10, cam.y - vh / 2 - 10, vw + 20, vh + 20);
+    }
+    if (!rockets.length && !sparks.length && !flashes.length) return;
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    for (const f of flashes) {
+      const r = 160 * (1 - f.life / 0.35) + 40;
+      g.globalAlpha = f.life / 0.35 * 0.8;
+      g.drawImage(glowOf(f.col), f.x - r, f.y - r, r * 2, r * 2);
+    }
+    g.globalAlpha = 1;
+    for (const r of rockets) {
+      g.strokeStyle = 'rgba(255,220,150,.85)'; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(r.x, r.y); g.lineTo(r.x - (r.x - (r.px ?? r.x)) * 4, r.y + 22); g.stroke();
+      g.drawImage(glowOf('#ffd8a8'), r.x - 12, r.y - 12, 24, 24);
+    }
+    for (const s of sparks) {
+      const a = Math.max(0, s.life / s.max);
+      g.globalAlpha = Math.min(1, a * 1.7) * (a < 0.3 && Math.random() < 0.35 ? 0.25 : 1);
+      const rad = 5 + a * 9;
+      g.drawImage(glowOf(s.col), s.x - rad, s.y - rad, rad * 2, rad * 2);
+    }
+    g.restore();
+  }
+
+  AV.firework = (kind) => {
+    const f = DATA.FIREWORKS.find((x) => x.id === kind);
+    if (!f || map.id !== 'farm') return;
+    if (rockets.length > 6 || (fwShow && fwShow.left > 8)) return UI.toast('Đợi pháo hoa đang bắn xong đã nhé 🎆');
+    if (!AV.spend(f.price)) return;
+    addXP(5);
+    playFirework(kind, S.name);
+    NET.sendFirework(kind, S.name);
+    const msg = `🎆 ${S.name} vừa bắn ${f.name.toLowerCase()}!`;
+    UI.chatLog('', msg, true, true);
+    NET.sendSys(msg);
+    if (nightFactor() < 0.3) setTimeout(() => UI.toast('💡 Pháo hoa đẹp nhất vào buổi tối (sau 19 giờ) đó!', 3500), 1200);
+  };
+  AV.onFirework = (kind, name) => { if (DATA.FIREWORKS.some((x) => x.id === kind)) playFirework(kind, name); };
 
   /* ---------- Vòng quay may mắn: nhiệm vụ → lượt quay (tối đa 2 lượt / ngày) ---------- */
   function wheelState() {
@@ -1619,7 +1811,7 @@
     });
     if (S.look.pet && S.look.pet !== 'none') followPet(myPet, player, dt, player.dir);
     if (player.dancing && player.dancing < now) { player.dancing = 0; NET.sendState(); }
-    if (map.id === 'farm') updateGuard(dt);
+    if (map.id === 'farm') { updateGuards(dt); updateFireworks(dt); }
     spawnPickups(dt);
     updateFishing();
     updateActionButton();
@@ -1773,10 +1965,11 @@
       else if (a.kind === 'dog') out((c) => { c.save(); c.translate(a.x, a.y); c.scale(1.5, 1.5); ART.pet(c, 0, 0, 'dog', a.dir, a.t, a.moving); c.restore(); }, a.x, a.y, { l: -55, t: -80, w: 110, h: 86 }, a);
       else out((c) => ART.pig(c, a.x, a.y, a.dir, a.t, a.moving), a.x, a.y, FX.BOX.pig, a);
     } }));
-    if (map.id === 'farm' && AV.guardOf() !== 'none' && guard.x) {
-      const gk = AV.guardOf(), ang = guard.angry > now;
-      list.push({ y: guard.y, draw: () => out((c) => ART.guard(c, guard.x, guard.y, gk, guard.dir, guard.t, guard.moving, ang), guard.x, guard.y, { l: -80, t: -100, w: 160, h: 106 }, guard, ang ? 30 : 55) });
-    }
+    if (map.id === 'farm') guards.forEach((gd) => {
+      if (!gd.id || !inView(gd.x, gd.y)) return;
+      const ang = gd.angry > now;
+      list.push({ y: gd.y, draw: () => out((c) => ART.guard(c, gd.x, gd.y, gd.id, gd.dir, gd.t, gd.moving, ang), gd.x, gd.y, { l: -80, t: -100, w: 160, h: 106 }, gd, ang ? 30 : 55) });
+    });
     map.pickups.forEach((p) => inView(p.x, p.y) && list.push({ y: p.y, draw: () => out((c) => ART.pickup(c, p.x, p.y, p.item.icon, clock), p.x, p.y, BOX_PICK, p, 120) }));
     const petDraw = (p, kind) => list.push({ y: p.y, draw: () => out((c) => ART.pet(c, p.x, p.y, kind, p.dir, p.t, p.moving), p.x, p.y, FX.BOX.pet, p) });
     const charDraw = (x, y, look, o, key) => list.push({ y, draw: () => out((c) => ART.character(c, x, y, look, o), x, y, FX.BOX.character, key) });
@@ -1827,6 +2020,7 @@
       }
     }
 
+    if (map.id === 'farm') drawFireworks(g);
     if (px) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.imageSmoothingEnabled = false;
@@ -1864,7 +2058,7 @@
       }
     };
     map.animals.forEach(bubbleOf);
-    if (map.id === 'farm' && guard.bubble && guard.bubble.until > now) ART.bubble(ctx, guard.bubble.text, guard.x, guard.y - 78, guard.bubble.big);
+    if (map.id === 'farm') guards.forEach((gd) => { if (gd.bubble && gd.bubble.until > now) ART.bubble(ctx, gd.bubble.text, gd.x, gd.y - 78, gd.bubble.big); });
     map.npcs.forEach(bubbleOf);
     others.forEach((r) => {
       if (r.bubble && r.bubble.until > now) ART.bubble(ctx, r.bubble.text, r.rx, r.ry - nameTop(r.look) - 4, r.bubble.big);
@@ -2237,6 +2431,6 @@
   window.addEventListener('beforeunload', saveNow);
   document.addEventListener('visibilitychange', () => { if (document.hidden) { saveNow(); if (CLOUD.user && cloudReady) CLOUD.push(S); } });
 
-  AV._debug = { player, bus, maps, get map() { return map; }, enterMap, update, draw, goTo, findPath, clickWorld, camOff, cam, get zoom() { return ZOOM; }, guard, refreshVisit, get visit() { return VISIT; }, set visit(v) { VISIT = v; } };
+  AV._debug = { player, bus, maps, get map() { return map; }, enterMap, update, draw, goTo, findPath, clickWorld, camOff, cam, get zoom() { return ZOOM; }, guards, refreshVisit, fw: () => ({ rockets: rockets.length, sparks: sparks.length }), get visit() { return VISIT; }, set visit(v) { VISIT = v; } };
   requestAnimationFrame(loop);
 })();
