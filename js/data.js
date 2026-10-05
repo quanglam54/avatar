@@ -33,20 +33,27 @@ const DATA = {
   CROPS: {
     wheat: { name: 'Lúa mì', icon: '🌾', seed: 2, sell: 5, time: 300, xp: 4, lvl: 1, yield: 4 },
     carrot: { name: 'Cà rốt', icon: '🥕', seed: 4, sell: 9, time: 600, xp: 6, lvl: 1, yield: 3 },
-    rose: { name: 'Hoa hồng', icon: '🌹', seed: 7, sell: 15, time: 1200, xp: 8, lvl: 2, yield: 3 },
+    rose: { name: 'Hoa hồng', icon: '🌹', seed: 7, sell: 15, time: 1200, xp: 8, lvl: 2, yield: 3, kind: 'both' },
     strawberry: { name: 'Dâu tây', icon: '🍓', seed: 9, sell: 19, time: 1800, xp: 10, lvl: 2, yield: 3 },
     corn: { name: 'Ngô', icon: '🌽', seed: 13, sell: 28, time: 3600, xp: 14, lvl: 3, yield: 3 },
     pumpkin: { name: 'Bí ngô', icon: '🎃', seed: 22, sell: 60, time: 7200, xp: 20, lvl: 4, yield: 2 },
+    daisy: { name: 'Hoa cúc', icon: '🌼', seed: 5, sell: 12, time: 900, xp: 6, lvl: 1, yield: 3, kind: 'flower', petal: '#ffe066', heart: '#e8590c' },
+    tulip: { name: 'Hoa tulip', icon: '🌷', seed: 8, sell: 18, time: 1500, xp: 8, lvl: 1, yield: 3, kind: 'flower', petal: '#ff6b9a', heart: '#c2255c' },
+    sunflower: { name: 'Hướng dương', icon: '🌻', seed: 12, sell: 26, time: 2700, xp: 12, lvl: 2, yield: 3, kind: 'flower', petal: '#fcc419', heart: '#7a4520' },
+    hibiscus: { name: 'Hoa dâm bụt', icon: '🌺', seed: 20, sell: 45, time: 5400, xp: 18, lvl: 3, yield: 3, kind: 'flower', petal: '#ff4d6d', heart: '#ffd43b' },
   },
   PRODUCTS: {
     egg: { name: 'Trứng gà', icon: '🥚', sell: 6 },
     milk: { name: 'Sữa bò', icon: '🥛', sell: 18 },
     wool: { name: 'Len cừu', icon: '🧶', sell: 22 },
+    pork: { name: 'Thịt heo', icon: '🥩', sell: 32 },
   },
   COOP: { time: 900, feed: 3, eggs: 10, xp: 16 },
-  PEN: { time: 1800, feed: 4, milk: 8, wool: 4, xp: 24 },
+  PEN: { time: 1800, feed: 4, milk: 8, wool: 4, pork: 3, xp: 24 },
   PLOT_PRICES: [0, 0, 0, 0, 0, 0, 40, 80, 120, 200],
-  BED_PRICES: [0, 150, 400, 900, 1500, 2200, 3000, 4000],
+  BED_PRICES: [0, 150, 400, 900, 1500, 2200, 3000, 4000, 0, 300, 800, 1500],
+  FIELD_BEDS: 8,
+  FLOWER_BEDS: 4,
   TILES_PER_BED: 12,
   THIRSTY_AT: 0.4,
   WATER_CUT: 0.1,
@@ -77,6 +84,7 @@ DATA.ZONES = [
   { id: 'park', name: 'Công viên', icon: '🌳', x: 20, y: 72, desc: 'Câu cá, dạo hồ' },
   { id: 'beach', name: 'Bãi biển', icon: '🏖️', x: 90, y: 12, desc: 'Nhặt vỏ sò, tắm nắng' },
   { id: 'school', name: 'Trường học', icon: '🏫', x: 48, y: 86, desc: 'Đố vui tiếng Anh' },
+  { id: 'race', name: 'Khu Đua Xe', icon: '🏎️', x: 8, y: 48, desc: 'Đua xe với mọi người' },
 ];
 
 DATA.FISH = [
@@ -110,6 +118,7 @@ DATA.QUESTS = [
   { id: 'shell', icon: '🐚', text: 'Nhặt {n} vỏ sò / sao biển ở Bãi biển', n: 5, coins: 35, xp: 20 },
   { id: 'collect', icon: '🥚', text: 'Thu trứng / sữa ở chuồng {n} lần', n: 2, coins: 35, xp: 20 },
   { id: 'chat', icon: '💬', text: 'Trò chuyện {n} câu với mọi người', n: 5, coins: 25, xp: 16 },
+  { id: 'race', icon: '🏎️', text: 'Tham gia {n} cuộc đua ở Khu Đua Xe', n: 2, coins: 40, xp: 24 },
   { id: 'dance', icon: '💃', text: 'Nhảy trên sân khấu Khu giải trí {n} lần', n: 1, coins: 25, xp: 16 },
 ];
 
@@ -131,6 +140,8 @@ DATA.RECIPES = [
   { id: 'pumpkin_pie', name: 'Bánh bí ngô', icon: '🥧', need: { pumpkin: 1, egg: 2, milk: 1 }, sell: 170, xp: 24 },
   { id: 'orange_juice', name: 'Nước cam', icon: '🧃', need: { orange: 4 }, sell: 65, xp: 10 },
   { id: 'mango_smoothie', name: 'Sinh tố xoài', icon: '🥤', need: { mango: 2, milk: 1 }, sell: 75, xp: 12 },
+  { id: 'braised_pork', name: 'Thịt kho trứng', icon: '🍖', need: { pork: 2, egg: 3 }, sell: 120, xp: 14 },
+  { id: 'bouquet', name: 'Bó hoa', icon: '💐', need: { daisy: 3, tulip: 3, rose: 2 }, sell: 160, xp: 20 },
   { id: 'fruit_salad', name: 'Salad trái cây', icon: '🥗', need: { apple: 2, peach: 2, orange: 2 }, sell: 140, xp: 20 },
 ];
 

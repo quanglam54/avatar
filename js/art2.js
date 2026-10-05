@@ -355,6 +355,86 @@ Object.assign(ART, (() => {
     });
   }
 
+  /** Khung xích đu (vẽ tĩnh). Ghế vẽ riêng bằng swingSeat để đồng bộ với người ngồi */
+  function swingFrame(ctx, x, y) {
+    shadow(ctx, x, y, 92, 12);
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#7a4520'; ctx.lineWidth = 9;
+    ctx.beginPath(); ctx.moveTo(x - 92, y); ctx.lineTo(x - 72, y - 150); ctx.moveTo(x - 52, y); ctx.lineTo(x - 72, y - 150);
+    ctx.moveTo(x + 92, y); ctx.lineTo(x + 72, y - 150); ctx.moveTo(x + 52, y); ctx.lineTo(x + 72, y - 150); ctx.stroke();
+    ctx.strokeStyle = '#a0602e'; ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.moveTo(x - 82, y - 150); ctx.lineTo(x + 82, y - 150); ctx.stroke();
+    ctx.strokeStyle = '#c98a4b'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x - 80, y - 153); ctx.lineTo(x + 80, y - 153); ctx.stroke();
+    // dây leo hoa trên thanh ngang
+    for (let i = 0; i < 9; i++) {
+      circle(ctx, x - 72 + i * 18, y - 148 + (i % 2) * 4, 5, '#2f8f2f');
+      circle(ctx, x - 72 + i * 18 + 3, y - 150, 3, ['#ff6b9a', '#ffd43b', '#fff'][i % 3]);
+    }
+  }
+  /** Một ghế xích đu: (px,py) = điểm treo trên thanh ngang, a = góc lắc */
+  function swingSeat(ctx, px, py, a, len = 96) {
+    const sx = px + Math.sin(a) * len, sy = py + Math.cos(a) * len;
+    ctx.strokeStyle = '#5c3214'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(px - 13, py); ctx.lineTo(sx - 13, sy); ctx.moveTo(px + 13, py); ctx.lineTo(sx + 13, sy); ctx.stroke();
+    ctx.fillStyle = '#e8590c'; rr(ctx, sx - 18, sy - 3, 36, 8, 3); ctx.fill();
+    ctx.fillStyle = '#ffa94d'; ctx.fillRect(sx - 16, sy - 3, 32, 2);
+    return [sx, sy];
+  }
+  /** Vọng lâu (chòi nghỉ) */
+  function gazebo(ctx, x, y) {
+    shadow(ctx, x, y, 110, 16);
+    ctx.fillStyle = '#d8c49a'; ctx.beginPath(); ctx.ellipse(x, y - 6, 104, 26, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c9b48a'; ctx.beginPath(); ctx.ellipse(x, y - 10, 98, 22, 0, 0, Math.PI * 2); ctx.fill();
+    [-82, -30, 30, 82].forEach((dx) => { ctx.fillStyle = '#fff4e0'; ctx.fillRect(x + dx - 6, y - 130, 12, 120); });
+    ctx.fillStyle = '#c92a2a';
+    ctx.beginPath(); ctx.moveTo(x - 118, y - 124); ctx.lineTo(x, y - 196); ctx.lineTo(x + 118, y - 124); ctx.quadraticCurveTo(x, y - 136, x - 118, y - 124); ctx.fill();
+    ctx.fillStyle = '#a61e1e'; ctx.beginPath(); ctx.moveTo(x - 118, y - 124); ctx.quadraticCurveTo(x, y - 136, x + 118, y - 124); ctx.lineTo(x + 112, y - 116); ctx.quadraticCurveTo(x, y - 126, x - 112, y - 116); ctx.fill();
+    circle(ctx, x, y - 200, 6, '#ffd43b');
+    ctx.fillStyle = '#a0602e'; rr(ctx, x - 50, y - 46, 100, 10, 3); ctx.fill();
+    ctx.fillRect(x - 44, y - 38, 6, 26); ctx.fillRect(x + 38, y - 38, 6, 26);
+  }
+
+  /* ---------- Khu đua xe ---------- */
+  function grandstand(ctx, x, y) {
+    shadow(ctx, x, y, 230, 16);
+    for (let r = 0; r < 4; r++) {
+      ctx.fillStyle = r % 2 ? '#adb5bd' : '#ced4da';
+      ctx.fillRect(x - 220 + r * 10, y - 30 - r * 26, 440 - r * 20, 28);
+      for (let k = 0; k < 16 - r; k++) {
+        const px = x - 200 + r * 10 + k * 26;
+        circle(ctx, px, y - 44 - r * 26, 7, ['#ffe0c4', '#e3a979', '#f8c9a2'][(k + r) % 3]);
+        ctx.fillStyle = ['#e03131', '#1971c2', '#f59f00', '#2f9e44', '#e64980'][(k * 3 + r) % 5]; ctx.fillRect(px - 7, y - 37 - r * 26, 14, 9);
+      }
+    }
+    ctx.fillStyle = '#e03131'; ctx.fillRect(x - 230, y - 160, 460, 22);
+    for (let k = 0; k < 12; k++) { ctx.fillStyle = k % 2 ? '#fff' : '#e03131'; ctx.beginPath(); ctx.moveTo(x - 230 + k * 38.3, y - 138); ctx.lineTo(x - 230 + (k + 1) * 38.3, y - 138); ctx.lineTo(x - 230 + (k + 0.5) * 38.3, y - 124); ctx.fill(); }
+    ctx.fillStyle = '#fff'; ctx.font = '900 16px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🏁 TRƯỜNG ĐUA AVATAR 🏁', x, y - 149);
+  }
+
+  function raceCar(ctx, x, y, color) {
+    shadow(ctx, x, y + 2, 52, 10);
+    ctx.fillStyle = '#212529'; [[-36, -4], [24, -4]].forEach(([dx, dy]) => { circle(ctx, x + dx, y + dy, 11, '#212529'); circle(ctx, x + dx, y + dy, 5, '#adb5bd'); });
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.moveTo(x - 56, y - 8); ctx.lineTo(x - 50, y - 24); ctx.lineTo(x - 14, y - 26); ctx.lineTo(x - 2, y - 40); ctx.lineTo(x + 24, y - 40); ctx.lineTo(x + 38, y - 24); ctx.lineTo(x + 56, y - 20); ctx.lineTo(x + 56, y - 8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#a5d8ff'; ctx.beginPath(); ctx.moveTo(x, y - 37); ctx.lineTo(x + 22, y - 37); ctx.lineTo(x + 32, y - 25); ctx.lineTo(x - 8, y - 25); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff'; circle(ctx, x - 26, y - 17, 7, '#fff');
+    ctx.fillStyle = '#212529'; ctx.font = '900 9px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('1', x - 26, y - 17);
+    ctx.fillStyle = '#fff3bf'; ctx.fillRect(x + 50, y - 20, 6, 5);
+  }
+
+  function startGate(ctx, x, y) {
+    shadow(ctx, x, y, 140, 12);
+    ctx.fillStyle = '#495057'; ctx.fillRect(x - 130, y - 140, 14, 140); ctx.fillRect(x + 116, y - 140, 14, 140);
+    ctx.fillStyle = '#212529'; ctx.fillRect(x - 136, y - 172, 272, 40);
+    for (let r = 0; r < 2; r++) for (let k = 0; k < 17; k++) { ctx.fillStyle = (k + r) % 2 ? '#fff' : '#111'; ctx.fillRect(x - 136 + k * 16, y - 132 + r * 8, 16, 8); }
+    ctx.fillStyle = '#ffe066'; ctx.font = '900 20px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🚦 XUẤT PHÁT', x, y - 152);
+    [-1, 0, 1].forEach((k) => circle(ctx, x + k * 30, y - 100, 9, ['#ff3b30', '#ffd43b', '#51cf66'][k + 1]));
+    ctx.fillStyle = '#212529'; ctx.fillRect(x - 46, y - 112, 92, 4);
+  }
+
   /* ---------- Phong cách Avatar: bầu trời, đồng xa, hàng rào, tulip, bảng tên ---------- */
   function cloud(ctx, x, y, s) {
     ctx.fillStyle = '#dbefff';
@@ -508,12 +588,16 @@ Object.assign(ART, (() => {
 
   /** Đồng hồ đếm ngược kiểu Avatar (vd: 1:05) kèm thanh tiến độ */
   function timerLabel(ctx, x, y, secs, p) {
-    const m = Math.floor(secs / 60), s = Math.floor(secs % 60);
-    const text = `${m}:${String(s).padStart(2, '0')}`;
+    secs = Math.max(0, Math.ceil(secs));
+    const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+    const p2 = (n) => String(n).padStart(2, '0');
+    // từ 1 giờ trở lên hiện giờ:phút:giây (vd 1:59:30), dưới 1 giờ hiện phút:giây (vd 4:05)
+    const text = h ? `${h}:${p2(m)}:${p2(s)}` : `${m}:${p2(s)}`;
     ctx.fillStyle = '#3d2410';
-    rr(ctx, x - 25, y + 6, 50, 9, 3); ctx.fill();
+    const bw = h ? 64 : 50;
+    rr(ctx, x - bw / 2, y + 6, bw, 9, 3); ctx.fill();
     ctx.fillStyle = '#ff6b3d';
-    rr(ctx, x - 23, y + 8, 46 * Math.min(1, p), 5, 2); ctx.fill();
+    rr(ctx, x - bw / 2 + 2, y + 8, (bw - 4) * Math.min(1, p), 5, 2); ctx.fill();
     ctx.font = '900 15px "Be Vietnam Pro", system-ui, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = '#3d2410';
@@ -1079,5 +1163,5 @@ Object.assign(ART, (() => {
     }
   }
 
-  return { innerWallH, innerWallV, sofa, tvSet, coffeeTable, bookshelf, plantPot, kitchenCounter, fridge, diningTable, bedFurn, wardrobe, nightstand, bathtub, sinkMirror, storageShelf, chest, homeDoor, treeFruits, lantern, pillar, wallH, wallV, farmGate, barn, windmill, flowerBed, trough, blackboard, desk, podium, flagPole, fishingRod, biteMark, stonePath, BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
+  return { grandstand, raceCar, startGate, swingFrame, swingSeat, gazebo, innerWallH, innerWallV, sofa, tvSet, coffeeTable, bookshelf, plantPot, kitchenCounter, fridge, diningTable, bedFurn, wardrobe, nightstand, bathtub, sinkMirror, storageShelf, chest, homeDoor, treeFruits, lantern, pillar, wallH, wallV, farmGate, barn, windmill, flowerBed, trough, blackboard, desk, podium, flagPole, fishingRod, biteMark, stonePath, BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
 })());

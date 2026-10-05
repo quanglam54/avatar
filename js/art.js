@@ -621,6 +621,32 @@ const ART = (() => {
       });
       return;
     }
+    const fc = typeof DATA !== 'undefined' && DATA.CROPS[crop];
+    if (fc && fc.kind === 'flower') {
+      ctx.strokeStyle = '#2f8f2f'; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + sway, y - 17); ctx.stroke();
+      ctx.fillStyle = '#3c9e36';
+      ctx.beginPath(); ctx.ellipse(x - 5, y - 7, 5, 2.2, -0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x + 5, y - 10, 5, 2.2, 0.5, 0, Math.PI * 2); ctx.fill();
+      const fx = x + sway, fy = y - 20;
+      if (crop === 'tulip') {
+        ctx.fillStyle = fc.petal;
+        ctx.beginPath(); ctx.moveTo(fx - 6, fy - 5); ctx.lineTo(fx - 3, fy - 1); ctx.lineTo(fx, fy - 6); ctx.lineTo(fx + 3, fy - 1); ctx.lineTo(fx + 6, fy - 5);
+        ctx.quadraticCurveTo(fx + 6, fy + 6, fx, fy + 6); ctx.quadraticCurveTo(fx - 6, fy + 6, fx - 6, fy - 5); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(fx - 3, fy - 1, 1.5, 4);
+      } else {
+        const n = crop === 'sunflower' ? 12 : crop === 'hibiscus' ? 5 : 8;
+        const r = crop === 'sunflower' ? 7 : crop === 'hibiscus' ? 6 : 5.5;
+        for (let k = 0; k < n; k++) {
+          const a = k * Math.PI * 2 / n;
+          ctx.fillStyle = fc.petal;
+          ctx.beginPath(); ctx.ellipse(fx + Math.cos(a) * r * 0.7, fy + Math.sin(a) * r * 0.7, r * 0.55, r * 0.32, a, 0, Math.PI * 2); ctx.fill();
+        }
+        circle(ctx, fx, fy, crop === 'sunflower' ? 4.2 : 2.6, fc.heart);
+        if (crop === 'hibiscus') { ctx.strokeStyle = fc.heart; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + 5, fy - 6); ctx.stroke(); }
+      }
+      return;
+    }
     if (crop === 'rose') {
       ctx.strokeStyle = '#2f8f2f'; ctx.lineWidth = 1.6;
       ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + sway, y - 15); ctx.stroke();

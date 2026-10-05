@@ -43,7 +43,7 @@ const UI = (() => {
     if (p && !p.locked) p.close();
   }
 
-  const isBlocking = () => stack.length > 0 || (typeof TABLE !== 'undefined' && TABLE.isOpen());
+  const isBlocking = () => stack.length > 0 || (typeof TABLE !== 'undefined' && TABLE.isOpen()) || (typeof RACE !== 'undefined' && RACE.isOpen());
 
   function confirm(text, okText, onOk) {
     const p = panel('Xác nhận', `<p class="confirm-text">${text}</p>
@@ -214,7 +214,8 @@ const UI = (() => {
       let list = '';
       if (tab === 'buy') {
         const afford = (price) => Math.max(0, Math.min(999, Math.floor(S.coins / price)));
-        list = Object.entries(DATA.CROPS).map(([id, c]) => {
+        const crops = Object.entries(DATA.CROPS);
+        const rows = (arr) => arr.map(([id, c]) => {
           const locked = S.level < c.lvl;
           const have = S.inv['seed_' + id] || 0;
           return `<div class="shop-row ${locked ? 'locked' : ''}">
@@ -222,7 +223,10 @@ const UI = (() => {
             <div class="info"><b>Hạt ${c.name.toLowerCase()}</b><small>⏱ ${AV.fmtDur(c.time)} · thu ${c.yield} ${c.icon}/ô · ${c.seed} xu/hạt · đang có ${have}</small></div>
             ${locked ? `<span class="lock">🔒 Cấp ${c.lvl}</span>` : qtyBox('seed_' + id, c.seed, afford(c.seed), 'buy')}
           </div>`;
-        }).join('') + `<div class="shop-row">
+        }).join('');
+        list = '<h4 class="shop-h">🥕 Hạt rau củ (trồng ở Khu Trồng Trọt)</h4>' + rows(crops.filter(([, c]) => c.kind !== 'flower'))
+          + '<h4 class="shop-h">🌼 Hạt hoa (trồng ở Vườn Hoa)</h4>' + rows(crops.filter(([, c]) => c.kind === 'flower' || c.kind === 'both'))
+          + `<h4 class="shop-h">🧪 Phân bón</h4><div class="shop-row">
             <span class="ic">🧪</span>
             <div class="info"><b>Phân bón</b><small>Cây nhanh hơn ${Math.round(DATA.FERT.cut * 100)}% · ${DATA.FERT.price} xu/gói · đang có ${S.inv.fertilizer || 0}</small></div>
             ${qtyBox('fertilizer', DATA.FERT.price, afford(DATA.FERT.price), 'buy')}
@@ -325,9 +329,10 @@ const UI = (() => {
   /* ---------- Chọn hạt giống ---------- */
   function seedPicker(tileIndex) {
     const S = AV.S;
-    const seeds = Object.keys(DATA.CROPS).filter((id) => (S.inv['seed_' + id] || 0) > 0);
+    const flowerBed = AV.isFlowerTile(tileIndex);
+    const seeds = Object.keys(DATA.CROPS).filter((id) => (S.inv['seed_' + id] || 0) > 0 && AV.cropAllowed(tileIndex, id));
     const empty = AV.emptyInBed(tileIndex);
-    const p = panel('🌱 Gieo hạt', seeds.length
+    const p = panel(flowerBed ? '🌼 Trồng hoa' : '🌱 Gieo hạt', seeds.length
       ? `<p class="muted">Luống này còn <b>${empty}</b> ô trống. Cây lớn được nửa chừng sẽ khát nước 😟 — nhớ quay lại tưới nhé!</p>
         <div class="shop-list">${seeds.map((id) => {
         const c = DATA.CROPS[id];
@@ -337,7 +342,7 @@ const UI = (() => {
           <button class="btn small ghost" data-one="${id}">Gieo 1 ô</button>
           <button class="btn small" data-all="${id}">Cả luống (${Math.min(have, empty)})</button></div>`;
       }).join('')}</div>`
-      : '<p class="muted">Bạn hết hạt giống rồi! Bấm 🗺️ đi xe buýt tới <b>Khu mua sắm</b> và ghé <b>Chợ</b> để mua thêm nhé.</p>');
+      : `<p class="muted">Bạn chưa có ${flowerBed ? 'hạt giống hoa (cúc, tulip, hướng dương, dâm bụt, hồng)' : 'hạt giống rau củ'}! Bấm 🗺️ đi xe buýt tới <b>Khu mua sắm</b> và ghé <b>Chợ</b> để mua nhé.</p>`);
     p.body.querySelectorAll('[data-one]').forEach((b) => b.onclick = () => { p.close(); AV.plant(tileIndex, b.dataset.one); });
     p.body.querySelectorAll('[data-all]').forEach((b) => b.onclick = () => { p.close(); AV.plantBed(tileIndex, b.dataset.all); });
   }
@@ -619,6 +624,27 @@ const UI = (() => {
     render();
   }
 
+  /* ---------- Gara xe ---------- */
+  function garage() {
+    const S = AV.S;
+    const p = panel('🔧 Gara xe', '', { wide: true });
+    const render = () => {
+      S.cars = S.cars || ['basic'];
+      p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Kỷ lục đua: <b>${S.bestRace ? S.bestRace.toFixed(1) + 's' : 'chưa có'}</b></div>
+        <div class="shop-list">${RACE.CARS.map((c) => {
+          const owned = S.cars.includes(c.id), using = (S.car || 'basic') === c.id, locked = c.lvl && S.level < c.lvl;
+          const btn = using ? '<button class="btn small ghost" disabled>Đang dùng</button>'
+            : owned ? `<button class="btn small" data-use="${c.id}">Dùng xe này</button>`
+              : locked ? `<span class="lock">🔒 Cấp ${c.lvl}</span>` : `<button class="btn small" data-buy="${c.id}">Mua · ${c.price}💰</button>`;
+          return `<div class="shop-row"><span class="ic">🏎️</span><div class="info"><b>${c.name}</b><small>Tốc độ ×${c.speed}${c.price ? '' : ' · miễn phí'}</small></div>${btn}</div>`;
+        }).join('')}</div>
+        <p class="muted small-note">Màu xe chọn ngay trước khi đua ở cổng xuất phát.</p>`;
+      p.body.querySelectorAll('[data-buy]').forEach((b) => b.onclick = () => { RACE.buyCar(b.dataset.buy); render(); });
+      p.body.querySelectorAll('[data-use]').forEach((b) => b.onclick = () => { S.car = b.dataset.use; AV.saveNow(); render(); });
+    };
+    render();
+  }
+
   /* ---------- Rương cất đồ trong nhà ---------- */
   function storage() {
     const S = AV.S;
@@ -679,6 +705,8 @@ const UI = (() => {
         <li>🃏 Ở <b>Khu giải trí</b>, bấm bàn <b>Tiến lên</b> để ngồi, mời bạn bè cùng chơi (thiếu người có máy chơi thay).</li>
         <li>🏫 Tới <b>Trường học</b>: cô giáo ra câu đố tiếng Anh mỗi 20 giây, gõ đáp án vào chat (hoặc bấm nút A/B/C/D). Ai đúng đầu tiên được thưởng nhiều nhất!</li>
         <li>📜 Bấm nút <b>📜</b> xem nhiệm vụ hằng ngày để nhận thêm xu.</li>
+        <li>🌼 <b>Vườn Hoa</b> trồng hoa cúc, tulip, hướng dương, dâm bụt, hồng — bán lấy tiền hoặc gói <b>💐 Bó hoa</b> ở Nhà bếp. 🎠 <b>Sân Chơi</b> cạnh vườn hoa có xích đu và vọng lâu.</li>
+        <li>🏎️ <b>Khu Đua Xe</b>: bấm cổng xuất phát để đua 3 vòng (đua một mình với máy hoặc với người chơi khác cùng lúc), về nhất được thưởng. Mua xe nhanh hơn ở Gara.</li>
         <li>🍊 <b>Vườn Cây</b> trong nông trại tự ra quả (cam, táo, xoài, đào) — không cần trồng, quả chín để lâu không hỏng, ghé hái rồi đem bán.</li>
         <li>🍳 Vào <b>Nhà Bếp</b> ở Nông trại nấu bánh, súp, khăn len… bán được giá cao hơn nhiều.</li>
         <li>🗺️ Ra <b>trạm xe buýt</b> hoặc bấm <b>Bản đồ</b> để đi 6 khu: Nông trại, Quảng trường, Khu mua sắm, Khu giải trí, Công viên, Bãi biển.</li>
@@ -839,5 +867,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage };
 })();

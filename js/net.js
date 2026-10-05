@@ -106,6 +106,10 @@ const NET = (() => {
     send('chat', { name: AV.S.name, text });
   }
 
+  function sendRace(p) {
+    send('race', p);
+  }
+
   function sendTable(p) {
     send('tbl', p);
   }
@@ -170,6 +174,8 @@ const NET = (() => {
       r.dance = !!m.dance;
       r.fish = readFish(m.fish);
       r.seen = Date.now();
+    } else if (m.t === 'race') {
+      RACE.onNet(m);
     } else if (m.t === 'tbl') {
       TABLE.onNet(m);
     } else if (m.t === 'quiz') {
@@ -308,7 +314,7 @@ const NET = (() => {
   }
 
   return {
-    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, remotes, zoneCounts, announce,
+    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],

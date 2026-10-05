@@ -451,3 +451,27 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .qty-row { justify-content: flex-end; }
   .qquick { justify-content: flex-end; }
 }
+
+.shop-h { margin: 10px 2px 2px; font-size: 14px; color: #7a4520; }
+.shop-h:first-child { margin-top: 0; }
+
+/* ================= Đua xe ================= */
+.race-view { position: fixed; inset: 0; z-index: 32; display: none; background: #5fb83a; }
+.race-view.show { display: block; }
+#raceCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.race-card { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(460px, calc(100% - 24px)); background: #fff; border: 3px solid #2b1a10; border-radius: 22px; box-shadow: 0 8px 0 #2b1a10; padding: 16px 18px; display: grid; gap: 10px; }
+.race-card h3 { margin: 0; font-size: 22px; }
+.race-card .btn.big { justify-content: center; }
+.racers { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.racers span { background: #fff3bf; border-radius: 99px; padding: 3px 10px; font-weight: 700; font-size: 13px; }
+.race-timer { font-weight: 900; font-size: 22px; color: #e8590c; text-align: center; }
+.race-res { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 4px; }
+.race-res li { background: #f1f3f5; border-radius: 10px; padding: 6px 10px; }
+.race-res li.me { background: #fff3bf; font-weight: 800; }
+.race-pad { position: absolute; bottom: 18px; left: 0; right: 0; display: none; justify-content: space-between; padding: 0 18px; pointer-events: none; }
+.race-pad.show { display: flex; }
+.race-pad button { pointer-events: auto; width: 84px; height: 84px; border-radius: 22px; border: 3px solid #fff; background: rgba(20,28,45,.55); color: #fff; font-size: 34px; font-weight: 900; touch-action: none; }
+.race-pad button[data-k="brake"] { width: 70px; height: 70px; font-size: 26px; align-self: flex-end; }
+.race-pad button:active { background: rgba(255,212,59,.8); color: #1f2433; }
+.race-exit { position: absolute; top: 124px; left: 14px; width: 40px; height: 40px; border-radius: 12px; border: 2px solid #fff; background: rgba(20,28,45,.6); color: #fff; font-weight: 900; }
+@media (hover: hover) and (pointer: fine) { .race-pad { opacity: .55; } }

@@ -15,8 +15,8 @@
       coins: 50, xp: 0, level: 1,
       inv: { seed_wheat: 6, seed_carrot: 3, wheat: 3, fertilizer: 5 },
       owned: { hats: ['none'], shirtStyles: ['plain'], pets: ['none'] },
-      tiles: Array.from({ length: 96 }, () => ({ crop: null, plantedAt: 0, watered: false })),
-      beds: [true, false, false, false, false, false, false, false],
+      tiles: Array.from({ length: 144 }, () => ({ crop: null, plantedAt: 0, watered: false })),
+      beds: [true, false, false, false, false, false, false, false, true, false, false, false],
       trees: DATA.ORCHARD.map(() => ({ at: 0 })),
       storage: {},
       coop: { fedAt: 0 },
@@ -38,6 +38,9 @@
     // nông trại mở rộng: 8 luống × 12 ô
     while (s.tiles.length < 96) s.tiles.push({ crop: null, plantedAt: 0, watered: false });
     while ((s.beds || []).length < 8) s.beds = [...(s.beds || [true]), false];
+    // vườn hoa: thêm 4 luống hoa (luống đầu tiên miễn phí)
+    while (s.tiles.length < 144) s.tiles.push({ crop: null, plantedAt: 0, watered: false });
+    if (s.beds.length < 12) { while (s.beds.length < 12) s.beds.push(false); s.beds[8] = true; }
     s.trees = s.trees || [];
     while (s.trees.length < DATA.ORCHARD.length) s.trees.push({ at: 0 });
     return { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned }, settings: { ...d.settings, ...s.settings } };
@@ -78,7 +81,7 @@
   let clock = 0;
 
   function enterMap(id, x, y) {
-    if (map && map.id !== id) { map.ground = null; }
+    if (map && map.id !== id) { map.ground = null; if (swingRide) { swingRide.s.a = 0; swingRide = null; player.seated = false; } }
     player.path = [];
     map = maps[id];
     player.x = x ?? map.spawn.x;
@@ -289,6 +292,10 @@
 
   /* ---------- Ruộng: 4 luống × 12 ô, cây khát nước phải tưới ---------- */
   const TPB = DATA.TILES_PER_BED;
+  /** Luống 0–7 trồng rau củ, 8–11 trồng hoa */
+  const isFlowerBed = (bed) => bed >= DATA.FIELD_BEDS;
+  AV.cropAllowed = (i, crop) => { const k = DATA.CROPS[crop].kind; return isFlowerBed(Math.floor(i / TPB)) ? (k === 'flower' || k === 'both') : k !== 'flower'; };
+  AV.isFlowerTile = (i) => isFlowerBed(Math.floor(i / TPB));
   const bedOf = (i) => Math.floor(i / TPB);
   const bedTiles = (bed) => S.tiles.slice(bed * TPB, bed * TPB + TPB);
 
@@ -411,7 +418,7 @@
     const bed = bedOf(i);
     if (!S.beds[bed]) {
       const price = DATA.BED_PRICES[bed];
-      UI.confirm(`Mua luống ruộng này (12 ô) với giá <b>${price} xu</b>?`, 'Mua luống', () => {
+      UI.confirm(`Mua ${isFlowerBed(bed) ? 'luống hoa' : 'luống ruộng'} này (12 ô) với giá <b>${price} xu</b>?`, 'Mua luống', () => {
         if (S.coins < price) return UI.toast('Không đủ xu 😢');
         S.coins -= price;
         S.beds[bed] = true;
@@ -430,7 +437,7 @@
 
   function plantTile(i, crop) {
     const key = 'seed_' + crop;
-    if (!S.inv[key] || S.tiles[i].crop) return false;
+    if (!S.inv[key] || S.tiles[i].crop || !AV.cropAllowed(i, crop)) return false;
     S.inv[key]--;
     S.tiles[i] = { crop, plantedAt: Date.now(), watered: false };
     return true;
@@ -519,7 +526,8 @@
     collect: () => {
       addItem('milk', DATA.PEN.milk);
       addItem('wool', DATA.PEN.wool);
-      float(`+${DATA.PEN.milk} 🥛  +${DATA.PEN.wool} 🧶`, player.x, player.y - 100);
+      addItem('pork', DATA.PEN.pork);
+      float(`+${DATA.PEN.milk} 🥛  +${DATA.PEN.wool} 🧶  +${DATA.PEN.pork} 🥩`, player.x, player.y - 100);
     },
   });
   AV.penIndicator = () => {
@@ -977,6 +985,41 @@
     fade.mode = 'out';
   };
 
+  /* ---------- Xích đu & vọng lâu ở Sân Chơi ---------- */
+  let swingRide = null;
+  AV.useSwing = (idx) => {
+    const s = map.swings && map.swings[idx];
+    if (!s) return;
+    if (swingRide) return AV.leaveSwing();
+    swingRide = { s, t: 0 };
+    player.seated = true;
+    player.target = null; player.pending = null; marker = null;
+    say(player, ['Wiii~ 🎶', 'Bay cao nào! 🌤️', 'Vui quá đi! 😆'][Math.floor(Math.random() * 3)]);
+    if (!S.lastSwing || Date.now() - S.lastSwing > 10 * 60000) { S.lastSwing = Date.now(); addXP(6); float('+6 XP', player.x, player.y - 120, '#a5d8ff'); changed(); }
+    UI.toast('🎠 Đang chơi xích đu — bấm vào màn hình để xuống');
+  };
+  AV.leaveSwing = () => {
+    if (!swingRide) return;
+    const s = swingRide.s;
+    s.a = 0;
+    swingRide = null;
+    AV.leaveSeat(s.px, s.py + 170);
+  };
+  function updateSwings(dt) {
+    if (!map.swings) return;
+    map.swings.forEach((s, i) => {
+      if (swingRide && swingRide.s === s) return;
+      s.a = Math.sin(clock * 1.3 + i * 1.7) * 0.06;
+    });
+    if (!swingRide) return;
+    swingRide.t += dt;
+    const s = swingRide.s, amp = Math.min(0.55, 0.1 + swingRide.t * 0.12);
+    s.a = Math.sin(swingRide.t * 2.4) * amp;
+    const sx = s.px + Math.sin(s.a) * 96, sy = s.py + Math.cos(s.a) * 96;
+    player.x = sx; player.y = sy + 20; player.dir = Math.cos(swingRide.t * 2.4) > 0 ? 1 : -1;
+  }
+  AV.restGazebo = () => homeActivity('lastRest', 20, 6, '🍵 Ngồi nghỉ ở vọng lâu thật thư thái! +6 XP', '🍵 Mát quá~', 'Vừa nghỉ xong mà');
+
   /* ---------- Vào / ra nhà ---------- */
   AV.enterHome = () => AV.teleport('home', false, 800, 900, '🏠 Vào nhà…');
   AV.leaveHome = () => AV.teleport('farm', false, 2520, 762, '🌾 Ra nông trại…');
@@ -1204,6 +1247,7 @@
     const nearPk = !player.hidden && map.pickups.find((p) => Math.hypot(p.x - player.x, p.y - player.y) < 20);
     if (nearPk) collectPickup(nearPk);
     if (map.busStop) updateBus(dt);
+    updateSwings(dt);
     TABLE.tick(dt);
     NET.tick(dt);
     NET.update(dt);
@@ -1496,6 +1540,7 @@
 
   /** Xử lý một cú bấm tại toạ độ thế giới w */
   function clickWorld(w) {
+    if (swingRide) { AV.leaveSwing(); return; }
     const pk = map.pickups.find((p) => Math.abs(p.x - w.x) < 22 && w.y > p.y - 30 && w.y < p.y + 8);
     if (pk) {
       goTo(pk.x, pk.y + 4);
