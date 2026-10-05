@@ -83,7 +83,7 @@ const NET = (() => {
   function stateMsg() {
     const S = AV.S;
     return {
-      name: S.name, look: S.look, level: S.level,
+      name: S.name, look: S.look, level: S.level, user: (typeof CLOUD !== 'undefined' && CLOUD.username) || '',
       x: Math.round(player.x), y: Math.round(player.y), dir: player.dir, moving: player.moving, hidden: player.hidden,
       dance: player.dancing > Date.now(),
       fish: fishMsg(),
@@ -145,6 +145,7 @@ const NET = (() => {
     r.name = clean(m.name, 16) || 'Người chơi';
     r.look = cleanLook(m.look);
     r.level = num(m.level, 1);
+    r.user = clean(m.user, 20);
     r.x = num(m.x, r.x); r.y = num(m.y, r.y);
     r.dir = m.dir === -1 ? -1 : 1;
     r.moving = !!m.moving;
@@ -213,7 +214,7 @@ const NET = (() => {
 
   function announce() {
     lobbyBeat = 0;
-    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId });
+    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId.split('-')[0] });
   }
 
   function zoneCounts() {

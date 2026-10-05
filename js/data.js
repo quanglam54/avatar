@@ -20,6 +20,9 @@ const DATA = {
     { id: 'star', name: 'Áo ngôi sao', price: 60 },
     { id: 'heart', name: 'Áo trái tim', price: 60 },
     { id: 'overall', name: 'Quần yếm', price: 80 },
+    { id: 'dress', name: 'Váy liền', price: 90 },
+    { id: 'dress_flower', name: 'Váy hoa', price: 140 },
+    { id: 'princess', name: 'Váy công chúa', price: 320, lvl: 4 },
   ],
   HATS: [
     { id: 'none', name: 'Không đội', price: 0 },
@@ -28,7 +31,25 @@ const DATA = {
     { id: 'beanie', name: 'Mũ len', price: 40 },
     { id: 'bow', name: 'Nơ xinh', price: 45 },
     { id: 'nonla', name: 'Nón lá', price: 50 },
+    { id: 'beret', name: 'Mũ nồi', price: 60 },
+    { id: 'party', name: 'Mũ sinh nhật', price: 55 },
+    { id: 'bunny', name: 'Băng đô tai thỏ', price: 80 },
+    { id: 'cowboy', name: 'Mũ cao bồi', price: 110 },
+    { id: 'tiara', name: 'Vương miện nhỏ', price: 180, lvl: 3 },
     { id: 'crown', name: 'Vương miện', price: 300, lvl: 5 },
+  ],
+  ACCS: [
+    { id: 'none', name: 'Không đeo', price: 0 },
+    { id: 'earrings', name: 'Bông tai', price: 50 },
+    { id: 'necklace', name: 'Dây chuyền vàng', price: 120 },
+    { id: 'pearl', name: 'Vòng ngọc trai', price: 200, lvl: 3 },
+    { id: 'glasses', name: 'Kính tròn', price: 70 },
+    { id: 'sunglasses', name: 'Kính râm', price: 90 },
+  ],
+  ARCADE: [
+    { id: 'pikachu', name: 'Pikachu', icon: '⚡', color: '#fcc419', div: 30 },
+    { id: 'flappy', name: 'Flappy Bird', icon: '🐤', color: '#38bdf8', div: 0.5 },
+    { id: 'goldminer', name: 'Đào Vàng', icon: '⛏️', color: '#f59f00', div: 60 },
   ],
   CROPS: {
     wheat: { name: 'Lúa mì', icon: '🌾', seed: 2, sell: 5, time: 300, xp: 4, lvl: 1, yield: 4 },
@@ -119,6 +140,8 @@ DATA.QUESTS = [
   { id: 'collect', icon: '🥚', text: 'Thu trứng / sữa ở chuồng {n} lần', n: 2, coins: 35, xp: 20 },
   { id: 'chat', icon: '💬', text: 'Trò chuyện {n} câu với mọi người', n: 5, coins: 25, xp: 16 },
   { id: 'race', icon: '🏎️', text: 'Tham gia {n} cuộc đua ở Khu Đua Xe', n: 2, coins: 40, xp: 24 },
+  { id: 'arcade', icon: '🕹️', text: 'Chơi {n} ván ở máy game Khu giải trí', n: 2, coins: 30, xp: 20 },
+  { id: 'help', icon: '💧', text: 'Thăm và tưới giúp nông trại {n} người bạn', n: 1, coins: 35, xp: 24 },
   { id: 'dance', icon: '💃', text: 'Nhảy trên sân khấu Khu giải trí {n} lần', n: 1, coins: 25, xp: 16 },
 ];
 

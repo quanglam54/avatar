@@ -11,10 +11,10 @@
   function defaultState() {
     return {
       name: '',
-      look: { skin: DATA.SKINS[0], hair: 'short', hairColor: DATA.HAIR_COLORS[0], shirt: DATA.SHIRT_COLORS[5], shirtStyle: 'plain', pants: DATA.PANTS_COLORS[0], hat: 'none', pet: 'none' },
+      look: { skin: DATA.SKINS[0], hair: 'short', hairColor: DATA.HAIR_COLORS[0], shirt: DATA.SHIRT_COLORS[5], shirtStyle: 'plain', pants: DATA.PANTS_COLORS[0], hat: 'none', pet: 'none', acc: 'none' },
       coins: 50, xp: 0, level: 1,
       inv: { seed_wheat: 6, seed_carrot: 3, wheat: 3, fertilizer: 5 },
-      owned: { hats: ['none'], shirtStyles: ['plain'], pets: ['none'] },
+      owned: { hats: ['none'], shirtStyles: ['plain'], pets: ['none'], accs: ['none'] },
       tiles: Array.from({ length: 144 }, () => ({ crop: null, plantedAt: 0, watered: false })),
       beds: [true, false, false, false, false, false, false, false, true, false, false, false],
       trees: DATA.ORCHARD.map(() => ({ at: 0 })),
@@ -56,6 +56,10 @@
 
   const S = load();
   AV.S = S;
+  let VISIT = null;
+  const FD = () => (VISIT ? VISIT.data : S);
+  AV.F = FD;
+  AV.visiting = () => VISIT;
 
   const maps = {};
   Object.keys(MAPS).forEach((id) => { maps[id] = MAPS[id](); });
@@ -90,9 +94,17 @@
     player.target = null;
     player.pending = null;
     myPet.x = player.x - 30; myPet.y = player.y + 3;
-    UI.setLocation(map.name);
-    NET.enter(map.private ? `${id}-${S.owner || NET.pid}` : id);
+    if (id !== 'farm') VISIT = null;
+    UI.setLocation(id === 'farm' && VISIT ? `Nông trại của ${VISIT.data.name}` : map.name);
+    UI.updateVisitBar(VISIT);
+    joinRoom();
     TABLE.onMapChange();
+  }
+
+  /** Phòng online của khu hiện tại: nông trại và nhà là riêng từng người */
+  function joinRoom() {
+    const myRoom = S.owner || NET.pid, id = map.id;
+    NET.enter(id === 'farm' ? `farm-${VISIT ? VISIT.uid : myRoom}` : map.private ? `${id}-${myRoom}` : id);
   }
 
   /* ---------- Va chạm ---------- */
@@ -274,19 +286,22 @@
     changed();
   };
 
+  const WEAR = { hat: ['HATS', 'hats', 'hat'], shirt: ['SHIRT_STYLES', 'shirtStyles', 'shirtStyle'], acc: ['ACCS', 'accs', 'acc'] };
   AV.buyWear = (kind, id) => {
-    const list = kind === 'hat' ? DATA.HATS : DATA.SHIRT_STYLES;
+    const [listKey, ownKey] = WEAR[kind];
+    S.owned[ownKey] = S.owned[ownKey] || ['none'];
+    const list = DATA[listKey];
     const it = list.find((x) => x.id === id);
     if (it.lvl && S.level < it.lvl) return UI.toast(`Cần đạt cấp ${it.lvl}`);
     if (S.coins < it.price) return UI.toast('Không đủ xu 😢');
     S.coins -= it.price;
-    (kind === 'hat' ? S.owned.hats : S.owned.shirtStyles).push(id);
+    S.owned[ownKey].push(id);
     AV.wear(kind, id);
     UI.toast(`Đã mua ${it.name} ✨`);
   };
 
   AV.wear = (kind, id) => {
-    if (kind === 'hat') S.look.hat = id; else S.look.shirtStyle = id;
+    S.look[WEAR[kind][2]] = id;
     changed();
   };
 
@@ -297,7 +312,7 @@
   AV.cropAllowed = (i, crop) => { const k = DATA.CROPS[crop].kind; return isFlowerBed(Math.floor(i / TPB)) ? (k === 'flower' || k === 'both') : k !== 'flower'; };
   AV.isFlowerTile = (i) => isFlowerBed(Math.floor(i / TPB));
   const bedOf = (i) => Math.floor(i / TPB);
-  const bedTiles = (bed) => S.tiles.slice(bed * TPB, bed * TPB + TPB);
+  const bedTiles = (bed) => FD().tiles.slice(bed * TPB, bed * TPB + TPB);
 
   /** Trạng thái một ô: tiến độ (0..1), khát nước, giai đoạn cây */
   function tileState(t) {
@@ -313,7 +328,7 @@
 
   /** Chỉ báo của cả luống: số ô chín, ô khát nước, thời gian ô sớm nhất */
   AV.bedIndicator = (bed) => {
-    if (!S.beds[bed]) return null;
+    if (!FD().beds[bed]) return null;
     let ready = 0, thirsty = 0, minLeft = Infinity, p = 0;
     bedTiles(bed).forEach((t) => {
       const st = tileState(t);
@@ -415,6 +430,7 @@
   }
 
   AV.useTile = (i) => {
+    if (VISIT) return AV.helpWater();
     const bed = bedOf(i);
     if (!S.beds[bed]) {
       const price = DATA.BED_PRICES[bed];
@@ -460,7 +476,7 @@
   /* ---------- Vườn cây ăn quả: tự ra quả, chín để lâu không hỏng ---------- */
   function treeState(i) {
     const f = DATA.FRUITS[DATA.ORCHARD[i]];
-    const el = (now - (S.trees[i].at || 0)) / 1000;
+    const el = (now - ((FD().trees[i] || {}).at || 0)) / 1000;
     return { f, ripe: el >= f.time, p: Math.min(1, el / f.time), left: f.time - el };
   }
   AV.treeState = treeState;
@@ -472,6 +488,7 @@
   };
 
   AV.useTree = (i) => {
+    if (VISIT) return visitOnly('hái quả');
     const st = treeState(i);
     if (!st.ripe) return UI.toast(`${st.f.icon} Cây ${st.f.name.toLowerCase()} đang ra quả, còn ${fmtDur(st.left)} nữa`);
     S.trees[i].at = Date.now();
@@ -512,16 +529,16 @@
     return prog >= 1 ? null : { p: prog, left: cfg.time - (now - st.fedAt) / 1000 };
   }
 
-  AV.useCoop = () => farmBuilding(S.coop, DATA.COOP, {
+  AV.useCoop = () => VISIT ? visitOnly('thu trứng') : farmBuilding(S.coop, DATA.COOP, {
     kinds: ['chicken'], fedMsg: 'Đã cho gà ăn! 🐔', waitMsg: 'Gà đang đẻ trứng…',
     collect: () => { addItem('egg', DATA.COOP.eggs); float(`+${DATA.COOP.eggs} 🥚`, player.x, player.y - 100); },
   });
   AV.coopIndicator = () => {
-    const r = buildingIndicator(S.coop, DATA.COOP);
+    const r = buildingIndicator(FD().coop || { fedAt: 0 }, DATA.COOP);
     return r === null ? '🥚' : r;
   };
 
-  AV.usePen = () => farmBuilding(S.pen, DATA.PEN, {
+  AV.usePen = () => VISIT ? visitOnly('thu sữa') : farmBuilding(S.pen, DATA.PEN, {
     kinds: ['cow', 'sheep', 'pig'], fedMsg: 'Đã cho gia súc ăn! 🐄', waitMsg: 'Bò đang làm sữa…',
     collect: () => {
       addItem('milk', DATA.PEN.milk);
@@ -531,7 +548,7 @@
     },
   });
   AV.penIndicator = () => {
-    const r = buildingIndicator(S.pen, DATA.PEN);
+    const r = buildingIndicator(FD().pen || { fedAt: 0 }, DATA.PEN);
     return r === null ? '🥛' : r;
   };
 
@@ -909,6 +926,7 @@
 
   /** Chọn điểm đến trên bản đồ thành phố: tự đi ra trạm và lên xe */
   AV.travelTo = (id) => {
+    if (id === 'farm' && VISIT && map.id === 'farm') return AV.goHomeFarm();
     if (!map.busStop) return UI.toast('Ra khỏi nhà rồi mới đi xe buýt được nhé 🏠');
     if (!maps[id]) return;
     if (id === map.id) return UI.toast(`Bạn đang ở ${map.name} rồi 😄`);
@@ -985,6 +1003,97 @@
     fade.mode = 'out';
   };
 
+  /* ---------- Thăm nông trại bạn bè ---------- */
+  function visitOnly(what) {
+    UI.toast(`Đây là nông trại của ${VISIT.data.name} — bạn không thể ${what} ở đây. Bấm ô ruộng để 💧 tưới giúp nhé!`, 3500);
+  }
+
+  /** Ghép dữ liệu nông trại tải về với mặc định (bản lưu cũ có thể thiếu) */
+  function farmData(f) {
+    const d = defaultState();
+    const pad = (arr, n, mk) => { const a = Array.isArray(arr) ? arr.map((x) => ({ ...x })) : []; while (a.length < n) a.push(mk()); return a; };
+    return {
+      name: f.name || f.username, level: f.level || 1, look: { ...d.look, ...(f.look || {}) },
+      tiles: pad(f.tiles, d.tiles.length, () => ({ crop: null, plantedAt: 0, watered: false })),
+      beds: pad(f.beds, d.beds.length, () => false).map((b, i) => (typeof b === 'object' ? false : b) || (i === 0 || i === 8)),
+      trees: pad(f.trees, d.trees.length, () => ({ at: 0 })),
+      coop: f.coop || { fedAt: 0 }, pen: f.pen || { fedAt: 0 },
+    };
+  }
+
+  AV.visitFarm = async (username) => {
+    if (!CLOUD.user) return UI.toast('🔐 Cần đăng nhập tài khoản để thăm nông trại bạn bè');
+    const u = String(username || '').trim().toLowerCase();
+    if (!u) return;
+    if (u === CLOUD.username) return AV.goHomeFarm();
+    if (fade.mode) return;
+    UI.toast(`🔍 Đang tìm nông trại của ${u}…`);
+    let f;
+    try { f = await CLOUD.getFarm(u); } catch (e) { return UI.toast('⚠️ ' + e.message, 6000); }
+    if (!f || !f.user_id) return UI.toast(`Không tìm thấy người chơi "${u}" — kiểm tra lại tên đăng nhập nhé`, 4000);
+    if (swingRide) AV.leaveSwing();
+    VISIT = { uid: f.user_id, username: u, data: farmData(f), helped: false };
+    AV.teleport('farm', false, 1600, 1350, `🏡 Đi thăm nông trại của ${VISIT.data.name}…`);
+  };
+
+  AV.goHomeFarm = () => {
+    VISIT = null;
+    if (fade.mode) return;
+    AV.teleport('farm', false, 1600, 1350, '🌾 Về nông trại của bạn…');
+  };
+
+  /** Tưới giúp cả nông trại của bạn đang thăm (1 lần / bạn / ngày, chủ nhận khi online) */
+  AV.helpWater = async () => {
+    if (!VISIT) return;
+    const name = VISIT.data.name;
+    if (VISIT.helped) return UI.toast(`Bạn đã tưới giúp ${name} rồi 💧`);
+    const need = VISIT.data.tiles.filter((t) => t.crop && !t.watered && tileState(t).stage < 2).length;
+    if (!need) return UI.toast(`Ruộng của ${name} không cần tưới lúc này 🌱`);
+    try { await CLOUD.sendHelp(VISIT.uid, S.name); } catch (e) { return UI.toast('⚠️ ' + e.message, 4500); }
+    VISIT.helped = true;
+    VISIT.data.tiles.forEach((t) => { if (t.crop) t.watered = true; });
+    addXP(12);
+    float('💧 Tưới giúp +12 XP', player.x, player.y - 120, '#a5d8ff');
+    say(player, `💧 Tưới giúp ${name} nè!`);
+    NET.sendSys(`${S.name} đã tưới giúp ${need} cây cho ${name} 💧`);
+    AV.quest('help');
+    changed();
+  };
+
+  /** Chủ nông trại: nhận các lời tưới giúp của bạn bè (tưới cả nông trại) */
+  async function receiveHelps() {
+    if (!CLOUD.user || VISIT) return;
+    let rows = [];
+    try { rows = await CLOUD.pullHelps(); } catch (e) { return; }
+    if (!rows.length) return;
+    let n = 0;
+    for (let b = 0; b < S.beds.length; b++) if (S.beds[b]) n += bedTiles(b).filter((t) => t.crop && !t.watered).length && waterBed(b);
+    const names = [...new Set(rows.map((r) => r.helper_name || 'Bạn bè'))].join(', ');
+    addXP(4 * rows.length);
+    UI.toast(`💧 ${names} đã tưới giúp nông trại của bạn! Cây lớn nhanh hơn rồi đó 🌱`, 6000);
+    UI.chatLog('', `💧 ${names} đã tưới giúp nông trại của bạn`, false, true);
+    changed();
+  }
+  AV.receiveHelps = receiveHelps;
+  setInterval(receiveHelps, 60000);
+
+  /* ---------- Máy game: nhận điểm từ trò chơi, đổi ra xu ---------- */
+  window.addEventListener('message', (e) => {
+    const m = e.data || {};
+    if (m.type === 'arcade-close') return UI.closeArcade();
+    if (m.type !== 'arcade-score') return;
+    const g = DATA.ARCADE.find((x) => x.id === m.game);
+    const score = Math.max(0, Math.floor(+m.score || 0));
+    if (!g || !UI.arcadeOpen()) return;
+    const coins = Math.min(40, Math.floor(score / g.div));
+    const xp = Math.min(30, 2 + Math.floor(coins / 2));
+    if (coins > 0) { S.coins += coins; }
+    addXP(xp);
+    AV.quest('arcade');
+    changed();
+    UI.toast(coins > 0 ? `🕹️ ${g.name}: ${score} điểm → +${coins} xu, +${xp} XP` : `🕹️ ${g.name}: ${score} điểm → +${xp} XP (chơi giỏi hơn để nhận xu nhé!)`, 4000);
+  });
+
   /* ---------- Xích đu & vọng lâu ở Sân Chơi ---------- */
   let swingRide = null;
   AV.useSwing = (idx) => {
@@ -1021,7 +1130,7 @@
   AV.restGazebo = () => homeActivity('lastRest', 20, 6, '🍵 Ngồi nghỉ ở vọng lâu thật thư thái! +6 XP', '🍵 Mát quá~', 'Vừa nghỉ xong mà');
 
   /* ---------- Vào / ra nhà ---------- */
-  AV.enterHome = () => AV.teleport('home', false, 800, 900, '🏠 Vào nhà…');
+  AV.enterHome = () => VISIT ? UI.toast(`🏠 Nhà của ${VISIT.data.name} đang khoá cửa`) : AV.teleport('home', false, 800, 900, '🏠 Vào nhà…');
   AV.leaveHome = () => AV.teleport('farm', false, 2520, 762, '🌾 Ra nông trại…');
 
   /** Hoạt động trong nhà, có thời gian chờ để không spam XP */
@@ -1119,7 +1228,7 @@
 
   function poke(e) {
     if (e.kind === 'remote') {
-      UI.toast(`👤 ${e.name} · Cấp ${e.level}`);
+      UI.playerCard(e);
       return;
     }
     if (e.teacher) {
@@ -1426,7 +1535,7 @@
 
     // Lớp chữ & giao diện trong thế giới: vẽ ở độ phân giải đầy đủ cho sắc nét
     worldTransform(ctx, DPR * ZOOM, DPR * (W / 2 - cam.x * ZOOM), DPR * (H / 2 - cam.y * ZOOM));
-    map.labels.forEach((l) => ART.label(ctx, l.dynamic === 'home' ? `🏠 Nhà ${S.name || 'của bạn'}` : l.dynamic === 'gate' ? `Nông trại của ${S.name || 'bạn'}` : l.text, l.x, l.y));
+    map.labels.forEach((l) => ART.label(ctx, l.dynamic === 'home' ? `🏠 Nhà ${FD().name || 'của bạn'}` : l.dynamic === 'gate' ? `Nông trại của ${FD().name || 'bạn'}` : l.text, l.x, l.y));
     map.inter.forEach((o) => {
       if (!o.indicator) return;
       const r = o.indicator();
@@ -1633,6 +1742,7 @@
   }
 
   AV.afterLogin = async () => {
+    setTimeout(receiveHelps, 4000);
     const uid = CLOUD.user.id;
     let cloud = null;
     try { cloud = await CLOUD.pull(); } catch (e) { UI.toast('⚠️ ' + e.message, 6000); }
@@ -1642,18 +1752,21 @@
       if (!localNewer) replaceState(cloud.data);
       S.owner = uid;
       saveNow();
+      joinRoom();
       if (localNewer) CLOUD.push(S);
       UI.toast(`Chào mừng trở lại, ${S.name}! ☁️ Đã tải nhân vật từ tài khoản`, 3500);
     } else if (S.name && (!S.owner || S.owner === uid)) {
       // tài khoản mới: chuyển nhân vật đang chơi trong máy lên tài khoản
       S.owner = uid;
       saveNow();
+      joinRoom();
       const ok = await CLOUD.push(S);
       UI.toast(ok ? `☁️ Đã lưu nhân vật ${S.name} vào tài khoản — giờ chơi máy nào cũng được!` : '⚠️ Chưa lưu được lên mạng, game sẽ thử lại', 4000);
     } else {
       replaceState(defaultState());
       S.owner = uid;
       saveNow();
+      joinRoom();
       UI.characterEditor(true);
     }
   };

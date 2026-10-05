@@ -395,6 +395,24 @@ Object.assign(ART, (() => {
     ctx.fillRect(x - 44, y - 38, 6, 26); ctx.fillRect(x + 38, y - 38, 6, 26);
   }
 
+  /* ---------- Máy chơi game (arcade) ---------- */
+  function arcadeCabinet(ctx, x, y, color, name, icon, t) {
+    shadow(ctx, x, y, 44, 9);
+    ctx.fillStyle = '#343a40'; rr(ctx, x - 38, y - 150, 76, 150, 8); ctx.fill();
+    ctx.fillStyle = color; rr(ctx, x - 34, y - 146, 68, 142, 6); ctx.fill();
+    ctx.fillStyle = '#212529'; rr(ctx, x - 30, y - 132, 60, 28, 4); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '900 10px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(name.toUpperCase(), x, y - 118);
+    ctx.fillStyle = '#0b1a2e'; rr(ctx, x - 28, y - 100, 56, 44, 4); ctx.fill();
+    const g = ctx.createLinearGradient(0, y - 98, 0, y - 58);
+    g.addColorStop(0, '#4dabf7'); g.addColorStop(1, '#9775fa');
+    ctx.fillStyle = g; ctx.globalAlpha = 0.75 + 0.25 * Math.sin((t || 0) * 3 + x); rr(ctx, x - 25, y - 97, 50, 38, 3); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.font = '20px system-ui, "Segoe UI Emoji"'; ctx.fillStyle = '#000'; ctx.fillText(icon, x, y - 78);
+    ctx.fillStyle = '#495057'; rr(ctx, x - 32, y - 52, 64, 18, 3); ctx.fill();
+    circle(ctx, x - 14, y - 43, 5, '#e03131'); circle(ctx, x + 2, y - 43, 4, '#fcc419'); circle(ctx, x + 14, y - 43, 4, '#51cf66');
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x - 10, y - 26, 20, 6);
+  }
+
   /* ---------- Khu đua xe ---------- */
   function grandstand(ctx, x, y) {
     shadow(ctx, x, y, 230, 16);
@@ -1163,5 +1181,5 @@ Object.assign(ART, (() => {
     }
   }
 
-  return { grandstand, raceCar, startGate, swingFrame, swingSeat, gazebo, innerWallH, innerWallV, sofa, tvSet, coffeeTable, bookshelf, plantPot, kitchenCounter, fridge, diningTable, bedFurn, wardrobe, nightstand, bathtub, sinkMirror, storageShelf, chest, homeDoor, treeFruits, lantern, pillar, wallH, wallV, farmGate, barn, windmill, flowerBed, trough, blackboard, desk, podium, flagPole, fishingRod, biteMark, stonePath, BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
+  return { arcadeCabinet, grandstand, raceCar, startGate, swingFrame, swingSeat, gazebo, innerWallH, innerWallV, sofa, tvSet, coffeeTable, bookshelf, plantPot, kitchenCounter, fridge, diningTable, bedFurn, wardrobe, nightstand, bathtub, sinkMirror, storageShelf, chest, homeDoor, treeFruits, lantern, pillar, wallH, wallV, farmGate, barn, windmill, flowerBed, trough, blackboard, desk, podium, flagPole, fishingRod, biteMark, stonePath, BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
 })());

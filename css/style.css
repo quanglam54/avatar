@@ -475,3 +475,23 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .race-pad button:active { background: rgba(255,212,59,.8); color: #1f2433; }
 .race-exit { position: absolute; top: 124px; left: 14px; width: 40px; height: 40px; border-radius: 12px; border: 2px solid #fff; background: rgba(20,28,45,.6); color: #fff; font-weight: 900; }
 @media (hover: hover) and (pointer: fine) { .race-pad { opacity: .55; } }
+
+/* Máy game */
+.arcade-view { position: fixed; inset: 0; z-index: 33; display: none; flex-direction: column; background: #1b2f48; }
+.arcade-view.show { display: flex; }
+.arc-bar { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: linear-gradient(#7fd7ff, #2d8fe6 60%, #1f73c4); color: #fff; border-bottom: 3px solid #2b1a10; text-shadow: 0 2px 0 #134a80; }
+.arc-bar b { font-size: 18px; }
+.arc-bar span { font-size: 13px; opacity: .9; }
+.arc-bar .tv-x { margin-left: auto; }
+.arcade-view iframe { flex: 1; width: 100%; border: 0; background: #fff; }
+@media (max-width: 640px) { .arc-bar span { display: none; } }
+
+/* Thăm nông trại bạn bè */
+.visit-bar { position: fixed; top: 66px; left: 50%; transform: translateX(-50%); z-index: 6; display: none; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;
+  background: linear-gradient(#fff3bf, #ffe066); color: #3d2410; border: 3px solid #5a3010; border-radius: 14px; box-shadow: 0 4px 0 #5a3010; padding: 6px 8px 6px 14px; font-weight: 700; font-size: 14px; max-width: calc(100% - 24px); }
+.visit-bar.show { display: flex; }
+.visit-bar small { font-weight: 600; opacity: .8; }
+.visit-bar button { border: 2px solid #2b1a10; border-radius: 10px; background: linear-gradient(#69db7c, #2f9e44); color: #fff; font-weight: 800; padding: 5px 10px; box-shadow: 0 3px 0 #2b1a10; }
+.fsearch { display: flex; gap: 8px; margin: 6px 0 4px; }
+.fsearch .field { text-align: left; }
+@media (max-width: 760px) { .visit-bar { top: 112px; font-size: 12px; } .visit-bar small { display: none; } }

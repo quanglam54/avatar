@@ -42,6 +42,8 @@ const CLOUD = (() => {
     if (/Email not confirmed/i.test(m)) return 'Tài khoản chưa xác nhận email — chủ game cần tắt "Confirm email" trong Supabase';
     if (/relation .*saves.* does not exist|Could not find the table/i.test(m)) return 'Chưa tạo bảng lưu trữ (saves) trên Supabase';
     if (/rate limit|too many/i.test(m)) return 'Thao tác quá nhanh, đợi một chút rồi thử lại';
+    if (/function .* does not exist|Could not find the function|farm_helps/i.test(m)) return 'Chủ game chưa cài tính năng thăm nông trại trên Supabase (chạy file supabase/02-tham-nong-trai.sql)';
+    if (/duplicate key|unique/i.test(m)) return 'Hôm nay bạn đã tưới giúp bạn này rồi, mai quay lại nhé!';
     if (/Failed to fetch|NetworkError/i.test(m)) return 'Không kết nối được máy chủ, kiểm tra mạng';
     return m || 'Có lỗi xảy ra';
   }
@@ -79,6 +81,28 @@ const CLOUD = (() => {
     if (error) throw new Error(viError(error));
     user = data.user;
     return user;
+  }
+
+  async function rpc(name, args) {
+    const { data, error } = await client.rpc(name, args || {});
+    if (error) throw new Error(viError(error));
+    return data;
+  }
+  /** Phần nông trại của một người (không có xu, túi đồ) */
+  const getFarm = (username) => rpc('get_farm', { p_username: username });
+  const recentFarms = () => rpc('recent_farms');
+
+  async function sendHelp(ownerId, helperName) {
+    const { error } = await client.from('farm_helps').insert({ owner: ownerId, helper: user.id, helper_name: helperName });
+    if (error) throw new Error(viError(error));
+  }
+
+  /** Lấy các lời tưới giúp chưa nhận rồi đánh dấu đã nhận */
+  async function pullHelps() {
+    const { data, error } = await client.from('farm_helps').select('id, helper_name').eq('owner', user.id).eq('done', false);
+    if (error) throw new Error(viError(error));
+    if (data && data.length) await client.from('farm_helps').update({ done: true }).in('id', data.map((r) => r.id));
+    return data || [];
   }
 
   async function signOut() {
@@ -133,7 +157,7 @@ const CLOUD = (() => {
   }
 
   return {
-    init, signUp, signIn, signOut, pull, push, pushOnExit,
+    init, signUp, signIn, signOut, pull, push, pushOnExit, getFarm, recentFarms, sendHelp, pullHelps,
     markDirty: () => { dirty = true; },
     get user() { return user; },
     get username() { return nameOf(user); },

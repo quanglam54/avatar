@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pikachu</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    .pk-board {
+      position: relative; width: min(780px, 100%);
+      display: grid; gap: 3px; user-select: none; -webkit-user-select: none;
+    }
+    .pk-cell { aspect-ratio: 5 / 6; }
+    .pk-tile {
+      width: 100%; height: 100%; border: 0; padding: 0; border-radius: 8px;
+      display: grid; place-items: center; font-size: clamp(14px, 3.6vw, 32px);
+      background: var(--tile-bg);
+      box-shadow: inset 0 -3px 0 rgba(0,0,0,.18), 0 2px 6px rgba(0,0,0,.18);
+      transition: transform .1s, box-shadow .1s;
+    }
+    .pk-tile:hover { transform: translateY(-2px); }
+    .pk-tile.sel { box-shadow: 0 0 0 3px #facc15, 0 0 18px #facc15aa; transform: scale(1.06); }
+    .pk-tile.hint { animation: hint 0.8s ease-in-out 3; }
+    .pk-tile.pop { animation: pop-out .22s forwards; }
+    @keyframes hint { 50% { box-shadow: 0 0 0 3px #22d3ee, 0 0 20px #22d3ee; transform: scale(1.08); } }
+    @keyframes pop-out { to { transform: scale(0); opacity: 0; } }
+    .pk-path { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+    .pk-path polyline { fill: none; stroke: #facc15; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px #f59e0b); }
+    .timebar { width: min(780px, 100%); height: 10px; border-radius: 999px; background: var(--card-2); overflow: hidden; border: 1px solid var(--line); }
+    .timebar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #22c55e, #facc15); transition: width .25s linear; }
+    .timebar.low i { background: linear-gradient(90deg, #ef4444, #f97316); }
+  </style>
+</head>
+<body>
+  <main class="game-layout">
+    <section class="stage">
+      <div class="hud">
+        <div>Điểm<b id="score">0</b></div>
+        <div>Màn<b id="level">1</b></div>
+        <div>Thời gian<b id="time">0</b></div>
+        <div>Kỷ lục<b data-best>—</b></div>
+      </div>
+      <div class="timebar" id="timebar"><i></i></div>
+      <div class="play-area" id="area">
+        <div class="pk-board" id="board"></div>
+      </div>
+      <div class="controls">
+        <button class="btn ghost small" id="hintBtn">💡 Gợi ý (3)</button>
+        <button class="btn ghost small" id="shuffleBtn">🔀 Đảo (3)</button>
+        <button class="btn ghost small" id="newBtn">↻ Ván mới</button>
+      </div>
+    </section>
+    <aside class="side" id="side"></aside>
+  </main>
+
+  <script src="../assets/common.js"></script>
+  <script>
+    GH.initGame('pikachu');
+    const area = document.getElementById('area');
+    const boardEl = document.getElementById('board');
+    const ROWS = 8, COLS = 12, R = ROWS + 2, C = COLS + 2;
+    const TYPES = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐤', '🦉', '🐙', '🦄', '🐢', '🐳', '🦋'];
+    const DIRS = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+    const GRAVITY = ['none', 'down', 'up', 'left', 'right'];
+    const GRAVITY_NAME = { none: '', down: '⬇️ Hình rơi xuống dưới', up: '⬆️ Hình dồn lên trên', left: '⬅️ Hình dồn sang trái', right: '➡️ Hình dồn sang phải' };
+
+    let grid, sel, score, level, timeLeft, timeMax, timer, hints, shuffles, busy, over, combo, lastMatchAt;
+
+    boardEl.style.gridTemplateColumns = `repeat(${C}, 1fr)`;
+
+    function shuffleArr(a) {
+      for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+      return a;
+    }
+
+    function newGame() {
+      area.querySelectorAll('.overlay').forEach((o) => o.remove());
+      score = 0; level = 1; hints = 3; shuffles = 3; over = false;
+      startLevel();
+    }
+
+    function startLevel() {
+      const pool = [];
+      TYPES.forEach((_, t) => { for (let k = 0; k < 4; k++) pool.push(t); });
+      shuffleArr(pool);
+      grid = Array.from({ length: R }, () => Array(C).fill(-1));
+      let i = 0;
+      for (let r = 1; r <= ROWS; r++) for (let c = 1; c <= COLS; c++) grid[r][c] = pool[i++];
+      if (!findAnyPair()) reshuffle();
+      sel = null; busy = false; combo = 0; lastMatchAt = 0;
+      timeMax = Math.max(150, 330 - (level - 1) * 30);
+      timeLeft = timeMax;
+      clearInterval(timer);
+      timer = setInterval(tick, 250);
+      render();
+      hud();
+      const g = gravity();
+      if (level > 1) GH.toast(`Màn ${level}${g !== 'none' ? ' · ' + GRAVITY_NAME[g] : ''}`, 3200);
+    }
+
+    function gravity() { return GRAVITY[(level - 1) % GRAVITY.length]; }
+
+    function tick() {
+      if (over || document.querySelector('.modal-back')) return;
+      timeLeft = Math.max(0, timeLeft - 0.25);
+      hud();
+      if (timeLeft <= 0) end(false);
+    }
+
+    function hud() {
+      document.getElementById('score').textContent = score.toLocaleString('vi-VN');
+      document.getElementById('level').textContent = level;
+      document.getElementById('time').textContent = Math.ceil(timeLeft) + 's';
+      const bar = document.getElementById('timebar');
+      bar.firstElementChild.style.width = (timeLeft / timeMax * 100) + '%';
+      bar.classList.toggle('low', timeLeft < 30);
+      document.getElementById('hintBtn').textContent = `💡 Gợi ý (${hints})`;
+      document.getElementById('shuffleBtn').textContent = `🔀 Đảo (${shuffles})`;
+      document.getElementById('hintBtn').style.opacity = hints ? 1 : .5;
+      document.getElementById('shuffleBtn').style.opacity = shuffles ? 1 : .5;
+    }
+
+    function render() {
+      let html = '';
+      for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+        const t = grid[r][c];
+        if (t < 0) { html += '<div class="pk-cell"></div>'; continue; }
+        const isSel = sel && sel[0] === r && sel[1] === c;
+        html += `<div class="pk-cell"><button class="pk-tile ${isSel ? 'sel' : ''}" data-r="${r}" data-c="${c}" style="--tile-bg:hsl(${(t * 47) % 360} 75% 86%)">${TYPES[t]}</button></div>`;
+      }
+      html += `<svg class="pk-path" viewBox="0 0 ${C} ${R}" preserveAspectRatio="none"><polyline vector-effect="non-scaling-stroke" points=""/></svg>`;
+      boardEl.innerHTML = html;
+    }
+
+    const tileEl = (p) => boardEl.querySelector(`.pk-tile[data-r="${p[0]}"][data-c="${p[1]}"]`);
+
+    /** Tìm đường nối tối đa 3 đoạn thẳng giữa a và b, trả về các điểm góc */
+    function findPath(a, b) {
+      const segs = Array.from({ length: R }, () => Array(C).fill(9));
+      const parent = new Map();
+      const key = (r, c) => r * C + c;
+      segs[a[0]][a[1]] = 0;
+      let frontier = [a];
+      for (let s = 1; s <= 3; s++) {
+        const next = [];
+        for (const [r, c] of frontier) {
+          for (const [dr, dc] of DIRS) {
+            let nr = r + dr, nc = c + dc;
+            while (nr >= 0 && nr < R && nc >= 0 && nc < C) {
+              if (nr === b[0] && nc === b[1]) {
+                const path = [[nr, nc]];
+                let cur = [r, c];
+                while (cur) { path.push(cur); cur = parent.get(key(cur[0], cur[1])); }
+                return path;
+              }
+              if (grid[nr][nc] !== -1) break;
+              if (segs[nr][nc] > s) {
+                segs[nr][nc] = s;
+                parent.set(key(nr, nc), [r, c]);
+                next.push([nr, nc]);
+              }
+              nr += dr; nc += dc;
+            }
+          }
+        }
+        frontier = next;
+      }
+      return null;
+    }
+
+    function findAnyPair() {
+      const byType = {};
+      for (let r = 1; r <= ROWS; r++) for (let c = 1; c <= COLS; c++) {
+        const t = grid[r][c];
+        if (t >= 0) (byType[t] = byType[t] || []).push([r, c]);
+      }
+      for (const list of Object.values(byType)) {
+        for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+          if (findPath(list[i], list[j])) return [list[i], list[j]];
+        }
+      }
+      return null;
+    }
+
+    function remaining() {
+      let n = 0;
+      for (let r = 1; r <= ROWS; r++) for (let c = 1; c <= COLS; c++) if (grid[r][c] >= 0) n++;
+      return n;
+    }
+
+    function reshuffle() {
+      const cells = [], types = [];
+      for (let r = 1; r <= ROWS; r++) for (let c = 1; c <= COLS; c++) {
+        if (grid[r][c] >= 0) { cells.push([r, c]); types.push(grid[r][c]); }
+      }
+      for (let tries = 0; tries < 100; tries++) {
+        shuffleArr(types);
+        cells.forEach(([r, c], i) => { grid[r][c] = types[i]; });
+        if (!cells.length || findAnyPair()) return;
+      }
+    }
+
+    function applyGravity() {
+      const g = gravity();
+      if (g === 'none') return;
+      if (g === 'down' || g === 'up') {
+        for (let c = 1; c <= COLS; c++) {
+          const col = [];
+          for (let r = 1; r <= ROWS; r++) if (grid[r][c] >= 0) col.push(grid[r][c]);
+          for (let r = 1; r <= ROWS; r++) grid[r][c] = -1;
+          col.forEach((t, i) => {
+            const r = g === 'up' ? 1 + i : ROWS - col.length + 1 + i;
+            grid[r][c] = t;
+          });
+        }
+      } else {
+        for (let r = 1; r <= ROWS; r++) {
+          const row = [];
+          for (let c = 1; c <= COLS; c++) if (grid[r][c] >= 0) row.push(grid[r][c]);
+          for (let c = 1; c <= COLS; c++) grid[r][c] = -1;
+          row.forEach((t, i) => {
+            const c = g === 'left' ? 1 + i : COLS - row.length + 1 + i;
+            grid[r][c] = t;
+          });
+        }
+      }
+    }
+
+    function pick(r, c) {
+      if (busy || over) return;
+      const p = [r, c];
+      if (!sel) { sel = p; tileEl(p).classList.add('sel'); return; }
+      if (sel[0] === r && sel[1] === c) { tileEl(sel).classList.remove('sel'); sel = null; return; }
+
+      const a = sel;
+      const path = grid[a[0]][a[1]] === grid[r][c] ? findPath(a, p) : null;
+      if (!path) {
+        tileEl(a).classList.remove('sel');
+        sel = p;
+        tileEl(p).classList.add('sel');
+        return;
+      }
+
+      busy = true;
+      sel = null;
+      boardEl.querySelector('.pk-path polyline').setAttribute('points', path.map(([y, x]) => `${x + 0.5},${y + 0.5}`).join(' '));
+      tileEl(a).classList.add('pop');
+      tileEl(p).classList.add('pop');
+
+      const now = Date.now();
+      combo = now - lastMatchAt < 3000 ? combo + 1 : 0;
+      lastMatchAt = now;
+      score += 10 + combo * 5;
+      if (combo >= 2) GH.toast(`🔥 Combo x${combo + 1}!`, 1200);
+      hud();
+
+      setTimeout(() => {
+        grid[a[0]][a[1]] = -1;
+        grid[r][c] = -1;
+        applyGravity();
+        busy = false;
+        if (!remaining()) return levelClear();
+        if (!findAnyPair()) {
+          reshuffle();
+          GH.toast('🔀 Hết nước đi — tự động đảo hình');
+        }
+        render();
+      }, 260);
+    }
+
+    function levelClear() {
+      clearInterval(timer);
+      const bonus = Math.round(timeLeft) * 2 + level * 100;
+      score += bonus;
+      hud();
+      render();
+      GH.overlay(area, `<h2>🎉 Qua màn ${level}!</h2><p>Thưởng thời gian + màn: <b>+${bonus}</b><br>Bạn được tặng thêm 1 gợi ý và 1 lần đảo.</p>`, 'Màn tiếp theo ▶', () => {
+        level++;
+        hints++;
+        shuffles++;
+        startLevel();
+      });
+    }
+
+    function end() {
+      over = true;
+      clearInterval(timer);
+      GH.gameOver(area, 'pikachu', score, { title: '⏰ Hết giờ!', note: 'Dừng ở màn ' + level }, newGame);
+    }
+
+    boardEl.addEventListener('click', (e) => {
+      const t = e.target.closest('.pk-tile');
+      if (t) pick(+t.dataset.r, +t.dataset.c);
+    });
+
+    document.getElementById('hintBtn').onclick = () => {
+      if (!hints || busy || over) return;
+      const pair = findAnyPair();
+      if (!pair) return;
+      hints--;
+      hud();
+      pair.forEach((p) => tileEl(p).classList.add('hint'));
+    };
+    document.getElementById('shuffleBtn').onclick = () => {
+      if (!shuffles || busy || over) return;
+      shuffles--;
+      sel = null;
+      reshuffle();
+      render();
+      hud();
+    };
+    document.getElementById('newBtn').onclick = () => {
+      if (!over && score > 0) GH.submit('pikachu', score);
+      newGame();
+    };
+
+    newGame();
+  </script>
+</body>
+</html>

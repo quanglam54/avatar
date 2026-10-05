@@ -43,7 +43,7 @@ const UI = (() => {
     if (p && !p.locked) p.close();
   }
 
-  const isBlocking = () => stack.length > 0 || (typeof TABLE !== 'undefined' && TABLE.isOpen()) || (typeof RACE !== 'undefined' && RACE.isOpen());
+  const isBlocking = () => stack.length > 0 || (typeof TABLE !== 'undefined' && TABLE.isOpen()) || (typeof RACE !== 'undefined' && RACE.isOpen()) || !!document.querySelector('#arcadeView.show');
 
   function confirm(text, okText, onOk) {
     const p = panel('Xác nhận', `<p class="confirm-text">${text}</p>
@@ -106,6 +106,7 @@ const UI = (() => {
     let timer;
     const render = () => {
       const hats = DATA.HATS.filter((h) => S.owned.hats.includes(h.id));
+      const accs = DATA.ACCS.filter((a) => (S.owned.accs || ['none']).includes(a.id));
       const styles = DATA.SHIRT_STYLES.filter((s) => S.owned.shirtStyles.includes(s.id));
       p.body.innerHTML = `
         <div class="editor">
@@ -122,6 +123,7 @@ const UI = (() => {
             <label>Kiểu áo ${isNew ? '' : '<small>(mua thêm ở Tiệm Thời Trang)</small>'}</label>${chips('shirtStyle', styles, look.shirtStyle)}
             <label>Màu quần</label>${swatches('pants', DATA.PANTS_COLORS, look.pants)}
             <label>Mũ / phụ kiện</label>${chips('hat', hats, look.hat)}
+            <label>Trang sức / kính ${isNew ? '' : '<small>(mua ở Tiệm Thời Trang)</small>'}</label>${chips('acc', accs, look.acc || 'none')}
           </div>
         </div>
         <div class="row-end">
@@ -289,10 +291,12 @@ const UI = (() => {
   function boutique() {
     const S = AV.S;
     const p = panel('👗 Tiệm Thời Trang', '', { wide: true });
+    let tab = 'shirt';
     const render = () => {
       const card = (kind, it) => {
-        const owned = kind === 'hat' ? S.owned.hats.includes(it.id) : S.owned.shirtStyles.includes(it.id);
-        const wearing = kind === 'hat' ? S.look.hat === it.id : S.look.shirtStyle === it.id;
+        const KEY = { hat: ['hats', 'hat'], shirt: ['shirtStyles', 'shirtStyle'], acc: ['accs', 'acc'] }[kind];
+        const owned = (S.owned[KEY[0]] || ['none']).includes(it.id);
+        const wearing = (S.look[KEY[1]] || 'none') === it.id;
         const locked = it.lvl && S.level < it.lvl;
         let btn;
         if (wearing) btn = '<button class="btn small ghost" disabled>Đang mặc</button>';
@@ -303,13 +307,15 @@ const UI = (() => {
       };
       p.body.innerHTML = `
         <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
-        <h4>Mũ & phụ kiện</h4>
-        <div class="b-grid">${DATA.HATS.filter((h) => h.id !== 'none').map((h) => card('hat', h)).join('')}</div>
-        <h4>Kiểu áo</h4>
-        <div class="b-grid">${DATA.SHIRT_STYLES.filter((s) => s.id !== 'plain').map((s) => card('shirt', s)).join('')}</div>`;
+        <div class="tabs">${[['shirt', '👗 Váy & áo'], ['hat', '🎩 Mũ'], ['acc', '💍 Trang sức']].map(([k, l]) => `<button class="chip ${tab === k ? 'on' : ''}" data-btab="${k}">${l}</button>`).join('')}</div>
+        <div class="b-grid">${tab === 'hat' ? DATA.HATS.filter((h) => h.id !== 'none').map((h) => card('hat', h)).join('')
+          : tab === 'acc' ? DATA.ACCS.filter((a) => a.id !== 'none').map((a) => card('acc', a)).join('')
+            : DATA.SHIRT_STYLES.filter((s) => s.id !== 'plain').map((s) => card('shirt', s)).join('')}</div>
+        <p class="muted small-note">Mua xong thay đổi tự do trong 👕 Tủ đồ. Hình xem trước dùng màu áo hiện tại của bạn.</p>`;
+      p.body.querySelectorAll('[data-btab]').forEach((b) => b.onclick = () => { tab = b.dataset.btab; render(); });
       p.body.querySelectorAll('[data-pv]').forEach((c) => {
         const [kind, id] = c.dataset.pv.split(':');
-        const look = { ...S.look, [kind === 'hat' ? 'hat' : 'shirtStyle']: id };
+        const look = { ...S.look, [{ hat: 'hat', shirt: 'shirtStyle', acc: 'acc' }[kind]]: id };
         drawAvatar(c, look, { scale: 1.15 });
       });
       p.body.querySelectorAll('[data-buy]').forEach((b) => b.onclick = () => {
@@ -389,6 +395,7 @@ const UI = (() => {
     const fromStop = mode === true, start = mode === 'start';
     const p = panel(start ? '🌆 Bạn muốn đến đâu?' : '🗺️ Bản đồ thành phố', `
       <div class="citymap"><canvas></canvas><div class="zones"></div></div>
+      ${start ? '' : '<div class="row-end"><button class="btn ghost small" data-friends>🏡 Thăm nông trại bạn bè</button></div>'}
       <p class="muted small-note">${start ? 'Chào mừng tới thành phố! Chọn khu bạn muốn bắt đầu — sau này đi lại bằng xe buýt 🚌' : fromStop ? 'Chọn nơi muốn đến — xe buýt sẽ tới đón bạn 🚌' : 'Chọn nơi muốn đến — nhân vật sẽ tự đi ra trạm xe buýt 🚌'}</p>`, { wide: true, locked: start });
     const box = p.body.querySelector('.citymap');
     const zones = p.body.querySelector('.zones');
@@ -403,6 +410,8 @@ const UI = (() => {
           ${counts[z.id] ? `<em>👥 ${counts[z.id]}</em>` : ''}
         </button>`).join('');
       zones.querySelectorAll('[data-z]').forEach((b) => b.onclick = () => { p.close(); if (start) AV.teleport(b.dataset.z, true); else AV.travelTo(b.dataset.z); });
+      const fb = p.body.querySelector('[data-friends]');
+      if (fb) fb.onclick = () => { p.close(); friendsPanel(); };
     };
     requestAnimationFrame(() => drawCity(box.querySelector('canvas')));
     render();
@@ -624,6 +633,81 @@ const UI = (() => {
     render();
   }
 
+  /* ---------- Thẻ người chơi & thăm nông trại bạn bè ---------- */
+  function playerCard(r) {
+    const p = panel(`👤 ${esc(r.name)}`, `
+      <div class="menu-head"><canvas class="menu-av"></canvas><div><b>${esc(r.name)}</b><small>Cấp ${r.level || 1}${r.user ? ' · @' + esc(r.user) : ' · chơi không tài khoản'}</small></div></div>
+      <div class="row-end">
+        <button class="btn ghost" data-wave>👋 Vẫy tay</button>
+        ${r.user ? '<button class="btn" data-visit>🏡 Thăm nông trại</button>' : ''}
+      </div>
+      ${r.user ? '' : '<p class="muted small-note">Người này chưa có tài khoản nên chưa thăm nông trại được.</p>'}`);
+    drawAvatar(p.body.querySelector('.menu-av'), r.look || AV.S.look, { scale: 0.9 });
+    p.body.querySelector('[data-wave]').onclick = () => { p.close(); AV.say(`👋 Chào ${r.name}!`); };
+    const v = p.body.querySelector('[data-visit]');
+    if (v) v.onclick = () => { p.close(); AV.visitFarm(r.user); };
+  }
+
+  function friendsPanel() {
+    const p = panel('🏡 Thăm nông trại bạn bè', '', { wide: true });
+    if (!CLOUD.user) {
+      p.body.innerHTML = `<p class="muted">Cần đăng nhập tài khoản để thăm nông trại của bạn bè và để bạn bè thăm nông trại của bạn.</p>
+        <div class="row-end"><button class="btn" data-login>🔐 Đăng nhập / Tạo tài khoản</button></div>`;
+      p.body.querySelector('[data-login]').onclick = () => { p.close(); authPanel(false); };
+      return;
+    }
+    const visiting = AV.visiting();
+    p.body.innerHTML = `
+      <p class="muted">Gõ <b>tên đăng nhập</b> của bạn bè hoặc chọn trong danh sách. Ở nông trại bạn bè, bấm ô ruộng để <b>💧 tưới giúp</b> (mỗi ngày 1 lần mỗi bạn, cả hai đều được thưởng). Tên đăng nhập của bạn: <b>@${esc(CLOUD.username)}</b></p>
+      <form class="fsearch"><input class="field" name="u" placeholder="Tên đăng nhập của bạn bè" maxlength="20" autocomplete="off"><button class="btn">🔍 Thăm</button></form>
+      ${visiting ? '<div class="row-end"><button class="btn ghost" data-home>🌾 Về nông trại của mình</button></div>' : ''}
+      <h4>Người chơi gần đây</h4>
+      <div class="shop-list" id="flist"><p class="muted">⏳ Đang tải…</p></div>`;
+    const f = p.body.querySelector('form');
+    f.onsubmit = (e) => { e.preventDefault(); const u = f.u.value.trim(); if (u) { p.close(); AV.visitFarm(u); } };
+    const h = p.body.querySelector('[data-home]');
+    if (h) h.onclick = () => { p.close(); AV.goHomeFarm(); };
+    CLOUD.recentFarms().then((rows) => {
+      const list = p.body.querySelector('#flist');
+      if (!list) return;
+      const ago = (t) => { const m = Math.floor((Date.now() - new Date(t).getTime()) / 60000); return m < 1 ? 'vừa xong' : m < 60 ? m + ' phút trước' : m < 1440 ? Math.floor(m / 60) + ' giờ trước' : Math.floor(m / 1440) + ' ngày trước'; };
+      const others = (rows || []).filter((r) => r.username && r.username !== CLOUD.username);
+      list.innerHTML = others.length ? others.map((r) => `<div class="shop-row"><span class="ic">🧑‍🌾</span>
+        <div class="info"><b>${esc(r.name)}</b><small>@${esc(r.username)} · Cấp ${r.level} · chơi ${ago(r.updated_at)}</small></div>
+        <button class="btn small" data-v="${esc(r.username)}">🏡 Thăm</button></div>`).join('') : '<p class="muted">Chưa có người chơi nào khác.</p>';
+      list.querySelectorAll('[data-v]').forEach((b) => b.onclick = () => { p.close(); AV.visitFarm(b.dataset.v); });
+    }).catch((e) => { const list = p.body.querySelector('#flist'); if (list) list.innerHTML = `<p class="muted">⚠️ ${esc(e.message)}</p>`; });
+    setTimeout(() => f.u.focus(), 60);
+  }
+
+  function updateVisitBar(v) {
+    const bar = $('#visitBar');
+    if (!bar) return;
+    bar.classList.toggle('show', !!v);
+    if (v) {
+      bar.innerHTML = `🏡 Đang thăm nông trại của <b>${esc(v.data.name)}</b> <small>· bấm ô ruộng để 💧 tưới giúp</small><button data-home>🌾 Về nhà mình</button>`;
+      bar.querySelector('[data-home]').onclick = () => AV.goHomeFarm();
+    }
+  }
+
+  /* ---------- Máy game (chơi trong khung, không rời khỏi Avatar) ---------- */
+  function arcade(id) {
+    const g = DATA.ARCADE.find((x) => x.id === id);
+    if (!g) return;
+    try { localStorage.setItem('gh_name', JSON.stringify(AV.S.name || 'Khách')); } catch (e) { /* bỏ qua */ }
+    const v = $('#arcadeView');
+    v.innerHTML = `<div class="arc-bar"><b>${g.icon} ${g.name}</b><span>Điểm càng cao thưởng càng nhiều xu (tối đa 40 xu/ván)</span><button class="tv-x" data-close>✕ Thoát</button></div>
+      <iframe src="arcade/games/${id}.html" title="${g.name}"></iframe>`;
+    v.classList.add('show');
+    v.querySelector('[data-close]').onclick = closeArcade;
+  }
+  function closeArcade() {
+    const v = $('#arcadeView');
+    v.classList.remove('show');
+    v.innerHTML = '';
+  }
+  const arcadeOpen = () => $('#arcadeView').classList.contains('show');
+
   /* ---------- Gara xe ---------- */
   function garage() {
     const S = AV.S;
@@ -706,6 +790,8 @@ const UI = (() => {
         <li>🏫 Tới <b>Trường học</b>: cô giáo ra câu đố tiếng Anh mỗi 20 giây, gõ đáp án vào chat (hoặc bấm nút A/B/C/D). Ai đúng đầu tiên được thưởng nhiều nhất!</li>
         <li>📜 Bấm nút <b>📜</b> xem nhiệm vụ hằng ngày để nhận thêm xu.</li>
         <li>🌼 <b>Vườn Hoa</b> trồng hoa cúc, tulip, hướng dương, dâm bụt, hồng — bán lấy tiền hoặc gói <b>💐 Bó hoa</b> ở Nhà bếp. 🎠 <b>Sân Chơi</b> cạnh vườn hoa có xích đu và vọng lâu.</li>
+        <li>🏡 Mỗi người có <b>nông trại riêng</b>. Bấm vào người chơi khác → <b>Thăm nông trại</b>, hoặc MENU → <b>Thăm bạn bè</b>. Ở nông trại bạn, bấm ô ruộng để <b>💧 tưới giúp</b>.</li>
+        <li>🕹️ <b>Khu Game</b> trong Khu giải trí: máy chơi Pikachu, Flappy Bird, Đào Vàng — điểm cao được thưởng xu.</li>
         <li>🏎️ <b>Khu Đua Xe</b>: bấm cổng xuất phát để đua 3 vòng (đua một mình với máy hoặc với người chơi khác cùng lúc), về nhất được thưởng. Mua xe nhanh hơn ở Gara.</li>
         <li>🍊 <b>Vườn Cây</b> trong nông trại tự ra quả (cam, táo, xoài, đào) — không cần trồng, quả chín để lâu không hỏng, ghé hái rồi đem bán.</li>
         <li>🍳 Vào <b>Nhà Bếp</b> ở Nông trại nấu bánh, súp, khăn len… bán được giá cao hơn nhiều.</li>
@@ -728,6 +814,7 @@ const UI = (() => {
       ['wear', '👕', 'Tủ đồ', () => characterEditor(false)],
       ['map', '🗺️', 'Bản đồ', () => cityMap(false)],
       ['quest', '📜', 'Nhiệm vụ', questsPanel],
+      ['friends', '🏡', 'Thăm bạn bè', friendsPanel],
       ['people', '👥', 'Người chơi', playersPanel],
       ['help', '❓', 'Cách chơi', help],
       ['set', '⚙️', 'Cài đặt', settings],
@@ -867,5 +954,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar };
 })();

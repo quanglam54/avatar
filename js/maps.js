@@ -259,8 +259,8 @@ const MAPS = (() => {
     for (let bedIdx = 0; bedIdx < 8; bedIdx++) {
       const bx = fx0 + (bedIdx % 4) * (BD.w + 40), by = 478 + Math.floor(bedIdx / 4) * (BD.h + 21);
       obj(m, by + BD.h - 25, (ctx, t) => {
-        const tiles = AV.S.tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert }));
-        ART.bed(ctx, bx, by, AV.S.beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
+        const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert }));
+        ART.bed(ctx, bx, by, AV.F().beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
       });
       for (let k = 0; k < 12; k++) {
         const i = bedIdx * 12 + k;
@@ -333,8 +333,8 @@ const MAPS = (() => {
       const bedIdx = 8 + k;
       const bx = 2420 + 6 + (k % 2) * (BDf.w + 6), by = 890 + Math.floor(k / 2) * (BDf.h + 40);
       obj(m, by + BDf.h - 25, (ctx, t) => {
-        const tiles = AV.S.tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert }));
-        ART.bed(ctx, bx, by, AV.S.beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
+        const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert }));
+        ART.bed(ctx, bx, by, AV.F().beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
       });
       for (let j = 0; j < 12; j++) {
         const i = bedIdx * 12 + j;
@@ -465,10 +465,11 @@ const MAPS = (() => {
 
   /* ---------- Khu giải trí ---------- */
   function fun() {
-    const m = base('fun', 'Khu giải trí', 2000, 1070);
+    const m = base('fun', 'Khu giải trí', 2700, 1070);
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 53);
-      paintPaved(g, 120, 370, 1760, 460, '#f6e3d0');
+      paintPaved(g, 120, 370, 2460, 460, '#f6e3d0');
+      g.fillStyle = 'rgba(112,72,232,.12)'; g.beginPath(); g.roundRect(1960, 420, 600, 340, 30); g.fill();
       paintStreet(g, m.w, 870, 1000);
     });
 
@@ -495,6 +496,15 @@ const MAPS = (() => {
     [[180, 420], [580, 420], [1820, 420]].forEach(([x, y]) => addLamp(m, x, y));
     [[200, 790, 'mai'], [580, 790, 'dao'], [860, 790, 'mai']].forEach(([x, y, k]) => addPot(m, x, y, k));
     m.labels.push({ text: '🎡 Khu Giải Trí', x: 700, y: 318 });
+    m.labels.push({ text: '🕹️ Khu Game', x: 2260, y: 402 });
+    DATA.ARCADE.forEach((g, i) => {
+      const x = 2080 + i * 180, y = 620;
+      aobj(m, x, y, (c, t) => ART.arcadeCabinet(c, x, y, g.color, g.name, g.icon, t), { l: -50, t: -158, w: 100, h: 166 });
+      col(m, x - 38, y - 14, 76, 16);
+      inter(m, { x: x - 40, y: y - 150, w: 80, h: 152, ax: x, ay: y + 30, name: `Máy game ${g.name}`, use: () => UI.arcade(g.id), arrow: { x, y: y - 160, text: 'Chơi' } });
+    });
+    addLamp(m, 1960, 760); addLamp(m, 2560, 760);
+    addBench(m, 2260, 760);
 
     npc(m, 'Bé Bin', { skin: '#ffe0c4', hair: 'spiky', hairColor: '#c68642', shirt: '#fd7e14', shirtStyle: 'star', pants: '#364fc7', hat: 'beanie' }, { l: 200, t: 700, r: 1800, b: 830 }, 1000, 760, 'chick');
 
