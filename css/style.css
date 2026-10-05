@@ -430,3 +430,24 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .store-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .store-cols h4 { margin: 4px 0 8px; }
 @media (max-width: 680px) { .store-cols { grid-template-columns: 1fr; } }
+
+/* Ô nhập số lượng ở Chợ */
+.qty { display: grid; gap: 4px; justify-items: end; flex: none; }
+.qty-row { display: flex; align-items: center; gap: 4px; }
+.qbtn { width: 32px; height: 32px; border-radius: 10px; border: 2px solid #2b1a10; background: linear-gradient(#fff, #e9eef7); font-weight: 900; font-size: 18px; line-height: 1; box-shadow: 0 2px 0 #2b1a10; padding: 0; }
+.qbtn:active { transform: translateY(2px); box-shadow: none; }
+.qin { width: 64px; height: 32px; border: 2px solid #c9b48a; border-radius: 10px; text-align: center; font: inherit; font-weight: 800; font-size: 15px; background: #fff; color: var(--ink); -moz-appearance: textfield; user-select: text; -webkit-user-select: text; }
+.qin::-webkit-outer-spin-button, .qin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.qin:focus { outline: none; border-color: var(--brand); }
+.qty .btn.small { min-width: 104px; justify-content: center; }
+.qty .btn.sell { background: linear-gradient(135deg, #ffd43b, #f59f00); color: #3d2410; }
+.qquick { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.qquick button { border: 1.5px solid #c9b48a; background: #fff8e6; border-radius: 99px; padding: 2px 9px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.qquick button:hover { background: #ffe8a3; }
+@media (max-width: 640px) {
+  .shop-row { flex-wrap: wrap; }
+  .shop-row .info { flex: 1 1 calc(100% - 60px); }
+  .qty { width: 100%; justify-items: stretch; }
+  .qty-row { justify-content: flex-end; }
+  .qquick { justify-content: flex-end; }
+}

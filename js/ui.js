@@ -192,45 +192,91 @@ const UI = (() => {
   function shop(tab = 'buy') {
     const S = AV.S;
     const p = panel('🛒 Chợ', '', { wide: true });
+    const qty = {};
+
+    /** Ô nhập số lượng: nút −/+, ô số, nút nhanh, nút xác nhận hiện tổng tiền */
+    const qtyBox = (key, price, max, kind) => {
+      const q = Math.max(1, Math.min(qty[key] || 1, Math.max(1, max)));
+      qty[key] = q;
+      const label = kind === 'buy' ? 'Mua' : 'Bán';
+      return `<div class="qty" data-key="${key}" data-price="${price}" data-max="${max}" data-kind="${kind}">
+        <div class="qty-row">
+          <button class="qbtn" data-step="-1" aria-label="Bớt">−</button>
+          <input class="qin" type="number" inputmode="numeric" min="1" max="${max}" value="${q}">
+          <button class="qbtn" data-step="1" aria-label="Thêm">+</button>
+          <button class="btn small ${kind === 'buy' ? '' : 'sell'}" data-go ${max < 1 ? 'disabled' : ''}>${label} · <span class="qtot">${kind === 'buy' ? '' : '+'}${(q * price).toLocaleString('vi-VN')}</span>💰</button>
+        </div>
+        <div class="qquick">${[10, 50].filter((n) => n < max).map((n) => `<button data-set="${n}">${n}</button>`).join('')}<button data-set="${max}">${kind === 'buy' ? 'Tối đa' : 'Tất cả'} (${max.toLocaleString('vi-VN')})</button></div>
+      </div>`;
+    };
+
     const render = () => {
       let list = '';
       if (tab === 'buy') {
+        const afford = (price) => Math.max(0, Math.min(999, Math.floor(S.coins / price)));
         list = Object.entries(DATA.CROPS).map(([id, c]) => {
           const locked = S.level < c.lvl;
           const have = S.inv['seed_' + id] || 0;
           return `<div class="shop-row ${locked ? 'locked' : ''}">
             <span class="ic">${c.icon}</span>
-            <div class="info"><b>Hạt ${c.name.toLowerCase()}</b><small>⏱ ${AV.fmtDur(c.time)} · thu ${c.yield} ${c.icon}/ô · bán ${c.sell} xu/cái · đang có ${have}</small></div>
-            ${locked ? `<span class="lock">🔒 Cấp ${c.lvl}</span>` : `
-              <button class="btn small" data-buy="${id}" data-n="1">Mua 1 · ${c.seed}💰</button>
-              <button class="btn small ghost" data-buy="${id}" data-n="5">×5 · ${c.seed * 5}💰</button>`}
+            <div class="info"><b>Hạt ${c.name.toLowerCase()}</b><small>⏱ ${AV.fmtDur(c.time)} · thu ${c.yield} ${c.icon}/ô · ${c.seed} xu/hạt · đang có ${have}</small></div>
+            ${locked ? `<span class="lock">🔒 Cấp ${c.lvl}</span>` : qtyBox('seed_' + id, c.seed, afford(c.seed), 'buy')}
           </div>`;
         }).join('') + `<div class="shop-row">
             <span class="ic">🧪</span>
-            <div class="info"><b>Phân bón</b><small>Bón cho cây nhanh hơn ${Math.round(DATA.FERT.cut * 100)}% · đang có ${S.inv.fertilizer || 0} gói</small></div>
-            <button class="btn small" data-fertbuy="1">Mua 1 · ${DATA.FERT.price}💰</button>
-            <button class="btn small ghost" data-fertbuy="10">×10 · ${DATA.FERT.price * 10}💰</button>
+            <div class="info"><b>Phân bón</b><small>Cây nhanh hơn ${Math.round(DATA.FERT.cut * 100)}% · ${DATA.FERT.price} xu/gói · đang có ${S.inv.fertilizer || 0}</small></div>
+            ${qtyBox('fertilizer', DATA.FERT.price, afford(DATA.FERT.price), 'buy')}
           </div>`;
       } else {
-        const items = Object.entries(S.inv).filter(([id, n]) => n > 0 && DATA.ITEMS[id].sell > 0);
+        const items = Object.entries(S.inv).filter(([id, n]) => n > 0 && DATA.ITEMS[id] && DATA.ITEMS[id].sell > 0);
+        const total = items.reduce((t, [id, n]) => t + DATA.ITEMS[id].sell * n, 0);
         list = items.length ? items.map(([id, n]) => {
           const it = DATA.ITEMS[id];
           return `<div class="shop-row">
             <span class="ic">${it.icon}</span>
             <div class="info"><b>${it.name}</b><small>Đang có ${n} · ${it.sell} xu/cái</small></div>
-            <button class="btn small ghost" data-sell="${id}" data-n="1">Bán 1 · +${it.sell}</button>
-            <button class="btn small" data-sell="${id}" data-n="${n}">Bán hết · +${it.sell * n}</button>
+            ${qtyBox(id, it.sell, n, 'sell')}
           </div>`;
-        }).join('') : '<p class="muted">Chưa có nông sản để bán. Hãy thu hoạch ruộng và chuồng trại nhé!</p>';
+        }).join('') + `<div class="row-end"><button class="btn" data-sellall>💰 Bán tất cả · +${total.toLocaleString('vi-VN')} xu</button></div>`
+          : '<p class="muted">Chưa có nông sản để bán. Hãy thu hoạch ruộng và chuồng trại nhé!</p>';
       }
+      const scroll = p.body.querySelector('.shop-list') ? p.body.querySelector('.shop-list').scrollTop : 0;
       p.body.innerHTML = `
         <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
         <div class="tabs"><button class="chip ${tab === 'buy' ? 'on' : ''}" data-tab="buy">🌱 Mua hạt giống</button><button class="chip ${tab === 'sell' ? 'on' : ''}" data-tab="sell">💰 Bán nông sản</button></div>
         <div class="shop-list">${list}</div>`;
-      p.body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
-      p.body.querySelectorAll('[data-buy]').forEach((b) => b.onclick = () => { AV.buySeed(b.dataset.buy, +b.dataset.n); render(); });
-      p.body.querySelectorAll('[data-fertbuy]').forEach((b) => b.onclick = () => { AV.buyFert(+b.dataset.fertbuy); render(); });
-      p.body.querySelectorAll('[data-sell]').forEach((b) => b.onclick = () => { AV.sell(b.dataset.sell, +b.dataset.n); render(); });
+      p.body.querySelector('.shop-list').scrollTop = scroll;
+      p.body.querySelectorAll('[data-tab]').forEach((bt) => bt.onclick = () => { tab = bt.dataset.tab; render(); });
+
+      p.body.querySelectorAll('.qty').forEach((box) => {
+        const key = box.dataset.key, price = +box.dataset.price, max = +box.dataset.max, kind = box.dataset.kind;
+        const inp = box.querySelector('.qin'), tot = box.querySelector('.qtot');
+        const set = (v) => {
+          const n = Math.max(1, Math.min(Math.floor(+v) || 1, Math.max(1, max)));
+          qty[key] = n;
+          inp.value = n;
+          tot.textContent = (kind === 'buy' ? '' : '+') + (n * price).toLocaleString('vi-VN');
+        };
+        inp.oninput = () => { if (inp.value !== '') set(inp.value); };
+        inp.onblur = () => set(inp.value);
+        inp.onkeydown = (e) => { if (e.key === 'Enter') box.querySelector('[data-go]').click(); };
+        box.querySelectorAll('[data-step]').forEach((bt) => bt.onclick = () => set((qty[key] || 1) + +bt.dataset.step));
+        box.querySelectorAll('[data-set]').forEach((bt) => bt.onclick = () => set(bt.dataset.set));
+        box.querySelector('[data-go]').onclick = () => {
+          set(inp.value);
+          const n = qty[key];
+          if (kind === 'buy') {
+            if (key === 'fertilizer') AV.buyFert(n); else AV.buySeed(key.slice(5), n);
+          } else AV.sell(key, n);
+          qty[key] = 1;
+          render();
+        };
+      });
+      const sa = p.body.querySelector('[data-sellall]');
+      if (sa) sa.onclick = () => confirm('Bán toàn bộ nông sản trong túi?', 'Bán tất cả', () => {
+        Object.entries(S.inv).forEach(([id, n]) => { if (n > 0 && DATA.ITEMS[id] && DATA.ITEMS[id].sell > 0) AV.sell(id, n); });
+        render();
+      });
     };
     render();
   }
