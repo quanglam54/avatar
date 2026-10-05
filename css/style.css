@@ -495,3 +495,24 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .fsearch { display: flex; gap: 8px; margin: 6px 0 4px; }
 .fsearch .field { text-align: left; }
 @media (max-width: 760px) { .visit-bar { top: 112px; font-size: 12px; } .visit-bar small { display: none; } }
+
+.recenter-btn { position: fixed; right: 16px; bottom: 170px; z-index: 6; width: 52px; height: 52px; border-radius: 50%; border: 3px solid #fff; background: linear-gradient(#ffffff, #d7eeff); box-shadow: 0 0 0 2px #1b2f48, 0 4px 0 2px #1b2f48; font-size: 24px; display: none; }
+.recenter-btn.show { display: grid; place-items: center; }
+#game { cursor: default; }
+@media (max-width: 680px) { .recenter-btn { bottom: 150px; right: 10px; } }
+
+.save-picks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.save-pick { display: grid; gap: 4px; text-align: left; padding: 12px; border: 2px solid #2b1a10; border-radius: 16px; background: linear-gradient(#fff, #fff3d6); box-shadow: 0 4px 0 #2b1a10; font: inherit; cursor: pointer; }
+.save-pick b { font-size: 16px; }
+.save-pick small { color: var(--muted); }
+.save-pick:active { transform: translateY(3px); box-shadow: 0 1px 0 #2b1a10; }
+@media (max-width: 560px) { .save-picks { grid-template-columns: 1fr; } }
+
+/* Sự kiện Halloween */
+.event-btn { background: linear-gradient(#ffc078, #fd7e14) !important; position: relative; }
+.event-btn.hide { display: none; }
+.event-btn::after { content: attr(data-n); position: absolute; bottom: -8px; right: -8px; min-width: 22px; height: 20px; padding: 0 5px; border-radius: 99px; background: #5f3dc4; color: #fff; font-size: 11px; font-weight: 900; display: grid; place-items: center; border: 2px solid #fff; }
+.hw-head { display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, #2b2140, #5f3dc4); color: #fff; padding: 10px 14px; border-radius: 14px; margin-bottom: 8px; }
+.hw-head b { font-size: 20px; color: #ffc078; }
+.hw-help { margin-bottom: 4px; }
+@media (max-width: 560px) { .av-btn.sq.event-btn { width: 44px; } }

@@ -139,8 +139,9 @@ const ART = (() => {
     ctx.save();
     rr(ctx, -12, -37, 24, 23, 8); ctx.clip();
     shirtStyle(ctx, look.shirtStyle);
+    bodice(ctx, look);
     ctx.restore();
-    skirt(ctx, look);
+    skirt(ctx, look, swing);
 
     // đầu
     circle(ctx, -18, -53, 4.5, look.skin);
@@ -190,22 +191,133 @@ const ART = (() => {
   }
 
   /** Chân váy cho các kiểu váy (vẽ đè lên phần trên của chân) */
-  function skirt(ctx, look) {
+  /** Pha màu: amt > 0 sáng hơn, < 0 tối hơn */
+  function shade(hex, amt) {
+    const h = String(hex).replace('#', '');
+    if (h.length !== 6) return hex;
+    const n = parseInt(h, 16);
+    const f = (c) => Math.round(amt >= 0 ? c + (255 - c) * amt : c * (1 + amt));
+    return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
+  }
+
+  const DRESSES = {
+    dress: { hem: 18, len: -6, belt: '#fff', bow: '#fff', lace: '#fff', pleats: 5 },
+    dress_flower: { hem: 20, len: -6, belt: '#ff8fab', bow: '#ff8fab', lace: '#fff', pleats: 0, petticoat: true, print: true },
+    princess: { hem: 25, len: -5, belt: '#fcc419', bow: '#fcc419', lace: '#fff8db', pleats: 0, layers: true, sparkle: true },
+  };
+
+  /** Váy: thân váy có cổ áo + nơ eo + tay phồng, chân váy xoè có nếp gấp và viền ren, đung đưa khi đi */
+  function skirt(ctx, look, swing = 0) {
     const st = look.shirtStyle;
     if (st === 'witchdress') return witchSkirt(ctx, look);
-    if (st !== 'dress' && st !== 'dress_flower' && st !== 'princess') return;
-    const wide = st === 'princess' ? 24 : 17;
-    ctx.fillStyle = look.shirt;
-    ctx.beginPath(); ctx.moveTo(-11, -18); ctx.lineTo(11, -18); ctx.lineTo(wide, -5); ctx.quadraticCurveTo(0, 0, -wide, -5); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.moveTo(-wide, -5); ctx.quadraticCurveTo(0, 0, wide, -5); ctx.lineTo(wide - 1, -7); ctx.quadraticCurveTo(0, -2, -wide + 1, -7); ctx.closePath(); ctx.fill();
-    if (st === 'dress_flower') {
-      [[-8, -10], [0, -13], [8, -9], [-3, -6], [5, -6]].forEach(([fx, fy], i) => circle(ctx, fx, fy, 1.8, ['#fff', '#ffe066', '#ff8fab'][i % 3]));
-    } else if (st === 'princess') {
-      ctx.fillStyle = 'rgba(255,255,255,.6)';
-      for (let k = -wide + 3; k < wide - 2; k += 6) { ctx.beginPath(); ctx.arc(k, -5, 3, 0, Math.PI); ctx.fill(); }
-      ART.star(ctx, 0, -29, 4, 1.8, '#fff3bf');
+    const D = DRESSES[st];
+    if (!D) return;
+    const base = look.shirt, light = shade(base, 0.35), dark = shade(base, -0.28);
+    const sway = swing * 0.45, top = -18, bot = D.len, hw = D.hem;
+
+    // lớp ren lót bên dưới (váy hoa, công chúa)
+    if (D.petticoat || D.layers) {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.moveTo(-10, top + 3); ctx.lineTo(10, top + 3); ctx.lineTo(hw + 2 + sway, bot + 1);
+      for (let k = 0; k < 8; k++) { const x = hw + 2 + sway - k * (2 * hw + 4) / 8; ctx.quadraticCurveTo(x - (2 * hw + 4) / 16, bot + 4, x - (2 * hw + 4) / 8, bot + 1); }
+      ctx.closePath(); ctx.fill();
     }
-    ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(-11, -19, 22, 2);
+
+    const layer = (w, b2, col1, col2) => {
+      const g = ctx.createLinearGradient(0, top, 0, b2);
+      g.addColorStop(0, col1); g.addColorStop(1, col2);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(-11, top);
+      ctx.lineTo(11, top);
+      ctx.quadraticCurveTo(w * 0.7 + sway * 0.5, (top + b2) / 2, w + sway, b2);
+      ctx.quadraticCurveTo(sway, b2 + 3.5, -w + sway, b2);
+      ctx.quadraticCurveTo(-w * 0.7 + sway * 0.5, (top + b2) / 2, -11, top);
+      ctx.closePath(); ctx.fill();
+    };
+
+    if (D.layers) {
+      layer(hw, bot, base, dark);                       // lớp voan dưới
+      layer(hw - 5, bot - 5, light, base);              // lớp voan trên ngắn hơn
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let k = -1; k <= 1; k++) { ctx.moveTo(k * 4, top + 1); ctx.quadraticCurveTo(k * 9 + sway * 0.6, (top + bot) / 2, k * (hw - 7) + sway, bot - 5); }
+      ctx.stroke();
+    } else {
+      layer(hw, bot, light, base);
+    }
+
+    // nếp gấp xếp ly
+    if (D.pleats) {
+      ctx.strokeStyle = shade(base, -0.2); ctx.lineWidth = 1.3; ctx.lineCap = 'round';
+      for (let k = 1; k < D.pleats; k++) {
+        const t = k / D.pleats, xt = -9 + 18 * t, xb = -hw + 2 * hw * t + sway;
+        ctx.beginPath(); ctx.moveTo(xt, top + 2); ctx.quadraticCurveTo((xt + xb) / 2 + sway * 0.3, (top + bot) / 2, xb, bot + 1); ctx.stroke();
+      }
+    }
+
+    // hoạ tiết hoa nhí
+    if (D.print) {
+      const spots = [[-7, -13], [3, -14], [-12, -7], [-2, -8], [8, -9], [14, -4], [-16, -3], [5, -3], [-6, -3]];
+      spots.forEach(([fx, fy], i) => {
+        const x = fx + sway * ((fy - top) / (bot - top)), c = ['#fff', '#ffe066', '#ff8fab'][i % 3];
+        for (let k = 0; k < 5; k++) { const an = k * 1.2566; circle(ctx, x + Math.cos(an) * 1.6, fy + Math.sin(an) * 1.6, 1.2, c); }
+        circle(ctx, x, fy, 0.8, '#e8590c');
+      });
+    }
+
+    // lấp lánh váy công chúa
+    if (D.sparkle) {
+      const t = performance.now() / 1000;
+      [[-10, -8], [6, -11], [14, -5], [-3, -5], [-17, -3]].forEach(([sx, sy], i) => {
+        const al = 0.4 + 0.6 * Math.abs(Math.sin(t * 2 + i * 1.3));
+        star(ctx, sx + sway * 0.7, sy, 2.4, 0.9, `rgba(255,255,255,${al})`);
+      });
+    }
+
+    // viền ren gấu váy
+    ctx.fillStyle = D.lace;
+    const lw = D.layers ? hw - 5 : hw, lb = D.layers ? bot - 5 : bot;
+    for (let k = 0; k < 9; k++) {
+      const x = -lw + sway + (k + 0.5) * (2 * lw) / 9;
+      const y = lb + 1.2 - Math.abs(k - 4) * 0.1;
+      ctx.beginPath(); ctx.arc(x, y, 2.4, 0, Math.PI); ctx.fill();
+    }
+
+    // thắt eo + nơ
+    ctx.fillStyle = D.belt; ctx.fillRect(-11.5, top - 2, 23, 3.5);
+    const bx = D.layers ? 0 : 7;
+    ctx.fillStyle = D.bow;
+    ctx.beginPath(); ctx.moveTo(bx, top); ctx.lineTo(bx - 6, top - 4); ctx.lineTo(bx - 6, top + 4); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx, top); ctx.lineTo(bx + 6, top - 4); ctx.lineTo(bx + 6, top + 4); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx - 1, top + 1); ctx.lineTo(bx - 3.5, top + 8); ctx.lineTo(bx - 0.5, top + 7); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx + 1, top + 1); ctx.lineTo(bx + 3.5, top + 8); ctx.lineTo(bx + 0.5, top + 7); ctx.closePath(); ctx.fill();
+    circle(ctx, bx, top, 1.8, shade(D.bow === '#fff' ? '#dee2e6' : D.bow, -0.15));
+
+    // tay áo phồng
+    [-13, 13].forEach((sx) => {
+      circle(ctx, sx, -34, 5.2, light);
+      ctx.strokeStyle = D.lace; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(sx, -34, 5.2, 0.3, Math.PI - 0.3); ctx.stroke();
+    });
+  }
+
+  /** Thân váy (vẽ trong khung thân áo): cổ áo, đổ bóng hai bên */
+  function bodice(ctx, look) {
+    const D = DRESSES[look.shirtStyle];
+    if (!D) return;
+    ctx.fillStyle = 'rgba(0,0,0,.10)'; ctx.fillRect(-12, -37, 4, 23); ctx.fillRect(8, -37, 4, 23);
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(-5, -37, 6, 23);
+    if (look.shirtStyle === 'princess') {
+      ctx.fillStyle = shade(look.shirt, 0.45);
+      ctx.beginPath(); ctx.moveTo(-9, -36); ctx.quadraticCurveTo(-4, -30, 0, -33); ctx.quadraticCurveTo(4, -30, 9, -36); ctx.lineTo(9, -38); ctx.lineTo(-9, -38); ctx.closePath(); ctx.fill();
+      circle(ctx, 0, -30, 2, '#74c0fc'); circle(ctx, -0.6, -30.6, 0.7, '#fff');
+    } else {
+      ctx.fillStyle = D.lace;
+      ctx.beginPath(); ctx.ellipse(-4, -36.5, 4.5, 3, 0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(4, -36.5, 4.5, 3, -0.3, 0, Math.PI * 2); ctx.fill();
+      if (look.shirtStyle === 'dress') { circle(ctx, 0, -29, 1.1, '#fff'); circle(ctx, 0, -25, 1.1, '#fff'); }
+    }
   }
 
   /** Trang sức: bông tai, dây chuyền, ngọc trai, kính */
