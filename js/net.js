@@ -236,7 +236,7 @@ const NET = (() => {
 
   function announce() {
     lobbyBeat = 0;
-    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId === 'casino' ? 'fun' : mapId.split('-')[0] });
+    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId === 'casino' ? 'fun' : mapId === 'classroom' ? 'school' : mapId.split('-')[0] });
   }
 
   /** Báo ngắn cho mọi người: nông trại của uid vừa thay đổi / vừa bị tưới giúp, hái trộm */

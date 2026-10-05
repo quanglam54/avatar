@@ -135,11 +135,15 @@ const MAPS = (() => {
     sobj(m, x, y, (c) => ART.bench(c, x, y));
     col(m, x - 42, y - 10, 84, 12);
   }
-  function addBusStop(m, x, y) {
+  /** Bến xe buýt có nhà chờ (mái che, ghế ngồi đợi) + cột biển trạm. side -1: nhà chờ bên trái cột, 1: bên phải */
+  function addBusStop(m, x, y, side = -1) {
     m.busStop = { x, y };
-    sobj(m, x, y, (c) => ART.busStop(c, x, y));
-    col(m, x - 5, y - 5, 10, 6);
-    inter(m, { x: x - 30, y: y - 128, w: 60, h: 132, ax: x + 44, ay: y + 12, name: 'Trạm xe buýt (bản đồ thành phố)', use: () => AV.useBusStop() });
+    const L = side < 0 ? x - 170 : x + 70, R = side < 0 ? x + 20 : x + 260;
+    sobj(m, x, y, (c) => ART.busShelter(c, x, y, side), { l: Math.min(L, x) - x - 20, t: -180, w: Math.max(R, x + 70) - Math.min(L, x) + 40, h: 195 }, y - 60);
+    col(m, L + 4, y - 44, R - L - 8, 8);
+    col(m, x + 35, y - 5, 10, 6);
+    inter(m, { x: x + 14, y: y - 172, w: 52, h: 176, ax: x + 44, ay: y + 12, name: 'Trạm xe buýt (bản đồ thành phố)', use: () => AV.useBusStop() });
+    inter(m, { x: L + 14, y: y - 70, w: R - L - 28, h: 66, ax: (L + R) / 2, ay: y + 12, name: 'Ghế chờ xe buýt (ngồi đợi)', use: () => AV.sitBusBench(L, R, y) });
   }
 
   /** Hàng rào gỗ + luống tulip ở đường chân trời, tulip viền dưới đáy — giống nhau ở mọi khu */
@@ -158,7 +162,7 @@ const MAPS = (() => {
 
   function street(m) {
     addBusStop(m, 1000, 862);
-    addStreetSign(m, 760, 860);
+    addStreetSign(m, 600, 860);
     addStreetSign(m, m.w - 320, 860, [...STREETS].reverse());
     edges(m);
   }
@@ -438,9 +442,9 @@ const MAPS = (() => {
     /* ----- Bên ngoài cổng ----- */
     [[300, 1395, 'green'], [820, 1400, 'pink'], [2380, 1395, 'fruit'], [2900, 1400, 'green'], [3420, 1395, 'pink'], [3760, 1400, 'fruit'], [4300, 1395, 'green'], [4800, 1400, 'pink'], [5250, 1395, 'fruit']].forEach(([x, y, v]) => addTree(m, x, y, v));
     addPot(m, 1450, 1360, 'mai'); addPot(m, 1750, 1360, 'dao');
-    sobj(m, 1880, 1385, (c) => ART.signBoard(c, 1880, 1385, 'NÔNG TRẠI\nVào cổng để\ntrồng trọt 🌱'));
-    col(m, 1842, 1375, 80, 12);
-    addBusStop(m, GATE + 140, 1432);
+    sobj(m, 2160, 1385, (c) => ART.signBoard(c, 2160, 1385, 'NÔNG TRẠI\nVào cổng để\ntrồng trọt 🌱'));
+    col(m, 2122, 1375, 80, 12);
+    addBusStop(m, GATE + 140, 1432, 1);
     addStreetSign(m, GATE - 360, 1430);
     addStreetSign(m, 3100, 1430, ['Cầu Giấy', 'Hồ Tùng Mậu']);
     sobj(m, 0, 1594, (c) => ART.roseHedge(c, 0, m.w, 1594), { l: -10, t: -44, w: m.w + 20, h: 48 });
@@ -571,6 +575,60 @@ const MAPS = (() => {
     m.bounds = { l: 20, t: 380, r: m.w - 20, b: m.h - 40 };
     return m;
   }
+
+  /* ---------- Lớp học (đố vui tiếng Anh) ---------- */
+  function classroom() {
+    const m = base('classroom', 'Lớp học', 1600, 1000);
+    m.indoor = true;
+    m.hz = 0;
+    ground(m, (g) => {
+      g.fillStyle = '#3d2410'; g.fillRect(0, 0, m.w, m.h);
+      g.fillStyle = '#e7f5ff'; g.fillRect(40, 20, 1520, 300);
+      g.fillStyle = '#a5d8ff'; g.fillRect(40, 250, 1520, 70);
+      g.fillStyle = '#1864ab'; g.fillRect(40, 314, 1520, 8);
+      // cửa sổ hai bên
+      [[90, 70], [1340, 70]].forEach(([x, y]) => {
+        g.fillStyle = '#7a4520'; g.fillRect(x - 6, y - 6, 182, 132);
+        const sk = g.createLinearGradient(0, y, 0, y + 120); sk.addColorStop(0, '#74c0fc'); sk.addColorStop(1, '#d0ebff');
+        g.fillStyle = sk; g.fillRect(x, y, 170, 120);
+        g.fillStyle = '#fff'; g.fillRect(x + 83, y, 4, 120); g.fillRect(x, y + 58, 170, 4);
+      });
+      ART.posterABC(g, 300, 110); ART.posterMap(g, 1170, 110);
+      // sàn gạch hoa
+      for (let y = 322; y < 960; y += 48) for (let x = 40; x < 1560; x += 48) { g.fillStyle = ((x + y) / 48) % 2 ? '#f1e3c6' : '#e6d3ab'; g.fillRect(x, y, 48, 48); }
+      g.fillStyle = '#a61e4d'; g.fillRect(740, 900, 120, 46);
+      g.fillStyle = '#3d2410'; g.fillRect(0, 960, m.w, 40); g.fillRect(0, 0, 40, m.h); g.fillRect(1560, 0, 40, m.h);
+    });
+    sobj(m, 800, 330, (c) => ART.blackboard(c, 800, 330), { l: -190, t: -245, w: 380, h: 252 });
+    col(m, 625, 310, 350, 22);
+    m.board = { x: 800, y: 330 };
+    inter(m, { x: 620, y: 90, w: 360, h: 240, ax: 800, ay: 380, name: 'Bảng đố vui (gõ đáp án vào khung chat)', use: () => AV.quizHelp() });
+    sobj(m, 1080, 420, (c) => ART.podium(c, 1080, 420), { l: -80, t: -30, w: 160, h: 36 });
+    col(m, 1010, 400, 140, 22);
+    npc(m, 'Cô giáo Hoa', { skin: '#f8c9a2', hair: 'long', hairColor: '#2b2b33', shirt: '#f8f9fa', shirtStyle: 'plain', pants: '#4c6ef5', hat: 'none' }, { l: 1070, t: 398, r: 1090, b: 402 }, 1080, 400);
+    const teacher = m.npcs[m.npcs.length - 1];
+    teacher.teacher = true;
+    teacher.nextTalk = 1e9;
+    // 3 dãy bàn học, bấm vào bàn để ngồi
+    for (const y of [560, 680, 800]) for (const x of [440, 620, 800, 980, 1160]) {
+      sobj(m, x, y - 16, (c) => ART.schoolChair(c, x, y - 16), { l: -22, t: -58, w: 44, h: 52 }, y - 40);
+      sobj(m, x, y, (c) => ART.desk(c, x, y), { l: -40, t: -46, w: 80, h: 50 });
+      col(m, x - 34, y - 12, 68, 14);
+      inter(m, { x: x - 36, y: y - 60, w: 72, h: 62, ax: x, ay: y + 26, name: 'Bàn học (ngồi vào học)', use: () => AV.sitDesk(x, y) });
+    }
+    npc(m, 'Bạn Nam', { skin: '#ffe0c4', hair: 'spiky', hairColor: '#2b2b33', shirt: '#fff', shirtStyle: 'plain', pants: '#1c7ed6', hat: 'none' }, { l: 440, t: 662, r: 440, b: 662 }, 440, 662);
+    npc(m, 'Bạn Lan', { skin: '#f8c9a2', hair: 'pigtails', hairColor: '#6b3e26', shirt: '#fff', shirtStyle: 'plain', pants: '#1c7ed6', hat: 'bow' }, { l: 1160, t: 542, r: 1160, b: 542 }, 1160, 542);
+    furnLike(m, 130, 520, (c) => ART.bookshelf(c, 130, 520), { l: -56, t: -160, w: 112, h: 166 }, 96, 24);
+    furnLike(m, 1470, 520, (c) => ART.plantPot(c, 1470, 520), { l: -30, t: -95, w: 60, h: 100 }, 34, 14);
+    aobj(m, 1470, 860, (c, t) => ART.grandClock(c, 1470, 860, t), { l: -36, t: -166, w: 72, h: 172 });
+    col(m, 1444, 838, 52, 22);
+    sobj(m, 800, 962, (c) => ART.homeDoor(c, 800, 962), { l: -50, t: -22, w: 100, h: 28 });
+    inter(m, { x: 740, y: 900, w: 120, h: 70, ax: 800, ay: 930, name: 'Ra sân trường', use: () => AV.leaveClass(), arrow: { x: 800, y: 905, text: 'Ra ngoài' } });
+    m.spawn = { x: 800, y: 900 };
+    m.bounds = { l: 56, t: 340, r: m.w - 56, b: 940 };
+    return m;
+  }
+  function furnLike(m, x, y, draw, box, cw, ch) { sobj(m, x, y, draw, box); col(m, x - cw / 2, y - ch, cw, ch); }
 
   /* ---------- Trong Nhà Casino ---------- */
   function casino() {
@@ -736,21 +794,10 @@ const MAPS = (() => {
     aobj(m, 690, 560, (c, t) => ART.flagPole(c, 690, 560, t), { l: -20, t: -200, w: 110, h: 206 });
     col(m, 684, 552, 12, 10);
 
-    sobj(m, 1150, 560, (c) => ART.blackboard(c, 1150, 560), { l: -190, t: -245, w: 380, h: 252 });
-    col(m, 975, 540, 350, 22);
-    m.board = { x: 1150, y: 560 };
-    inter(m, { x: 970, y: 320, w: 360, h: 240, ax: 1150, ay: 600, name: 'Bảng đố vui (gõ đáp án vào khung chat)', use: () => AV.quizHelp() });
-
+    inter(m, { x: 290, y: 380, w: 260, h: 160, ax: 420, ay: 578, name: 'Vào lớp học (đố vui tiếng Anh)', use: () => AV.enterClass(), arrow: { x: 420, y: 470, text: 'Vào lớp' } });
+    sobj(m, 1150, 600, (c) => ART.signBoard(c, 1150, 600, 'ĐỐ VUI TIẾNG ANH\nVào LỚP HỌC để\ntrả lời nhận xu 🏫'));
+    col(m, 1112, 590, 80, 12);
     sobj(m, 1430, 645, (c) => ART.podium(c, 1430, 645), { l: -80, t: -30, w: 160, h: 36 });
-    npc(m, 'Cô giáo Hoa', { skin: '#f8c9a2', hair: 'long', hairColor: '#2b2b33', shirt: '#f8f9fa', shirtStyle: 'plain', pants: '#4c6ef5', hat: 'none' }, { l: 1415, t: 628, r: 1445, b: 640 }, 1430, 634);
-    const teacher = m.npcs[m.npcs.length - 1];
-    teacher.teacher = true;
-    teacher.nextTalk = 1e9;
-
-    for (const y of [720, 800]) for (const x of [900, 1020, 1140, 1260, 1380]) {
-      sobj(m, x, y, (c) => ART.desk(c, x, y), { l: -40, t: -46, w: 80, h: 50 });
-      col(m, x - 34, y - 12, 68, 14);
-    }
     [[220, 790], [1780, 790], [1700, 420]].forEach(([x, y], i) => addBush(m, x, y, FLOWERS[i % 4]));
     m.labels.push({ text: '🏫 Trường Học', x: 1000, y: 318 });
 
@@ -973,7 +1020,7 @@ const MAPS = (() => {
     return m;
   };
 
-  const all = { farm, town, mall, fun, casino, park, beach, school, home, race };
+  const all = { farm, town, mall, fun, casino, park, beach, school, classroom, home, race };
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
   return all;
 })();

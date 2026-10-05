@@ -40,8 +40,8 @@ const QUIZ = (() => {
     ['hot', 'nóng', '🔥', 'phrase'], ['cold', 'lạnh', '🥶', 'phrase'], ['good morning', 'chào buổi sáng', '🌅', 'phrase'], ['good night', 'chúc ngủ ngon', '🌙', 'phrase'],
   ];
 
-  const ROUND_MS = 20000;
-  const OPEN_MS = 15000;
+  const ROUND_MS = 14000;
+  const OPEN_MS = 10000;
   const PREFIX = /^(con|qua|trai|mau|so|cai|chiec|ban|bong|ngoi|cay|quyen|but|dam|dong|a|an|the)\s+/;
 
   function norm(s) {

@@ -1105,6 +1105,7 @@ const UI = (() => {
     const p = panel('⚙️ Cài đặt', `${account}
       <label class="toggle">🎃 Halloween <select data-hw><option value="auto">Tự động (tháng 10)</option><option value="on">Luôn bật</option><option value="off">Tắt</option></select></label>
       <label class="toggle">🌙 Ngày / đêm <select data-time><option value="real">Theo giờ thật</option><option value="day">Luôn ban ngày</option><option value="night">Luôn ban đêm</option></select></label>
+      <label class="toggle">🌧️ Thời tiết <select data-weather><option value="auto">Tự nhiên (thỉnh thoảng mưa)</option><option value="off">Không mưa</option><option value="rain">Luôn mưa</option></select></label>
       <label class="toggle">📱 Đồ hoạ <select data-gfx><option value="auto">Tự động (điện thoại: tiết kiệm pin)</option><option value="saver">Tiết kiệm pin — mát máy</option><option value="high">Đẹp nhất — nét, mượt hơn</option></select></label>
       <label class="toggle"><input type="checkbox" data-music ${MUSIC.on ? 'checked' : ''}> 🎵 Nhạc nền chill <input type="range" data-vol min="0" max="100" value="${Math.round(MUSIC.volume * 100)}" style="flex:1;min-width:90px"></label>
       <label class="toggle"><input type="checkbox" data-pixel ${S.settings && S.settings.pixelArt ? 'checked' : ''}> Hiệu ứng ô vuông pixel (nét to hơn, hơi nhoè)</label>
@@ -1120,6 +1121,9 @@ const UI = (() => {
     ts.onchange = () => { S.settings = { ...(S.settings || {}), time: ts.value }; AV.saveNow(); };
     p.body.querySelector('[data-music]').onchange = (e) => setMusic(e.target.checked);
     p.body.querySelector('[data-vol]').oninput = (e) => { const v = e.target.value / 100; MUSIC.setVolume(v); S.settings = { ...(S.settings || {}), musicVol: v }; AV.saveNow(); };
+    const wx = p.body.querySelector('[data-weather]');
+    wx.value = (S.settings && S.settings.weather) || 'auto';
+    wx.onchange = () => { S.settings = { ...(S.settings || {}), weather: wx.value }; AV.saveNow(); };
     const gx = p.body.querySelector('[data-gfx]');
     gx.value = (S.settings && S.settings.gfx) || 'auto';
     gx.onchange = () => { S.settings = { ...(S.settings || {}), gfx: gx.value }; AV.saveNow(); AV.applyGfx(); toast(AV.saverOn() ? '🔋 Đang tiết kiệm pin' : '✨ Đồ hoạ đẹp nhất'); };

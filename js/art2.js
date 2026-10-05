@@ -1853,3 +1853,78 @@ Object.assign(ART, (() => {
 
   return { pigSty, mudPool, slopTrough };
 })());
+
+/* Bến xe buýt có mái che + ghế chờ, đồ trong lớp học */
+Object.assign(ART, (() => {
+  const { rr, shadow, circle } = ART;
+
+  /** Nhà chờ xe buýt: mái che, vách kính có quảng cáo, ghế ngồi; cột biển trạm ở x + 39 (side -1: nhà chờ bên trái cột, 1: bên phải) */
+  function busShelter(ctx, x, y, side = -1) {
+    const L = side < 0 ? x - 170 : x + 70, R = side < 0 ? x + 20 : x + 260;
+    shadow(ctx, (L + R) / 2, y, 110, 12, 0.16);
+    // cột
+    ctx.fillStyle = '#495057';
+    [L + 6, R - 6].forEach((px) => ctx.fillRect(px - 4, y - 150, 8, 150));
+    // vách kính phía sau
+    ctx.fillStyle = 'rgba(165,216,255,.55)'; ctx.fillRect(L + 10, y - 138, R - L - 20, 100);
+    ctx.strokeStyle = '#868e96'; ctx.lineWidth = 3; ctx.strokeRect(L + 10, y - 138, R - L - 20, 100);
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(L + 20, y - 132, 10, 88); ctx.fillRect(L + 100, y - 132, 6, 88);
+    // tấm quảng cáo
+    const ax = L + 34, aw = 70;
+    ctx.fillStyle = '#ff922b'; rr(ctx, ax, y - 128, aw, 76, 4); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '900 10px "Be Vietnam Pro", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('QUANG LÂM', ax + aw / 2, y - 116); ctx.fillText('BUS', ax + aw / 2, y - 104);
+    ctx.font = '26px system-ui, "Segoe UI Emoji"'; ctx.fillStyle = '#000'; ctx.fillText('🚌', ax + aw / 2, y - 76);
+    // bản đồ tuyến
+    ctx.fillStyle = '#fff'; rr(ctx, L + 118, y - 126, 46, 56, 3); ctx.fill();
+    ctx.strokeStyle = '#1c7ed6'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(L + 124, y - 116); ctx.lineTo(L + 140, y - 100); ctx.lineTo(L + 132, y - 86); ctx.lineTo(L + 158, y - 76); ctx.stroke();
+    [[124, -116], [140, -100], [132, -86], [158, -76]].forEach(([dx, dy]) => circle(ctx, L + dx, y + dy, 2.5, '#e03131'));
+    // ghế ngồi chờ
+    ctx.fillStyle = '#7a4520'; ctx.fillRect(L + 22, y - 30, 8, 30); ctx.fillRect(R - 30, y - 30, 8, 30);
+    ctx.fillStyle = '#c8874a'; rr(ctx, L + 14, y - 36, R - L - 28, 9, 3); ctx.fill();
+    ctx.fillStyle = '#a0602e'; rr(ctx, L + 14, y - 58, R - L - 28, 7, 3); ctx.fill();
+    // mái che
+    ctx.fillStyle = '#1971c2';
+    ctx.beginPath(); ctx.moveTo(L - 12, y - 146); ctx.lineTo(R + 12, y - 146); ctx.lineTo(R + 4, y - 162); ctx.lineTo(L - 4, y - 162); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#74c0fc'; ctx.fillRect(L - 12, y - 148, R - L + 24, 4);
+    ctx.fillStyle = '#fff'; ctx.font = '800 10px "Be Vietnam Pro", system-ui, sans-serif';
+    ctx.fillText('NHÀ CHỜ XE BUÝT', (L + R) / 2, y - 154);
+    // cột biển trạm
+    ctx.fillStyle = '#868e96'; ctx.fillRect(x + 36, y - 150, 6, 150);
+    ctx.fillStyle = '#1c7ed6'; rr(ctx, x + 14, y - 172, 50, 40, 6); ctx.fill();
+    ctx.font = '20px system-ui, "Segoe UI Emoji"'; ctx.fillStyle = '#000'; ctx.fillText('🚌', x + 39, y - 158);
+    ctx.fillStyle = '#fff'; ctx.font = '800 7px "Be Vietnam Pro", system-ui, sans-serif'; ctx.fillText('TRẠM DỪNG', x + 39, y - 140);
+    ctx.fillStyle = '#ffd43b'; rr(ctx, x + 18, y - 128, 42, 26, 3); ctx.fill();
+    ctx.fillStyle = '#212529'; ctx.font = '800 7.5px "Be Vietnam Pro", system-ui, sans-serif';
+    ctx.fillText('QL01 · 32', x + 39, y - 120); ctx.fillText('34 · 49', x + 39, y - 109);
+  }
+  /** Mép ghế phía trước (vẽ đè lên người đang ngồi chờ) */
+  function benchFront(ctx, x0, x1, y) {
+    ctx.fillStyle = '#c8874a'; rr(ctx, x0, y - 36, x1 - x0, 9, 3); ctx.fill();
+    ctx.fillStyle = '#a0602e'; ctx.fillRect(x0 + 2, y - 28, x1 - x0 - 4, 3);
+  }
+
+  /** Bàn học có ghế phía sau (ghế vẽ riêng để người ngồi lọt giữa) */
+  function schoolChair(ctx, x, y) {
+    ctx.fillStyle = '#4c6ef5'; rr(ctx, x - 16, y - 52, 32, 26, 4); ctx.fill();
+    ctx.fillStyle = '#364fc7'; ctx.fillRect(x - 14, y - 26, 4, 18); ctx.fillRect(x + 10, y - 26, 4, 18);
+  }
+
+  function posterABC(g, x, y) {
+    g.fillStyle = '#fff'; g.fillRect(x, y, 120, 80);
+    g.strokeStyle = '#e8590c'; g.lineWidth = 4; g.strokeRect(x, y, 120, 80);
+    g.font = '900 28px "Be Vietnam Pro", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    ['#e03131', '#2b8a3e', '#1c7ed6'].forEach((c, i) => { g.fillStyle = c; g.fillText('ABC'[i], x + 26 + i * 34, y + 32); });
+    g.font = '700 11px "Be Vietnam Pro", system-ui, sans-serif'; g.fillStyle = '#495057'; g.fillText('Apple · Ball · Cat', x + 60, y + 62);
+  }
+  function posterMap(g, x, y) {
+    g.fillStyle = '#d0ebff'; g.fillRect(x, y, 130, 80);
+    g.strokeStyle = '#7a4520'; g.lineWidth = 4; g.strokeRect(x, y, 130, 80);
+    g.fillStyle = '#69db7c';
+    [[20, 20, 30, 18], [60, 14, 34, 26], [96, 36, 22, 20], [30, 48, 24, 18]].forEach(([dx, dy, w, h]) => { g.beginPath(); g.ellipse(x + dx + w / 2, y + dy + h / 2, w / 2, h / 2, 0.3, 0, Math.PI * 2); g.fill(); });
+    g.font = '700 10px "Be Vietnam Pro", system-ui, sans-serif'; g.fillStyle = '#1864ab'; g.textAlign = 'center'; g.fillText('WORLD MAP', x + 65, y + 72);
+  }
+
+  return { busShelter, benchFront, schoolChair, posterABC, posterMap };
+})());

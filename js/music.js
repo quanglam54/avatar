@@ -148,6 +148,25 @@ const MUSIC = (() => {
     });
   }
 
+  /** Tiếng mưa rơi rì rào (độ to theo độ mưa 0..1) */
+  let rainSrc = null, rainGain = null, rainLv = -1;
+  function rain(level) {
+    if (!ac || ac.state !== 'running') return;
+    const v = on ? Math.round(level * 20) / 20 : 0;
+    if (v === rainLv) return;
+    rainLv = v;
+    if (!rainSrc && v > 0) {
+      const buf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      rainSrc = ac.createBufferSource(); rainSrc.buffer = buf; rainSrc.loop = true;
+      const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = 0.5;
+      rainGain = ac.createGain(); rainGain.gain.value = 0;
+      rainSrc.connect(bp); bp.connect(rainGain); rainGain.connect(ac.destination);
+      rainSrc.start();
+    }
+    if (rainGain) rainGain.gain.setTargetAtTime(v * 0.09 * vol, ac.currentTime, 0.5);
+  }
+
   /** Tiếng sủa (chó) / gầm (hổ, sư tử) */
   function bark(big) {
     if (!ac || !on || ac.state !== 'running') return;
@@ -176,5 +195,5 @@ const MUSIC = (() => {
   function setOn(v) { on = v; if (v) start(); else stop(); }
   function setVolume(v) { vol = Math.max(0, Math.min(1, v)); if (on && ac) fadeTo(vol * 0.9, 0.3); }
 
-  return { init, setOn, setVolume, boom, whistle, melody, clack, bark, get on() { return on; }, get volume() { return vol; } };
+  return { init, setOn, setVolume, boom, whistle, melody, clack, bark, rain, get on() { return on; }, get volume() { return vol; } };
 })();

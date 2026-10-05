@@ -122,6 +122,7 @@
     if (id !== 'farm') VISIT = null;
     pose = null;
     rockets.length = 0; sparks.length = 0; flashes.length = 0; fwShow = null; fwDim = 0;
+    drops.length = 0; splashes.length = 0;
     if (attack) endAttack();
     player.stun = false;
     UI.setLocation(id === 'farm' && VISIT ? `Nông trại của ${VISIT.data.name}` : map.name);
@@ -786,7 +787,7 @@
   }
 
   function updateQuiz() {
-    if (map.id !== 'school') return;
+    if (!map.board) return;
     const q = QUIZ.current();
     syncQuizRound(q);
     if (!q.open && !quizState.revealed) {
@@ -799,7 +800,7 @@
 
   /** Kiểm tra câu trả lời gõ vào chat. Trả về true nếu là câu trả lời đúng */
   function checkQuizAnswer(text) {
-    if (map.id !== 'school') return false;
+    if (!map.board) return false;
     const q = QUIZ.current();
     syncQuizRound(q);
     if (!q.open || quizState.answered) return false;
@@ -844,7 +845,7 @@
   function updateQuizBar() {
     let key = '';
     let q = null;
-    if (map.id === 'school' && !player.hidden && !UI.isBlocking()) {
+    if (map.board && !player.hidden && !UI.isBlocking()) {
       q = QUIZ.current();
       key = q.open && !quizState.answered ? 'q' + q.round : '';
     }
@@ -968,6 +969,7 @@
   AV.travelTo = (id) => {
     if (id === 'farm' && VISIT && map.id === 'farm') return AV.goHomeFarm();
     if (!map.busStop) return UI.toast('Ra khỏi nhà rồi mới đi xe buýt được nhé 🏠');
+    if (pose) AV.leavePose();
     if (!maps[id]) return;
     if (id === map.id) return UI.toast(`Bạn đang ở ${map.name} rồi 😄`);
     if (player.hidden || bus.carrying) return;
@@ -1566,6 +1568,53 @@
     UI.toast(`${teamIcons(team)} ${team.length} con thú đang canh nhà ${VISIT.data.name} — hái trộm có ${Math.min(99, Math.round((1 - safe) * 100))}% bị cắn, phạt tới ${maxFine} xu!`, 4500);
   };
 
+  /* ---------- Thời tiết: thỉnh thoảng có mưa (theo giờ thật nên mọi người cùng thấy mưa) ---------- */
+  const RAIN_SLOT = 15 * 60000;
+  /** Độ mưa 0..1: mỗi 15 phút có khoảng 1/4 khả năng mưa, mưa nặng hạt dần rồi tạnh */
+  function rainLevel() {
+    const mode = (S.settings && S.settings.weather) || 'auto';
+    if (mode === 'off') return 0;
+    if (mode === 'rain') return 1;
+    const t = Date.now(), slot = Math.floor(t / RAIN_SLOT);
+    const r = (Math.imul(slot ^ 0x5bd1e995, 2654435761) >>> 0) % 1000 / 1000;
+    if (r > 0.24) return 0;
+    const into = (t % RAIN_SLOT) / RAIN_SLOT;
+    return Math.max(0, Math.min(1, into / 0.08, (1 - into) / 0.08)) * (0.6 + r * 1.6);
+  }
+  AV.rainLevel = rainLevel;
+  const drops = [], splashes = [];
+  let rainNow = 0, wasRaining = false;
+  function updateRain(dt) {
+    const target = map.indoor ? 0 : Math.min(1, rainLevel());
+    rainNow += (target - rainNow) * Math.min(1, dt * 1.5);
+    if (target > 0.05 && !wasRaining && !map.indoor) { wasRaining = true; UI.toast('🌧️ Trời đổ mưa rồi… mát quá!', 3000); }
+    if (target <= 0.02) wasRaining = false;
+    if (typeof MUSIC !== 'undefined' && MUSIC.rain) MUSIC.rain(rainNow);
+    const vw = W / ZOOM, vh = H / ZOOM;
+    const want = Math.round(rainNow * (saver() ? 90 : 190));
+    while (drops.length < want) drops.push({ x: cam.x - vw / 2 + Math.random() * (vw + 200), y: cam.y - vh / 2 - Math.random() * vh, sp: 700 + Math.random() * 300, len: 14 + Math.random() * 10 });
+    if (drops.length > want) drops.length = want;
+    for (const d of drops) {
+      d.y += d.sp * dt; d.x -= d.sp * 0.22 * dt;
+      if (d.y > cam.y + vh / 2 || d.x < cam.x - vw / 2 - 40) { d.x = cam.x - vw / 2 + Math.random() * (vw + 200); d.y = cam.y - vh / 2 - 20 - Math.random() * 60; }
+    }
+    if (rainNow > 0.05 && Math.random() < rainNow * dt * 40) splashes.push({ x: cam.x - vw / 2 + Math.random() * vw, y: Math.max(map.hz + 20, cam.y - vh / 2) + Math.random() * vh, t: 0 });
+    for (let i = splashes.length - 1; i >= 0; i--) if ((splashes[i].t += dt) > 0.35) splashes.splice(i, 1);
+  }
+  function drawRain(g) {
+    if (rainNow < 0.02) return;
+    const vw = W / ZOOM, vh = H / ZOOM;
+    g.fillStyle = `rgba(30,45,80,${0.22 * rainNow})`;
+    g.fillRect(cam.x - vw / 2 - 10, cam.y - vh / 2 - 10, vw + 20, vh + 20);
+    g.strokeStyle = `rgba(210,230,255,${0.55 * Math.min(1, rainNow + 0.3)})`; g.lineWidth = 1.6; g.lineCap = 'round';
+    g.beginPath();
+    for (const d of drops) { g.moveTo(d.x, d.y); g.lineTo(d.x + d.len * 0.22, d.y - d.len); }
+    g.stroke();
+    g.strokeStyle = 'rgba(220,235,255,.6)'; g.lineWidth = 1.2;
+    for (const sp of splashes) { const k = sp.t / 0.35; g.globalAlpha = 1 - k; g.beginPath(); g.ellipse(sp.x, sp.y, 3 + k * 9, 1 + k * 3, 0, 0, Math.PI * 2); g.stroke(); }
+    g.globalAlpha = 1;
+  }
+
   /* ---------- Pháo hoa ở Sân Chơi nông trại (mọi người trong nông trại đều thấy) ---------- */
   const FW_PAD = { x: 3640, y: 868 };
   const rockets = [], sparks = [], flashes = [];
@@ -1816,6 +1865,8 @@
 
   /* ---------- Vào / ra nhà ---------- */
   AV.enterHome = () => VISIT ? UI.toast(`🏠 Nhà của ${VISIT.data.name} đang khoá cửa`) : AV.teleport('home', false, 800, 900, '🏠 Vào nhà…');
+  AV.enterClass = () => AV.teleport('classroom', false, 800, 880, '🏫 Vào lớp học…');
+  AV.leaveClass = () => AV.teleport('school', false, 420, 590, '🌳 Ra sân trường…');
   AV.enterCasino = () => AV.teleport('casino', false, 1000, 880, '🎰 Vào Nhà Casino…');
   AV.leaveCasino = () => AV.teleport('fun', false, 2260, 815, '🎡 Ra Khu giải trí…');
   AV.leaveHome = () => AV.teleport('farm', false, 2520, 762, '🌾 Ra nông trại…');
@@ -1839,10 +1890,10 @@
     seatL: { x: 1110, y: 486, dir: 1, sortY: 490, clipY: 478, back: [1150, 565] },
     seatR: { x: 1250, y: 486, dir: -1, sortY: 490, clipY: 478, back: [1210, 565] },
   };
-  function startPose(id, msg) {
-    if (map.id !== 'home') return;
+  function startPose(id, msg, custom) {
+    if (!custom && map.id !== 'home') return;
     if (swingRide) AV.leaveSwing();
-    pose = { id, ...POSES[id] };
+    pose = custom ? { id, ...custom } : { id, ...POSES[id] };
     AV.setSeatPos(pose.x, pose.y, pose.dir);
     UI.toast(`${msg} — bấm vào màn hình để đứng dậy`, 3200);
   }
@@ -1853,6 +1904,15 @@
     AV.leaveSeat(bx, by);
   };
   AV.posing = () => pose;
+  /** Ngồi vào bàn học (người lọt sau bàn, ghế phía sau) */
+  AV.sitDesk = (x, y) => startPose('desk', '📚 Đã ngồi vào bàn — gõ đáp án vào khung chat hoặc bấm nút A B C D', { x, y: y - 8, dir: 1, sortY: y - 2, clipY: y - 30, back: [x, y + 26] });
+  /** Ngồi ghế chờ xe buýt */
+  AV.sitBusBench = (L, R, y) => {
+    const used = NET.players().filter((r) => Math.abs(r.ry - (y - 22)) < 8).map((r) => r.rx);
+    let x = (L + R) / 2;
+    for (const dx of [0, -40, 40, -70, 70]) { if (!used.some((u) => Math.abs(u - ((L + R) / 2 + dx)) < 30)) { x = (L + R) / 2 + dx; break; } }
+    startPose('bench', '🪑 Ngồi đợi xe buýt — bấm 🗺️ hoặc cột biển trạm để chọn nơi đến', { x, y: y - 22, dir: 1, sortY: y - 21, clipY: y - 34, front: (g) => ART.benchFront(g, L + 14, R - 14, y), back: [x, y + 12] });
+  };
   AV.sleep = () => { startPose('bed', '🛏️ Đang nằm ngủ'); homeActivity('lastSleep', 120, 30, '😴 Ngủ một giấc thật ngon! +30 XP', '😴 Zzz…', 'Bạn chưa buồn ngủ'); };
   AV.bathe = () => { startPose('bath', '🛁 Đang ngâm mình trong bồn'); homeActivity('lastBath', 60, 15, '🛁 Tắm xong thơm tho quá! +15 XP', '🛁 La la la~', 'Vừa tắm xong mà'); };
   AV.sitTable = () => {
@@ -2086,6 +2146,7 @@
     if (S.look.pet && S.look.pet !== 'none') followPet(myPet, player, dt, player.dir);
     if (player.dancing && player.dancing < now) { player.dancing = 0; NET.sendState(); }
     if (map.id === 'farm') { updateGuards(dt); updateFireworks(dt); }
+    updateRain(dt);
     spawnPickups(dt);
     updateFishing();
     updateActionButton();
@@ -2308,6 +2369,7 @@
       }
     }
 
+    drawRain(g);
     if (map.id === 'farm') drawFireworks(g);
     if (px) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
