@@ -115,6 +115,8 @@ const ART = (() => {
       else { circle(ctx, -22, -48, 9, look.hairColor); circle(ctx, 22, -48, 9, look.hairColor); }
     }
 
+    cape(ctx, look);
+
     // chân
     const lLift = Math.max(0, swing) * 0.6, rLift = Math.max(0, -swing) * 0.6;
     ctx.fillStyle = look.pants;
@@ -166,9 +168,31 @@ const ART = (() => {
     ctx.restore();
   }
 
+  /** Áo choàng ma cà rồng: vạt choàng đen viền đỏ phía sau người */
+  function cape(ctx, look) {
+    if (look.shirtStyle !== 'vampire') return;
+    ctx.fillStyle = '#1b1b24';
+    ctx.beginPath(); ctx.moveTo(-14, -40); ctx.lineTo(14, -40); ctx.lineTo(22, -2); ctx.quadraticCurveTo(0, 4, -22, -2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#c92a2a';
+    ctx.beginPath(); ctx.moveTo(-12, -38); ctx.lineTo(12, -38); ctx.lineTo(18, -4); ctx.quadraticCurveTo(0, 1, -18, -4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#1b1b24';
+    ctx.beginPath(); ctx.moveTo(-16, -42); ctx.lineTo(-22, -54); ctx.lineTo(-8, -40); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(16, -42); ctx.lineTo(22, -54); ctx.lineTo(8, -40); ctx.closePath(); ctx.fill();
+  }
+
+  function witchSkirt(ctx, look) {
+    ctx.fillStyle = '#5f3dc4';
+    ctx.beginPath(); ctx.moveTo(-11, -18); ctx.lineTo(11, -18); ctx.lineTo(19, -4);
+    for (let i = 1; i <= 6; i++) ctx.lineTo(19 - i * 6.33, i % 2 ? 1 : -5);
+    ctx.lineTo(-19, -4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fd7e14'; ctx.fillRect(-11, -19, 22, 3);
+    [[-7, -11], [6, -9]].forEach(([sx, sy]) => star(ctx, sx, sy, 3, 1.3, '#ffd43b'));
+  }
+
   /** Chân váy cho các kiểu váy (vẽ đè lên phần trên của chân) */
   function skirt(ctx, look) {
     const st = look.shirtStyle;
+    if (st === 'witchdress') return witchSkirt(ctx, look);
     if (st !== 'dress' && st !== 'dress_flower' && st !== 'princess') return;
     const wide = st === 'princess' ? 24 : 17;
     ctx.fillStyle = look.shirt;
@@ -341,6 +365,22 @@ const ART = (() => {
       ctx.fillStyle = '#ced4da';
       ctx.beginPath(); ctx.moveTo(-14, -72); ctx.lineTo(-9, -80); ctx.lineTo(-4, -75); ctx.lineTo(0, -86); ctx.lineTo(4, -75); ctx.lineTo(9, -80); ctx.lineTo(14, -72); ctx.closePath(); ctx.fill();
       circle(ctx, 0, -80, 2.4, '#e64980'); circle(ctx, -9, -77, 1.6, '#74c0fc'); circle(ctx, 9, -77, 1.6, '#74c0fc');
+    } else if (h === 'witch') {
+      ctx.fillStyle = '#2b2140';
+      ctx.beginPath(); ctx.ellipse(0, -68, 30, 7, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-15, -70); ctx.quadraticCurveTo(-6, -92, dir * 14, -108); ctx.quadraticCurveTo(6, -90, 15, -70); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fd7e14'; ctx.fillRect(-15, -76, 30, 5);
+      ctx.fillStyle = '#ffd43b'; ctx.fillRect(-4, -77, 8, 7); ctx.fillStyle = '#2b2140'; ctx.fillRect(-2, -75, 4, 3);
+    } else if (h === 'pumpkinhead') {
+      ctx.fillStyle = '#e8590c';
+      ctx.beginPath(); ctx.ellipse(0, -58, 24, 22, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fd7e14';
+      [-12, 0, 12].forEach((dx) => { ctx.beginPath(); ctx.ellipse(dx, -58, 9, 21, 0, 0, Math.PI * 2); ctx.fill(); });
+      ctx.fillStyle = '#5c940d'; ctx.fillRect(-2, -86, 5, 9);
+      ctx.fillStyle = '#ffd43b';
+      ctx.beginPath(); ctx.moveTo(-12, -64); ctx.lineTo(-5, -64); ctx.lineTo(-8.5, -70); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(5, -64); ctx.lineTo(12, -64); ctx.lineTo(8.5, -70); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-12, -52); ctx.lineTo(12, -52); ctx.lineTo(8, -46); ctx.lineTo(4, -49); ctx.lineTo(0, -45); ctx.lineTo(-4, -49); ctx.lineTo(-8, -46); ctx.closePath(); ctx.fill();
     } else if (h === 'crown') {
       ctx.fillStyle = '#fcc419';
       ctx.beginPath();

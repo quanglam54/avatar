@@ -105,6 +105,13 @@ const CLOUD = (() => {
     return data || [];
   }
 
+  /** Các bản lưu cũ trên máy chủ (cần chạy supabase/03-lich-su-ban-luu.sql) */
+  async function history() {
+    const { data, error } = await client.from('saves_history').select('id, saved_at, data').eq('user_id', user.id).order('saved_at', { ascending: false }).limit(30);
+    if (error) throw new Error(/saves_history/.test(error.message) ? 'Chủ game chưa bật lịch sử bản lưu (chạy file supabase/03-lich-su-ban-luu.sql)' : viError(error));
+    return data || [];
+  }
+
   async function signOut() {
     if (client) await client.auth.signOut();
     user = null;
@@ -157,7 +164,7 @@ const CLOUD = (() => {
   }
 
   return {
-    init, signUp, signIn, signOut, pull, push, pushOnExit, getFarm, recentFarms, sendHelp, pullHelps,
+    init, signUp, signIn, signOut, pull, push, pushOnExit, getFarm, recentFarms, sendHelp, pullHelps, history,
     markDirty: () => { dirty = true; },
     get user() { return user; },
     get username() { return nameOf(user); },

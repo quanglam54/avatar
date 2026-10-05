@@ -392,7 +392,7 @@ const MAPS = (() => {
   const plazaArea = { l: 240, t: 380, r: 1760, b: 790 };
 
   /* ---------- Quảng trường ---------- */
-  function town() {
+  let town = function town() {
     const m = base('town', 'Quảng trường', 2000, 1070);
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 29);
@@ -425,7 +425,7 @@ const MAPS = (() => {
     m.spawn = { x: 1050, y: 875 };
     m.bounds = { l: 20, t: 380, r: m.w - 20, b: m.h - 40 };
     return m;
-  }
+  };
 
   /* ---------- Khu mua sắm ---------- */
   function mall() {
@@ -774,5 +774,49 @@ const MAPS = (() => {
     return m;
   }
 
-  return { farm, town, mall, fun, park, beach, school, home, race };
+  /** Trang trí Halloween: chỉ hiện khi sự kiện đang diễn ra (vẽ nhưng tự ẩn khi tắt) */
+  function halloween(m) {
+    if (m.indoor) return;
+    const r = ART.srand([...m.id].reduce((a, c) => a * 31 + c.charCodeAt(0), 17) % 2147483646);
+    const free = (x, y, pad) => !m.colliders.some((c) => x > c.x - pad && x < c.x + c.w + pad && y > c.y - pad && y < c.y + c.h + pad)
+      && !m.inter.some((o) => x > o.x - 20 && x < o.x + o.w + 20 && y > o.y - 10 && y < o.y + o.h + 30)
+      && (!m.busStop || Math.hypot(x - m.busStop.x, y - m.busStop.y) > 120);
+    const b = m.bounds, spots = [];
+    for (let tries = 0; tries < 400 && spots.length < 14; tries++) {
+      const x = b.l + 60 + r() * (b.r - b.l - 120), y = b.t + 40 + r() * (Math.min(b.b, 840) - b.t - 40);
+      if (free(x, y, 40) && spots.every((p) => Math.hypot(p[0] - x, p[1] - y) > 170)) spots.push([x, y]);
+    }
+    m.hwMagic = [];
+    spots.forEach(([x, y], i) => {
+      const magic = i % 4 === 0;
+      const idx = m.hwMagic.length;
+      if (magic) m.hwMagic.push({ x, y });
+      obj(m, y, (ctx, t) => { if (AV.hw()) ART.jackLantern(ctx, x, y, t, magic && !AV.hwFound(m.id, idx)); });
+      (m.lights = m.lights || []).push([x, y - 16, 36, 'hw']);
+      if (magic) inter(m, { x: x - 26, y: y - 40, w: 52, h: 46, ax: x, ay: y + 22, name: '✨ Bí ngô ma (nhặt kẹo)', use: () => AV.hwPickPumpkin(m.id, idx), hw: true });
+    });
+    if (['park', 'farm', 'school', 'town'].includes(m.id)) {
+      for (let k = 0, tries = 0; k < 5 && tries < 200; tries++) {
+        const x = b.l + 80 + r() * (b.r - b.l - 160), y = b.t + 60 + r() * (Math.min(b.b, 840) - b.t - 60);
+        if (!free(x, y, 50) || spots.some((p) => Math.hypot(p[0] - x, p[1] - y) < 90)) continue;
+        const kk = k++;
+        obj(m, y, (ctx) => { if (AV.hw()) ART.gravestone(ctx, x, y, kk); });
+      }
+    }
+  }
+
+  /* ---------- Tiệm Halloween ở Quảng trường ---------- */
+  const _town = town;
+  town = function townWithHalloween() {
+    const m = _town();
+    m.objects.push({ y: 790, draw: (ctx, t) => { if (AV.hw()) ART.cauldronStall(ctx, 1560, 790, t); } });
+    inter(m, { x: 1470, y: 640, w: 180, h: 160, ax: 1560, ay: 830, name: '🎃 Tiệm Halloween (đổi kẹo)', use: () => UI.halloweenPanel(), arrow: { x: 1560, y: 600, text: 'Halloween' }, hw: true });
+    npc(m, 'Bà Phù Thuỷ', { skin: '#b2f2bb', hair: 'long', hairColor: '#7048e8', shirt: '#5f3dc4', shirtStyle: 'witchdress', pants: '#212529', hat: 'witch' }, { l: 1470, t: 830, r: 1650, b: 850 }, 1640, 840, 'bat');
+    m.npcs[m.npcs.length - 1].hw = true;
+    return m;
+  };
+
+  const all = { farm, town, mall, fun, park, beach, school, home, race };
+  Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
+  return all;
 })();

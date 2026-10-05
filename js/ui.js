@@ -308,9 +308,9 @@ const UI = (() => {
       p.body.innerHTML = `
         <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
         <div class="tabs">${[['shirt', '👗 Váy & áo'], ['hat', '🎩 Mũ'], ['acc', '💍 Trang sức']].map(([k, l]) => `<button class="chip ${tab === k ? 'on' : ''}" data-btab="${k}">${l}</button>`).join('')}</div>
-        <div class="b-grid">${tab === 'hat' ? DATA.HATS.filter((h) => h.id !== 'none').map((h) => card('hat', h)).join('')
+        <div class="b-grid">${tab === 'hat' ? DATA.HATS.filter((h) => h.id !== 'none' && !h.event).map((h) => card('hat', h)).join('')
           : tab === 'acc' ? DATA.ACCS.filter((a) => a.id !== 'none').map((a) => card('acc', a)).join('')
-            : DATA.SHIRT_STYLES.filter((s) => s.id !== 'plain').map((s) => card('shirt', s)).join('')}</div>
+            : DATA.SHIRT_STYLES.filter((s) => s.id !== 'plain' && !s.event).map((s) => card('shirt', s)).join('')}</div>
         <p class="muted small-note">Mua xong thay đổi tự do trong 👕 Tủ đồ. Hình xem trước dùng màu áo hiện tại của bạn.</p>`;
       p.body.querySelectorAll('[data-btab]').forEach((b) => b.onclick = () => { tab = b.dataset.btab; render(); });
       p.body.querySelectorAll('[data-pv]').forEach((c) => {
@@ -427,7 +427,7 @@ const UI = (() => {
       p.body.innerHTML = `
         <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
         <p class="muted">Thú cưng sẽ đi theo bạn khắp thành phố — người chơi khác cũng nhìn thấy!</p>
-        <div class="b-grid">${DATA.PETS.map((pt) => {
+        <div class="b-grid">${DATA.PETS.filter((pt) => !pt.event || S.owned.pets.includes(pt.id)).map((pt) => {
           const owned = S.owned.pets.includes(pt.id);
           const using = S.look.pet === pt.id;
           const btn = using ? '<button class="btn small ghost" disabled>Đang dẫn</button>'
@@ -633,6 +633,47 @@ const UI = (() => {
     render();
   }
 
+  /* ---------- Sự kiện Halloween ---------- */
+  function halloweenPanel() {
+    const S = AV.S;
+    const p = panel('🎃 Lễ hội Halloween', '', { wide: true });
+    const end = new Date(new Date().getFullYear(), 10, 1);
+    const days = Math.max(0, Math.ceil((end - Date.now()) / 86400000));
+    const render = () => {
+      const candy = AV.hwCandy();
+      const own = (it) => (S.owned[{ hat: 'hats', shirt: 'shirtStyles', pet: 'pets' }[it.kind]] || []).includes(it.id);
+      p.body.innerHTML = `
+        <div class="hw-head"><b>🍬 ${candy} kẹo</b><span>${AV.hw() ? `Sự kiện còn ${days} ngày` : 'Sự kiện đang tắt (bật trong Cài đặt)'}</span></div>
+        <ul class="help hw-help">
+          <li>👻 <b>Cho kẹo hay bị ghẹo:</b> bấm vào mọi NPC — mỗi người cho kẹo 1 lần mỗi ngày (Bà Phù Thuỷ cho nhiều nhất!).</li>
+          <li>✨ <b>Bí ngô ma lấp lánh</b> giấu ở mọi khu — bấm vào để nhặt 2–4 kẹo, mỗi ngày nạp lại.</li>
+        </ul>
+        <h4>🧙 Đổi kẹo lấy đồ Halloween</h4>
+        <div class="b-grid">${DATA.HALLOWEEN.shop.map((it, i) => `<div class="b-card"><canvas data-hwpv="${i}"></canvas><b>${it.icon} ${it.name}</b>
+          ${own(it) ? '<button class="btn small ghost" disabled>Đã có</button>' : `<button class="btn small" data-hwbuy="${i}" ${candy < it.candy ? 'disabled' : ''}>Đổi · ${it.candy} 🍬</button>`}</div>`).join('')}</div>
+        <div class="row-end"><button class="btn small ghost" data-ex="10" ${candy < 10 ? 'disabled' : ''}>Đổi 10 🍬 → ${10 * DATA.HALLOWEEN.candyToCoins} xu</button></div>`;
+      p.body.querySelectorAll('[data-hwpv]').forEach((c) => {
+        const it = DATA.HALLOWEEN.shop[+c.dataset.hwpv];
+        const look = { ...S.look };
+        if (it.kind === 'hat') look.hat = it.id; else if (it.kind === 'shirt') look.shirtStyle = it.id;
+        drawAvatar(c, look, { scale: 1.15 });
+        if (it.kind === 'pet') { const ctx = c.getContext('2d'); ctx.save(); ctx.translate(c.clientWidth / 2 + 30, c.clientHeight - 14); ctx.scale(1.4, 1.4); ART.pet(ctx, 0, 0, it.id, -1, performance.now() / 1000, false); ctx.restore(); }
+      });
+      p.body.querySelectorAll('[data-hwbuy]').forEach((b) => b.onclick = () => { AV.hwBuy(DATA.HALLOWEEN.shop[+b.dataset.hwbuy]); render(); });
+      const ex = p.body.querySelector('[data-ex]');
+      if (ex) ex.onclick = () => { AV.hwExchange(10); render(); };
+    };
+    render();
+  }
+
+  function updateEventBtn() {
+    const b = $('#btnEvent');
+    if (!b) return;
+    const on = AV.hw();
+    b.classList.toggle('hide', !on);
+    b.dataset.n = AV.hwCandy();
+  }
+
   /* ---------- Thẻ người chơi & thăm nông trại bạn bè ---------- */
   function playerCard(r) {
     const p = panel(`👤 ${esc(r.name)}`, `
@@ -830,6 +871,38 @@ const UI = (() => {
     });
   }
 
+  /* ---------- Chọn bản lưu khi 2 máy khác nhau ---------- */
+  function chooseSave(local, cloud, done) {
+    const when = (t) => (t ? new Date(t).toLocaleString('vi-VN') : 'không rõ');
+    const card = (k, d, title) => `<button class="save-pick" data-pick="${k}"><b>${title}</b>
+      <span>👤 ${esc(d.name)} · Cấp ${d.level}</span><span>💰 ${d.coins.toLocaleString('vi-VN')} xu · 🌱 ${d.beds} luống</span><small>Thay đổi lần cuối: ${when(d.at)}</small></button>`;
+    const p = panel('☁️ Chọn bản lưu muốn giữ', `
+      <p class="muted">Máy này và tài khoản đang có 2 bản lưu khác nhau. Chọn bản bạn muốn tiếp tục chơi — bản còn lại vẫn được cất làm bản sao để khôi phục sau.</p>
+      <div class="save-picks">${card('local', local, '📱 Bản trên máy này')}${card('cloud', cloud, '☁️ Bản trên tài khoản')}</div>`, { locked: true });
+    p.body.querySelectorAll('[data-pick]').forEach((b) => b.onclick = () => { p.close(); done(b.dataset.pick); });
+  }
+
+  /* ---------- Khôi phục bản lưu cũ ---------- */
+  function restorePanel() {
+    const p = panel('🕘 Khôi phục bản lưu', '', { wide: true });
+    const row = (d, when, attr) => `<div class="shop-row"><span class="ic">💾</span>
+      <div class="info"><b>${esc(d.name || '?')} · Cấp ${d.level || 1} · 💰 ${(d.coins || 0).toLocaleString('vi-VN')} xu · 🌱 ${(d.beds || []).filter(Boolean).length} luống</b><small>${when}</small></div>
+      <button class="btn small" ${attr}>Khôi phục</button></div>`;
+    const locals = AV.localBackups();
+    p.body.innerHTML = `<p class="muted">Chọn một bản lưu cũ để quay lại. Bản hiện tại sẽ được cất làm bản sao trước khi khôi phục.</p>
+      <h4>☁️ Trên tài khoản</h4><div class="shop-list" id="cloudHist">${CLOUD.user ? '<p class="muted">⏳ Đang tải…</p>' : '<p class="muted">Cần đăng nhập tài khoản.</p>'}</div>
+      <h4>📱 Bản sao trên máy này</h4><div class="shop-list">${locals.length ? locals.map((b, i) => row(b.data, new Date(b.at).toLocaleString('vi-VN') + ' · ' + esc(b.reason), `data-local="${i}"`)).join('') : '<p class="muted">Chưa có bản sao nào.</p>'}</div>`;
+    p.body.querySelectorAll('[data-local]').forEach((b) => b.onclick = () => confirm('Khôi phục bản sao này?', 'Khôi phục', () => { p.close(); AV.restoreSave(locals[+b.dataset.local].data, 'bản sao trên máy'); }));
+    if (CLOUD.user) {
+      CLOUD.history().then((rows) => {
+        const box = p.body.querySelector('#cloudHist');
+        if (!box) return;
+        box.innerHTML = rows.length ? rows.map((r, i) => row(r.data, new Date(r.saved_at).toLocaleString('vi-VN'), `data-cloud="${i}"`)).join('') : '<p class="muted">Chưa có bản lưu cũ nào (lịch sử bắt đầu được ghi từ khi bật tính năng).</p>';
+        box.querySelectorAll('[data-cloud]').forEach((b) => b.onclick = () => confirm('Khôi phục bản lưu này? Tiến trình hiện tại sẽ được cất làm bản sao.', 'Khôi phục', () => { p.close(); AV.restoreSave(rows[+b.dataset.cloud].data, 'bản lưu lúc ' + new Date(rows[+b.dataset.cloud].saved_at).toLocaleString('vi-VN')); }));
+      }).catch((e) => { const box = p.body.querySelector('#cloudHist'); if (box) box.innerHTML = `<p class="muted">⚠️ ${esc(e.message)}</p>`; });
+    }
+  }
+
   /* ---------- Đăng nhập / đăng ký ---------- */
   function authPanel(first) {
     let tab = 'login';
@@ -879,10 +952,16 @@ const UI = (() => {
           <div class="row-end"><button class="btn small ghost" data-cloudsave>☁️ Lưu ngay</button><button class="btn small ghost" data-logout>🚪 Đăng xuất</button></div></div>`
       : CLOUD.available ? '<div class="acct warn">⚠️ Bạn đang chơi không tài khoản — tiến trình chỉ lưu trên máy này.<div class="row-end"><button class="btn small" data-login>🔐 Đăng nhập / Tạo tài khoản</button></div></div>' : '';
     const p = panel('⚙️ Cài đặt', `${account}
+      <label class="toggle">🎃 Halloween <select data-hw><option value="auto">Tự động (tháng 10)</option><option value="on">Luôn bật</option><option value="off">Tắt</option></select></label>
       <label class="toggle">🌙 Ngày / đêm <select data-time><option value="real">Theo giờ thật</option><option value="day">Luôn ban ngày</option><option value="night">Luôn ban đêm</option></select></label>
       <label class="toggle"><input type="checkbox" data-pixel ${S.settings && S.settings.pixelArt ? 'checked' : ''}> Hiệu ứng ô vuông pixel (nét to hơn, hơi nhoè)</label>
+      <form class="fsearch" data-gift><input class="field" name="code" placeholder="🎁 Nhập mã quà tặng" maxlength="20" autocomplete="off"><button class="btn small">Nhận</button></form>
+      <div class="row-end"><button class="btn small ghost" data-restore>🕘 Khôi phục bản lưu cũ</button></div>
       <p class="muted">Dữ liệu được lưu tự động trên trình duyệt này.</p>
       <div class="row-end"><button class="btn danger" data-reset>🗑 Chơi lại từ đầu</button></div>`);
+    const hs = p.body.querySelector('[data-hw]');
+    hs.value = (S.settings && S.settings.halloween) || 'auto';
+    hs.onchange = () => { S.settings = { ...(S.settings || {}), halloween: hs.value }; AV.saveNow(); updateEventBtn(); };
     const ts = p.body.querySelector('[data-time]');
     ts.value = (S.settings && S.settings.time) || 'real';
     ts.onchange = () => { S.settings = { ...(S.settings || {}), time: ts.value }; AV.saveNow(); };
@@ -890,6 +969,9 @@ const UI = (() => {
     if (q('[data-cloudsave]')) q('[data-cloudsave]').onclick = () => AV.cloudSaveNow();
     if (q('[data-logout]')) q('[data-logout]').onclick = () => { p.close(); confirm('Đăng xuất khỏi tài khoản? Tiến trình đã được lưu lên mạng.', 'Đăng xuất', () => AV.logout()); };
     if (q('[data-login]')) q('[data-login]').onclick = () => { p.close(); authPanel(false); };
+    q('[data-restore]').onclick = () => { p.close(); restorePanel(); };
+    const gf = q('[data-gift]');
+    gf.onsubmit = (e) => { e.preventDefault(); AV.redeem(gf.code.value); gf.code.value = ''; };
     p.body.querySelector('[data-pixel]').onchange = (e) => {
       S.settings = { ...(S.settings || {}), pixelArt: e.target.checked };
       AV.saveNow();
@@ -937,6 +1019,9 @@ const UI = (() => {
     $('#netStatus').onclick = playersPanel;
     $('#chatLog').onclick = () => $('#chatLog').classList.toggle('active');
     $('#btnMenu').onclick = menu;
+    $('#btnEvent').onclick = halloweenPanel;
+    updateEventBtn();
+    setInterval(updateEventBtn, 5000);
     $('#recenterBtn').onclick = () => AV.recenter();
     $('#btnQuest').onclick = questsPanel;
     updateQuestDot();
@@ -955,5 +1040,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn };
 })();

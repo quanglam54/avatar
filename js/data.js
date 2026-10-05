@@ -23,6 +23,8 @@ const DATA = {
     { id: 'dress', name: 'Váy liền', price: 90 },
     { id: 'dress_flower', name: 'Váy hoa', price: 140 },
     { id: 'princess', name: 'Váy công chúa', price: 320, lvl: 4 },
+    { id: 'vampire', name: 'Áo choàng ma cà rồng', price: 0, event: true },
+    { id: 'witchdress', name: 'Váy phù thuỷ', price: 0, event: true },
   ],
   HATS: [
     { id: 'none', name: 'Không đội', price: 0 },
@@ -37,6 +39,8 @@ const DATA = {
     { id: 'cowboy', name: 'Mũ cao bồi', price: 110 },
     { id: 'tiara', name: 'Vương miện nhỏ', price: 180, lvl: 3 },
     { id: 'crown', name: 'Vương miện', price: 300, lvl: 5 },
+    { id: 'witch', name: 'Mũ phù thuỷ', price: 0, event: true },
+    { id: 'pumpkinhead', name: 'Đầu bí ngô', price: 0, event: true },
   ],
   ACCS: [
     { id: 'none', name: 'Không đeo', price: 0 },
@@ -95,6 +99,8 @@ DATA.PETS = [
   { id: 'cat', name: 'Mèo mướp', price: 120 },
   { id: 'bunny', name: 'Thỏ trắng', price: 150 },
   { id: 'pug', name: 'Chó Pug', price: 180 },
+  { id: 'ghost', name: 'Ma nhỏ', price: 0, event: true },
+  { id: 'bat', name: 'Dơi con', price: 0, event: true },
 ];
 
 DATA.ZONES = [
@@ -154,6 +160,19 @@ DATA.FRUITS = {
 };
 DATA.ORCHARD = ['orange', 'apple', 'mango', 'peach', 'orange', 'mango', 'peach', 'orange', 'apple', 'mango', 'apple', 'peach', 'orange', 'apple', 'mango'];
 
+/** Sự kiện Halloween (tháng 10): đổi kẹo lấy đồ */
+DATA.HALLOWEEN = {
+  shop: [
+    { kind: 'hat', id: 'witch', name: 'Mũ phù thuỷ', icon: '🧙', candy: 15 },
+    { kind: 'shirt', id: 'vampire', name: 'Áo choàng ma cà rồng', icon: '🧛', candy: 25 },
+    { kind: 'shirt', id: 'witchdress', name: 'Váy phù thuỷ', icon: '👗', candy: 25 },
+    { kind: 'hat', id: 'pumpkinhead', name: 'Đầu bí ngô', icon: '🎃', candy: 30 },
+    { kind: 'pet', id: 'bat', name: 'Dơi con', icon: '🦇', candy: 35 },
+    { kind: 'pet', id: 'ghost', name: 'Ma nhỏ', icon: '👻', candy: 40 },
+  ],
+  candyToCoins: 5,
+};
+
 DATA.RECIPES = [
   { id: 'cake_egg', name: 'Bánh trứng', icon: '🥮', need: { egg: 2, wheat: 1 }, sell: 30, xp: 8 },
   { id: 'carrot_cake', name: 'Bánh cà rốt', icon: '🍰', need: { carrot: 3, egg: 1, wheat: 1 }, sell: 55, xp: 10 },
@@ -179,5 +198,6 @@ DATA.ITEMS = (() => {
   for (const f of [...DATA.FISH, ...DATA.SHELLS, ...DATA.RECIPES]) items[f.id] = { name: f.name, icon: f.icon, sell: f.sell };
   for (const [id, f] of Object.entries(DATA.FRUITS)) items[id] = { name: f.name, icon: f.icon, sell: f.sell };
   items.fertilizer = { name: 'Phân bón', icon: '🧪', sell: 0 };
+  items.candy = { name: 'Kẹo Halloween', icon: '🍬', sell: 0 };
   return items;
 })();

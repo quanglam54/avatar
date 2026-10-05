@@ -10,6 +10,35 @@ Object.assign(ART, (() => {
     ctx.save();
     ctx.translate(x, y - hop);
     ctx.scale(dir, 1);
+    if (kind === 'ghost' || kind === 'bat') {
+      ctx.restore();
+      ctx.save();
+      const fl = Math.sin(t * 3) * 5;
+      ctx.translate(x, y - 26 + fl);
+      ctx.scale(dir, 1);
+      if (kind === 'ghost') {
+        ctx.fillStyle = 'rgba(248,249,250,.95)';
+        ctx.beginPath(); ctx.arc(0, -10, 13, Math.PI, 0); ctx.lineTo(13, 8);
+        for (let k = 13; k > -13; k -= 6.5) ctx.quadraticCurveTo(k - 3.25, 14 + Math.sin(t * 6 + k) * 2, k - 6.5, 8);
+        ctx.closePath(); ctx.fill();
+        circle(ctx, -4, -10, 2.4, '#212529'); circle(ctx, 5, -10, 2.4, '#212529');
+        ctx.fillStyle = '#212529'; ctx.beginPath(); ctx.ellipse(1, -3, 2.4, 3, 0, 0, Math.PI * 2); ctx.fill();
+      } else {
+        const wf = Math.sin(t * 16) * 0.6;
+        ctx.fillStyle = '#4b2e83';
+        [-1, 1].forEach((sd) => {
+          ctx.save(); ctx.scale(sd, 1); ctx.rotate(wf * 0.5);
+          ctx.beginPath(); ctx.moveTo(4, -4); ctx.quadraticCurveTo(16, -16, 24, -6); ctx.quadraticCurveTo(18, -6, 16, 0); ctx.quadraticCurveTo(12, -3, 8, 2); ctx.closePath(); ctx.fill();
+          ctx.restore();
+        });
+        circle(ctx, 0, -2, 7, '#5f3dc4');
+        ctx.beginPath(); ctx.moveTo(-5, -7); ctx.lineTo(-3, -13); ctx.lineTo(-1, -8); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(5, -7); ctx.lineTo(3, -13); ctx.lineTo(1, -8); ctx.fill();
+        circle(ctx, -2.5, -3, 1.4, '#ffd43b'); circle(ctx, 2.5, -3, 1.4, '#ffd43b');
+      }
+      ctx.restore();
+      return;
+    }
     if (kind === 'chick') {
       circle(ctx, 0, -8, 8, '#ffe066');
       circle(ctx, 5, -15, 5.5, '#ffe066');
@@ -393,6 +422,95 @@ Object.assign(ART, (() => {
     circle(ctx, x, y - 200, 6, '#ffd43b');
     ctx.fillStyle = '#a0602e'; rr(ctx, x - 50, y - 46, 100, 10, 3); ctx.fill();
     ctx.fillRect(x - 44, y - 38, 6, 26); ctx.fillRect(x + 38, y - 38, 6, 26);
+  }
+
+  /* ---------- Halloween ---------- */
+  function jackLantern(ctx, x, y, t, magic) {
+    shadow(ctx, x, y, 18, 5);
+    ctx.fillStyle = '#d9480f';
+    ctx.beginPath(); ctx.ellipse(x, y - 15, 20, 15, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fd7e14';
+    [-10, 0, 10].forEach((dx) => { ctx.beginPath(); ctx.ellipse(x + dx, y - 15, 8, 14.5, 0, 0, Math.PI * 2); ctx.fill(); });
+    ctx.fillStyle = '#5c940d'; ctx.fillRect(x - 2, y - 36, 5, 8);
+    const glow = 0.75 + 0.25 * Math.sin(t * 5 + x);
+    ctx.fillStyle = `rgba(255,224,102,${glow})`;
+    ctx.beginPath(); ctx.moveTo(x - 11, y - 19); ctx.lineTo(x - 4, y - 19); ctx.lineTo(x - 7.5, y - 25); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x + 4, y - 19); ctx.lineTo(x + 11, y - 19); ctx.lineTo(x + 7.5, y - 25); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - 11, y - 12); ctx.lineTo(x + 11, y - 12); ctx.lineTo(x + 7, y - 6); ctx.lineTo(x + 3, y - 9); ctx.lineTo(x, y - 5); ctx.lineTo(x - 3, y - 9); ctx.lineTo(x - 7, y - 6); ctx.closePath(); ctx.fill();
+    if (magic) {
+      for (let k = 0; k < 4; k++) {
+        const a = t * 2 + k * 1.57, r = 24 + Math.sin(t * 3 + k) * 4;
+        ART.star(ctx, x + Math.cos(a) * r, y - 16 + Math.sin(a) * r * 0.6, 4, 1.6, `rgba(255,240,150,${0.6 + 0.4 * Math.sin(t * 6 + k)})`);
+      }
+    }
+  }
+
+  function gravestone(ctx, x, y, k) {
+    shadow(ctx, x, y, 22, 5);
+    ctx.fillStyle = '#868e96';
+    ctx.beginPath(); ctx.moveTo(x - 16, y); ctx.lineTo(x - 16, y - 30); ctx.arc(x, y - 30, 16, Math.PI, 0); ctx.lineTo(x + 16, y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#adb5bd'; ctx.beginPath(); ctx.moveTo(x - 12, y - 2); ctx.lineTo(x - 12, y - 30); ctx.arc(x, y - 30, 12, Math.PI, 0); ctx.lineTo(x + 12, y - 2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#495057'; ctx.font = '900 10px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(['R.I.P', 'BOO', '👻'][k % 3], x, y - 26);
+    ctx.fillStyle = '#5c940d'; [-14, -6, 8, 14].forEach((dx) => { ctx.beginPath(); ctx.moveTo(x + dx - 3, y); ctx.lineTo(x + dx, y - 7); ctx.lineTo(x + dx + 3, y); ctx.fill(); });
+  }
+
+  /** Dơi bay ngang trời và ma lơ lửng (vẽ theo vùng đang nhìn) */
+  function hwSky(ctx, cx, cy, vw, vh, t, hz) {
+    for (let i = 0; i < 7; i++) {
+      const span = vw + 400;
+      const bx = cx - vw / 2 - 200 + ((i * 377 + t * (60 + i * 9)) % span);
+      const by = Math.min(cy - vh / 2 + 70 + (i * 53) % 200, hz > 0 ? hz - 30 : cy) + Math.sin(t * 3 + i) * 14;
+      const wf = Math.sin(t * 14 + i) * 0.7, s = 0.7 + (i % 3) * 0.2;
+      ctx.save(); ctx.translate(bx, by); ctx.scale(s, s);
+      ctx.fillStyle = '#2b2140';
+      [-1, 1].forEach((sd) => { ctx.save(); ctx.scale(sd, 1); ctx.rotate(wf * 0.5); ctx.beginPath(); ctx.moveTo(3, -2); ctx.quadraticCurveTo(14, -14, 22, -4); ctx.quadraticCurveTo(16, -4, 14, 2); ctx.quadraticCurveTo(10, -1, 6, 3); ctx.closePath(); ctx.fill(); ctx.restore(); });
+      circle(ctx, 0, 0, 5, '#2b2140');
+      ctx.restore();
+    }
+    for (let i = 0; i < 3; i++) {
+      const gx = cx - vw / 2 + ((i * 523 + t * 25) % (vw + 200)) - 100, gy = cy - vh / 4 + i * 90 + Math.sin(t * 1.3 + i * 2) * 20;
+      ctx.globalAlpha = 0.45 + 0.2 * Math.sin(t * 2 + i);
+      ctx.fillStyle = '#f8f9fa';
+      ctx.beginPath(); ctx.arc(gx, gy, 16, Math.PI, 0); ctx.lineTo(gx + 16, gy + 18);
+      for (let k = 16; k > -16; k -= 8) ctx.quadraticCurveTo(gx + k - 4, gy + 24, gx + k - 8, gy + 18);
+      ctx.closePath(); ctx.fill();
+      circle(ctx, gx - 5, gy - 2, 2.6, '#212529'); circle(ctx, gx + 5, gy - 2, 2.6, '#212529');
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /** Dây đèn cam tím chăng dọc hàng rào */
+  function hwBunting(ctx, x1, x2, y, t) {
+    ctx.strokeStyle = '#2b2140'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let x = x1; x <= x2; x += 60) { ctx.moveTo(x, y); ctx.quadraticCurveTo(x + 30, y + 16, x + 60, y); }
+    ctx.stroke();
+    for (let x = x1 + 10; x < x2; x += 20) {
+      const sag = 16 * 0.5 * (1 - Math.pow(((x - x1) % 60) / 30 - 1, 2));
+      const on = (Math.floor(t * 3) + Math.floor(x / 20)) % 2 === 0;
+      circle(ctx, x, y + 2 + sag, 4, (Math.floor(x / 20) % 2 ? '#ff922b' : '#9775fa') + (on ? '' : '88'));
+    }
+  }
+
+  function cauldronStall(ctx, x, y, t) {
+    shadow(ctx, x, y, 90, 12);
+    ctx.fillStyle = '#4b2e83'; ctx.fillRect(x - 84, y - 130, 10, 130); ctx.fillRect(x + 74, y - 130, 10, 130);
+    for (let k = 0; k < 8; k++) { ctx.fillStyle = k % 2 ? '#ff922b' : '#2b2140'; ctx.beginPath(); ctx.moveTo(x - 92 + k * 23, y - 150); ctx.lineTo(x - 92 + (k + 1) * 23, y - 150); ctx.lineTo(x - 92 + (k + 1) * 23, y - 124); ctx.quadraticCurveTo(x - 92 + (k + 0.5) * 23, y - 114, x - 92 + k * 23, y - 124); ctx.fill(); }
+    ctx.fillStyle = '#2b2140'; rr(ctx, x - 70, y - 176, 140, 28, 8); ctx.fill();
+    ctx.fillStyle = '#ffa94d'; ctx.font = '900 14px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🎃 TIỆM HALLOWEEN', x, y - 162);
+    ctx.fillStyle = '#212529'; ctx.beginPath(); ctx.ellipse(x, y - 30, 40, 30, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#343a40'; ctx.beginPath(); ctx.ellipse(x, y - 56, 42, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#69db7c'; ctx.beginPath(); ctx.ellipse(x, y - 57, 36, 6, 0, 0, Math.PI * 2); ctx.fill();
+    for (let k = 0; k < 5; k++) {
+      const p = (t * 0.7 + k / 5) % 1;
+      ctx.globalAlpha = 1 - p;
+      circle(ctx, x - 20 + k * 10 + Math.sin(p * 8 + k) * 4, y - 60 - p * 50, 4 + p * 3, '#8ce99a');
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#495057'; ctx.fillRect(x - 30, y - 6, 8, 8); ctx.fillRect(x + 22, y - 6, 8, 8);
+    jackLantern(ctx, x - 60, y, t, false); jackLantern(ctx, x + 60, y, t, false);
   }
 
   /* ---------- Máy chơi game (arcade) ---------- */
@@ -1181,5 +1299,5 @@ Object.assign(ART, (() => {
     }
   }
 
-  return { arcadeCabinet, grandstand, raceCar, startGate, swingFrame, swingSeat, gazebo, innerWallH, innerWallV, sofa, tvSet, coffeeTable, bookshelf, plantPot, kitchenCounter, fridge, diningTable, bedFurn, wardrobe, nightstand, bathtub, sinkMirror, storageShelf, chest, homeDoor, treeFruits, lantern, pillar, wallH, wallV, farmGate, barn, windmill, flowerBed, trough, blackboard, desk, podium, flagPole, fishingRod, biteMark, stonePath, BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
+  return { jackLantern, gravestone, hwSky, hwBunting, cauldronStall, arcadeCabinet, grandstand, raceCar, startGate, swingFrame, swingSeat, gazebo, innerWallH, innerWallV, sofa, tvSet, coffeeTable, bookshelf, plantPot, kitchenCounter, fridge, diningTable, bedFurn, wardrobe, nightstand, bathtub, sinkMirror, storageShelf, chest, homeDoor, treeFruits, lantern, pillar, wallH, wallV, farmGate, barn, windmill, flowerBed, trough, blackboard, desk, podium, flagPole, fishingRod, biteMark, stonePath, BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
 })());

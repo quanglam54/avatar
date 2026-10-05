@@ -70,8 +70,10 @@
     if (!player.hidden) { S.x = Math.round(player.x); S.y = Math.round(player.y); }
     S.savedAt = Date.now();
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* bỏ qua */ }
-    if (CLOUD.user) CLOUD.markDirty();
+    if (CLOUD.user && cloudReady) CLOUD.markDirty();
   }
+  /** Đã quyết định xong dùng bản lưu nào sau khi đăng nhập thì mới được đẩy lên mạng */
+  let cloudReady = false;
 
   /* ---------- Thực thể ---------- */
   const player = { x: 0, y: 0, dir: 1, moving: false, t: 0, target: null, pending: null, hidden: false, bubble: null, stuck: 0, dancing: 0, fishing: null };
@@ -250,9 +252,11 @@
 
   let cloudTimer = null;
   function changed() {
+    // changedAt chỉ đổi khi tiến trình thật sự thay đổi (mua, bán, trồng…) — dùng để so bản lưu giữa các máy
+    S.changedAt = Date.now();
     saveNow();
     // có thay đổi quan trọng: lưu lên mạng sau 3 giây (gom nhiều thay đổi liền nhau)
-    if (CLOUD.user && !cloudTimer) cloudTimer = setTimeout(() => { cloudTimer = null; CLOUD.push(S); }, 3000);
+    if (CLOUD.user && cloudReady && !cloudTimer) cloudTimer = setTimeout(() => { cloudTimer = null; CLOUD.push(S); }, 3000);
     UI.updateHud();
     NET.sendState();
   }
@@ -1004,6 +1008,67 @@
     fade.mode = 'out';
   };
 
+  /* ---------- Sự kiện Halloween (tự bật cả tháng 10) ---------- */
+  AV.hw = () => {
+    const mode = (S.settings && S.settings.halloween) || 'auto';
+    return mode === 'on' || (mode === 'auto' && new Date().getMonth() === 9);
+  };
+  const hwDay = () => new Date().toDateString();
+  function hwState() {
+    if (!S.hw || S.hw.day !== hwDay()) S.hw = { day: hwDay(), found: {}, npc: {} };
+    return S.hw;
+  }
+  AV.hwFound = (mapId, i) => !!hwState().found[mapId + ':' + i];
+  function giveCandy(n, x, y) {
+    addItem('candy', n);
+    float(`+${n} 🍬`, x ?? player.x, (y ?? player.y) - 110, '#ff922b');
+    UI.updateEventBtn();
+  }
+  AV.hwPickPumpkin = (mapId, i) => {
+    if (!AV.hw()) return;
+    const st = hwState(), key = mapId + ':' + i;
+    if (st.found[key]) return UI.toast('🎃 Bí ngô này hết kẹo rồi, mai quay lại nhé!');
+    st.found[key] = true;
+    const n = 2 + Math.floor(Math.random() * 3);
+    giveCandy(n);
+    addXP(4);
+    say(player, ['Trick or treat! 🎃', 'Oa, kẹo nè! 🍬', 'Boo! 👻'][Math.floor(Math.random() * 3)]);
+    changed();
+  };
+  /** NPC: cho kẹo hay bị ghẹo — mỗi NPC cho 1 lần mỗi ngày */
+  function trickOrTreat(e) {
+    const st = hwState();
+    if (st.npc[e.name]) return false;
+    st.npc[e.name] = true;
+    const n = e.hw ? 5 : 2 + Math.floor(Math.random() * 2);
+    say(e, e.hw ? 'Hí hí hí… Kẹo phù thuỷ cho cháu nè! 🧙' : ['Kẹo nè, đừng ghẹo nha! 🍬', 'Happy Halloween! 🎃', 'Lấy kẹo đi nè 👻'][Math.floor(Math.random() * 3)]);
+    giveCandy(n, e.x, e.y);
+    changed();
+    return true;
+  }
+  AV.hwCandy = () => S.inv.candy || 0;
+  AV.hwBuy = (it) => {
+    const keyOwn = { hat: 'hats', shirt: 'shirtStyles', pet: 'pets' }[it.kind];
+    S.owned[keyOwn] = S.owned[keyOwn] || ['none'];
+    if (S.owned[keyOwn].includes(it.id)) return UI.toast('Bạn đã có món này rồi');
+    if (AV.hwCandy() < it.candy) return UI.toast(`Cần ${it.candy} 🍬 — đi xin kẹo NPC và tìm bí ngô ma lấp lánh nhé!`);
+    S.inv.candy -= it.candy;
+    S.owned[keyOwn].push(it.id);
+    if (it.kind === 'pet') AV.wearPet(it.id); else AV.wear(it.kind, it.id);
+    UI.toast(`🎃 Đã đổi ${it.name}!`);
+    UI.updateEventBtn();
+    changed();
+  };
+  AV.hwExchange = (n) => {
+    n = Math.min(n, AV.hwCandy());
+    if (n <= 0) return;
+    S.inv.candy -= n;
+    S.coins += n * DATA.HALLOWEEN.candyToCoins;
+    UI.toast(`Đổi ${n} 🍬 → ${n * DATA.HALLOWEEN.candyToCoins} xu`);
+    UI.updateEventBtn();
+    changed();
+  };
+
   /* ---------- Thăm nông trại bạn bè ---------- */
   function visitOnly(what) {
     UI.toast(`Đây là nông trại của ${VISIT.data.name} — bạn không thể ${what} ở đây. Bấm ô ruộng để 💧 tưới giúp nhé!`, 3500);
@@ -1241,6 +1306,8 @@
       e.dir = player.x < e.x ? -1 : 1;
       e.wait = Math.max(e.wait, 3);
       e.moving = false;
+      if (AV.hw() && trickOrTreat(e)) return;
+      if (e.hw && !AV.hw()) return;
       say(e, [`Chào ${S.name}!`, 'Hôm nay bạn khoẻ không?', 'Ghé Chợ chơi nha!', 'Đồ bạn mặc xinh quá!'][Math.floor(Math.random() * 4)]);
     } else {
       say(e, SOUNDS[e.kind]);
@@ -1499,6 +1566,7 @@
     const petDraw = (p, kind) => list.push({ y: p.y, draw: () => out((c) => ART.pet(c, p.x, p.y, kind, p.dir, p.t, p.moving), p.x, p.y, FX.BOX.pet, p) });
     const charDraw = (x, y, look, o, key) => list.push({ y, draw: () => out((c) => ART.character(c, x, y, look, o), x, y, FX.BOX.character, key) });
     map.npcs.forEach((n) => {
+      if (n.hw && !AV.hw()) return;
       charDraw(n.x, n.y, n.look, n, n);
       if (n.petState) petDraw(n.petState, n.look.pet);
     });
@@ -1520,6 +1588,11 @@
     }
     list.sort((a, b) => a.y - b.y);
     list.forEach((o) => o.draw(g, clock));
+    if (AV.hw() && !map.indoor) {
+      const vw = W / ZOOM, vh = H / ZOOM;
+      if (map.hz > 0) ART.hwBunting(g, Math.max(0, cam.x - vw / 2 - 60), Math.min(map.w, cam.x + vw / 2 + 60), map.hz - 40, clock);
+      ART.hwSky(g, cam.x, cam.y, vw, vh, clock, map.hz);
+    }
     if (night > 0) {
       const vw = W / ZOOM, vh = H / ZOOM;
       g.fillStyle = `rgba(16,26,72,${0.45 * night})`;
@@ -1528,7 +1601,8 @@
       if (map.lights) {
         g.save();
         g.globalCompositeOperation = 'lighter';
-        for (const [lx, ly, lr] of map.lights) {
+        for (const [lx, ly, lr, kind] of map.lights) {
+          if (kind === 'hw' && !AV.hw()) continue;
           if (Math.abs(lx - cam.x) > vw / 2 + lr || Math.abs(ly - cam.y) > vh / 2 + lr) continue;
           const gr = g.createRadialGradient(lx, ly, 2, lx, ly, lr);
           gr.addColorStop(0, `rgba(255,200,110,${0.38 * night})`); gr.addColorStop(1, 'rgba(255,180,80,0)');
@@ -1559,10 +1633,10 @@
     if (map.board) drawBoard(map.board);
 
     // mũi tên vàng "Vào" trước cửa
-    map.inter.forEach((o) => { if (o.arrow) ART.doorArrow(ctx, o.arrow.x, o.arrow.y, clock, o.arrow.text); });
+    map.inter.forEach((o) => { if (o.arrow && (!o.hw || AV.hw())) ART.doorArrow(ctx, o.arrow.x, o.arrow.y, clock, o.arrow.text); });
 
     // bảng tên gỗ dưới chân như Avatar
-    map.npcs.forEach((n) => ART.namePlate(ctx, n.name, n.x, n.y + 6, 'npc'));
+    map.npcs.forEach((n) => { if (!n.hw || AV.hw()) ART.namePlate(ctx, n.name, n.x, n.y + 6, 'npc'); });
     others.forEach((r) => ART.namePlate(ctx, r.name, r.rx, r.ry + 6, 'other'));
     if (!player.hidden) ART.namePlate(ctx, S.name || 'Bạn', player.x, player.y + 6, 'me');
 
@@ -1651,7 +1725,7 @@
   }
 
   function interAt(x, y) {
-    const hits = map.inter.filter((o) => x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h);
+    const hits = map.inter.filter((o) => (!o.hw || AV.hw()) && x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h);
     hits.sort((a, b) => a.w * a.h - b.w * b.h);
     return hits[0] || null;
   }
@@ -1811,34 +1885,100 @@
     NET.sendState();
   }
 
+  /** Cất một bản sao trong máy trước khi thay bản lưu (để khôi phục nếu cần) */
+  function backupLocal(reason) {
+    if (!S.name) return;
+    try {
+      const list = JSON.parse(localStorage.getItem('avatar_backups') || '[]');
+      list.unshift({ at: Date.now(), reason, data: JSON.parse(JSON.stringify(S)) });
+      localStorage.setItem('avatar_backups', JSON.stringify(list.slice(0, 6)));
+    } catch (e) { /* bộ nhớ đầy thì thôi */ }
+  }
+  AV.localBackups = () => { try { return JSON.parse(localStorage.getItem('avatar_backups') || '[]'); } catch (e) { return []; } };
+
+  /** Dùng một bản lưu (từ máy chủ hoặc bản sao) thay cho bản hiện tại, rồi đẩy lên tài khoản */
+  AV.restoreSave = async (data, label) => {
+    backupLocal('trước khi khôi phục');
+    const uid = S.owner;
+    replaceState(data);
+    if (uid) S.owner = uid;
+    S.changedAt = Date.now();
+    saveNow();
+    joinRoom();
+    if (CLOUD.user) await CLOUD.push(S);
+    UI.toast(`✅ Đã khôi phục ${label || 'bản lưu'}`, 4000);
+  };
+
+  const summary = (d) => ({ name: d.name, level: d.level || 1, coins: d.coins || 0, beds: (d.beds || []).filter(Boolean).length, at: d.changedAt || 0 });
+
   AV.afterLogin = async () => {
     setTimeout(receiveHelps, 4000);
+    cloudReady = false;
     const uid = CLOUD.user.id;
     let cloud = null;
     try { cloud = await CLOUD.pull(); } catch (e) { UI.toast('⚠️ ' + e.message, 6000); }
+    const finish = () => { cloudReady = true; saveNow(); joinRoom(); };
     if (cloud && cloud.data && cloud.data.name) {
-      const cloudAt = new Date(cloud.updated_at).getTime();
-      const localNewer = S.owner === uid && (S.savedAt || 0) > cloudAt + 2000;
-      if (!localNewer) replaceState(cloud.data);
-      S.owner = uid;
-      saveNow();
-      joinRoom();
-      if (localNewer) CLOUD.push(S);
-      UI.toast(`Chào mừng trở lại, ${S.name}! ☁️ Đã tải nhân vật từ tài khoản`, 3500);
+      const local = S.owner === uid && S.name ? S : null;
+      const lc = local ? local.changedAt || 0 : 0, cc = cloud.data.changedAt || 0;
+      const same = local && JSON.stringify(summary(local)) === JSON.stringify(summary(cloud.data));
+      if (!local || same || (cc && lc && cc >= lc)) {
+        // bản trên tài khoản mới hơn (hoặc máy này chưa có nhân vật) → dùng bản tài khoản
+        if (local && !same) backupLocal('bản trên máy này trước khi tải bản tài khoản');
+        replaceState(cloud.data);
+        S.owner = uid;
+        finish();
+        UI.toast(`Chào mừng trở lại, ${S.name}! ☁️ Đã tải nhân vật từ tài khoản`, 3500);
+      } else if (cc && lc && lc > cc) {
+        // máy này có thay đổi chưa kịp lưu lên tài khoản → giữ bản máy này
+        S.owner = uid;
+        finish();
+        CLOUD.push(S);
+        UI.toast(`Chào mừng trở lại, ${S.name}! ☁️ Đã lưu tiến trình mới nhất của máy này lên tài khoản`, 3500);
+      } else {
+        // bản lưu cũ chưa có dấu thời gian thay đổi → hỏi người chơi giữ bản nào
+        S.owner = uid;
+        UI.chooseSave(summary(local), summary(cloud.data), (pick) => {
+          if (pick === 'cloud') { backupLocal('bản trên máy này (không chọn)'); replaceState(cloud.data); S.owner = uid; }
+          S.changedAt = Date.now();
+          finish();
+          CLOUD.push(S);
+          UI.toast(`☁️ Đã dùng ${pick === 'cloud' ? 'bản trên tài khoản' : 'bản trên máy này'}`, 3500);
+        });
+      }
     } else if (S.name && (!S.owner || S.owner === uid)) {
       // tài khoản mới: chuyển nhân vật đang chơi trong máy lên tài khoản
       S.owner = uid;
+      S.changedAt = Date.now();
+      cloudReady = true;
       saveNow();
       joinRoom();
       const ok = await CLOUD.push(S);
       UI.toast(ok ? `☁️ Đã lưu nhân vật ${S.name} vào tài khoản — giờ chơi máy nào cũng được!` : '⚠️ Chưa lưu được lên mạng, game sẽ thử lại', 4000);
     } else {
+      backupLocal('nhân vật khác trên máy này');
       replaceState(defaultState());
       S.owner = uid;
+      cloudReady = true;
       saveNow();
       joinRoom();
       UI.characterEditor(true);
     }
+  };
+
+  /** Mã quà tặng (mỗi mã dùng 1 lần cho mỗi nhân vật) */
+  const GIFTS = { 'XINLOI3500': { coins: 3500, msg: 'Quà xin lỗi vì lỗi mất đồ' } };
+  AV.redeem = (code) => {
+    const c = String(code || '').trim().toUpperCase().replace(/\s+/g, '');
+    const g = GIFTS[c];
+    if (!g) return UI.toast('Mã quà không đúng 🤔');
+    S.redeemed = S.redeemed || [];
+    if (S.redeemed.includes(c)) return UI.toast('Bạn đã dùng mã này rồi');
+    S.redeemed.push(c);
+    S.coins += g.coins;
+    float(`+${g.coins} 💰`, player.x, player.y - 120, '#ffd43b');
+    UI.toast(`🎁 ${g.msg}: +${g.coins.toLocaleString('vi-VN')} xu!`, 5000);
+    changed();
   };
 
   AV.cloudSaveNow = async () => {
@@ -1863,12 +2003,12 @@
     UI.authPanel(true);
   })();
 
-  setInterval(() => { if (CLOUD.user && CLOUD.dirty) CLOUD.push(S); }, 10000);
-  window.addEventListener('pagehide', () => { saveNow(); CLOUD.pushOnExit(S); });
+  setInterval(() => { if (CLOUD.user && cloudReady && CLOUD.dirty) CLOUD.push(S); }, 10000);
+  window.addEventListener('pagehide', () => { saveNow(); if (cloudReady) CLOUD.pushOnExit(S); });
 
   setInterval(saveNow, 5000);
   window.addEventListener('beforeunload', saveNow);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) { saveNow(); if (CLOUD.user) CLOUD.push(S); } });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { saveNow(); if (CLOUD.user && cloudReady) CLOUD.push(S); } });
 
   AV._debug = { player, bus, maps, get map() { return map; }, enterMap, update, draw, goTo, findPath, clickWorld, camOff, cam, get zoom() { return ZOOM; } };
   requestAnimationFrame(loop);
