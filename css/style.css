@@ -353,3 +353,67 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .quiz-bar button b { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #2d8fe6; color: #fff; margin-right: 6px; font-size: 13px; }
 .quiz-bar button:active { transform: translateY(3px); box-shadow: 0 1px 0 #1b2f48; }
 @media (max-width: 560px) { .quiz-bar button { font-size: 13px; padding: 7px 8px; } }
+
+/* ================= Bàn Tiến lên ================= */
+.table-view { position: fixed; inset: 0; z-index: 30; display: none; background: rgba(8, 18, 12, .6); padding: 12px; }
+.table-view.show { display: grid; place-items: center; }
+.tv { width: min(940px, 100%); height: min(660px, 100%); display: flex; flex-direction: column; border: 3px solid #2b1a10; border-radius: 24px; background: linear-gradient(#a0602e, #7a4520); box-shadow: 0 8px 0 #2b1a10, 0 20px 50px rgba(0,0,0,.5); overflow: hidden; }
+.tv-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: linear-gradient(#7fd7ff, #2d8fe6 60%, #1f73c4); border-bottom: 3px solid #2b1a10; color: #fff; text-shadow: 0 2px 0 #134a80; }
+.tv-head b { font-size: 18px; }
+.tv-head span { font-weight: 800; background: rgba(0,0,0,.22); padding: 3px 10px; border-radius: 99px; }
+.tv-x { margin-left: auto; border: 2px solid #2b1a10; border-radius: 10px; padding: 6px 12px; font-weight: 800; background: linear-gradient(#ffffff, #dff1ff); color: #1f2433; text-shadow: none; box-shadow: 0 3px 0 #2b1a10; }
+.felt { flex: 1; position: relative; margin: 10px 12px; border-radius: 46% / 42%; border: 7px solid #5a3010; background: radial-gradient(ellipse at center, #3aa35a, #1f6e37 75%); box-shadow: inset 0 0 40px rgba(0,0,0,.35); min-height: 260px; }
+.seat { position: absolute; background: rgba(0,0,0,.42); color: #fff; border-radius: 14px; padding: 6px 10px; min-width: 120px; text-align: center; border: 2px solid rgba(255,255,255,.35); }
+.seat.top { top: 8px; left: 50%; transform: translateX(-50%); }
+.seat.left { left: 10px; top: 50%; transform: translateY(-50%); }
+.seat.right { right: 10px; top: 50%; transform: translateY(-50%); }
+.seat.bottom { bottom: 8px; left: 50%; transform: translateX(-50%); }
+.seat.empty { background: rgba(255,255,255,.12); border-style: dashed; color: #d3f9d8; }
+.seat.turn { box-shadow: 0 0 0 3px #ffd43b, 0 0 22px #ffd43b; }
+.seat .who { display: flex; align-items: center; gap: 6px; justify-content: center; font-size: 14px; }
+.seat .ava { font-size: 18px; }
+.seat .cnt { font-weight: 800; margin-top: 3px; display: flex; gap: 6px; align-items: center; justify-content: center; }
+.seat .back { width: 16px; height: 22px; border-radius: 3px; background: linear-gradient(135deg, #e03131, #862e9c); border: 1.5px solid #fff; display: inline-block; }
+.seat .tag { margin-top: 3px; font-size: 12px; background: #868e96; border-radius: 99px; padding: 1px 8px; display: inline-block; }
+.seat .tbar { height: 5px; background: rgba(255,255,255,.25); border-radius: 99px; margin-top: 5px; overflow: hidden; }
+.seat .tbar i { display: block; height: 100%; background: #ffd43b; transition: width .4s linear; }
+.seat .pay { font-weight: 900; color: #ffa8a8; margin-top: 3px; }
+.seat .pay.win { color: #b2f2bb; }
+.seat .reveal { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; margin-top: 4px; max-width: 200px; }
+.center-play, .lobby { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; color: #fff; width: min(440px, 70%); }
+.played { display: flex; justify-content: center; gap: 4px; flex-wrap: wrap; }
+.pdesc { margin-top: 6px; font-weight: 800; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.center-play .msg { margin-top: 8px; font-weight: 900; color: #ffe066; min-height: 22px; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.lobby { display: grid; gap: 10px; justify-items: center; background: rgba(0,0,0,.3); border-radius: 18px; padding: 14px; }
+.lobby .muted { color: #d3f9d8; }
+.lrow { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; font-weight: 700; }
+.lobby .chip { background: #fff; color: #1f2433; }
+.lobby .chip.on { background: #ffd43b; }
+.toggle-in input { width: 18px; height: 18px; }
+.invite { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.endbox { font-size: 20px; font-weight: 900; color: #ffe066; }
+.endbox small { display: block; font-size: 13px; color: #fff; font-weight: 700; }
+.pc { width: 46px; height: 66px; border-radius: 7px; background: #fff; border: 2px solid #2b1a10; display: grid; align-content: center; justify-items: center; color: #1f2433; padding: 0; box-shadow: 0 3px 0 rgba(0,0,0,.3); transition: transform .1s; cursor: default; font: inherit; }
+.pc b { font-size: 17px; line-height: 1; }
+.pc i { font-style: normal; font-size: 18px; line-height: 1.1; }
+.pc.red { color: #e03131; }
+.pc[data-card] { cursor: pointer; }
+.pc.sel { transform: translateY(-16px); box-shadow: 0 0 0 3px #ffd43b, 0 6px 12px rgba(0,0,0,.35); }
+.pc.sm { width: 26px; height: 36px; border-width: 1.5px; }
+.pc.sm b { font-size: 11px; } .pc.sm i { font-size: 11px; }
+.myhand { padding: 8px 12px 12px; background: rgba(0,0,0,.25); }
+.myhand.turn { background: rgba(255, 212, 59, .25); }
+.myhand .cards { display: flex; justify-content: center; padding-top: 18px; min-height: 84px; }
+.myhand .cards .pc + .pc { margin-left: -12px; }
+.myhand .acts { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.myhand .wait { color: #fff; font-weight: 800; }
+.table-btn { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 7; display: none; border: 3px solid #fff; border-radius: 14px; padding: 8px 16px; font: inherit; font-weight: 900; color: #fff; background: linear-gradient(#69db7c, #2f9e44); box-shadow: 0 0 0 2px #1b2f48, 0 4px 0 2px #1b2f48; cursor: pointer; }
+.table-btn.show { display: block; }
+.invite-card { position: fixed; top: 120px; left: 50%; transform: translateX(-50%); z-index: 45; background: #fff; border: 3px solid #2b1a10; border-radius: 18px; padding: 14px 16px; box-shadow: 0 6px 0 #2b1a10; animation: pop .2s; width: min(380px, calc(100% - 24px)); }
+@media (max-width: 680px) {
+  .pc { width: 36px; height: 54px; } .pc b { font-size: 14px; } .pc i { font-size: 14px; }
+  .myhand .cards .pc + .pc { margin-left: -14px; }
+  .seat { min-width: 90px; padding: 4px 6px; font-size: 12px; }
+  .seat.left, .seat.right { top: 38%; }
+  .felt { border-radius: 30% / 26%; }
+}

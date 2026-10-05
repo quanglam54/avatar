@@ -43,7 +43,7 @@ const UI = (() => {
     if (p && !p.locked) p.close();
   }
 
-  const isBlocking = () => stack.length > 0;
+  const isBlocking = () => stack.length > 0 || (typeof TABLE !== 'undefined' && TABLE.isOpen());
 
   function confirm(text, okText, onOk) {
     const p = panel('Xác nhận', `<p class="confirm-text">${text}</p>
@@ -532,6 +532,20 @@ const UI = (() => {
     render();
   }
 
+  /* ---------- Lời mời chơi bài ---------- */
+  function tableInvite(from) {
+    const old = document.querySelector('.invite-card');
+    if (old) old.remove();
+    const el = document.createElement('div');
+    el.className = 'invite-card';
+    el.innerHTML = `<div>🃏 <b>${esc(from)}</b> mời bạn chơi <b>Tiến lên</b>!</div>
+      <div class="row-end"><button class="btn ghost small" data-no>Để sau</button><button class="btn small" data-yes>Vào bàn</button></div>`;
+    document.body.appendChild(el);
+    el.querySelector('[data-no]').onclick = () => el.remove();
+    el.querySelector('[data-yes]').onclick = () => { el.remove(); TABLE.openView(); };
+    setTimeout(() => el.remove(), 15000);
+  }
+
   /* ---------- Nhiệm vụ hằng ngày ---------- */
   function questsPanel() {
     const p = panel('📜 Nhiệm vụ hôm nay', '', { wide: true });
@@ -569,6 +583,7 @@ const UI = (() => {
         <li>👆 <b>Chạm / click</b> vào mặt đất để đi, hoặc dùng <b>phím mũi tên / WASD</b>.</li>
         <li>🌾 Bấm <b>ô ruộng</b> để gieo hạt (gieo 1 ô hoặc cả luống). Cây khát nước 😟 thì bấm để tưới, chín thì bấm thu hoạch cả luống.</li>
         <li>🐔 Cho <b>gà</b> ăn 3 lúa mì → có 5 trứng. 🐄 Cho <b>gia súc</b> ăn 4 lúa mì → có sữa & len.</li>
+        <li>🃏 Ở <b>Khu giải trí</b>, bấm bàn <b>Tiến lên</b> để ngồi, mời bạn bè cùng chơi (thiếu người có máy chơi thay).</li>
         <li>🏫 Tới <b>Trường học</b>: cô giáo ra câu đố tiếng Anh mỗi 20 giây, gõ đáp án vào chat (hoặc bấm nút A/B/C/D). Ai đúng đầu tiên được thưởng nhiều nhất!</li>
         <li>📜 Bấm nút <b>📜</b> xem nhiệm vụ hằng ngày để nhận thêm xu.</li>
         <li>🍳 Vào <b>Nhà Bếp</b> ở Nông trại nấu bánh, súp, khăn len… bán được giá cao hơn nhiều.</li>
@@ -680,5 +695,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite };
 })();

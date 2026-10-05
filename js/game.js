@@ -77,6 +77,7 @@
     myPet.x = player.x - 30; myPet.y = player.y + 3;
     UI.setLocation(map.name);
     NET.enter(id);
+    TABLE.onMapChange();
   }
 
   /* ---------- Va chạm ---------- */
@@ -382,6 +383,18 @@
   };
   AV.addItem = (id, n) => { addItem(id, n); changed(); };
   AV.sayMine = (text) => say(player, text);
+  AV.spendSilent = (n) => { S.coins = Math.max(0, S.coins - n); changed(); };
+  AV.setSeatPos = (x, y, dir) => {
+    player.seated = true;
+    player.x = x; player.y = y; player.dir = dir;
+    player.target = null; player.pending = null; marker = null;
+    if (player.fishing) AV.stopFishing(true);
+  };
+  AV.leaveSeat = (x, y) => {
+    player.seated = false;
+    player.x = x; player.y = y;
+    for (let k = 0; k < 20 && blocked(player.x, player.y); k++) player.y += 8;
+  };
 
   AV.useStage = () => {
     if (player.dancing < Date.now()) AV.quest('dance');
@@ -865,7 +878,7 @@
 
   function updatePlayer(dt) {
     player.t += dt;
-    if (player.hidden) { player.moving = false; return; }
+    if (player.hidden || player.seated) { player.moving = false; return; }
     let vx = 0, vy = 0;
     const kx = (keys.has('right') ? 1 : 0) - (keys.has('left') ? 1 : 0);
     const ky = (keys.has('down') ? 1 : 0) - (keys.has('up') ? 1 : 0);
@@ -956,6 +969,7 @@
     const nearPk = !player.hidden && map.pickups.find((p) => Math.hypot(p.x - player.x, p.y - player.y) < 20);
     if (nearPk) collectPickup(nearPk);
     updateBus(dt);
+    TABLE.tick(dt);
     NET.tick(dt);
     NET.update(dt);
     updateFade(dt);
@@ -1228,6 +1242,7 @@
     if (UI.isBlocking() || player.hidden || fade.mode) return;
     document.activeElement && document.activeElement.blur();
     if (player.fishing && player.fishing.state === 'bite') { AV.pullRod(); return; }
+    if (TABLE.seated()) { TABLE.openView(); return; }
     const w = toWorld(e.clientX, e.clientY);
     const pk = map.pickups.find((p) => Math.abs(p.x - w.x) < 22 && w.y > p.y - 30 && w.y < p.y + 8);
     if (pk) {
@@ -1291,6 +1306,7 @@
   window.addEventListener('resize', resize);
   enterMap(maps[S.map] ? S.map : 'farm', S.x, S.y);
   UI.init();
+  TABLE.init();
   UI.updateHud();
   NET.init(player);
   if (!S.name) UI.characterEditor(true);

@@ -106,6 +106,10 @@ const NET = (() => {
     send('chat', { name: AV.S.name, text });
   }
 
+  function sendTable(p) {
+    send('tbl', p);
+  }
+
   function sendQuiz(round) {
     send('quiz', { round, name: AV.S.name });
   }
@@ -166,6 +170,8 @@ const NET = (() => {
       r.dance = !!m.dance;
       r.fish = readFish(m.fish);
       r.seen = Date.now();
+    } else if (m.t === 'tbl') {
+      TABLE.onNet(m);
     } else if (m.t === 'quiz') {
       AV.onQuizWin(num(m.round, -1), clean(m.name, 16));
     } else if (m.t === 'sys') {
@@ -303,7 +309,7 @@ const NET = (() => {
   }
 
   return {
-    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, remotes, zoneCounts, announce,
+    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, remotes, zoneCounts, announce,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],

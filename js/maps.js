@@ -388,7 +388,7 @@ const MAPS = (() => {
 
     sobj(m, 760, 640, (c) => ART.gameTable(c, 760, 640, 'baicao', 0));
     col(m, 660, 590, 200, 50);
-    inter(m, { x: 650, y: 520, w: 220, h: 140, ax: 760, ay: 690, name: 'Bàn Bài Cào', use: () => UI.baiCao() });
+    inter(m, { x: 630, y: 520, w: 260, h: 170, ax: 760, ay: 700, name: 'Bàn Tiến lên (ngồi chơi với mọi người)', use: () => TABLE.openView(), arrow: { x: 760, y: 505, text: 'Chơi bài' } });
 
     aobj(m, 1160, 570, (c, t) => ART.stage(c, 1160, 570, t), { l: -185, t: -265, w: 370, h: 275 });
     col(m, 990, 524, 340, 50);

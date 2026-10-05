@@ -305,7 +305,7 @@ Object.assign(ART, (() => {
       }
     }
     // ghế
-    [[-110, -10], [110, -10], [0, 26]].forEach(([dx, dy]) => {
+    (kind === 'baucua' ? [[-110, -10], [110, -10], [0, 26]] : [[0, 34], [118, -6], [0, -58], [-118, -6]]).forEach(([dx, dy]) => {
       ctx.fillStyle = '#e8590c'; ctx.beginPath(); ctx.ellipse(x + dx, y + dy - 14, 14, 6, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#6f4420'; ctx.fillRect(x + dx - 2, y + dy - 12, 4, 12);
     });
@@ -313,7 +313,7 @@ Object.assign(ART, (() => {
     ctx.fillStyle = '#fff';
     rr(ctx, x - 62, y - 112, 124, 30, 10); ctx.fill();
     ctx.fillStyle = kind === 'baucua' ? '#c92a2a' : '#2b8a3e'; ctx.font = '800 14px "Be Vietnam Pro", system-ui';
-    ctx.fillText(kind === 'baucua' ? '🎲 BẦU CUA' : '🃏 BÀI CÀO', x, y - 97);
+    ctx.fillText(kind === 'baucua' ? '🎲 BẦU CUA' : '🃏 TIẾN LÊN', x, y - 97);
     ctx.fillStyle = '#868e96'; ctx.fillRect(x - 2, y - 82, 4, 14);
   }
 
