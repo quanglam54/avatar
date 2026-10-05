@@ -783,7 +783,7 @@ const UI = (() => {
   function help() {
     const p = panel('❓ Cách chơi', `
       <ul class="help">
-        <li>👆 <b>Chạm / click</b> vào mặt đất để đi, hoặc dùng <b>phím mũi tên / WASD</b>.</li>
+        <li>👆 <b>Chạm / click</b> để đi tới, <b>kéo</b> để trượt xem bản đồ, <b>chụm 2 ngón / lăn chuột</b> để phóng to thu nhỏ, nút <b>📍</b> để về chỗ nhân vật. Máy tính dùng thêm <b>phím mũi tên / WASD</b>.</li>
         <li>🌾 Bấm <b>ô ruộng</b> để gieo hạt (gieo 1 ô hoặc cả luống). Bấm luống đang lớn để <b>💧 tưới nước</b> (nhanh hơn 10%) và <b>🧪 bón phân</b> (nhanh hơn 30%). Cây khát 😟 thì phải tưới mới lớn tiếp.</li>
         <li>🐔 Cho <b>gà</b> ăn 3 lúa mì → có 5 trứng. 🐄 Cho <b>gia súc</b> ăn 4 lúa mì → có sữa & len.</li>
         <li>🃏 Ở <b>Khu giải trí</b>, bấm bàn <b>Tiến lên</b> để ngồi, mời bạn bè cùng chơi (thiếu người có máy chơi thay).</li>
@@ -937,6 +937,7 @@ const UI = (() => {
     $('#netStatus').onclick = playersPanel;
     $('#chatLog').onclick = () => $('#chatLog').classList.toggle('active');
     $('#btnMenu').onclick = menu;
+    $('#recenterBtn').onclick = () => AV.recenter();
     $('#btnQuest').onclick = questsPanel;
     updateQuestDot();
     $('#btnMap').onclick = () => cityMap(false);

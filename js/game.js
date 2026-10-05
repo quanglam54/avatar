@@ -85,6 +85,7 @@
   let clock = 0;
 
   function enterMap(id, x, y) {
+    camOff.x = 0; camOff.y = 0;
     if (map && map.id !== id) { map.ground = null; if (swingRide) { swingRide.s.a = 0; swingRide = null; player.seated = false; } }
     player.path = [];
     map = maps[id];
@@ -1368,12 +1369,23 @@
   /* ---------- Vẽ ---------- */
   let cam = { x: 0, y: 0 };
 
+  /* Kéo bản đồ: camOff = độ lệch so với vị trí nhân vật. Nhân vật đi thì camera từ từ quay về */
+  const camOff = { x: 0, y: 0 };
+  let zoomMul = 1;
   function updateCamera() {
     const vw = W / ZOOM, vh = H / ZOOM;
-    const tx = vw >= map.w ? map.w / 2 : Math.max(vw / 2, Math.min(map.w - vw / 2, player.x));
-    const ty = vh >= map.h ? map.h / 2 : Math.max(vh / 2, Math.min(map.h - vh / 2, player.y - 150));
-    cam.x = tx; cam.y = ty;
+    if (!drag.active && (player.moving || player.seated || player.hidden)) { camOff.x *= 0.9; camOff.y *= 0.9; }
+    const clampX = (v) => (vw >= map.w ? map.w / 2 : Math.max(vw / 2, Math.min(map.w - vw / 2, v)));
+    const clampY = (v) => (vh >= map.h ? map.h / 2 : Math.max(vh / 2, Math.min(map.h - vh / 2, v)));
+    const bx = player.x, by = player.y - 150;
+    cam.x = clampX(bx + camOff.x); cam.y = clampY(by + camOff.y);
+    // không cho độ lệch vượt quá mép bản đồ (để kéo ngược lại có tác dụng ngay)
+    camOff.x = cam.x - bx; camOff.y = cam.y - by;
+    const away = Math.hypot(camOff.x, camOff.y) > 260;
+    if (away !== recenterShown) { recenterShown = away; document.getElementById('recenterBtn').classList.toggle('show', away); }
   }
+  let recenterShown = false;
+  AV.recenter = () => { camOff.x = 0; camOff.y = 0; };
 
   function progressBar(x, y, p) {
     ctx.fillStyle = '#3d2410';
@@ -1615,7 +1627,12 @@
     canvas.height = Math.round(H * DPR);
     canvas.style.width = W + 'px';
     canvas.style.height = H + 'px';
-    ZOOM = Math.max(0.62, Math.min(1.15, Math.min(W / 1050, H / 720)));
+    applyZoom();
+  }
+
+  function applyZoom() {
+    const baseZoom = Math.max(0.62, Math.min(1.15, Math.min(W / 1050, H / 720)));
+    ZOOM = baseZoom * (typeof zoomMul === 'number' ? zoomMul : 1);
     FX.setScale(DPR * ZOOM);
   }
 
@@ -1639,13 +1656,66 @@
     return hits[0] || null;
   }
 
-  canvas.addEventListener('pointerdown', (e) => {
+  /* Chạm = đi tới; kéo 1 ngón / chuột = trượt bản đồ; chụm 2 ngón / lăn chuột = phóng to thu nhỏ */
+  const drag = { active: false, moved: false, sx: 0, sy: 0, lx: 0, ly: 0, pointers: new Map(), pinch: 0, pinchZoom: 1 };
+  const DRAG_PX = 10;
+  function tap(e) {
     if (UI.isBlocking() || player.hidden || fade.mode) return;
-    document.activeElement && document.activeElement.blur();
     if (player.fishing && player.fishing.state === 'bite') { AV.pullRod(); return; }
     if (TABLE.seated()) { TABLE.openView(); return; }
     clickWorld(toWorld(e.clientX, e.clientY));
+  }
+  canvas.addEventListener('pointerdown', (e) => {
+    document.activeElement && document.activeElement.blur();
+    if (UI.isBlocking() || fade.mode) return;
+    // cá cắn câu: giật cần ngay khi chạm, không đợi nhấc tay
+    if (player.fishing && player.fishing.state === 'bite') { AV.pullRod(); return; }
+    try { canvas.setPointerCapture(e.pointerId); } catch (er) { /* bỏ qua */ }
+    drag.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (drag.pointers.size === 2) {
+      const [a, b] = [...drag.pointers.values()];
+      drag.pinch = Math.hypot(a.x - b.x, a.y - b.y);
+      drag.pinchZoom = zoomMul;
+      drag.moved = true;
+      return;
+    }
+    Object.assign(drag, { active: true, moved: false, sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY });
   });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drag.pointers.has(e.pointerId)) return;
+    drag.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (drag.pointers.size >= 2) {
+      const [a, b] = [...drag.pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (drag.pinch > 0) setZoomMul(drag.pinchZoom * d / drag.pinch);
+      return;
+    }
+    if (!drag.active) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > DRAG_PX) drag.moved = true;
+    if (drag.moved) {
+      camOff.x -= (e.clientX - drag.lx) / ZOOM;
+      camOff.y -= (e.clientY - drag.ly) / ZOOM;
+      canvas.style.cursor = 'grabbing';
+    }
+    drag.lx = e.clientX; drag.ly = e.clientY;
+  });
+  const endPointer = (e, cancel) => {
+    if (!drag.pointers.has(e.pointerId)) return;
+    drag.pointers.delete(e.pointerId);
+    if (drag.pointers.size > 0) return;
+    const wasTap = drag.active && !drag.moved && !cancel;
+    drag.active = false;
+    canvas.style.cursor = 'default';
+    if (wasTap) tap(e);
+  };
+  canvas.addEventListener('pointerup', (e) => endPointer(e, false));
+  canvas.addEventListener('pointercancel', (e) => endPointer(e, true));
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); setZoomMul(zoomMul * (e.deltaY > 0 ? 0.9 : 1.1)); }, { passive: false });
+
+  function setZoomMul(z) {
+    zoomMul = Math.max(0.6, Math.min(1.8, z));
+    applyZoom();
+  }
 
   /** Xử lý một cú bấm tại toạ độ thế giới w */
   function clickWorld(w) {
@@ -1680,7 +1750,7 @@
   }
 
   canvas.addEventListener('pointermove', (e) => {
-    if (e.pointerType !== 'mouse') return;
+    if (e.pointerType !== 'mouse' || drag.moved) return;
     const w = toWorld(e.clientX, e.clientY);
     const ent = entityAt(w.x, w.y);
     hover = ent ? null : interAt(w.x, w.y);
@@ -1800,6 +1870,6 @@
   window.addEventListener('beforeunload', saveNow);
   document.addEventListener('visibilitychange', () => { if (document.hidden) { saveNow(); if (CLOUD.user) CLOUD.push(S); } });
 
-  AV._debug = { player, bus, maps, get map() { return map; }, enterMap, update, draw, goTo, findPath, clickWorld };
+  AV._debug = { player, bus, maps, get map() { return map; }, enterMap, update, draw, goTo, findPath, clickWorld, camOff, cam, get zoom() { return ZOOM; } };
   requestAnimationFrame(loop);
 })();
