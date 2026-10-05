@@ -296,24 +296,32 @@ const MAPS = (() => {
     sobj(m, 2380, 740, (c) => ART.mailbox(c, 2380, 740));
     col(m, 2373, 732, 14, 10);
 
-    /* ----- Khu bò cừu: đồng cỏ rào gỗ + chuồng đỏ ----- */
-    woodPen(m, 200, 884, 1000, 1240);
+    /* ----- 3 chuồng riêng: bò (chuồng đỏ), cừu, heo (mái tôn + vũng bùn) ----- */
+    woodPen(m, 200, 884, 520, 1240);
+    woodPen(m, 540, 884, 760, 1240);
+    woodPen(m, 780, 884, 1000, 1240);
     sobj(m, 340, 1040, (c) => ART.barn(c, 340, 1040), { l: -140, t: -200, w: 280, h: 214 });
     col(m, 228, 990, 224, 52);
-    sobj(m, 880, 960, (c) => ART.trough(c, 880, 960), { l: -50, t: -30, w: 100, h: 36 });
-    col(m, 840, 944, 80, 18);
-    sobj(m, 300, 1200, (c) => ART.hayStack(c, 300, 1200));
-    for (const [k, seed] of [['cow', 7], ['cow', 21], ['cow', 33], ['sheep', 3], ['sheep', 9], ['sheep', 15], ['pig', 5], ['pig', 11]]) {
-      animal(m, k, { l: 500, t: 960, r: 960, b: 1222 }, seed);
-    }
-    m.labels.push({ text: '🐄 Khu Bò Cừu', x: 600, y: 852 });
-    // bấm bất kỳ đâu trong đồng cỏ / sân gà cũng thu hoạch được
-    inter(m, { x: 200, y: 884, w: 800, h: 356, ax: 600, ay: 1272, name: 'Đồng cỏ bò cừu (cho ăn / thu sữa, len, thịt)', use: () => AV.usePen(), group: 'pen', approaches: [[600, 1272], [600, 862], [1030, 1060]] });
-    inter(m, { x: 200, y: 472, w: 560, h: 288, ax: 330, ay: 795, name: 'Sân gà (cho ăn / nhặt trứng)', use: () => AV.useCoop(), group: 'coop', approaches: [[330, 795], [790, 620]] });
-    inter(m, {
-      x: 220, y: 860, w: 260, h: 190, ax: 600, ay: 1272, name: 'Chuồng bò cừu (cho ăn / thu sữa, len, thịt)', arrow: { x: 340, y: 935 }, group: 'pen', approaches: [[600, 1272], [600, 862], [1030, 1060]],
-      use: () => AV.usePen(), indicator: () => AV.penIndicator(), ix: 600, iy: 930,
+    sobj(m, 470, 1215, (c) => ART.hayStack(c, 470, 1215));
+    sobj(m, 650, 960, (c) => ART.hayBale(c, 650, 960));
+    sobj(m, 890, 1000, (c) => ART.pigSty(c, 890, 1000), { l: -125, t: -156, w: 250, h: 164 });
+    col(m, 792, 950, 196, 50);
+    obj(m, 1080, (ctx, t) => ART.mudPool(ctx, 880, 1160, t), [790, 1110, 970, 1210]);
+    sobj(m, 940, 1050, (c) => ART.slopTrough(c, 940, 1050), { l: -50, t: -30, w: 100, h: 36 });
+    col(m, 898, 1034, 84, 16);
+    for (const [k, seed, area] of [
+      ['cow', 7, { l: 240, t: 1075, r: 500, b: 1222 }], ['cow', 21, { l: 240, t: 1075, r: 500, b: 1222 }], ['cow', 33, { l: 240, t: 1075, r: 500, b: 1222 }],
+      ['sheep', 3, { l: 565, t: 1000, r: 740, b: 1222 }], ['sheep', 9, { l: 565, t: 1000, r: 740, b: 1222 }], ['sheep', 15, { l: 565, t: 1000, r: 740, b: 1222 }],
+      ['pig', 5, { l: 805, t: 1075, r: 980, b: 1222 }], ['pig', 11, { l: 805, t: 1075, r: 980, b: 1222 }], ['pig', 17, { l: 805, t: 1075, r: 980, b: 1222 }],
+    ]) animal(m, k, area, seed);
+    m.labels.push({ text: '🐄 Chuồng Bò', x: 360, y: 852 }, { text: '🐑 Chuồng Cừu', x: 650, y: 852 }, { text: '🐖 Chuồng Heo', x: 890, y: 852 });
+    // bấm bất kỳ đâu trong từng chuồng = cho ăn / thu hoạch chuồng đó
+    [['cow', 200, 520, 'Chuồng bò (cho ăn / vắt sữa)', 360, 1080], ['sheep', 540, 760, 'Chuồng cừu (cho ăn / cắt len)', 650, 905], ['pig', 780, 1000, 'Chuồng heo (đổ cám / thu thịt)', 890, 830]].forEach(([kind, L, R, name, ix, iy]) => {
+      const cx = (L + R) / 2;
+      inter(m, { x: L, y: 884, w: R - L, h: 356, ax: cx, ay: 1272, name, use: () => AV.usePen(kind), group: kind, approaches: [[cx, 1272], [cx, 862]], indicator: () => AV.penIndicator(kind), ix, iy });
     });
+    inter(m, { x: 220, y: 860, w: 240, h: 190, ax: 360, ay: 1272, name: 'Chuồng bò (cho ăn / vắt sữa)', arrow: { x: 340, y: 935 }, group: 'cow', approaches: [[360, 1272], [360, 862]], use: () => AV.usePen('cow') });
+    inter(m, { x: 200, y: 472, w: 560, h: 288, ax: 330, ay: 795, name: 'Sân gà (cho ăn / nhặt trứng)', use: () => AV.useCoop(), group: 'coop', approaches: [[330, 795], [790, 620]] });
 
     /* ----- Ao cá (câu được cá) ----- */
     m.lake = { x: 1320, y: 1060, rx: 180, ry: 110 };

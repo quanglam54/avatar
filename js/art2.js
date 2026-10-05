@@ -1787,3 +1787,69 @@ Object.assign(ART, (() => {
 
   return { streetSign, billiardTable };
 })());
+
+/* Chuồng heo kiểu quê: mái tôn, tường gạch, rơm, máng cám, vũng bùn */
+Object.assign(ART, (() => {
+  const { rr, shadow, circle, srand } = ART;
+
+  function pigSty(ctx, x, y) {
+    shadow(ctx, x, y + 2, 112, 14, 0.18);
+    // tường gạch thấp 3 mặt
+    ctx.fillStyle = '#b5543c'; ctx.fillRect(x - 100, y - 92, 200, 92);
+    ctx.fillStyle = '#4a2a14'; ctx.fillRect(x - 86, y - 80, 172, 80);
+    // rơm trong chuồng
+    const r = srand(x * 3 + y);
+    for (let i = 0; i < 70; i++) {
+      ctx.strokeStyle = ['#e9c46a', '#d4a373', '#f4d58d'][i % 3]; ctx.lineWidth = 2;
+      const sx = x - 82 + r() * 164, sy = y - 26 + r() * 24;
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + (r() - 0.5) * 16, sy - 4 - r() * 6); ctx.stroke();
+    }
+    // gạch
+    ctx.strokeStyle = 'rgba(255,220,200,.35)'; ctx.lineWidth = 1;
+    for (let row = 0; row < 7; row++) {
+      const yy = y - 92 + row * 13;
+      ctx.beginPath(); ctx.moveTo(x - 100, yy); ctx.lineTo(x - 86, yy); ctx.moveTo(x + 86, yy); ctx.lineTo(x + 100, yy); ctx.stroke();
+    }
+    ctx.fillStyle = '#c96a4f'; ctx.fillRect(x - 100, y - 18, 200, 18);
+    ctx.strokeStyle = 'rgba(80,30,15,.4)';
+    for (let k = 0; k < 10; k++) { ctx.beginPath(); ctx.moveTo(x - 100 + k * 20 + (k % 2) * 10, y - 18); ctx.lineTo(x - 100 + k * 20 + (k % 2) * 10, y); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(x - 100, y - 9); ctx.lineTo(x + 100, y - 9); ctx.stroke();
+    // cột gỗ + mái tôn gợn sóng
+    ctx.fillStyle = '#7a4520'; ctx.fillRect(x - 98, y - 132, 8, 50); ctx.fillRect(x + 90, y - 132, 8, 50);
+    ctx.fillStyle = '#adb5bd';
+    ctx.beginPath(); ctx.moveTo(x - 118, y - 96); ctx.lineTo(x - 104, y - 148); ctx.lineTo(x + 104, y - 148); ctx.lineTo(x + 118, y - 96); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#868e96'; ctx.lineWidth = 2;
+    for (let k = -110; k <= 110; k += 9) { ctx.beginPath(); ctx.moveTo(x + k, y - 97); ctx.lineTo(x + k * 0.9, y - 147); ctx.stroke(); }
+    ctx.fillStyle = 'rgba(160,82,45,.45)'; ctx.fillRect(x + 30, y - 140, 40, 20); ctx.fillRect(x - 80, y - 118, 24, 14);
+    ctx.fillStyle = '#495057'; ctx.fillRect(x - 118, y - 98, 236, 5);
+    // biển
+    ctx.fillStyle = '#f8f0e3'; rr(ctx, x - 44, y - 78, 88, 20, 4); ctx.fill();
+    ctx.strokeStyle = '#7a4520'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#c2255c'; ctx.font = '900 11px "Be Vietnam Pro", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🐷 CHUỒNG HEO', x, y - 67.5);
+  }
+
+  /** Vũng bùn cho heo lăn (vẽ dưới đất) */
+  function mudPool(ctx, x, y, t) {
+    ctx.fillStyle = '#6b4423'; ctx.beginPath(); ctx.ellipse(x, y, 84, 40, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8b5a2b'; ctx.beginPath(); ctx.ellipse(x - 4, y - 2, 72, 32, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.ellipse(x - 26, y - 12, 22, 6, -0.2, 0, Math.PI * 2); ctx.fill();
+    for (let k = 0; k < 4; k++) {
+      const p = (t * 0.4 + k / 4) % 1;
+      ctx.strokeStyle = `rgba(60,35,15,${0.6 * (1 - p)})`; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(x - 40 + k * 26, y + 6 - (k % 2) * 10, 3 + p * 8, 1.5 + p * 4, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    [[-70, 26], [62, 30], [78, -10], [-80, -6]].forEach(([dx, dy]) => { ctx.fillStyle = '#6b4423'; ctx.beginPath(); ctx.ellipse(x + dx, y + dy, 8, 4, 0, 0, Math.PI * 2); ctx.fill(); });
+  }
+
+  /** Máng cám gỗ có cám, rau */
+  function slopTrough(ctx, x, y) {
+    shadow(ctx, x, y, 46, 7);
+    ctx.fillStyle = '#7a4520'; rr(ctx, x - 44, y - 22, 88, 22, 4); ctx.fill();
+    ctx.fillStyle = '#a0602e'; ctx.fillRect(x - 40, y - 22, 80, 5);
+    ctx.fillStyle = '#d9c38a'; ctx.beginPath(); ctx.ellipse(x, y - 20, 38, 5, 0, 0, Math.PI * 2); ctx.fill();
+    [[-24, '#69db7c'], [-6, '#ff922b'], [14, '#69db7c'], [28, '#f8f9fa']].forEach(([dx, c]) => circle(ctx, x + dx, y - 21, 3, c));
+  }
+
+  return { pigSty, mudPool, slopTrough };
+})());

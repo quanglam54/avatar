@@ -589,7 +589,7 @@ const ART = (() => {
     ctx.restore();
   }
 
-  function pig(ctx, x, y, dir, t, moving) {
+  function pig(ctx, x, y, dir, t, moving, seed = 0) {
     shadow(ctx, x, y, 24, 6);
     ctx.save();
     ctx.translate(x, y);
@@ -606,6 +606,12 @@ const ART = (() => {
     ctx.beginPath(); ctx.ellipse(30, -28, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
     circle(ctx, 29, -30, 1.2, '#c2255c'); circle(ctx, 31, -26, 1.2, '#c2255c');
     circle(ctx, 22, -34, 1.8, '#222');
+    // lấm lem bùn
+    if (seed) {
+      const r = srand(seed * 97);
+      for (let k = 0; k < 5; k++) { ctx.fillStyle = k % 2 ? 'rgba(107,68,35,.75)' : 'rgba(139,90,43,.7)'; ctx.beginPath(); ctx.ellipse(-16 + r() * 30, -30 + r() * 16, 3 + r() * 5, 2 + r() * 3, r(), 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = 'rgba(107,68,35,.8)'; ctx.fillRect(-16, -8, 34, 4);
+    }
     ctx.restore();
   }
 

@@ -148,6 +148,22 @@ const MUSIC = (() => {
     });
   }
 
+  /** Tiếng sủa (chó) / gầm (hổ, sư tử) */
+  function bark(big) {
+    if (!ac || !on || ac.state !== 'running') return;
+    const t0 = ac.currentTime;
+    (big ? [0] : [0, 0.22]).forEach((d) => {
+      const t = t0 + d, o = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain();
+      o.type = 'sawtooth';
+      if (big) { o.frequency.setValueAtTime(140, t); o.frequency.linearRampToValueAtTime(95, t + 0.9); }
+      else { o.frequency.setValueAtTime(520, t); o.frequency.exponentialRampToValueAtTime(260, t + 0.14); }
+      f.type = 'lowpass'; f.frequency.value = big ? 700 : 1600;
+      const len = big ? 1 : 0.16;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.22 * vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      o.connect(f); f.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + len + 0.05);
+    });
+  }
+
   /** Tiếng "cạch" khi gậy chạm bi */
   function clack() {
     if (!ac || !on || ac.state !== 'running') return;
@@ -160,5 +176,5 @@ const MUSIC = (() => {
   function setOn(v) { on = v; if (v) start(); else stop(); }
   function setVolume(v) { vol = Math.max(0, Math.min(1, v)); if (on && ac) fadeTo(vol * 0.9, 0.3); }
 
-  return { init, setOn, setVolume, boom, whistle, melody, clack, get on() { return on; }, get volume() { return vol; } };
+  return { init, setOn, setVolume, boom, whistle, melody, clack, bark, get on() { return on; }, get volume() { return vol; } };
 })();

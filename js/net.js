@@ -118,6 +118,15 @@ const NET = (() => {
     send('quiz', { round, name: AV.S.name });
   }
 
+  /** Báo hiệu gọi giọng nói (offer / answer / ICE), có `to` thì chỉ người đó xử lý */
+  function sendVoice(p) {
+    send('vc', p);
+  }
+
+  function sendBite(ks, fine) {
+    send('bite', { ks, fine });
+  }
+
   function sendFirework(kind, name) {
     send('fw', { kind, name });
   }
@@ -186,6 +195,10 @@ const NET = (() => {
       BIL.onNet(m);
     } else if (m.t === 'quiz') {
       AV.onQuizWin(num(m.round, -1), clean(m.name, 16));
+    } else if (m.t === 'vc') {
+      if (typeof VOICE !== 'undefined') VOICE.onNet(m);
+    } else if (m.t === 'bite') {
+      AV.onBite(m.id, Array.isArray(m.ks) ? m.ks.slice(0, 5) : [], num(m.fine));
     } else if (m.t === 'fw') {
       AV.onFirework(clean(m.kind, 10), clean(m.name, 16));
     } else if (m.t === 'sys') {
@@ -200,6 +213,7 @@ const NET = (() => {
     } else if (m.t === 'bye') {
       const r = remotes.get(m.id);
       if (r) { remotes.delete(m.id); renderStatus(); UI.toast(`${r.name} đã rời đi`); }
+      if (typeof VOICE !== 'undefined') VOICE.drop(m.id);
     }
   }
 
@@ -254,6 +268,7 @@ const NET = (() => {
     if (AV.S.name) send('hello', stateMsg());
     announce();
     renderStatus();
+    if (typeof VOICE !== 'undefined') VOICE.onRoomChange();
   }
 
   function tick(dt) {
@@ -328,7 +343,7 @@ const NET = (() => {
   }
 
   return {
-    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing, sendFirework,
+    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing, sendFirework, sendBite, sendVoice,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],

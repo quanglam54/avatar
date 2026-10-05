@@ -558,3 +558,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .bil-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .bil-btn { bottom: 140px; }
 @media (max-width: 560px) { .bil-head { grid-template-columns: 1fr 1fr; } .bil-mid { grid-column: 1 / -1; order: -1; } }
+
+/* Nút mic */
+.av-btn.mic-on { background: linear-gradient(#ff8787, #e03131) !important; animation: micPulse 1.4s ease-in-out infinite; }
+@keyframes micPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(224,49,49,.55); } 50% { box-shadow: 0 0 0 8px rgba(224,49,49,0); } }

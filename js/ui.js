@@ -185,7 +185,7 @@ const UI = (() => {
       }).join('')}</div>` : '<p class="muted">Túi trống trơn…</p>'}
       <div class="status">
         <div>🐔 ${status(S.coop, DATA.COOP, 'Chuồng gà')}</div>
-        <div>🐄 ${status(S.pen, DATA.PEN, 'Chuồng gia súc')}</div>
+        ${Object.entries(DATA.PENS).map(([k, P]) => `<div>${P.icon} ${status((S.pen || {})[k] || { fedAt: 0 }, P, P.name)}</div>`).join('')}
       </div>`);
     return p;
   }
