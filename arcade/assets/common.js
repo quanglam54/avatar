@@ -32,6 +32,11 @@
       howto: ['Click để mở ô, chuột phải để cắm cờ', 'Điện thoại: bật chế độ 🚩 hoặc nhấn giữ', 'Số trên ô = số mìn xung quanh', 'Thời gian càng ngắn càng xếp hạng cao'],
     },
     {
+      id: 'keobo', title: 'Kéo Bò', icon: '🐄', cat: 'arcade', c1: '#e03131', c2: '#f59f00', unit: 'điểm',
+      desc: 'Bấm thật nhanh để kéo bò về vạch đích trước các cao bồi khác!',
+      howto: ['Bấm nút KÉO! hoặc phím Space thật nhanh', 'Bấm liên tục được COMBO kéo mạnh hơn', 'Bò vùng vẫy kéo ngược lại, đừng dừng tay', 'Về nhất thì sang màn khó hơn'],
+    },
+    {
       id: 'goldminer', title: 'Đào Vàng', icon: '⛏️', cat: 'arcade', c1: '#f59f00', c2: '#8a4b22', unit: 'điểm',
       desc: 'Thả móc câu gắp vàng, kim cương. Đủ điểm mục tiêu để qua màn!',
       howto: ['Móc câu tự lắc qua lại', 'Click / chạm / Space để thả móc', 'Vàng to nhiều điểm nhưng kéo chậm, đá thì ít điểm', 'Đủ điểm mục tiêu trước khi hết giờ để qua màn'],
