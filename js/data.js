@@ -123,6 +123,19 @@ DATA.FIREWORKS = [
   { id: 'show', icon: '🎇', name: 'Màn pháo hoa lớn', desc: 'Bắn liên tục khoảng 20 giây, kết thúc bằng tên bạn', price: 300 },
 ];
 
+/** Đồ nội thất mua thêm cho nhà (mua xong hiện ngay trong nhà) */
+DATA.FURNITURE = [
+  { id: 'piano', icon: '🎹', name: 'Đàn piano', price: 1200, room: 'Phòng khách', desc: 'Bấm để chơi đàn (+XP)' },
+  { id: 'aquarium', icon: '🐠', name: 'Bể cá cảnh', price: 800, room: 'Phòng khách', desc: 'Cá bơi tung tăng, bấm để ngắm (+XP)' },
+  { id: 'console', icon: '🎮', name: 'Máy chơi game', price: 1500, room: 'Phòng khách', desc: 'Chơi game máy ngay trong nhà, có thưởng xu' },
+  { id: 'painting', icon: '🖼️', name: 'Tranh phong cảnh', price: 300, room: 'Phòng khách', desc: 'Treo trên tường phía trên TV' },
+  { id: 'teddy', icon: '🧸', name: 'Gấu bông khổng lồ', price: 500, room: 'Phòng ngủ', desc: 'Bấm để ôm gấu (+XP)' },
+  { id: 'rug', icon: '🟣', name: 'Thảm lông', price: 400, room: 'Phòng ngủ', desc: 'Thảm lông tím mềm mại' },
+  { id: 'clock', icon: '🕰️', name: 'Đồng hồ quả lắc', price: 600, room: 'Sảnh', desc: 'Chạy đúng giờ thật, quả lắc đung đưa' },
+  { id: 'palm', icon: '🌴', name: 'Cây cọ cảnh', price: 250, room: 'Sảnh', desc: 'Chậu cọ xanh mát' },
+  { id: 'lamp', icon: '💡', name: 'Đèn cây', price: 350, room: 'Sảnh', desc: 'Đèn đứng ánh vàng ấm áp' },
+];
+
 /** Số thú giữ nhà tối đa cùng canh một nông trại */
 DATA.GUARD_MAX = 5;
 

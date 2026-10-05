@@ -1053,39 +1053,55 @@ const ART = (() => {
     const bob = moving ? Math.sin(t * 20) * 0.8 : 0;
     ctx.save();
     ctx.translate(x, y + bob);
-    ctx.fillStyle = '#f8f9fa';
-    rr(ctx, -L / 2, -H - 12, L, H, 18); ctx.fill();
+    const top = -H - 12;
+    // thân xe: trên trắng, dưới cam, sọc xanh
+    ctx.fillStyle = '#fff';
+    rr(ctx, -L / 2, top, L, H, 18); ctx.fill();
+    const lower = ctx.createLinearGradient(0, -70, 0, -12);
+    lower.addColorStop(0, '#ff922b'); lower.addColorStop(1, '#e8590c');
+    ctx.fillStyle = lower;
+    rr(ctx, -L / 2, -70, L, 58, [0, 0, 18, 18]); ctx.fill();
+    ctx.fillStyle = '#1c7ed6'; ctx.fillRect(-L / 2, -74, L, 6);
+    ctx.fillStyle = '#ffd43b'; ctx.fillRect(-L / 2, -20, L, 4);
+    // mái + máy lạnh
     ctx.fillStyle = '#1971c2';
-    rr(ctx, -L / 2, -H - 12, L, 26, [18, 18, 0, 0]); ctx.fill();
-    ctx.fillStyle = '#e7f5ff';
-    rr(ctx, -L / 2 + 50, -H - 22, L - 110, 12, 6); ctx.fill();
-    ctx.fillStyle = '#1c7ed6';
-    ctx.beginPath(); ctx.moveTo(-L / 2, -40); ctx.lineTo(L / 2, -54); ctx.lineTo(L / 2, -30); ctx.lineTo(-L / 2, -16); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#74c0fc';
-    ctx.beginPath(); ctx.moveTo(-L / 2, -26); ctx.lineTo(L / 2, -38); ctx.lineTo(L / 2, -32); ctx.lineTo(-L / 2, -20); ctx.closePath(); ctx.fill();
+    rr(ctx, -L / 2, top, L, 22, [18, 18, 0, 0]); ctx.fill();
+    ctx.fillStyle = '#dee2e6'; rr(ctx, -40, top - 10, 110, 12, 5); ctx.fill();
+    ctx.fillStyle = '#adb5bd'; for (let k = 0; k < 5; k++) ctx.fillRect(-32 + k * 20, top - 7, 12, 3);
+    // bảng điện tử tuyến xe trên mái
+    ctx.fillStyle = '#212529'; rr(ctx, -L / 2 + 40, top + 3, 170, 16, 4); ctx.fill();
+    ctx.font = '800 11px "Be Vietnam Pro", system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffd43b'; ctx.fillText('QL 01 · CẦU GIẤY', -L / 2 + 47, top + 11.5);
     // kính lái
     ctx.fillStyle = '#1864ab';
-    rr(ctx, -L / 2 + 4, -H + 18, 30, 58, 8); ctx.fill();
+    rr(ctx, -L / 2 + 4, top + 26, 30, 50, 8); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(-L / 2 + 9, top + 30, 5, 40);
     // cửa sổ
     for (let i = 0; i < 4; i++) {
-      ctx.fillStyle = '#1864ab';
-      rr(ctx, -L / 2 + 44 + i * 46, -H + 18, 40, 46, 6); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.25)';
-      ctx.fillRect(-L / 2 + 48 + i * 46, -H + 22, 8, 38);
+      const wx = -L / 2 + 44 + i * 46;
+      ctx.fillStyle = '#1864ab'; rr(ctx, wx, top + 26, 40, 40, 6); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.fillRect(wx + 4, top + 30, 7, 32);
     }
-    // cửa
+    // cửa lên xuống
     ctx.fillStyle = '#1864ab';
-    rr(ctx, L / 2 - 66, -H + 18, 46, 82, 6); ctx.fill();
-    ctx.fillStyle = '#4dabf7'; ctx.fillRect(L / 2 - 44, -H + 18, 2, 82);
-    // đèn
-    circle(ctx, -L / 2 + 8, -28, 6, '#fff3bf');
+    rr(ctx, L / 2 - 66, top + 26, 46, 104, 6); ctx.fill();
+    ctx.fillStyle = '#4dabf7'; ctx.fillRect(L / 2 - 44, top + 26, 2, 104);
+    // chữ QUANG LÂM to rõ trên thân xe
+    ctx.font = '900 27px "Be Vietnam Pro", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round'; ctx.lineWidth = 6; ctx.strokeStyle = '#7a2e00';
+    ctx.strokeText('QUANG LÂM', -30, -46);
+    ctx.fillStyle = '#fff'; ctx.fillText('QUANG LÂM', -30, -46);
+    // đèn pha, đèn hậu
+    circle(ctx, -L / 2 + 9, -30, 6, '#fff3bf');
+    ctx.fillStyle = '#e03131'; rr(ctx, L / 2 - 8, -66, 6, 18, 3); ctx.fill();
     ctx.fillStyle = '#343a40'; rr(ctx, -L / 2 - 4, -18, 14, 8, 3); ctx.fill();
     // bánh xe
     [-L / 2 + 64, L / 2 - 96].forEach((wx) => {
-      circle(ctx, wx, -8, 24, '#212529');
-      circle(ctx, wx, -8, 12, '#adb5bd');
+      ctx.fillStyle = '#c2410c'; ctx.beginPath(); ctx.arc(wx, -8, 28, Math.PI, 0); ctx.fill();
+      circle(ctx, wx, -8, 22, '#212529');
+      circle(ctx, wx, -8, 11, '#adb5bd');
       ctx.save(); ctx.translate(wx, -8); ctx.rotate(moving ? t * 10 : 0);
-      ctx.fillStyle = '#495057'; ctx.fillRect(-2, -10, 4, 20); ctx.fillRect(-10, -2, 20, 4);
+      ctx.fillStyle = '#495057'; ctx.fillRect(-2, -9, 4, 18); ctx.fillRect(-9, -2, 18, 4);
       ctx.restore();
     });
     ctx.restore();

@@ -183,6 +183,7 @@ const NET = (() => {
       RACE.onNet(m);
     } else if (m.t === 'tbl') {
       TABLE.onNet(m);
+      BIL.onNet(m);
     } else if (m.t === 'quiz') {
       AV.onQuizWin(num(m.round, -1), clean(m.name, 16));
     } else if (m.t === 'fw') {

@@ -533,3 +533,28 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .av-btn.sq.event-btn { width: 40px; }
   .loc-banner { top: 104px; }
 }
+
+/* Đội thú giữ nhà */
+.guard-team { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.g-slot { display: grid; justify-items: center; gap: 4px; padding: 6px; border: 2px solid #c9b48a; background: #fff8e6; border-radius: 14px; font-size: 12px; width: 104px; }
+.g-slot canvas { width: 90px; height: 70px; border-radius: 10px; display: block; }
+
+/* Bàn bi-a */
+.bil-view { position: fixed; inset: 0; z-index: 30; display: none; background: rgba(8, 18, 12, .65); padding: 12px; }
+.bil-view.show { display: grid; place-items: center; }
+.bil-box { width: min(920px, 100%); background: #fff8e6; border: 3px solid #1b2f48; border-radius: 20px; padding: 12px; box-shadow: 0 8px 0 #1b2f48; display: grid; gap: 10px; }
+.bil-head { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 10px; align-items: center; }
+.bil-mid { text-align: center; display: grid; gap: 3px; }
+.bil-mid small { font-size: 12px; color: #5c3d1e; }
+.bil-timer { height: 6px; background: #e9ecef; border-radius: 6px; overflow: hidden; }
+.bil-timer i { display: block; height: 100%; width: 0; background: #40c057; }
+.bseat { border: 2px solid #c9b48a; border-radius: 14px; padding: 8px; text-align: center; display: grid; gap: 2px; background: #fff; min-height: 64px; align-content: center; }
+.bseat.me { border-color: #fd7e14; }
+.bseat.turn { background: #fff3bf; box-shadow: 0 0 0 3px #fcc419; }
+.bseat.empty { background: #f1f3f5; color: #868e96; }
+.bseat .bscore { font-size: 24px; font-weight: 900; color: #2b8a3e; }
+.bseat i { font-size: 11px; color: #e8590c; font-style: normal; font-weight: 700; }
+.bil-cv { width: 100%; display: block; border-radius: 14px; touch-action: none; cursor: crosshair; }
+.bil-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.bil-btn { bottom: 140px; }
+@media (max-width: 560px) { .bil-head { grid-template-columns: 1fr 1fr; } .bil-mid { grid-column: 1 / -1; order: -1; } }

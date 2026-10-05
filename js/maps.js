@@ -149,8 +149,17 @@ const MAPS = (() => {
   }
 
   /** Đường nhựa và trạm xe buýt — giống nhau ở mọi khu */
+  /** Cột biển tên đường bên vỉa hè */
+  const STREETS = ['Hồ Tùng Mậu', 'Cầu Giấy'];
+  function addStreetSign(m, x, y, names = STREETS) {
+    sobj(m, x, y, (c) => ART.streetSign(c, x, y, names), { l: -150, t: -160, w: 300, h: 166 });
+    col(m, x - 5, y - 6, 10, 8);
+  }
+
   function street(m) {
     addBusStop(m, 1000, 862);
+    addStreetSign(m, 760, 860);
+    addStreetSign(m, m.w - 320, 860, [...STREETS].reverse());
     edges(m);
   }
 
@@ -424,6 +433,8 @@ const MAPS = (() => {
     sobj(m, 1880, 1385, (c) => ART.signBoard(c, 1880, 1385, 'NÔNG TRẠI\nVào cổng để\ntrồng trọt 🌱'));
     col(m, 1842, 1375, 80, 12);
     addBusStop(m, GATE + 140, 1432);
+    addStreetSign(m, GATE - 360, 1430);
+    addStreetSign(m, 3100, 1430, ['Cầu Giấy', 'Hồ Tùng Mậu']);
     sobj(m, 0, 1594, (c) => ART.roseHedge(c, 0, m.w, 1594), { l: -10, t: -44, w: m.w + 20, h: 48 });
 
     m.spawn = { x: GATE, y: 1350 };
@@ -593,7 +604,11 @@ const MAPS = (() => {
     col(m, 840, 590, 200, 50);
     inter(m, { x: 810, y: 520, w: 260, h: 170, ax: 940, ay: 700, name: 'Bàn Tiến lên (ngồi chơi với mọi người)', use: () => TABLE.openView(), arrow: { x: 940, y: 505, text: 'Chơi bài' } });
 
-    m.labels.push({ text: '🕹️ Máy Game', x: 1580, y: 585 });
+    m.labels.push({ text: '🕹️ Máy Game', x: 1580, y: 545 });
+    // bàn bi-a 2 người
+    sobj(m, 1580, 724, (c) => ART.billiardTable(c, 1580, 724), { l: -170, t: -140, w: 340, h: 150 });
+    col(m, 1430, 600, 300, 124);
+    inter(m, { x: 1430, y: 590, w: 300, h: 136, ax: 1580, ay: 748, name: 'Bàn bi-a (2 người chơi)', use: () => BIL.openView(), arrow: { x: 1580, y: 600, text: 'Chơi bi-a' } });
     DATA.ARCADE.forEach((g, i) => {
       const x = 1355 + i * 150, y = 470;
       aobj(m, x, y, (c, t) => ART.arcadeCabinet(c, x, y, g.color, g.name, g.icon, t), { l: -50, t: -158, w: 100, h: 166 });
@@ -805,7 +820,8 @@ const MAPS = (() => {
     furn(420, 425, (c) => ART.coffeeTable(c, 420, 425), { l: -70, t: -55, w: 140, h: 62 }, 110, 26);
     furn(420, 520, (c) => ART.sofa(c, 420, 520, '#4c6ef5'), { l: -125, t: -85, w: 250, h: 92 }, 230, 36,
       { x: 300, y: 440, w: 240, h: 85, name: 'Sofa (ngồi xem TV)', use: () => AV.watchTV(), ax: 575, ay: 500 });
-    furn(110, 330, (c) => ART.bookshelf(c, 110, 330), { l: -56, t: -160, w: 112, h: 166 }, 96, 24);
+    furn(110, 330, (c) => ART.bookshelf(c, 110, 330), { l: -56, t: -160, w: 112, h: 166 }, 96, 24,
+      { x: 55, y: 170, w: 112, h: 165, name: 'Giá sách (xem catalog đồ nội thất)', use: () => UI.furnitureShop(), ay: 360, arrow: { x: 110, y: 160, text: 'Mua nội thất' } });
     furn(740, 320, (c) => ART.plantPot(c, 740, 320), { l: -30, t: -95, w: 60, h: 100 }, 34, 14);
 
     // Nhà bếp
@@ -813,7 +829,11 @@ const MAPS = (() => {
       { x: 880, y: 170, w: 420, h: 165, name: 'Bếp nấu (nấu món ăn)', use: () => UI.kitchen(), ay: 360 });
     furn(1460, 340, (c) => ART.fridge(c, 1460, 340), { l: -46, t: -170, w: 92, h: 176 }, 74, 30,
       { x: 1420, y: 175, w: 80, h: 165, name: 'Tủ lạnh (xem đồ ăn)', use: () => UI.inventory(), ay: 370 });
-    furn(1180, 520, (c) => ART.diningTable(c, 1180, 520), { l: -110, t: -92, w: 220, h: 118 }, 190, 50);
+    // bàn ăn tách 2 lớp: ghế sau → người ngồi → mặt bàn + ghế trước
+    sobj(m, 1180, 520, (c) => ART.diningPart(c, 1180, 520, 'back'), { l: -100, t: -80, w: 200, h: 40 }, 470);
+    sobj(m, 1180, 520, (c) => ART.diningPart(c, 1180, 520, 'front'), { l: -110, t: -60, w: 220, h: 92 });
+    col(m, 1085, 470, 190, 50);
+    inter(m, { x: 1080, y: 440, w: 200, h: 110, ax: 1180, ay: 565, name: 'Bàn ăn (ngồi ăn cơm)', use: () => AV.sitTable() });
 
     // Phòng ngủ
     furn(200, 900, (c) => ART.bedFurn(c, 200, 900), { l: -95, t: -200, w: 190, h: 210 }, 160, 170,
@@ -831,6 +851,31 @@ const MAPS = (() => {
     furn(1430, 700, (c) => ART.storageShelf(c, 1430, 700), { l: -80, t: -160, w: 160, h: 166 }, 140, 26);
     furn(1430, 880, (c) => ART.chest(c, 1430, 880), { l: -56, t: -90, w: 112, h: 96 }, 92, 36,
       { x: 1380, y: 800, w: 100, h: 82, name: 'Rương cất đồ', use: () => UI.storage(), ay: 915, ax: 1360 });
+
+    /* ----- Đồ nội thất mua thêm (chỉ hiện khi đã mua) ----- */
+    const own = (id, x, y, draw, box, cw, ch, it, opt = {}) => {
+      const has = () => AV.hasFurn(id);
+      const bb = [x + box.l, y + box.t, x + box.l + box.w, y + box.t + box.h];
+      if (opt.anim) { const key = {}; m.objects.push({ y: opt.sortY ?? y, bb, draw: (ctx, t) => { if (has()) FX.drawCached(ctx, key, (c) => draw(c, t), x, y, box, 90); } }); }
+      else if (opt.flat) m.objects.push({ y: opt.sortY ?? y, bb, draw: (ctx) => { if (has()) draw(ctx); } });
+      else { const spr = FX.sprite(draw, x, y, box); m.objects.push({ y: opt.sortY ?? y, bb, draw: (ctx) => { if (has()) spr(ctx); } }); }
+      if (cw) m.colliders.push({ x: x - cw / 2, y: y - ch, w: cw, h: ch, when: has });
+      if (it) inter(m, { ax: x, ay: y + 30, ...it, when: has });
+    };
+    own('painting', 420, 120, (c) => ART.painting(c, 420, 120), { l: -66, t: -50, w: 132, h: 88 }, 0, 0, null, { sortY: 150 });
+    own('piano', 670, 560, (c) => ART.piano(c, 670, 560), { l: -80, t: -126, w: 160, h: 132 }, 150, 40,
+      { x: 595, y: 440, w: 150, h: 120, name: 'Đàn piano (chơi đàn)', use: () => AV.playPiano(), ay: 590 });
+    own('aquarium', 170, 560, (c, t) => ART.aquarium(c, 170, 560, t), { l: -78, t: -130, w: 156, h: 136 }, 140, 40,
+      { x: 95, y: 435, w: 150, h: 125, name: 'Bể cá cảnh (ngắm cá)', use: () => AV.watchFish(), ay: 590 }, { anim: true });
+    own('console', 575, 330, (c) => ART.gameConsole(c, 575, 330), { l: -36, t: -68, w: 72, h: 74 }, 60, 20,
+      { x: 540, y: 262, w: 72, h: 70, name: 'Máy chơi game', use: () => AV.playConsole(), ay: 365 });
+    own('rug', 380, 830, (c) => ART.furRug(c, 380, 830), { l: -100, t: -50, w: 200, h: 100 }, 0, 0, null, { sortY: 600, flat: true });
+    own('teddy', 490, 925, (c) => ART.teddy(c, 490, 925), { l: -52, t: -136, w: 104, h: 142 }, 80, 30,
+      { x: 440, y: 790, w: 100, h: 135, name: 'Gấu bông (ôm gấu)', use: () => AV.hugTeddy(), ax: 410, ay: 940 });
+    own('clock', 620, 760, (c, t) => ART.grandClock(c, 620, 760, t), { l: -36, t: -166, w: 72, h: 172 }, 52, 22,
+      { x: 590, y: 600, w: 60, h: 160, name: 'Đồng hồ quả lắc (xem giờ)', use: () => AV.lookClock(), ay: 790 }, { anim: true });
+    own('palm', 990, 740, (c) => ART.palmPot(c, 990, 740), { l: -50, t: -130, w: 100, h: 136 }, 40, 16);
+    own('lamp', 990, 930, (c) => ART.floorLamp(c, 990, 930), { l: -40, t: -152, w: 80, h: 158 }, 30, 12);
 
     // Cửa ra ngoài
     sobj(m, 800, 962, (c) => ART.homeDoor(c, 800, 962), { l: -50, t: -22, w: 100, h: 28 });

@@ -1556,3 +1556,234 @@ Object.assign(ART, (() => {
   }
   return { fireworkPad };
 })());
+
+/* Đồ nội thất mua thêm + lớp phủ khi nằm giường / ngâm bồn tắm */
+Object.assign(ART, (() => {
+  const { rr, shadow, circle } = ART;
+
+  /** Chăn đắp lên người khi nằm ngủ (vẽ đè lên nhân vật) */
+  function bedBlanket(ctx, x, y, t) {
+    const g = ctx.createLinearGradient(0, y - 118, 0, y);
+    g.addColorStop(0, '#91a7ff'); g.addColorStop(1, '#748ffc');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(x - 72, y - 108);
+    ctx.quadraticCurveTo(x, y - 128, x + 72, y - 108);
+    ctx.lineTo(x + 72, y - 14); ctx.quadraticCurveTo(x + 72, y - 4, x + 62, y - 4);
+    ctx.lineTo(x - 62, y - 4); ctx.quadraticCurveTo(x - 72, y - 4, x - 72, y - 14);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#dbe4ff'; rr(ctx, x - 72, y - 116, 144, 14, 7); ctx.fill();
+    for (let i = 0; i < 4; i++) ART.star(ctx, x - 44 + i * 30, y - 66 + (i % 2) * 22, 6, 2.6, 'rgba(255,255,255,.55)');
+    // Zzz bay lên
+    ctx.font = '900 18px "Be Vietnam Pro", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let k = 0; k < 3; k++) {
+      const p = ((t * 0.5 + k / 3) % 1);
+      ctx.globalAlpha = 1 - p;
+      ctx.fillStyle = '#5c7cfa';
+      ctx.fillText('z', x + 30 + p * 30 + Math.sin(p * 6) * 4, y - 150 - p * 60);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /** Mặt nước + thành bồn phía trước khi đang ngâm mình (vẽ đè lên nhân vật) */
+  function bathFront(ctx, x, y, t) {
+    ctx.fillStyle = 'rgba(116,192,252,.85)'; rr(ctx, x - 72, y - 62, 144, 26, 12); ctx.fill();
+    ctx.fillStyle = '#f8f9fa'; rr(ctx, x - 84, y - 44, 168, 44, 18); ctx.fill();
+    ctx.fillStyle = '#e9ecef'; ctx.fillRect(x - 78, y - 44, 156, 4);
+    for (let k = 0; k < 9; k++) {
+      const bx = x - 64 + k * 16 + Math.sin(t * 2 + k) * 3, by = y - 50 + Math.sin(t * 3 + k * 1.7) * 2;
+      circle(ctx, bx, by, 7 + (k % 3) * 2, k % 2 ? '#fff' : '#e7f5ff');
+    }
+    for (let k = 0; k < 3; k++) {
+      const p = (t * 0.4 + k / 3) % 1;
+      ctx.globalAlpha = 1 - p;
+      ctx.strokeStyle = '#a5d8ff'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(x - 30 + k * 30, y - 70 - p * 50, 4 + p * 3, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.font = '18px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+    ctx.fillText('🦆', x + 40 + Math.sin(t * 1.5) * 8, y - 56);
+  }
+
+  /** Bàn ăn tách 2 phần để ngồi vào giữa: 'back' = 2 ghế phía sau, còn lại = bàn + ghế trước */
+  function diningPart(ctx, x, y, part) {
+    if (part === 'back') {
+      [-70, 70].forEach((dx) => { ctx.fillStyle = '#8a4b22'; rr(ctx, x + dx - 16, y - 72, 32, 30, 5); ctx.fill(); ctx.fillStyle = '#a0602e'; ctx.fillRect(x + dx - 16, y - 72, 32, 8); });
+      return;
+    }
+    shadow(ctx, x, y + 10, 110, 16);
+    [-70, 70].forEach((dx) => { ctx.fillStyle = '#8a4b22'; rr(ctx, x + dx - 16, y - 4, 32, 30, 5); ctx.fill(); ctx.fillStyle = '#a0602e'; ctx.fillRect(x + dx - 16, y - 4, 32, 8); });
+    ctx.fillStyle = '#6b3618'; ctx.fillRect(x - 80, y - 30, 8, 30); ctx.fillRect(x + 72, y - 30, 8, 30);
+    ctx.fillStyle = '#c98a4b'; rr(ctx, x - 92, y - 52, 184, 30, 6); ctx.fill();
+    ctx.fillStyle = '#fff'; rr(ctx, x - 60, y - 50, 120, 24, 4); ctx.fill();
+    ctx.font = '16px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+    ctx.fillText('🍲', x - 26, y - 40); ctx.fillText('🥗', x + 4, y - 38); ctx.fillText('🍚', x + 32, y - 40);
+  }
+
+  function piano(ctx, x, y) {
+    shadow(ctx, x, y, 80, 10);
+    ctx.fillStyle = '#212529'; rr(ctx, x - 74, y - 120, 148, 92, 8); ctx.fill();
+    ctx.fillStyle = '#343a40'; rr(ctx, x - 68, y - 114, 136, 40, 6); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(x - 66, y - 62, 132, 20);
+    ctx.fillStyle = '#212529';
+    for (let k = 0; k <= 12; k++) ctx.fillRect(x - 66 + k * 11, y - 62, 1, 20);
+    [1, 2, 4, 5, 6, 8, 9, 11].forEach((k) => ctx.fillRect(x - 66 + k * 11 - 3, y - 62, 6, 12));
+    ctx.fillStyle = '#212529'; ctx.fillRect(x - 70, y - 42, 8, 42); ctx.fillRect(x + 62, y - 42, 8, 42);
+    ctx.fillStyle = '#fcc419'; ctx.fillRect(x - 20, y - 104, 40, 22);
+    ctx.fillStyle = '#5c3010'; ctx.font = '12px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🎼', x, y - 93);
+    ctx.fillStyle = '#495057'; rr(ctx, x - 34, y - 14, 68, 12, 4); ctx.fill();
+  }
+
+  function aquarium(ctx, x, y, t) {
+    shadow(ctx, x, y, 76, 10);
+    ctx.fillStyle = '#8a4b22'; rr(ctx, x - 70, y - 40, 140, 40, 5); ctx.fill();
+    ctx.fillStyle = '#5c3010'; ctx.fillRect(x - 64, y - 34, 128, 4);
+    ctx.fillStyle = '#343a40'; rr(ctx, x - 70, y - 124, 140, 86, 6); ctx.fill();
+    const wg = ctx.createLinearGradient(0, y - 118, 0, y - 44);
+    wg.addColorStop(0, '#74c0fc'); wg.addColorStop(1, '#1c7ed6');
+    ctx.fillStyle = wg; ctx.fillRect(x - 64, y - 118, 128, 74);
+    ctx.fillStyle = '#ffe8a3'; ctx.fillRect(x - 64, y - 52, 128, 8);
+    [[-44, '#2f9e44'], [-30, '#51cf66'], [40, '#2f9e44']].forEach(([dx, c]) => {
+      ctx.strokeStyle = c; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x + dx, y - 46);
+      ctx.quadraticCurveTo(x + dx + Math.sin(t * 2 + dx) * 6, y - 70, x + dx, y - 96); ctx.stroke();
+    });
+    [['#ff922b', 0, -84], ['#ffd43b', 2.1, -66], ['#f06595', 4.2, -100]].forEach(([c, ph, dy]) => {
+      const fx = x + Math.sin(t * 0.8 + ph) * 46, dir = Math.cos(t * 0.8 + ph) > 0 ? 1 : -1, fy = y + dy + Math.sin(t * 2 + ph) * 3;
+      ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(fx, fy, 8, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(fx - dir * 7, fy); ctx.lineTo(fx - dir * 13, fy - 5); ctx.lineTo(fx - dir * 13, fy + 5); ctx.closePath(); ctx.fill();
+      circle(ctx, fx + dir * 4, fy - 1, 1.2, '#111');
+    });
+    for (let k = 0; k < 3; k++) { const p = (t * 0.5 + k / 3) % 1; circle(ctx, x + 30 + Math.sin(p * 8) * 3, y - 50 - p * 64, 2.4, 'rgba(255,255,255,.7)'); }
+    ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(x - 60, y - 116, 10, 66);
+  }
+
+  function gameConsole(ctx, x, y) {
+    shadow(ctx, x, y, 34, 6);
+    ctx.fillStyle = '#495057'; rr(ctx, x - 30, y - 40, 60, 40, 5); ctx.fill();
+    ctx.fillStyle = '#f8f9fa'; rr(ctx, x - 26, y - 62, 52, 22, 6); ctx.fill();
+    ctx.fillStyle = '#4dabf7'; rr(ctx, x - 22, y - 58, 20, 14, 3); ctx.fill();
+    circle(ctx, x + 12, y - 51, 4, '#e03131');
+    ctx.fillStyle = '#212529'; rr(ctx, x - 18, y - 26, 36, 14, 6); ctx.fill();
+    circle(ctx, x - 10, y - 19, 2.4, '#fcc419'); circle(ctx, x + 10, y - 19, 2.4, '#69db7c');
+  }
+
+  function grandClock(ctx, x, y, t) {
+    shadow(ctx, x, y, 34, 7);
+    ctx.fillStyle = '#7a4520'; rr(ctx, x - 26, y - 158, 52, 158, 8); ctx.fill();
+    ctx.fillStyle = '#a0602e'; rr(ctx, x - 20, y - 152, 40, 40, 20); ctx.fill();
+    circle(ctx, x, y - 132, 16, '#fff8e6');
+    const d = new Date(), hA = ((d.getHours() % 12) + d.getMinutes() / 60) / 12 * Math.PI * 2, mA = d.getMinutes() / 60 * Math.PI * 2;
+    ctx.strokeStyle = '#212529'; ctx.lineCap = 'round';
+    ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(x, y - 132); ctx.lineTo(x + Math.sin(hA) * 8, y - 132 - Math.cos(hA) * 8); ctx.stroke();
+    ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x, y - 132); ctx.lineTo(x + Math.sin(mA) * 12, y - 132 - Math.cos(mA) * 12); ctx.stroke();
+    ctx.fillStyle = '#3d2410'; rr(ctx, x - 16, y - 104, 32, 86, 4); ctx.fill();
+    const a = Math.sin(t * 3) * 0.35;
+    ctx.strokeStyle = '#fcc419'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, y - 100); ctx.lineTo(x + Math.sin(a) * 56, y - 100 + Math.cos(a) * 56); ctx.stroke();
+    circle(ctx, x + Math.sin(a) * 60, y - 100 + Math.cos(a) * 60, 7, '#fcc419');
+  }
+
+  function teddy(ctx, x, y) {
+    shadow(ctx, x, y, 44, 8);
+    const b = '#c47f3c', l = '#e8b46a';
+    circle(ctx, x - 26, y - 14, 14, b); circle(ctx, x + 26, y - 14, 14, b);
+    ctx.fillStyle = b; ctx.beginPath(); ctx.ellipse(x, y - 44, 34, 38, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = l; ctx.beginPath(); ctx.ellipse(x, y - 38, 20, 24, 0, 0, Math.PI * 2); ctx.fill();
+    circle(ctx, x - 36, y - 56, 12, b); circle(ctx, x + 36, y - 56, 12, b);
+    circle(ctx, x, y - 98, 28, b);
+    circle(ctx, x - 22, y - 120, 11, b); circle(ctx, x + 22, y - 120, 11, b);
+    circle(ctx, x - 22, y - 120, 6, l); circle(ctx, x + 22, y - 120, 6, l);
+    ctx.fillStyle = l; ctx.beginPath(); ctx.ellipse(x, y - 88, 13, 10, 0, 0, Math.PI * 2); ctx.fill();
+    circle(ctx, x - 10, y - 104, 3, '#111'); circle(ctx, x + 10, y - 104, 3, '#111');
+    circle(ctx, x, y - 92, 4, '#3d2410');
+    ctx.fillStyle = '#e64980';
+    ctx.beginPath(); ctx.moveTo(x, y - 72); ctx.lineTo(x - 14, y - 80); ctx.lineTo(x - 14, y - 64); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x, y - 72); ctx.lineTo(x + 14, y - 80); ctx.lineTo(x + 14, y - 64); ctx.closePath(); ctx.fill();
+  }
+
+  function painting(ctx, x, y) {
+    ctx.fillStyle = '#b07800'; rr(ctx, x - 62, y - 46, 124, 80, 4); ctx.fill();
+    ctx.fillStyle = '#ffd43b'; rr(ctx, x - 58, y - 42, 116, 72, 3); ctx.fill();
+    const g = ctx.createLinearGradient(0, y - 38, 0, y + 26);
+    g.addColorStop(0, '#ffa94d'); g.addColorStop(1, '#ffe066');
+    ctx.fillStyle = g; ctx.fillRect(x - 54, y - 38, 108, 64);
+    circle(ctx, x + 20, y - 14, 12, '#fff3bf');
+    ctx.fillStyle = '#5c940d'; ctx.beginPath(); ctx.moveTo(x - 54, y + 26); ctx.lineTo(x - 20, y - 8); ctx.lineTo(x + 8, y + 12); ctx.lineTo(x + 30, y - 2); ctx.lineTo(x + 54, y + 26); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#2b8a3e'; ctx.beginPath(); ctx.moveTo(x - 54, y + 26); ctx.lineTo(x - 30, y + 6); ctx.lineTo(x - 6, y + 26); ctx.closePath(); ctx.fill();
+  }
+
+  function furRug(ctx, x, y) {
+    ctx.fillStyle = '#e599f7'; ctx.beginPath(); ctx.ellipse(x, y, 92, 44, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f3d9fa'; ctx.beginPath(); ctx.ellipse(x, y, 74, 32, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 2;
+    for (let k = 0; k < 28; k++) { const a = k / 28 * Math.PI * 2; ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * 86, y + Math.sin(a) * 40); ctx.lineTo(x + Math.cos(a) * 96, y + Math.sin(a) * 47); ctx.stroke(); }
+  }
+
+  function palmPot(ctx, x, y) {
+    shadow(ctx, x, y, 28, 6);
+    ctx.fillStyle = '#e8590c'; ctx.beginPath(); ctx.moveTo(x - 22, y - 34); ctx.lineTo(x + 22, y - 34); ctx.lineTo(x + 16, y); ctx.lineTo(x - 16, y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#a47148'; ctx.fillRect(x - 4, y - 96, 8, 64);
+    ctx.fillStyle = '#2f9e44';
+    for (let k = 0; k < 7; k++) {
+      const a = -Math.PI + k * (Math.PI / 6);
+      ctx.save(); ctx.translate(x, y - 96); ctx.rotate(a);
+      ctx.beginPath(); ctx.ellipse(28, 4, 30, 7, 0.25, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function floorLamp(ctx, x, y) {
+    shadow(ctx, x, y, 22, 5);
+    ctx.fillStyle = '#495057'; ctx.beginPath(); ctx.ellipse(x, y - 3, 18, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(x - 2, y - 120, 4, 118);
+    ctx.fillStyle = '#fff3bf'; ctx.beginPath(); ctx.moveTo(x - 24, y - 112); ctx.lineTo(x + 24, y - 112); ctx.lineTo(x + 16, y - 146); ctx.lineTo(x - 16, y - 146); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,236,153,.35)'; ctx.beginPath(); ctx.ellipse(x, y - 108, 34, 10, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  return { bedBlanket, bathFront, diningPart, piano, aquarium, gameConsole, grandClock, teddy, painting, furRug, palmPot, floorLamp };
+})());
+
+/* Biển tên đường kiểu Hà Nội + bàn bi-a */
+Object.assign(ART, (() => {
+  const { rr, shadow, circle } = ART;
+
+  /** Cột biển tên đường: mỗi tên một tấm biển xanh chữ trắng */
+  function streetSign(ctx, x, y, names) {
+    shadow(ctx, x, y, 14, 4);
+    ctx.fillStyle = '#868e96'; ctx.fillRect(x - 3, y - 150, 6, 150);
+    ctx.fillStyle = '#495057'; ctx.fillRect(x - 5, y - 6, 10, 6);
+    names.forEach((nm, i) => {
+      const py = y - 150 + i * 40;
+      ctx.font = '900 15px "Be Vietnam Pro", system-ui, sans-serif';
+      const w = Math.max(110, ctx.measureText(nm.toUpperCase()).width + 26);
+      const px = i % 2 ? x - w + 14 : x - 14;
+      ctx.fillStyle = '#0b3d91'; rr(ctx, px - 2, py - 2, w + 4, 36, 6); ctx.fill();
+      ctx.fillStyle = '#1c5fc4'; rr(ctx, px, py, w, 32, 5); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; rr(ctx, px + 3, py + 3, w - 6, 26, 4); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '700 7.5px "Be Vietnam Pro", system-ui, sans-serif'; ctx.fillText('ĐƯỜNG', px + w / 2, py + 9);
+      ctx.font = '900 13px "Be Vietnam Pro", system-ui, sans-serif'; ctx.fillText(nm.toUpperCase(), px + w / 2, py + 21);
+    });
+  }
+
+  /** Bàn bi-a nhìn nghiêng, mặt nỉ xanh, có vài bi và gậy */
+  function billiardTable(ctx, x, y) {
+    shadow(ctx, x, y + 4, 160, 18);
+    ctx.fillStyle = '#5c3010';
+    [[-128, 0], [128, 0], [-128, -40], [128, -40]].forEach(([dx]) => { ctx.fillRect(x + dx - 7, y - 34, 14, 34); });
+    ctx.fillStyle = '#7a4520'; rr(ctx, x - 150, y - 130, 300, 100, 14); ctx.fill();
+    ctx.fillStyle = '#a0602e'; rr(ctx, x - 144, y - 126, 288, 90, 12); ctx.fill();
+    const g = ctx.createLinearGradient(0, y - 116, 0, y - 46);
+    g.addColorStop(0, '#2f9e44'); g.addColorStop(1, '#237a35');
+    ctx.fillStyle = g; rr(ctx, x - 130, y - 116, 260, 70, 6); ctx.fill();
+    [[-130, -116], [0, -118], [130, -116], [-130, -46], [0, -44], [130, -46]].forEach(([dx, dy]) => circle(ctx, x + dx, y + dy, 7, '#111'));
+    [[60, -84, '#fcc419'], [72, -78, '#e03131'], [72, -90, '#1c7ed6'], [84, -84, '#7048e8'], [84, -72, '#2b8a3e'], [84, -96, '#fd7e14'], [-70, -80, '#fff']].forEach(([dx, dy, c]) => {
+      circle(ctx, x + dx, y + dy, 5.5, c); circle(ctx, x + dx - 1.6, y + dy - 1.6, 1.6, 'rgba(255,255,255,.6)');
+    });
+    ctx.strokeStyle = '#c8874a'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x - 150, y - 40); ctx.lineTo(x - 82, y - 78); ctx.stroke();
+    ctx.strokeStyle = '#212529'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x - 160, y - 34); ctx.lineTo(x - 140, y - 46); ctx.stroke();
+  }
+
+  return { streetSign, billiardTable };
+})());

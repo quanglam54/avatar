@@ -43,7 +43,7 @@ const UI = (() => {
     if (p && !p.locked) p.close();
   }
 
-  const isBlocking = () => stack.length > 0 || (typeof TABLE !== 'undefined' && TABLE.isOpen()) || (typeof RACE !== 'undefined' && RACE.isOpen()) || !!document.querySelector('#arcadeView.show');
+  const isBlocking = () => stack.length > 0 || (typeof TABLE !== 'undefined' && TABLE.isOpen()) || (typeof BIL !== 'undefined' && BIL.isOpen()) || (typeof RACE !== 'undefined' && RACE.isOpen()) || !!document.querySelector('#arcadeView.show');
 
   function confirm(text, okText, onOk) {
     const p = panel('Xác nhận', `<p class="confirm-text">${text}</p>
@@ -887,6 +887,24 @@ const UI = (() => {
     renderInfo();
   }
 
+  /* ---------- Catalog đồ nội thất ---------- */
+  function furnitureShop() {
+    const S = AV.S;
+    const p = panel('🛋️ Đồ Nội Thất', '', { wide: true });
+    const render = () => {
+      const n = (S.furniture || []).length;
+      p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Đã có ${n}/${DATA.FURNITURE.length} món</div>
+        <p class="muted">Mua xong đồ hiện ngay trong nhà. Một số món bấm vào để chơi: đàn piano, bể cá, máy game, gấu bông, đồng hồ.</p>
+        <div class="shop-list">${DATA.FURNITURE.map((f) => {
+          const has = AV.hasFurn(f.id);
+          return `<div class="shop-row"><span class="ic">${f.icon}</span><div class="info"><b>${f.name}</b><small>${f.room} · ${f.desc}</small></div>
+            ${has ? '<button class="btn small ghost" disabled>✅ Đã có</button>' : `<button class="btn small" data-furn="${f.id}">Mua · ${f.price.toLocaleString('vi-VN')}💰</button>`}</div>`;
+        }).join('')}</div>`;
+      p.body.querySelectorAll('[data-furn]').forEach((b) => b.onclick = () => { AV.buyFurn(b.dataset.furn); render(); });
+    };
+    render();
+  }
+
   /* ---------- Bệ bắn pháo hoa ---------- */
   function fireworksPanel() {
     const S = AV.S;
@@ -1183,5 +1201,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop };
 })();

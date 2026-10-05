@@ -131,8 +131,34 @@ const MUSIC = (() => {
     o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 1.05);
   }
 
+  /** Một đoạn piano ngắn khi bấm chơi đàn trong nhà */
+  function melody() {
+    try {
+      if (!ac) build();
+      if (ac.state === 'suspended') ac.resume();
+    } catch (e) { return; }
+    const t = ac.currentTime + 0.05;
+    const tunes = [[72, 74, 76, 77, 79, 77, 76, 74, 72], [67, 72, 76, 79, 76, 72, 74, 71, 72], [76, 74, 72, 74, 76, 76, 76]];
+    const tune = tunes[Math.floor(Math.random() * tunes.length)];
+    tune.forEach((n, i) => {
+      const o = ac.createOscillator(), g = ac.createGain(), at = t + i * 0.28;
+      o.type = 'triangle'; o.frequency.value = hz(n);
+      g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.16 * Math.max(0.3, vol), at + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.9);
+      o.connect(g); g.connect(ac.destination); o.start(at); o.stop(at + 0.95);
+    });
+  }
+
+  /** Tiếng "cạch" khi gậy chạm bi */
+  function clack() {
+    if (!ac || !on || ac.state !== 'running') return;
+    const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'square'; o.frequency.setValueAtTime(1400, t); o.frequency.exponentialRampToValueAtTime(500, t + 0.05);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.08 * vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.1);
+  }
+
   function setOn(v) { on = v; if (v) start(); else stop(); }
   function setVolume(v) { vol = Math.max(0, Math.min(1, v)); if (on && ac) fadeTo(vol * 0.9, 0.3); }
 
-  return { init, setOn, setVolume, boom, whistle, get on() { return on; }, get volume() { return vol; } };
+  return { init, setOn, setVolume, boom, whistle, melody, clack, get on() { return on; }, get volume() { return vol; } };
 })();

@@ -111,11 +111,13 @@
     player.pending = null;
     myPet.x = player.x - 30; myPet.y = player.y + 3;
     if (id !== 'farm') VISIT = null;
+    pose = null;
     rockets.length = 0; sparks.length = 0; flashes.length = 0; fwShow = null; fwDim = 0;
     UI.setLocation(id === 'farm' && VISIT ? `Nông trại của ${VISIT.data.name}` : map.name);
     UI.updateVisitBar(VISIT);
     joinRoom();
     TABLE.onMapChange();
+    BIL.onMapChange();
   }
 
   /** Phòng online của khu hiện tại: nông trại và nhà là riêng từng người */
@@ -129,6 +131,7 @@
     const b = m.bounds;
     if (x < b.l || x > b.r || y < b.t || y > b.b) return true;
     for (const c of m.colliders) {
+      if (c.when && !c.when()) continue;
       if (x > c.x - 9 && x < c.x + c.w + 9 && y > c.y - 4 && y < c.y + c.h + 4) return true;
     }
     return false;
@@ -507,7 +510,7 @@
   };
 
   AV.useTree = (i) => {
-    if (VISIT) return visitOnly('hái quả');
+    if (VISIT) return AV.stealTree(i);
     const st = treeState(i);
     if (!st.ripe) return UI.toast(`${st.f.icon} Cây ${st.f.name.toLowerCase()} đang ra quả, còn ${fmtDur(st.left)} nữa`);
     S.trees[i].at = Date.now();
@@ -548,7 +551,7 @@
     return prog >= 1 ? null : { p: prog, left: cfg.time - (now - st.fedAt) / 1000 };
   }
 
-  AV.useCoop = () => VISIT ? visitOnly('thu trứng') : farmBuilding(S.coop, DATA.COOP, {
+  AV.useCoop = () => VISIT ? AV.stealBarn('coop') : farmBuilding(S.coop, DATA.COOP, {
     kinds: ['chicken'], fedMsg: 'Đã cho gà ăn! 🐔', waitMsg: 'Gà đang đẻ trứng…',
     collect: () => { addItem('egg', DATA.COOP.eggs); float(`+${DATA.COOP.eggs} 🥚`, player.x, player.y - 100); },
   });
@@ -557,7 +560,7 @@
     return r === null ? '🥚' : r;
   };
 
-  AV.usePen = () => VISIT ? visitOnly('thu sữa') : farmBuilding(S.pen, DATA.PEN, {
+  AV.usePen = () => VISIT ? AV.stealBarn('pen') : farmBuilding(S.pen, DATA.PEN, {
     kinds: ['cow', 'sheep', 'pig'], fedMsg: 'Đã cho gia súc ăn! 🐄', waitMsg: 'Bò đang làm sữa…',
     collect: () => {
       addItem('milk', DATA.PEN.milk);
@@ -1085,9 +1088,6 @@
   };
 
   /* ---------- Thăm nông trại bạn bè ---------- */
-  function visitOnly(what) {
-    UI.toast(`Đây là nông trại của ${VISIT.data.name} — bạn không thể ${what} ở đây. Bấm ô ruộng để 💧 tưới giúp nhé!`, 3500);
-  }
 
   /** Ghép dữ liệu nông trại tải về với mặc định (bản lưu cũ có thể thiếu) */
   function farmData(f) {
@@ -1130,9 +1130,9 @@
   AV.helpWater = async () => {
     if (!VISIT) return;
     const name = VISIT.data.name;
-    if (VISIT.helped) return UI.toast(`Bạn đã tưới giúp ${name} rồi 💧`);
+    if (VISIT.helped) return UI.toast(`Bạn đã tưới giúp ${name} rồi 💧 · Ô ruộng chín 🧺, cây có quả, chuồng có trứng / sữa mới hái trộm được`, 4000);
     const need = VISIT.data.tiles.filter((t) => t.crop && !t.watered && tileState(t).stage < 2).length;
-    if (!need) return UI.toast(`Ruộng của ${name} không cần tưới lúc này 🌱`);
+    if (!need) return UI.toast(`Ô này chưa chín để hái trộm, ruộng của ${name} cũng không cần tưới lúc này 🌱`, 3500);
     try { await CLOUD.sendHelp(VISIT.uid, S.name); } catch (e) { return UI.toast('⚠️ ' + e.message, 4500); }
     VISIT.helped = true;
     VISIT.data.tiles.forEach((t) => { if (t.crop) t.watered = true; });
@@ -1174,7 +1174,14 @@
       if (VISIT !== v || !f || f.user_id !== v.uid || f.updated_at === v.rev) return;
       const d = farmData(f);
       if (v.helped) d.tiles.forEach((t) => { if (t.crop) t.watered = true; });
-      Object.entries(v.stolen).forEach(([i, at]) => { const t = d.tiles[i]; if (t && t.plantedAt === at) Object.assign(t, { crop: null, plantedAt: 0, watered: false, fert: false }); });
+      Object.entries(v.stolen).forEach(([key, at]) => {
+        const k = +key;
+        if (at === -1) return;
+        if (k === STEAL_COOP) d.coop = { fedAt: 0 };
+        else if (k === STEAL_PEN) d.pen = { fedAt: 0 };
+        else if (k >= STEAL_TREE) { if (d.trees[k - STEAL_TREE]) d.trees[k - STEAL_TREE].at = at; }
+        else { const t = d.tiles[k]; if (t && t.plantedAt === at) Object.assign(t, { crop: null, plantedAt: 0, watered: false, fert: false }); }
+      });
       v.data = d;
       v.rev = f.updated_at;
       UI.updateVisitBar(v);
@@ -1241,24 +1248,27 @@
     });
   }
 
-  /** Hái trộm 1 ô đã chín ở nông trại bạn. Mỗi thú giữ nhà có thể cắn riêng → bị phạt cộng dồn (xu về túi chủ nhà) */
-  AV.stealTile = async (i) => {
+  /* Mã "ô" khi báo trộm: 0–239 ô ruộng, 1000+i cây ăn quả, 2000 chuồng gà, 2001 chuồng bò */
+  const STEAL_TREE = 1000, STEAL_COOP = 2000, STEAL_PEN = 2001;
+  const halfOf = (n) => Math.max(1, Math.round(n * DATA.STEAL.share));
+
+  /** Trộm một thứ ở nông trại bạn. Mỗi thú giữ nhà có thể cắn riêng → bị phạt cộng dồn (xu về túi chủ nhà)
+   *  o = { key, crop, give: { id: số lượng }, label, mark: (giá trị lưu khi trộm được) , apply: () => xoá ở bản đang xem } */
+  async function stealThing(o) {
     const v = VISIT;
     if (!v || v.busy) return;
-    const t = v.data.tiles[i];
-    if (tileState(t).stage !== 2) return;
-    if (v.stolen[i] !== undefined) return UI.toast('Ô này bạn vừa hái rồi 😅');
-    if (Object.keys(v.stolen).length >= DATA.STEAL.perFarm) return UI.toast(`Hôm nay bạn đã hái trộm ${DATA.STEAL.perFarm} ô ở nông trại này rồi, đừng tham quá 😅`, 3500);
-    const team = v.data.guard || [], crop = t.crop, c = DATA.CROPS[crop], name = v.data.name;
-    const biters = team.map((id, k) => ({ k, g: guardDef(id) })).filter((b) => Math.random() < b.g.bite);
+    if (v.stolen[o.key] !== undefined) return UI.toast('Chỗ này bạn vừa trộm rồi 😅');
+    if (Object.keys(v.stolen).length >= DATA.STEAL.perFarm) return UI.toast(`Hôm nay bạn đã trộm ${DATA.STEAL.perFarm} lần ở nông trại này rồi, đừng tham quá 😅`, 3500);
+    const team = v.data.guard || [], name = v.data.name;
+    const biters = team.map((id, k) => ({ k, g: guardDef(id) })).filter((x) => Math.random() < x.g.bite);
     const bitten = biters.length > 0;
-    const qty = bitten ? 0 : Math.max(1, Math.round(c.yield * DATA.STEAL.share));
-    const fine = bitten ? Math.min(biters.reduce((a, b) => a + b.g.fine, 0), S.coins, 1000) : 0;
+    const qty = bitten ? 0 : Object.values(o.give).reduce((x, n) => x + n, 0);
+    const fine = bitten ? Math.min(biters.reduce((x, y) => x + y.g.fine, 0), S.coins, 1000) : 0;
     v.busy = true;
-    try { await CLOUD.sendSteal({ owner: v.uid, thief_name: S.name, tile: i, crop, qty, bitten, coins: fine }); }
+    try { await CLOUD.sendSteal({ owner: v.uid, thief_name: S.name, tile: o.key, crop: o.crop, qty, bitten, coins: fine }); }
     catch (e) { return UI.toast('⚠️ ' + e.message, 4500); }
     finally { v.busy = false; }
-    v.stolen[i] = bitten ? -1 : t.plantedAt;
+    v.stolen[o.key] = bitten ? -1 : o.mark;
     NET.farmPing('farmhit', v.uid);
     if (bitten) {
       S.coins -= fine;
@@ -1269,21 +1279,53 @@
         gd.angry = Date.now() + 3500;
         gd.bubble = { text: g.id === 'lion' || g.id === 'tiger' ? 'GRÀOOO! 🦷' : 'GÂU GÂU! 🦷', until: Date.now() + 3000, big: true };
       });
-      const who = biters.map((b) => `${b.g.icon} ${b.g.name}`).join(', ');
+      const who = biters.map((x) => `${x.g.icon} ${x.g.name}`).join(', ');
       say(player, biters.length > 1 ? 'Á á á! Bị cả đàn cắn 😭' : 'Á á á! Đau quá 😭');
       float(`🦷 -${fine} 💰`, player.x, player.y - 120, '#ff6b6b');
       UI.toast(`🦷 ${who} nhà ${name} cắn bạn! Bị phạt ${fine} xu (xu về túi chủ nhà)`, 5000);
-      NET.sendSys(`🦷 ${S.name} hái trộm ở nông trại ${name} và bị ${biters.length > 1 ? biters.length + ' con thú' : biters[0].g.name} cắn!`);
+      NET.sendSys(`🦷 ${S.name} trộm ở nông trại ${name} và bị ${biters.length > 1 ? biters.length + ' con thú' : biters[0].g.name} cắn!`);
     } else {
-      Object.assign(t, { crop: null, plantedAt: 0, watered: false, fert: false });
-      addItem(crop, qty);
+      o.apply();
+      Object.entries(o.give).forEach(([id, n]) => addItem(id, n));
       addXP(2);
-      float(`🥷 +${qty} ${c.icon}`, player.x, player.y - 110);
+      const got = Object.entries(o.give).map(([id, n]) => `+${n} ${DATA.ITEMS[id].icon}`).join('  ');
+      float(`🥷 ${got}`, player.x, player.y - 110);
       guards.forEach((gd) => { gd.bubble = { text: '💤', until: Date.now() + 2500 }; });
-      UI.toast(`🥷 Hái trộm được ${qty} ${c.icon} ${c.name.toLowerCase()}${team.length ? ` — ${team.length > 1 ? 'đàn thú' : guardDef(team[0]).name} không để ý 😏` : ''}`, 3500);
-      NET.sendSys(`🥷 ${S.name} vừa hái trộm ${qty} ${c.icon} ở nông trại ${name}!`);
+      UI.toast(`🥷 Trộm được ${got} ${o.label}${team.length ? ` — ${team.length > 1 ? 'đàn thú' : guardDef(team[0]).name} không để ý 😏` : ''}`, 3500);
+      NET.sendSys(`🥷 ${S.name} vừa trộm ${got} ở nông trại ${name}!`);
     }
     changed();
+  }
+
+  /** Ô ruộng đã chín */
+  AV.stealTile = (i) => {
+    const t = VISIT && VISIT.data.tiles[i];
+    if (!t || tileState(t).stage !== 2) return;
+    const c = DATA.CROPS[t.crop];
+    return stealThing({ key: i, crop: t.crop, give: { [t.crop]: halfOf(c.yield) }, label: c.name.toLowerCase(), mark: t.plantedAt,
+      apply: () => Object.assign(t, { crop: null, plantedAt: 0, watered: false, fert: false }) });
+  };
+
+  /** Cây ăn quả đã chín */
+  AV.stealTree = (i) => {
+    const st = treeState(i), name = VISIT.data.name;
+    if (!st.ripe) return UI.toast(`${st.f.icon} Cây ${st.f.name.toLowerCase()} nhà ${name} chưa có quả chín để hái trộm (còn ${fmtDur(st.left)})`, 3500);
+    const id = DATA.ORCHARD[i], at = Date.now();
+    return stealThing({ key: STEAL_TREE + i, crop: id, give: { [id]: halfOf(st.f.yield) }, label: st.f.name.toLowerCase(), mark: at,
+      apply: () => { VISIT.data.trees[i].at = at; } });
+  };
+
+  /** Chuồng gà có trứng / chuồng bò có sữa, len, thịt */
+  AV.stealBarn = (kind) => {
+    const v = VISIT, cfg = kind === 'coop' ? DATA.COOP : DATA.PEN, st = v.data[kind] || { fedAt: 0 };
+    const ready = st.fedAt && Date.now() - st.fedAt >= cfg.time * 1000;
+    if (!ready) {
+      const what = kind === 'coop' ? 'Chuồng gà' : 'Chuồng bò cừu', prod = kind === 'coop' ? 'trứng' : 'sữa';
+      return UI.toast(st.fedAt ? `${what} nhà ${v.data.name} chưa có ${prod} (còn ${fmtDur(cfg.time - (Date.now() - st.fedAt) / 1000)})` : `${what} nhà ${v.data.name} chưa cho ăn nên chưa có ${prod} để trộm`, 3500);
+    }
+    const give = kind === 'coop' ? { egg: halfOf(cfg.eggs) } : { milk: halfOf(cfg.milk), wool: halfOf(cfg.wool), pork: halfOf(cfg.pork) };
+    return stealThing({ key: kind === 'coop' ? STEAL_COOP : STEAL_PEN, crop: kind === 'coop' ? 'egg' : 'milk', give, label: kind === 'coop' ? 'ở chuồng gà' : 'ở chuồng bò', mark: 1,
+      apply: () => { v.data[kind] = { fedAt: 0 }; } });
   };
 
   /** Chủ nông trại: xử lý các lần bị hái trộm (mất cây chín / nhận tiền phạt kẻ bị cắn) */
@@ -1297,14 +1339,23 @@
     rows.forEach((r) => {
       const who = r.thief_name || 'Ai đó';
       if (r.bitten) { fines += Math.max(0, r.coins | 0); bitten.add(who); return; }
-      const t = S.tiles[r.tile];
-      if (t && t.crop === r.crop && tileState(t).stage === 2) { Object.assign(t, { crop: null, plantedAt: 0, watered: false, fert: false }); lost++; }
+      const k = r.tile | 0;
+      if (k === STEAL_COOP || k === STEAL_PEN) {
+        const st = k === STEAL_COOP ? S.coop : S.pen, cfg = k === STEAL_COOP ? DATA.COOP : DATA.PEN;
+        if (st.fedAt && Date.now() - st.fedAt >= cfg.time * 1000) { st.fedAt = 0; lost++; }
+      } else if (k >= STEAL_TREE) {
+        const i = k - STEAL_TREE;
+        if (S.trees[i] && treeState(i).ripe) { S.trees[i].at = Date.now(); lost++; }
+      } else {
+        const t = S.tiles[k];
+        if (t && t.crop === r.crop && tileState(t).stage === 2) { Object.assign(t, { crop: null, plantedAt: 0, watered: false, fert: false }); lost++; }
+      }
       thieves.add(who);
     });
     if (fines) { S.coins += fines; float(`+${fines} 💰`, player.x, player.y - 120, '#ffd43b'); }
     const team = S.guard || [];
     const msgs = [];
-    if (thieves.size) msgs.push(`🥷 ${[...thieves].join(', ')} đã hái trộm ${lost} ô ruộng của bạn!${team.length ? '' : ' Mua thú giữ nhà ở Chuồng Thú (góc phải nông trại) nhé 🐕'}`);
+    if (thieves.size) msgs.push(`🥷 ${[...thieves].join(', ')} đã trộm ${lost} lần ở nông trại của bạn (ruộng / quả / trứng / sữa)!${team.length ? '' : ' Mua thú giữ nhà ở Chuồng Thú (góc phải nông trại) nhé 🐕'}`);
     if (bitten.size) msgs.push(`${teamIcons(team) || '🐕'} Thú giữ nhà đã cắn ${[...bitten].join(', ')} khi hái trộm — bạn nhận ${fines} xu tiền phạt!`);
     msgs.forEach((m, k) => { setTimeout(() => UI.toast(m, 6000), k * 600); UI.chatLog('', m, false, true); });
     changed();
@@ -1605,8 +1656,55 @@
     UI.toast(msg);
     changed();
   }
-  AV.sleep = () => homeActivity('lastSleep', 120, 30, '😴 Ngủ một giấc thật ngon! +30 XP', '😴 Zzz…', 'Bạn chưa buồn ngủ');
-  AV.bathe = () => homeActivity('lastBath', 60, 15, '🛁 Tắm xong thơm tho quá! +15 XP', '🛁 La la la~', 'Vừa tắm xong mà');
+  /* ---------- Tư thế trong nhà: nằm giường, ngâm bồn tắm, ngồi bàn ăn ---------- */
+  let pose = null;
+  const POSES = {
+    bed: { x: 200, y: 822, dir: 1, sortY: 901, clipY: 792, front: (g, t) => ART.bedBlanket(g, 200, 900, t), back: [320, 860] },
+    bath: { x: 1170, y: 702, dir: 1, sortY: 721, clipY: 672, front: (g, t) => ART.bathFront(g, 1170, 720, t), back: [1170, 770] },
+    seatL: { x: 1110, y: 486, dir: 1, sortY: 490, clipY: 478, back: [1150, 565] },
+    seatR: { x: 1250, y: 486, dir: -1, sortY: 490, clipY: 478, back: [1210, 565] },
+  };
+  function startPose(id, msg) {
+    if (map.id !== 'home') return;
+    if (swingRide) AV.leaveSwing();
+    pose = { id, ...POSES[id] };
+    AV.setSeatPos(pose.x, pose.y, pose.dir);
+    UI.toast(`${msg} — bấm vào màn hình để đứng dậy`, 3200);
+  }
+  AV.leavePose = () => {
+    if (!pose) return;
+    const [bx, by] = pose.back;
+    pose = null;
+    AV.leaveSeat(bx, by);
+  };
+  AV.posing = () => pose;
+  AV.sleep = () => { startPose('bed', '🛏️ Đang nằm ngủ'); homeActivity('lastSleep', 120, 30, '😴 Ngủ một giấc thật ngon! +30 XP', '😴 Zzz…', 'Bạn chưa buồn ngủ'); };
+  AV.bathe = () => { startPose('bath', '🛁 Đang ngâm mình trong bồn'); homeActivity('lastBath', 60, 15, '🛁 Tắm xong thơm tho quá! +15 XP', '🛁 La la la~', 'Vừa tắm xong mà'); };
+  AV.sitTable = () => {
+    startPose(player.x > 1180 ? 'seatR' : 'seatL', '🍽️ Ngồi vào bàn ăn');
+    homeActivity('lastMeal', 30, 10, '🍽️ Bữa cơm ngon miệng! +10 XP', '😋 Ngon quá!', 'Vừa ăn xong, no rồi');
+  };
+
+  /* ---------- Đồ nội thất ---------- */
+  AV.hasFurn = (id) => (S.furniture || []).includes(id);
+  AV.buyFurn = (id) => {
+    const f = DATA.FURNITURE.find((x) => x.id === id);
+    if (!f || AV.hasFurn(id)) return;
+    if (!AV.spend(f.price)) return;
+    S.furniture = [...(S.furniture || []), id];
+    maps.home._nav = null;
+    addXP(5);
+    UI.toast(`${f.icon} Đã mua ${f.name}! Đã đặt ở ${f.room}`, 3500);
+    changed();
+  };
+  AV.playPiano = () => {
+    if (typeof MUSIC !== 'undefined' && MUSIC.melody) MUSIC.melody();
+    homeActivity('lastPiano', 10, 5, '🎹 Chơi đàn hay quá! +5 XP', '🎵🎶', 'Nghỉ tay chút rồi chơi tiếp nhé');
+  };
+  AV.watchFish = () => homeActivity('lastAqua', 15, 4, '🐠 Ngắm cá thật thư giãn! +4 XP', '🐟 Cá xinh quá~', 'Cá đang ngủ trưa');
+  AV.hugTeddy = () => homeActivity('lastHug', 20, 4, '🧸 Ôm gấu thật êm! +4 XP', '🧸💕', 'Gấu đang được giặt');
+  AV.lookClock = () => { const d = new Date(); UI.toast(`🕰️ Bây giờ là ${d.getHours()} giờ ${String(d.getMinutes()).padStart(2, '0')} phút`); say(player, '⏰ Tích tắc~'); };
+  AV.playConsole = () => UI.arcade(DATA.ARCADE[Math.floor(Math.random() * DATA.ARCADE.length)].id);
   AV.watchTV = () => homeActivity('lastTV', 30, 8, '📺 Xem TV vui ghê! +8 XP', '📺 Phim hay quá!', 'Xem nhiều quá mỏi mắt đó');
 
   /** Rương cất đồ: chuyển vật phẩm giữa túi và rương */
@@ -1822,6 +1920,7 @@
     if (map.busStop) updateBus(dt);
     updateSwings(dt);
     TABLE.tick(dt);
+    BIL.tick(dt);
     NET.tick(dt);
     NET.update(dt);
     updateFade(dt);
@@ -1986,7 +2085,16 @@
     const rodDraw = (x, y, f) => list.push({ y: y + 1, draw: () => ART.fishingRod(g, x, y, f.bx, f.by, clock, f.state === 'bite' || f.bite) });
     others.forEach((r) => { if (r.fish) rodDraw(r.rx, r.ry, r.fish); });
     if (player.fishing && !player.hidden) rodDraw(player.x, player.y, player.fishing);
-    if (!player.hidden) {
+    if (pose && !player.hidden) {
+      const p = pose;
+      list.push({ y: p.sortY, draw: () => {
+        g.save();
+        g.beginPath(); g.rect(p.x - 120, p.y - 400, 240, p.clipY - (p.y - 400)); g.clip();
+        out((c) => ART.character(c, p.x, p.y, S.look, { ...player, moving: false }), p.x, p.y, FX.BOX.character, player);
+        g.restore();
+        if (p.front) p.front(g, clock);
+      } });
+    } else if (!player.hidden) {
       charDraw(player.x, player.y, S.look, { ...player, dance: player.dancing > now }, player);
       if (S.look.pet && S.look.pet !== 'none') petDraw(myPet, S.look.pet);
     }
@@ -2032,7 +2140,7 @@
     worldTransform(ctx, DPR * ZOOM, DPR * (W / 2 - cam.x * ZOOM), DPR * (H / 2 - cam.y * ZOOM));
     map.labels.forEach((l) => ART.label(ctx, l.dynamic === 'home' ? `🏠 Nhà ${FD().name || 'của bạn'}` : l.dynamic === 'gate' ? `Nông trại của ${FD().name || 'bạn'}` : l.text, l.x, l.y));
     map.inter.forEach((o) => {
-      if (!o.indicator || !inView(o.ix, o.iy)) return;
+      if (!o.indicator || !inView(o.ix, o.iy) || (o.when && !o.when())) return;
       const r = o.indicator();
       if (r == null) return;
       if (typeof r === 'object') ART.timerLabel(ctx, o.ix, o.iy, r.left, r.p);
@@ -2042,14 +2150,14 @@
     if (map.board) drawBoard(map.board);
 
     // mũi tên vàng "Vào" trước cửa
-    map.inter.forEach((o) => { if (o.arrow && (!o.hw || AV.hw())) ART.doorArrow(ctx, o.arrow.x, o.arrow.y, clock, o.arrow.text); });
+    map.inter.forEach((o) => { if (o.arrow && (!o.hw || AV.hw()) && (!o.when || o.when())) ART.doorArrow(ctx, o.arrow.x, o.arrow.y, clock, o.arrow.text); });
 
     // bảng tên gỗ trên đầu nhân vật
     // bảng tên nằm sát trên đỉnh đầu (cao hơn khi đội mũ); bong bóng chat nằm trên bảng tên
     const nameTop = (look) => (!look || look.hat === 'none' ? 118 : look.hat === 'nonla' ? 138 : 130);
     map.npcs.forEach((n) => { if (!n.hw || AV.hw()) ART.namePlate(ctx, n.name, n.x, n.y - nameTop(n.look), 'npc'); });
     others.forEach((r) => ART.namePlate(ctx, r.name, r.rx, r.ry - nameTop(r.look), 'other'));
-    if (!player.hidden) ART.namePlate(ctx, S.name || 'Bạn', player.x, player.y - nameTop(S.look), 'me');
+    if (!player.hidden && !(pose && pose.front)) ART.namePlate(ctx, S.name || 'Bạn', player.x, player.y - nameTop(S.look), 'me');
 
     const bubbleOf = (e) => {
       if (e.bubble && e.bubble.until > now) {
@@ -2142,7 +2250,7 @@
   }
 
   function interAt(x, y) {
-    const hits = map.inter.filter((o) => (!o.hw || AV.hw()) && x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h);
+    const hits = map.inter.filter((o) => (!o.hw || AV.hw()) && (!o.when || o.when()) && x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h);
     hits.sort((a, b) => a.w * a.h - b.w * b.h);
     return hits[0] || null;
   }
@@ -2154,6 +2262,7 @@
     if (UI.isBlocking() || player.hidden || fade.mode) return;
     if (player.fishing && player.fishing.state === 'bite') { AV.pullRod(); return; }
     if (TABLE.seated()) { TABLE.openView(); return; }
+    if (BIL.seated()) { BIL.openView(); return; }
     clickWorld(toWorld(e.clientX, e.clientY));
   }
   canvas.addEventListener('pointerdown', (e) => {
@@ -2211,6 +2320,7 @@
   /** Xử lý một cú bấm tại toạ độ thế giới w */
   function clickWorld(w) {
     if (swingRide) { AV.leaveSwing(); return; }
+    if (pose) { AV.leavePose(); return; }
     const pk = map.pickups.find((p) => Math.abs(p.x - w.x) < 22 && w.y > p.y - 30 && w.y < p.y + 8);
     if (pk) {
       goTo(pk.x, pk.y + 4);
@@ -2286,6 +2396,7 @@
   MUSIC.init(S.settings || {});
   UI.updateMusicBtn();
   TABLE.init();
+  BIL.init();
   UI.updateHud();
   NET.init(player);
   /* ---------- Tài khoản: đăng nhập rồi mới vào chơi ---------- */
