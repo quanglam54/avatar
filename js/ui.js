@@ -832,7 +832,7 @@ const UI = (() => {
         <li>📜 Bấm nút <b>📜</b> xem nhiệm vụ hằng ngày để nhận thêm xu.</li>
         <li>🌼 <b>Vườn Hoa</b> trồng hoa cúc, tulip, hướng dương, dâm bụt, hồng — bán lấy tiền hoặc gói <b>💐 Bó hoa</b> ở Nhà bếp. 🎠 <b>Sân Chơi</b> cạnh vườn hoa có xích đu và vọng lâu.</li>
         <li>🏡 Mỗi người có <b>nông trại riêng</b>. Bấm vào người chơi khác → <b>Thăm nông trại</b>, hoặc MENU → <b>Thăm bạn bè</b>. Ở nông trại bạn, bấm ô ruộng để <b>💧 tưới giúp</b>.</li>
-        <li>🕹️ <b>Khu Game</b> trong Khu giải trí: máy chơi Pikachu, Flappy Bird, Đào Vàng — điểm cao được thưởng xu.</li>
+        <li>🕹️ <b>Khu Game</b> trong Khu giải trí: máy chơi Pikachu, Flappy Bird, Đào Vàng, Kéo Bò — điểm cao được thưởng xu.</li>
         <li>🏎️ <b>Khu Đua Xe</b>: bấm cổng xuất phát để đua 3 vòng (đua một mình với máy hoặc với người chơi khác cùng lúc), về nhất được thưởng. Mua xe nhanh hơn ở Gara.</li>
         <li>🍊 <b>Vườn Cây</b> trong nông trại tự ra quả (cam, táo, xoài, đào) — không cần trồng, quả chín để lâu không hỏng, ghé hái rồi đem bán.</li>
         <li>🍳 Vào <b>Nhà Bếp</b> ở Nông trại nấu bánh, súp, khăn len… bán được giá cao hơn nhiều.</li>

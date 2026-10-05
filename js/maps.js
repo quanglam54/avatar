@@ -496,9 +496,9 @@ const MAPS = (() => {
     [[180, 420], [580, 420], [1820, 420]].forEach(([x, y]) => addLamp(m, x, y));
     [[200, 790, 'mai'], [580, 790, 'dao'], [860, 790, 'mai']].forEach(([x, y, k]) => addPot(m, x, y, k));
     m.labels.push({ text: '🎡 Khu Giải Trí', x: 700, y: 318 });
-    m.labels.push({ text: '🕹️ Khu Game', x: 2260, y: 402 });
+    m.labels.push({ text: '🕹️ Khu Game', x: 2265, y: 402 });
     DATA.ARCADE.forEach((g, i) => {
-      const x = 2080 + i * 180, y = 620;
+      const x = 2040 + i * 150, y = 620;
       aobj(m, x, y, (c, t) => ART.arcadeCabinet(c, x, y, g.color, g.name, g.icon, t), { l: -50, t: -158, w: 100, h: 166 });
       col(m, x - 38, y - 14, 76, 16);
       inter(m, { x: x - 40, y: y - 150, w: 80, h: 152, ax: x, ay: y + 30, name: `Máy game ${g.name}`, use: () => UI.arcade(g.id), arrow: { x, y: y - 160, text: 'Chơi' } });

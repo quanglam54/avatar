@@ -54,6 +54,7 @@ const DATA = {
     { id: 'pikachu', name: 'Pikachu', icon: '⚡', color: '#fcc419', div: 30 },
     { id: 'flappy', name: 'Flappy Bird', icon: '🐤', color: '#38bdf8', div: 0.5 },
     { id: 'goldminer', name: 'Đào Vàng', icon: '⛏️', color: '#f59f00', div: 60 },
+    { id: 'keobo', name: 'Kéo Bò', icon: '🐄', color: '#e03131', div: 60 },
   ],
   CROPS: {
     wheat: { name: 'Lúa mì', icon: '🌾', seed: 2, sell: 5, time: 300, xp: 4, lvl: 1, yield: 4 },
