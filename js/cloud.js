@@ -118,7 +118,7 @@ const CLOUD = (() => {
 
   /** Lấy các lần bị hái trộm chưa xử lý rồi đánh dấu đã xử lý */
   async function pullSteals() {
-    const { data, error } = await client.from('farm_steals').select('id, thief_name, tile, crop, qty, bitten, coins').eq('owner', user.id).eq('done', false);
+    const { data, error } = await client.from('farm_steals').select('id, thief_name, tile, crop, qty, bitten, coins, created_at').eq('owner', user.id).eq('done', false);
     if (error) throw new Error(viError(error));
     if (data && data.length) await client.from('farm_steals').update({ done: true }).in('id', data.map((r) => r.id));
     return data || [];

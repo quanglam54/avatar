@@ -333,6 +333,10 @@ const MAPS = (() => {
     col(m, 1160, 970, 320, 180);
     m.labels.push({ text: '🎣 Ao Cá', x: 1320, y: 900 });
     addBench(m, 1200, 1255);
+    // bảng tin: ai đến trộm, có bị cắn / phạt không, ai tưới giúp
+    sobj(m, 1400, 1250, (c) => ART.noticeBoard(c, 1400, 1250), { l: -72, t: -172, w: 144, h: 178 });
+    col(m, 1350, 1240, 100, 12);
+    inter(m, { x: 1334, y: 1084, w: 132, h: 170, ax: 1400, ay: 1282, name: 'Bảng tin nông trại (ai đến trộm, ai tưới giúp)', use: () => AV.useNoticeBoard(), indicator: () => AV.noticeIndicator(), ix: 1400, iy: 1072 });
 
     /* ----- Vườn cây ăn quả ----- */
     AV._treePos = [];
@@ -440,13 +444,21 @@ const MAPS = (() => {
     });
 
     /* ----- Bên ngoài cổng ----- */
-    [[300, 1395, 'green'], [820, 1400, 'pink'], [2380, 1395, 'fruit'], [2900, 1400, 'green'], [3420, 1395, 'pink'], [3760, 1400, 'fruit'], [4300, 1395, 'green'], [4800, 1400, 'pink'], [5250, 1395, 'fruit']].forEach(([x, y, v]) => addTree(m, x, y, v));
+    [[3760, 1400, 'fruit'], [4300, 1395, 'green'], [4800, 1400, 'pink'], [5250, 1395, 'fruit']].forEach(([x, y, v]) => addTree(m, x, y, v));
+    /* ----- Phố ẩm thực trước cổng: cơm, phở, bún bò, mì cay | trà sữa, cà phê ----- */
+    m.labels.push({ text: '🍜 Phố Ẩm Thực', x: 620, y: 1250 }, { text: '☕ Trà Sữa · Cà Phê', x: 2780, y: 1250 });
+    DATA.EATERIES.forEach((e, i) => {
+      const x = i < 4 ? 260 + i * 240 : 2420 + (i - 4) * 240, y = 1425;
+      sobj(m, x, y, (c) => ART.foodShop(c, x, y, e), { l: -125, t: -165, w: 260, h: 172 });
+      col(m, x - 105, y - 46, 210, 44);
+      inter(m, { x: x - 105, y: y - 160, w: 210, h: 160, ax: x - 40, ay: y + 28, name: `${e.name} (ăn uống +XP)`, use: () => UI.eateryPanel(e.id) });
+    });
     addPot(m, 1450, 1360, 'mai'); addPot(m, 1750, 1360, 'dao');
     sobj(m, 2160, 1385, (c) => ART.signBoard(c, 2160, 1385, 'NÔNG TRẠI\nVào cổng để\ntrồng trọt 🌱'));
     col(m, 2122, 1375, 80, 12);
     addBusStop(m, GATE + 140, 1432, 1);
     addStreetSign(m, GATE - 360, 1430);
-    addStreetSign(m, 3100, 1430, ['Cầu Giấy', 'Hồ Tùng Mậu']);
+    addStreetSign(m, 3420, 1430, ['Cầu Giấy', 'Hồ Tùng Mậu']);
     sobj(m, 0, 1594, (c) => ART.roseHedge(c, 0, m.w, 1594), { l: -10, t: -44, w: m.w + 20, h: 48 });
 
     m.spawn = { x: GATE, y: 1350 };

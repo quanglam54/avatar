@@ -141,6 +141,27 @@ DATA.FURNITURE = [
   { id: 'lamp', icon: '💡', name: 'Đèn cây', price: 350, room: 'Sảnh', desc: 'Đèn đứng ánh vàng ấm áp' },
 ];
 
+/** Dãy quán ăn uống trước cổng nông trại: ăn uống tốn xu, được XP (no bụng thì phải đợi tiêu bớt) */
+DATA.BELLY = { max: 6, digestMin: 4 };
+DATA.EATERIES = [
+  { id: 'com', name: 'Cơm Tấm', sub: 'CƠM BÌNH DÂN · CƠM GÀ', logo: '🍛', wall: '#fff3bf', trim: '#e67700', awn: ['#fd7e14', '#fff'], signBg: '#e8590c', signFg: '#fff', items: ['🍛', '🍗', '🥚'], deco: 'stools',
+    menu: [{ id: 'com_suon', name: 'Cơm tấm sườn bì chả', icon: '🍛', price: 25, xp: 12 }, { id: 'com_ga', name: 'Cơm gà xối mỡ', icon: '🍗', price: 22, xp: 10 }, { id: 'com_rang', name: 'Cơm rang dưa bò', icon: '🍳', price: 18, xp: 8 }] },
+  { id: 'pho', name: 'Phở Hà Nội', sub: 'PHỞ BÒ · PHỞ GÀ GIA TRUYỀN', logo: '🍜', wall: '#fff', trim: '#c92a2a', awn: ['#e03131', '#fff'], signBg: '#c92a2a', signFg: '#ffe066', items: ['🍜', '🥢', '🌿'], deco: 'stools',
+    menu: [{ id: 'pho_tai', name: 'Phở bò tái lăn', icon: '🍜', price: 30, xp: 14 }, { id: 'pho_ga', name: 'Phở gà ta', icon: '🍲', price: 28, xp: 13 }, { id: 'quay', name: 'Quẩy giòn', icon: '🥖', price: 5, xp: 2 }] },
+  { id: 'bunbo', name: 'Bún Bò Huế', sub: 'ĐẶC SẢN CỐ ĐÔ', logo: '🌶️', wall: '#ffe8cc', trim: '#7048e8', awn: ['#845ef7', '#ffd43b'], signBg: '#5f3dc4', signFg: '#ffd43b', items: ['🍲', '🌶️', '🍋'], deco: 'stools',
+    menu: [{ id: 'bunbo_dacbiet', name: 'Bún bò Huế đặc biệt', icon: '🍲', price: 32, xp: 15 }, { id: 'bun_cha', name: 'Bún chả Hà Nội', icon: '🥗', price: 28, xp: 13 }, { id: 'tra_da', name: 'Trà đá', icon: '🧊', price: 3, xp: 1 }] },
+  { id: 'mi', name: 'Mì Cay · Mì Ếch', sub: 'MÌ CAY 7 CẤP ĐỘ 🔥', logo: '🔥', wall: '#ffe3e3', trim: '#212529', awn: ['#e03131', '#212529'], signBg: '#212529', signFg: '#ff6b6b', items: ['🍜', '🐸', '🔥'], deco: 'stools',
+    menu: [{ id: 'mi_cay', name: 'Mì cay hải sản cấp 7', icon: '🌶️', price: 26, xp: 12 }, { id: 'mi_ech', name: 'Mì ếch om', icon: '🐸', price: 35, xp: 16 }, { id: 'kimchi', name: 'Kim chi thêm', icon: '🥬', price: 6, xp: 2 }] },
+  { id: 'koi', name: 'KOI Thé', sub: 'TRÀ SỮA · MACCHIATO', logo: '🧋', wall: '#fff8e6', trim: '#b08968', awn: ['#7f5539', '#fff8e6'], signBg: '#3d2b1f', signFg: '#f5d6a1', items: ['🧋', '🧋', '🍮'], deco: 'cafe',
+    menu: [{ id: 'koi_tran', name: 'Trà sữa trân châu hoàng kim', icon: '🧋', price: 25, xp: 10 }, { id: 'koi_mac', name: 'Trà xanh macchiato', icon: '🍵', price: 28, xp: 11 }, { id: 'koi_pudding', name: 'Thêm pudding', icon: '🍮', price: 8, xp: 3 }] },
+  { id: 'highlands', name: 'Highlands', sub: 'COFFEE · SINCE 1999', logo: '☕', wall: '#f8f0e3', trim: '#8b0000', awn: ['#a51c1c', '#f8f0e3'], signBg: '#8b0000', signFg: '#fff', items: ['☕', '🥤', '🥐'], deco: 'cafe',
+    menu: [{ id: 'hl_phin', name: 'Phin sữa đá', icon: '☕', price: 22, xp: 9 }, { id: 'hl_freeze', name: 'Freeze trà xanh', icon: '🥤', price: 30, xp: 12 }, { id: 'hl_banhmi', name: 'Bánh mì que', icon: '🥖', price: 12, xp: 5 }] },
+  { id: 'starbucks', name: 'Starbucks', sub: 'COFFEE', logo: '⭐', wall: '#f1f3f5', trim: '#00704a', awn: ['#00704a', '#fff'], signBg: '#00704a', signFg: '#fff', items: ['☕', '🥤', '🍰'], deco: 'cafe',
+    menu: [{ id: 'sb_caramel', name: 'Caramel Macchiato', icon: '☕', price: 40, xp: 15 }, { id: 'sb_frap', name: 'Java Chip Frappuccino', icon: '🥤', price: 42, xp: 16 }, { id: 'sb_cake', name: 'Bánh cheesecake', icon: '🍰', price: 30, xp: 11 }] },
+  { id: 'tch', name: 'The Coffee House', nameSize: 14, sub: 'CÀ PHÊ · TRÀ', logo: '🏠', wall: '#fff4e6', trim: '#f08c00', awn: ['#212529', '#ff922b'], signBg: '#fff', signFg: '#212529', subFg: '#f08c00', items: ['☕', '🍑', '🧁'], deco: 'cafe',
+    menu: [{ id: 'tch_suada', name: 'Cà phê sữa đá', icon: '☕', price: 20, xp: 8 }, { id: 'tch_dao', name: 'Trà đào cam sả', icon: '🍑', price: 26, xp: 11 }, { id: 'tch_cake', name: 'Bánh mousse', icon: '🧁', price: 18, xp: 7 }] },
+];
+
 /** Số thú giữ nhà tối đa cùng canh một nông trại */
 DATA.GUARD_MAX = 5;
 

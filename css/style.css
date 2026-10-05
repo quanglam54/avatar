@@ -562,3 +562,18 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* Nút mic */
 .av-btn.mic-on { background: linear-gradient(#ff8787, #e03131) !important; animation: micPulse 1.4s ease-in-out infinite; }
 @keyframes micPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(224,49,49,.55); } 50% { box-shadow: 0 0 0 8px rgba(224,49,49,0); } }
+
+/* Bảng tin nông trại */
+.log-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.log-sum > div { background: #fff; border: 2px solid #c9b48a; border-radius: 14px; padding: 8px; text-align: center; display: grid; }
+.log-sum b { font-size: 22px; color: #c92a2a; }
+.log-sum small { font-size: 11px; color: #6c5a3e; }
+.log-steal { border-left: 5px solid #e03131 !important; }
+.log-bite { border-left: 5px solid #2b8a3e !important; }
+.log-help { border-left: 5px solid #1c7ed6 !important; }
+.lnew { background: #e03131; color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 99px; margin-left: 4px; vertical-align: middle; }
+
+/* Quán ăn: thanh no bụng */
+.belly { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; margin: 4px 0 10px; font-weight: 700; font-size: 13px; }
+.belly .qbar { margin: 0; }
+.belly small { color: #6c5a3e; }

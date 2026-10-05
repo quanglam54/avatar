@@ -887,6 +887,46 @@ const UI = (() => {
     renderInfo();
   }
 
+  /* ---------- Quán ăn uống ---------- */
+  function eateryPanel(id) {
+    const e = DATA.EATERIES.find((x) => x.id === id);
+    if (!e) return;
+    const S = AV.S;
+    const p = panel(`${e.logo} ${e.name}`, '', { wide: true });
+    const render = () => {
+      const b = AV.belly(), full = b >= DATA.BELLY.max;
+      p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Cấp ${S.level}</div>
+        <div class="belly"><span>🍽️ No bụng</span><div class="qbar"><i style="width:${Math.min(100, b / DATA.BELLY.max * 100)}%;background:${full ? '#e03131' : '#40c057'}"></i></div><small>${full ? 'No rồi, đợi tiêu bớt' : 'Còn ăn được'}</small></div>
+        <div class="shop-list">${e.menu.map((it) => `<div class="shop-row"><span class="ic">${it.icon}</span>
+          <div class="info"><b>${it.name}</b><small>+${it.xp} XP</small></div>
+          <button class="btn small" data-eat="${it.id}" ${full ? 'disabled' : ''}>${it.price} xu</button></div>`).join('')}</div>
+        <p class="muted small-note">Ăn uống tốn xu nhưng được XP để lên cấp nhanh hơn. Ăn nhiều sẽ no — cứ ${DATA.BELLY.digestMin} phút tiêu bớt một phần.</p>`;
+      p.body.querySelectorAll('[data-eat]').forEach((bt) => bt.onclick = () => { AV.eat(e.id, bt.dataset.eat); render(); });
+    };
+    render();
+  }
+
+  /* ---------- Bảng tin nông trại ---------- */
+  function farmLogPanel() {
+    const list = AV.farmLog(), seen = AV.S.farmLogSeen || 0;
+    const ago = (t) => { const m = Math.floor((Date.now() - t) / 60000); return m < 1 ? 'vừa xong' : m < 60 ? m + ' phút trước' : m < 1440 ? Math.floor(m / 60) + ' giờ trước' : Math.floor(m / 1440) + ' ngày trước'; };
+    const today = list.filter((e) => Date.now() - e.at < 86400000);
+    const stolen = today.filter((e) => e.type === 'steal').length, bites = today.filter((e) => e.type === 'bite'), fines = bites.reduce((a, e) => a + (e.fine || 0), 0);
+    const row = (e) => {
+      const it = e.item && DATA.ITEMS[e.item] ? DATA.ITEMS[e.item] : null;
+      const what = it ? `${e.qty ? e.qty + ' ' : ''}${it.icon} ${it.name.toLowerCase()}` : '';
+      const isNew = e.at > seen ? '<span class="lnew">MỚI</span>' : '';
+      if (e.type === 'help') return `<div class="shop-row log-help"><span class="ic">💧</span><div class="info"><b>${esc(e.who)} tưới giúp ruộng ${isNew}</b><small>${ago(e.at)}</small></div></div>`;
+      if (e.type === 'bite') return `<div class="shop-row log-bite"><span class="ic">🦷</span><div class="info"><b>${esc(e.who)} định trộm ${what ? what + ' ở ' : ''}${esc(e.place || '')} ${isNew}</b><small>${ago(e.at)} · ✅ Bị thú giữ nhà cắn · bị phạt <b>${e.fine || 0} xu</b> → về túi bạn</small></div></div>`;
+      return `<div class="shop-row log-steal"><span class="ic">🥷</span><div class="info"><b>${esc(e.who)} đã trộm ${what} ở ${esc(e.place || '')} ${isNew}</b><small>${ago(e.at)} · ❌ Không bị cắn · không bị phạt</small></div></div>`;
+    };
+    panel('📋 Bảng tin nông trại', `
+      <div class="log-sum"><div><b>${stolen}</b><small>lần bị trộm hôm nay</small></div><div><b>${bites.length}</b><small>kẻ trộm bị cắn</small></div><div><b>${fines}</b><small>xu tiền phạt nhận được</small></div></div>
+      <div class="shop-list">${list.length ? list.map(row).join('') : '<p class="muted">Chưa có ai ghé nông trại của bạn. Yên bình quá 🌾</p>'}</div>
+      <p class="muted small-note">Tin được cập nhật khi bạn online (khoảng 1 phút/lần, hoặc ngay khi có người trộm). ${(AV.S.guard || []).length ? '' : 'Chưa có thú giữ nhà — mua ở Chuồng Thú góc phải nông trại để kẻ trộm bị cắn và bị phạt!'}</p>`, { wide: true });
+    AV.seeFarmLog();
+  }
+
   /* ---------- Catalog đồ nội thất ---------- */
   function furnitureShop() {
     const S = AV.S;
@@ -1205,5 +1245,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel };
 })();

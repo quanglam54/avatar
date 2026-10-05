@@ -1173,6 +1173,7 @@
     let n = 0;
     for (let b = 0; b < S.beds.length; b++) if (S.beds[b]) n += bedTiles(b).filter((t) => t.crop && !t.watered).length && waterBed(b);
     const names = [...new Set(rows.map((r) => r.helper_name || 'Bạn bè'))].join(', ');
+    rows.forEach((r) => logFarm({ type: 'help', who: r.helper_name || 'Bạn bè' }));
     addXP(4 * rows.length);
     UI.toast(`💧 ${names} đã tưới giúp nông trại của bạn! Cây lớn nhanh hơn rồi đó 🌱`, 6000);
     UI.chatLog('', `💧 ${names} đã tưới giúp nông trại của bạn`, false, true);
@@ -1515,6 +1516,8 @@
     const thieves = new Set(), bitten = new Set();
     rows.forEach((r) => {
       const who = r.thief_name || 'Ai đó';
+      const at = r.created_at ? new Date(r.created_at).getTime() : Date.now();
+      logFarm({ type: r.bitten ? 'bite' : 'steal', who, at, place: placeName(r.tile | 0), item: r.crop, qty: r.qty | 0, fine: r.bitten ? Math.max(0, r.coins | 0) : 0 });
       if (r.bitten) { fines += Math.max(0, r.coins | 0); bitten.add(who); return; }
       const k = r.tile | 0;
       if (k === STEAL_COOP || penOfKey(k)) {
@@ -1534,10 +1537,33 @@
     const msgs = [];
     if (thieves.size) msgs.push(`🥷 ${[...thieves].join(', ')} đã trộm ${lost} lần ở nông trại của bạn (ruộng / quả / trứng / sữa / len / thịt)!${team.length ? '' : ' Mua thú giữ nhà ở Chuồng Thú (góc phải nông trại) nhé 🐕'}`);
     if (bitten.size) msgs.push(`${teamIcons(team) || '🐕'} Thú giữ nhà đã cắn ${[...bitten].join(', ')} khi hái trộm — bạn nhận ${fines} xu tiền phạt!`);
+    msgs.push('📋 Xem chi tiết ở Bảng tin nông trại (cạnh cổng)');
     msgs.forEach((m, k) => { setTimeout(() => UI.toast(m, 6000), k * 600); UI.chatLog('', m, false, true); });
     changed();
   }
   AV.receiveSteals = receiveSteals;
+
+  /* ---------- Bảng tin nông trại: ai đến trộm gì, có bị cắn / bị phạt không, ai tưới giúp ---------- */
+  function placeName(k) {
+    if (k === STEAL_COOP) return 'chuồng gà';
+    if (penOfKey(k)) return DATA.PENS[penOfKey(k)].name.toLowerCase();
+    if (k >= STEAL_TREE) { const f = DATA.FRUITS[DATA.ORCHARD[k - STEAL_TREE]]; return `cây ${f ? f.name.toLowerCase() : 'ăn quả'}`; }
+    return `ô ruộng (luống ${Math.floor(k / TPB) + 1})`;
+  }
+  function logFarm(e) {
+    S.farmLog = S.farmLog || [];
+    S.farmLog.unshift({ at: Date.now(), ...e });
+    S.farmLog.sort((a, b) => b.at - a.at);
+    if (S.farmLog.length > 60) S.farmLog.length = 60;
+  }
+  AV.farmLog = () => S.farmLog || [];
+  AV.farmLogUnseen = () => (S.farmLog || []).filter((e) => e.at > (S.farmLogSeen || 0)).length;
+  AV.seeFarmLog = () => { S.farmLogSeen = Date.now(); AV.saveNow(); };
+  AV.useNoticeBoard = () => {
+    if (VISIT) return UI.toast(`📋 Bảng tin của ${VISIT.data.name} — chỉ chủ nông trại mới xem được`);
+    UI.farmLogPanel();
+  };
+  AV.noticeIndicator = () => (!VISIT && AV.farmLogUnseen() ? '📋' : null);
 
   AV.buyGuard = (id) => {
     const g = DATA.GUARDS.find((x) => x.id === id);
@@ -1918,6 +1944,31 @@
   AV.sitTable = () => {
     startPose(player.x > 1180 ? 'seatR' : 'seatL', '🍽️ Ngồi vào bàn ăn');
     homeActivity('lastMeal', 30, 10, '🍽️ Bữa cơm ngon miệng! +10 XP', '😋 Ngon quá!', 'Vừa ăn xong, no rồi');
+  };
+
+  /* ---------- Quán ăn uống: tốn xu, được XP; ăn nhiều thì no, đợi tiêu bớt ---------- */
+  function belly() {
+    const b = S.belly || { v: 0, at: Date.now() };
+    const dig = Math.floor((Date.now() - b.at) / (DATA.BELLY.digestMin * 60000));
+    if (dig > 0) { b.v = Math.max(0, b.v - dig); b.at += dig * DATA.BELLY.digestMin * 60000; }
+    if (!b.v) b.at = Date.now();
+    S.belly = b;
+    return b;
+  }
+  AV.belly = () => belly().v;
+  AV.eat = (shopId, itemId) => {
+    const shop = DATA.EATERIES.find((e) => e.id === shopId), it = shop && shop.menu.find((x) => x.id === itemId);
+    if (!it) return false;
+    const b = belly();
+    if (b.v >= DATA.BELLY.max) { UI.toast(`😵 No căng bụng rồi! Đợi khoảng ${DATA.BELLY.digestMin} phút cho tiêu bớt nhé`, 3500); say(player, '🥴 No quá…'); return false; }
+    if (!AV.spend(it.price)) return false;
+    b.v += it.price >= 15 ? 1 : 0.5;
+    addXP(it.xp);
+    float(`${it.icon} +${it.xp} XP`, player.x, player.y - 120, '#a5d8ff');
+    say(player, `${it.icon} ${['Ngon quá! 😋', 'Tuyệt cú mèo! 🤤', 'Đúng vị luôn! 👍', 'Sảng khoái ghê~ ✨'][Math.floor(Math.random() * 4)]}`);
+    NET.sendSys(`${S.name} vừa thưởng thức ${it.icon} ${it.name} ở ${shop.name}`);
+    changed();
+    return true;
   };
 
   /* ---------- Đồ nội thất ---------- */

@@ -1928,3 +1928,88 @@ Object.assign(ART, (() => {
 
   return { busShelter, benchFront, schoolChair, posterABC, posterMap };
 })());
+
+/* Bảng tin nông trại bằng gỗ, ghim giấy */
+Object.assign(ART, (() => {
+  const { rr, shadow } = ART;
+  function noticeBoard(ctx, x, y) {
+    shadow(ctx, x, y, 60, 9);
+    ctx.fillStyle = '#7a4520'; ctx.fillRect(x - 54, y - 120, 9, 120); ctx.fillRect(x + 45, y - 120, 9, 120);
+    ctx.fillStyle = '#8b5a2b'; rr(ctx, x - 66, y - 150, 132, 96, 6); ctx.fill();
+    ctx.fillStyle = '#d4a373'; rr(ctx, x - 59, y - 143, 118, 82, 4); ctx.fill();
+    [[-48, -136, '#fff', -0.08], [-4, -138, '#fff3bf', 0.06], [-46, -100, '#ffe3e3', 0.05], [6, -102, '#e7f5ff', -0.05]].forEach(([dx, dy, c, a]) => {
+      ctx.save(); ctx.translate(x + dx + 21, y + dy + 16); ctx.rotate(a);
+      ctx.fillStyle = c; ctx.fillRect(-21, -16, 42, 32);
+      ctx.fillStyle = 'rgba(60,40,20,.45)'; for (let k = 0; k < 4; k++) ctx.fillRect(-16, -10 + k * 7, 30 - (k % 2) * 8, 2);
+      ctx.fillStyle = '#e03131'; ctx.beginPath(); ctx.arc(0, -14, 2.6, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    });
+    ctx.fillStyle = '#5c3010'; rr(ctx, x - 50, y - 166, 100, 20, 5); ctx.fill();
+    ctx.fillStyle = '#ffe066'; ctx.font = '900 11px "Be Vietnam Pro", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('📋 BẢNG TIN', x, y - 156);
+  }
+  return { noticeBoard };
+})());
+
+/* Dãy quán ăn uống trước cổng nông trại */
+Object.assign(ART, (() => {
+  const { rr, shadow, circle } = ART;
+  const W = 210;
+
+  /** Mặt tiền quán: biển hiệu, mái hiên sọc, quầy kính, cửa, ghế nhựa (quán Việt) hoặc bàn cà phê */
+  function foodShop(ctx, x, y, o) {
+    const L = x - W / 2;
+    shadow(ctx, x, y + 2, W / 2 + 8, 12, 0.16);
+    // thân quán
+    ctx.fillStyle = o.wall; ctx.fillRect(L, y - 112, W, 112);
+    ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.fillRect(L, y - 14, W, 14);
+    ctx.fillStyle = o.trim; ctx.fillRect(L - 4, y - 116, W + 8, 6);
+    // biển hiệu
+    ctx.fillStyle = o.signBg; rr(ctx, L - 6, y - 158, W + 12, 44, 8); ctx.fill();
+    ctx.strokeStyle = o.trim; ctx.lineWidth = 3; rr(ctx, L - 6, y - 158, W + 12, 44, 8); ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = o.signFg; ctx.font = `900 ${o.nameSize || 18}px "Be Vietnam Pro", system-ui, sans-serif`;
+    ctx.fillText(o.name, x + (o.logo ? 12 : 0), y - 141);
+    if (o.sub) { ctx.font = '700 9px "Be Vietnam Pro", system-ui, sans-serif'; ctx.fillStyle = o.subFg || o.signFg; ctx.fillText(o.sub, x + (o.logo ? 12 : 0), y - 123); }
+    if (o.logo) {
+      circle(ctx, L + 18, y - 136, 15, o.logoBg || '#fff');
+      ctx.font = '17px system-ui, "Segoe UI Emoji"'; ctx.fillStyle = '#000'; ctx.fillText(o.logo, L + 18, y - 135);
+    }
+    // mái hiên sọc + diềm lượn
+    const n = 10, sw = (W + 16) / n;
+    for (let k = 0; k < n; k++) {
+      ctx.fillStyle = o.awn[k % 2];
+      ctx.beginPath(); ctx.moveTo(L - 8 + k * sw, y - 108); ctx.lineTo(L - 8 + (k + 1) * sw, y - 108); ctx.lineTo(L - 8 + (k + 1) * sw, y - 86);
+      ctx.quadraticCurveTo(L - 8 + (k + 0.5) * sw, y - 76, L - 8 + k * sw, y - 86); ctx.closePath(); ctx.fill();
+    }
+    // quầy kính bên trái, cửa bên phải
+    ctx.fillStyle = '#343a40'; rr(ctx, L + 12, y - 72, 116, 52, 4); ctx.fill();
+    const gl = ctx.createLinearGradient(0, y - 70, 0, y - 22);
+    gl.addColorStop(0, '#fff8e1'); gl.addColorStop(1, o.glass || '#ffe8a3');
+    ctx.fillStyle = gl; rr(ctx, L + 15, y - 69, 110, 46, 3); ctx.fill();
+    ctx.font = '19px system-ui, "Segoe UI Emoji"'; ctx.fillStyle = '#000';
+    (o.items || []).slice(0, 3).forEach((ic, i) => ctx.fillText(ic, L + 36 + i * 34, y - 44));
+    ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(L + 18, y - 67, 8, 40);
+    ctx.fillStyle = o.trim; ctx.fillRect(L + 10, y - 22, 120, 6);
+    ctx.fillStyle = '#5c3010'; rr(ctx, L + 140, y - 80, 56, 80, 4); ctx.fill();
+    ctx.fillStyle = 'rgba(165,216,255,.7)'; rr(ctx, L + 146, y - 74, 44, 38, 3); ctx.fill();
+    circle(ctx, L + 186, y - 36, 2.5, '#fcc419');
+    ctx.fillStyle = '#fff'; rr(ctx, L + 150, y - 31, 36, 12, 3); ctx.fill();
+    ctx.fillStyle = '#2b8a3e'; ctx.font = '800 7px "Be Vietnam Pro", system-ui, sans-serif'; ctx.fillText('MỞ CỬA', L + 168, y - 25);
+    // trước quán: ghế nhựa (quán Việt) hoặc bàn tròn + dù (cà phê)
+    if (o.deco === 'stools') {
+      [[L - 2, '#1c7ed6'], [L + 206, '#e03131']].forEach(([sx, c]) => {
+        ctx.fillStyle = c; rr(ctx, sx - 9, y - 18, 18, 6, 2); ctx.fill();
+        ctx.fillRect(sx - 8, y - 12, 3, 12); ctx.fillRect(sx + 5, y - 12, 3, 12);
+      });
+    } else {
+      ctx.fillStyle = '#868e96'; ctx.fillRect(L + 206, y - 70, 3, 70);
+      ctx.fillStyle = o.awn[0];
+      ctx.beginPath(); ctx.moveTo(L + 186, y - 64); ctx.quadraticCurveTo(L + 207, y - 82, L + 228, y - 64); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fff'; rr(ctx, L + 196, y - 26, 24, 5, 2); ctx.fill();
+      ctx.fillStyle = '#495057'; ctx.fillRect(L + 206, y - 21, 3, 21);
+    }
+  }
+
+  return { foodShop, FOOD_W: W };
+})());
