@@ -247,7 +247,7 @@ const MAPS = (() => {
     for (let i = 0; i < 8; i++) animal(m, 'chicken', { l: 450, t: 520, r: 735, b: 742 }, i);
     m.labels.push({ text: '🐔 Khu Gà', x: 480, y: 442 });
     inter(m, {
-      x: 220, y: 480, w: 230, h: 170, ax: 330, ay: 795, name: 'Chuồng gà (cho ăn / nhặt trứng)', arrow: { x: 330, y: 585 }, group: 'coop',
+      x: 220, y: 480, w: 230, h: 170, ax: 330, ay: 795, name: 'Chuồng gà (cho ăn / nhặt trứng)', arrow: { x: 330, y: 585 }, group: 'coop', approaches: [[330, 795], [790, 620]],
       use: () => AV.useCoop(), indicator: () => AV.coopIndicator(), ix: 330, iy: 470,
     });
 
@@ -258,7 +258,7 @@ const MAPS = (() => {
     for (let bedIdx = 0; bedIdx < 8; bedIdx++) {
       const bx = fx0 + (bedIdx % 4) * (BD.w + 40), by = 478 + Math.floor(bedIdx / 4) * (BD.h + 21);
       obj(m, by + BD.h - 25, (ctx, t) => {
-        const tiles = AV.S.tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x) }));
+        const tiles = AV.S.tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert }));
         ART.bed(ctx, bx, by, AV.S.beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
       });
       for (let k = 0; k < 12; k++) {
@@ -275,7 +275,7 @@ const MAPS = (() => {
     /* ----- Nhà + bếp ----- */
     sobj(m, 2520, 720, (c) => ART.house(c, 2520, 720));
     col(m, 2418, 620, 204, 100);
-    inter(m, { x: 2415, y: 540, w: 210, h: 180, ax: 2520, ay: 748, name: 'Nhà của bạn (thay đồ)', use: () => AV.useHouse(), arrow: { x: 2520, y: 635 } });
+    inter(m, { x: 2415, y: 540, w: 210, h: 180, ax: 2520, ay: 748, name: 'Nhà của bạn (vào nhà)', use: () => AV.enterHome(), arrow: { x: 2520, y: 635 } });
     m.labels.push({ text: '', x: 2520, y: 504, dynamic: 'home' });
     sobj(m, 2870, 720, (c) => ART.kitchen(c, 2870, 720));
     col(m, 2762, 672, 216, 50);
@@ -295,10 +295,10 @@ const MAPS = (() => {
     }
     m.labels.push({ text: '🐄 Khu Bò Cừu', x: 600, y: 852 });
     // bấm bất kỳ đâu trong đồng cỏ / sân gà cũng thu hoạch được
-    inter(m, { x: 200, y: 884, w: 800, h: 356, ax: 600, ay: 1272, name: 'Đồng cỏ bò cừu (cho ăn / thu sữa, len)', use: () => AV.usePen(), group: 'pen' });
-    inter(m, { x: 200, y: 472, w: 560, h: 288, ax: 330, ay: 795, name: 'Sân gà (cho ăn / nhặt trứng)', use: () => AV.useCoop(), group: 'coop' });
+    inter(m, { x: 200, y: 884, w: 800, h: 356, ax: 600, ay: 1272, name: 'Đồng cỏ bò cừu (cho ăn / thu sữa, len)', use: () => AV.usePen(), group: 'pen', approaches: [[600, 1272], [600, 862], [1030, 1060]] });
+    inter(m, { x: 200, y: 472, w: 560, h: 288, ax: 330, ay: 795, name: 'Sân gà (cho ăn / nhặt trứng)', use: () => AV.useCoop(), group: 'coop', approaches: [[330, 795], [790, 620]] });
     inter(m, {
-      x: 220, y: 860, w: 260, h: 190, ax: 600, ay: 1272, name: 'Chuồng bò cừu (cho ăn / thu sữa, len)', arrow: { x: 340, y: 935 }, group: 'pen',
+      x: 220, y: 860, w: 260, h: 190, ax: 600, ay: 1272, name: 'Chuồng bò cừu (cho ăn / thu sữa, len)', arrow: { x: 340, y: 935 }, group: 'pen', approaches: [[600, 1272], [600, 862], [1030, 1060]],
       use: () => AV.usePen(), indicator: () => AV.penIndicator(), ix: 600, iy: 930,
     });
 
@@ -310,8 +310,18 @@ const MAPS = (() => {
     addBench(m, 1200, 1255);
 
     /* ----- Vườn cây ăn quả ----- */
-    const vari = ['fruit', 'mai', 'fruit', 'pink', 'fruit'];
-    [960, 1110, 1250].forEach((y, row) => [1730, 1870, 2010, 2150, 2290].forEach((x, i) => addTree(m, x + (row % 2) * 30, y, vari[(i + row) % 5])));
+    AV._treePos = [];
+    [960, 1110, 1250].forEach((y, row) => [1730, 1870, 2010, 2150, 2290].forEach((x0, k) => {
+      const i = row * 5 + k, x = x0 + (row % 2) * 30;
+      const fr = DATA.FRUITS[DATA.ORCHARD[i]];
+      AV._treePos[i] = [x, y];
+      addTree(m, x, y, fr === DATA.FRUITS.peach ? 'pink' : 'green');
+      obj(m, y + 1, (ctx, t) => { const st = AV.treeState(i); ART.treeFruits(ctx, x, y, fr.color, st.p, st.ripe, t); });
+      inter(m, {
+        x: x - 62, y: y - 180, w: 124, h: 186, ax: x, ay: y + 30, name: `Cây ${fr.name.toLowerCase()} (hái quả)`,
+        use: () => AV.useTree(i), indicator: () => AV.treeIndicator(i), ix: x, iy: y - 186,
+      });
+    }));
     m.labels.push({ text: '🍊 Vườn Cây', x: 2000, y: 852 });
 
     /* ----- Vườn hoa + cối xay gió ----- */
@@ -580,5 +590,106 @@ const MAPS = (() => {
     return m;
   }
 
-  return { farm, town, mall, fun, park, beach, school };
+  /* ---------- Bên trong nhà: phòng khách, bếp, phòng ngủ, sảnh, phòng tắm, kho ---------- */
+  function home() {
+    const m = base('home', 'Nhà của bạn', 1600, 1000);
+    m.indoor = true;
+    m.private = true;
+    m.hz = 0;
+    const R = {
+      living: [40, 240, 760, 340, '#c98a4b', 'plank'], kitchen: [800, 240, 760, 340, '#eef0f2', 'check'],
+      bed: [40, 580, 520, 380, '#f3c4d6', 'carpet'], hall: [560, 580, 480, 380, '#d8cfc0', 'stone'],
+      bath: [1040, 580, 260, 380, '#a5d8ff', 'tile'], store: [1300, 580, 260, 380, '#8a5a32', 'plank'],
+    };
+    ground(m, (g) => {
+      g.fillStyle = '#3d2410'; g.fillRect(0, 0, m.w, m.h);
+      // tường trên có giấy dán tường + cửa sổ
+      g.fillStyle = '#f7e9cf'; g.fillRect(40, 20, 1520, 220);
+      g.fillStyle = 'rgba(232,180,106,.35)';
+      for (let x = 50; x < 1560; x += 40) for (let y = 30; y < 230; y += 40) { g.beginPath(); g.arc(x + ((y / 40) % 2) * 20, y, 4, 0, 7); g.fill(); }
+      g.fillStyle = '#9c5b2e'; g.fillRect(40, 226, 1520, 14);
+      [[200, 60], [560, 60], [1040, 60], [1360, 60]].forEach(([x, y]) => {
+        g.fillStyle = '#7a4520'; g.fillRect(x - 6, y - 6, 132, 112);
+        const sk = g.createLinearGradient(0, y, 0, y + 100); sk.addColorStop(0, '#74c0fc'); sk.addColorStop(1, '#d0ebff');
+        g.fillStyle = sk; g.fillRect(x, y, 120, 100);
+        g.fillStyle = '#fff'; g.fillRect(x + 58, y, 4, 100); g.fillRect(x, y + 48, 120, 4);
+        g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.arc(x + 30, y + 24, 10, 0, 7); g.arc(x + 44, y + 20, 13, 0, 7); g.fill();
+        g.fillStyle = '#e64980'; g.fillRect(x - 14, y - 10, 16, 124); g.fillRect(x + 118, y - 10, 16, 124);
+      });
+      // sàn từng phòng
+      Object.values(R).forEach(([x, y, w, h, c, kind]) => {
+        g.fillStyle = c; g.fillRect(x, y, w, h);
+        g.strokeStyle = 'rgba(0,0,0,.12)'; g.lineWidth = 2;
+        if (kind === 'plank') for (let yy = y + 22; yy < y + h; yy += 22) { g.beginPath(); g.moveTo(x, yy); g.lineTo(x + w, yy); g.stroke(); for (let xx = x + ((yy / 22) % 2) * 60; xx < x + w; xx += 120) { g.beginPath(); g.moveTo(xx, yy - 22); g.lineTo(xx, yy); g.stroke(); } }
+        if (kind === 'check') for (let yy = y; yy < y + h; yy += 40) for (let xx = x; xx < x + w; xx += 40) { if (((xx - x) / 40 + (yy - y) / 40) % 2) { g.fillStyle = '#ced4da'; g.fillRect(xx, yy, 40, 40); } }
+        if (kind === 'tile') for (let yy = y; yy < y + h; yy += 30) for (let xx = x; xx < x + w; xx += 30) g.strokeRect(xx, yy, 30, 30);
+        if (kind === 'stone') for (let yy = y; yy < y + h; yy += 36) for (let xx = x + ((yy - y) / 36 % 2) * 24; xx < x + w; xx += 48) { g.strokeRect(xx, yy, 48, 36); }
+        if (kind === 'carpet') { g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 6; g.strokeRect(x + 24, y + 30, w - 48, h - 60); }
+      });
+      // thảm phòng khách + thảm cửa
+      g.fillStyle = '#e8590c'; g.beginPath(); g.ellipse(420, 430, 190, 70, 0, 0, 7); g.fill();
+      g.fillStyle = '#ffa94d'; g.beginPath(); g.ellipse(420, 430, 160, 54, 0, 0, 7); g.fill();
+      g.fillStyle = '#a61e4d'; g.fillRect(740, 900, 120, 46);
+      g.fillStyle = '#3d2410'; g.fillRect(0, 960, m.w, 40); g.fillRect(0, 0, 40, m.h); g.fillRect(1560, 0, 40, m.h);
+    });
+
+    // tường ngăn phòng (có cửa thông)
+    const wallH = (x1, x2, y) => { sobj(m, x1, y, (c) => ART.innerWallH(c, x1, x2, y), { l: -10, t: -70, w: x2 - x1 + 20, h: 74 }); col(m, x1, y - 14, x2 - x1, 16); };
+    const wallV = (x, y1, y2) => { sobj(m, x, y2, (c) => ART.innerWallV(c, x, y1, y2), { l: -16, t: y1 - y2 - 70, w: 32, h: y2 - y1 + 74 }); col(m, x - 10, y1, 20, y2 - y1); };
+    [[40, 260], [340, 640], [720, 880], [960, 1380], [1460, 1560]].forEach(([a, b]) => wallH(a, b, 580));
+    wallV(800, 240, 380); wallV(800, 460, 580);
+    [560, 1040, 1300].forEach((x) => { wallV(x, 580, 730); wallV(x, 810, 960); });
+
+    const lab = (t, x, y) => m.labels.push({ text: t, x, y });
+    lab('🛋️ Phòng khách', 420, 262); lab('🍳 Nhà bếp', 1180, 262); lab('🛏️ Phòng ngủ', 300, 602);
+    lab('🚪 Sảnh', 800, 602); lab('🛁 Phòng tắm', 1170, 602); lab('📦 Kho đồ', 1430, 602);
+    const furn = (x, y, draw, box, cw, ch, it) => {
+      sobj(m, x, y, draw, box);
+      if (cw) col(m, x - cw / 2, y - ch, cw, ch);
+      if (it) inter(m, { ax: x, ay: y + 26, ...it });
+    };
+
+    // Phòng khách
+    furn(420, 300, (c) => ART.tvSet(c, 420, 300, 0), { l: -110, t: -145, w: 220, h: 152 }, 190, 30,
+      { x: 330, y: 160, w: 180, h: 145, name: 'TV (xem TV thư giãn)', use: () => AV.watchTV(), ay: 340 });
+    furn(420, 425, (c) => ART.coffeeTable(c, 420, 425), { l: -70, t: -55, w: 140, h: 62 }, 110, 26);
+    furn(420, 520, (c) => ART.sofa(c, 420, 520, '#4c6ef5'), { l: -125, t: -85, w: 250, h: 92 }, 230, 36,
+      { x: 300, y: 440, w: 240, h: 85, name: 'Sofa (ngồi xem TV)', use: () => AV.watchTV(), ax: 575, ay: 500 });
+    furn(110, 330, (c) => ART.bookshelf(c, 110, 330), { l: -56, t: -160, w: 112, h: 166 }, 96, 24);
+    furn(740, 320, (c) => ART.plantPot(c, 740, 320), { l: -30, t: -95, w: 60, h: 100 }, 34, 14);
+
+    // Nhà bếp
+    furn(1100, 330, (c) => ART.kitchenCounter(c, 880, 330, 420), { l: -230, t: -160, w: 460, h: 166 }, 430, 30,
+      { x: 880, y: 170, w: 420, h: 165, name: 'Bếp nấu (nấu món ăn)', use: () => UI.kitchen(), ay: 360 });
+    furn(1460, 340, (c) => ART.fridge(c, 1460, 340), { l: -46, t: -170, w: 92, h: 176 }, 74, 30,
+      { x: 1420, y: 175, w: 80, h: 165, name: 'Tủ lạnh (xem đồ ăn)', use: () => UI.inventory(), ay: 370 });
+    furn(1180, 520, (c) => ART.diningTable(c, 1180, 520), { l: -110, t: -92, w: 220, h: 118 }, 190, 50);
+
+    // Phòng ngủ
+    furn(200, 900, (c) => ART.bedFurn(c, 200, 900), { l: -95, t: -200, w: 190, h: 210 }, 160, 170,
+      { x: 120, y: 710, w: 160, h: 190, name: 'Giường (ngủ một giấc)', use: () => AV.sleep(), ax: 320, ay: 860 });
+    furn(470, 720, (c) => ART.wardrobe(c, 470, 720), { l: -60, t: -180, w: 120, h: 186 }, 108, 30,
+      { x: 415, y: 550, w: 110, h: 170, name: 'Tủ quần áo (thay đồ)', use: () => UI.characterEditor(false), ay: 750 });
+    furn(330, 690, (c) => ART.nightstand(c, 330, 690), { l: -30, t: -92, w: 60, h: 96 }, 48, 20);
+
+    // Phòng tắm
+    furn(1170, 720, (c) => ART.bathtub(c, 1170, 720), { l: -95, t: -105, w: 190, h: 112 }, 168, 40,
+      { x: 1085, y: 640, w: 170, h: 80, name: 'Bồn tắm (tắm rửa)', use: () => AV.bathe(), ay: 760 });
+    furn(1100, 900, (c) => ART.sinkMirror(c, 1100, 900), { l: -40, t: -135, w: 80, h: 140 }, 60, 26);
+
+    // Kho đồ
+    furn(1430, 700, (c) => ART.storageShelf(c, 1430, 700), { l: -80, t: -160, w: 160, h: 166 }, 140, 26);
+    furn(1430, 880, (c) => ART.chest(c, 1430, 880), { l: -56, t: -90, w: 112, h: 96 }, 92, 36,
+      { x: 1380, y: 800, w: 100, h: 82, name: 'Rương cất đồ', use: () => UI.storage(), ay: 915, ax: 1360 });
+
+    // Cửa ra ngoài
+    sobj(m, 800, 962, (c) => ART.homeDoor(c, 800, 962), { l: -50, t: -22, w: 100, h: 28 });
+    inter(m, { x: 740, y: 900, w: 120, h: 70, ax: 800, ay: 930, name: 'Ra ngoài nông trại', use: () => AV.leaveHome(), arrow: { x: 800, y: 905, text: 'Ra ngoài' } });
+
+    m.spawn = { x: 800, y: 900 };
+    m.bounds = { l: 56, t: 262, r: m.w - 56, b: 940 };
+    return m;
+  }
+
+  return { farm, town, mall, fun, park, beach, school, home };
 })();

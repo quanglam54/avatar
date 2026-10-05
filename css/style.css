@@ -417,3 +417,16 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .seat.left, .seat.right { top: 38%; }
   .felt { border-radius: 30% / 26%; }
 }
+
+/* Tài khoản */
+.auth-form { display: grid; gap: 10px; margin-top: 4px; }
+.auth-form .field { text-align: left; font-weight: 600; }
+.auth-form .btn.big { width: 100%; justify-content: center; }
+.acct { background: #e7f5ff; border: 2px solid #74c0fc; border-radius: 14px; padding: 10px 12px; margin-bottom: 12px; font-size: 14px; }
+.acct small { display: block; color: var(--muted); margin-top: 3px; }
+.acct .row-end { margin-top: 8px; }
+.acct.warn { background: #fff9db; border-color: #ffd43b; }
+
+.store-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.store-cols h4 { margin: 4px 0 8px; }
+@media (max-width: 680px) { .store-cols { grid-template-columns: 1fr; } }

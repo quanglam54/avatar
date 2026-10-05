@@ -548,8 +548,12 @@ Object.assign(ART, (() => {
       const tx = bx + BED.padX + (k % 6) * BED.step, ty = by + BED.padY + Math.floor(k / 6) * BED.step;
       ctx.fillStyle = '#a07a48';
       rr(ctx, tx, ty + 2, BED.tile, BED.tile, 4); ctx.fill();
-      ctx.fillStyle = tile.st.thirsty ? '#cdb27a' : '#d8bd86';
+      ctx.fillStyle = tile.st.thirsty ? '#cdb27a' : tile.crop && tile.wet ? '#b88f5c' : '#d8bd86';
       rr(ctx, tx, ty, BED.tile, BED.tile, 4); ctx.fill();
+      if (tile.crop && tile.fert) {
+        const fr = srand(tx * 7 + ty);
+        for (let d = 0; d < 9; d++) circle(ctx, tx + 5 + fr() * (BED.tile - 10), ty + 5 + fr() * (BED.tile - 10), 1.6, d % 3 ? '#5c3d1e' : '#2b8a3e');
+      }
       ctx.strokeStyle = 'rgba(120,85,40,.35)'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(tx + 6, ty + 14); ctx.lineTo(tx + BED.tile - 6, ty + 14); ctx.moveTo(tx + 6, ty + 28); ctx.lineTo(tx + BED.tile - 6, ty + 28); ctx.stroke();
       if (tile.crop) {
@@ -801,6 +805,199 @@ Object.assign(ART, (() => {
     ctx.fillStyle = '#4dabf7'; rr(ctx, x - 34, y - 18, 68, 8, 3); ctx.fill();
   }
 
+  /** Quả trên cây: chín thì to và đủ màu, đang lớn thì nhỏ và xanh */
+  function treeFruits(ctx, x, y, color, p, ripe, t) {
+    const r = srand(x * 11 + y * 5);
+    const n = ripe ? 12 : Math.floor(p * 9);
+    const cy = y - 112;
+    for (let i = 0; i < n; i++) {
+      const fx = x - 48 + r() * 96, fy = cy - 40 + r() * 80;
+      const sz = ripe ? 6.5 : 3 + p * 2.5;
+      const col = ripe ? color : '#94d82d';
+      const bob = ripe ? Math.sin(t * 2 + i) * 0.8 : 0;
+      ctx.fillStyle = 'rgba(0,0,0,.18)';
+      ctx.beginPath(); ctx.ellipse(fx + 1, fy + 2 + bob, sz, sz * 0.95, 0, 0, Math.PI * 2); ctx.fill();
+      circle(ctx, fx, fy + bob, sz, col);
+      circle(ctx, fx - sz * 0.35, fy - sz * 0.35 + bob, sz * 0.32, 'rgba(255,255,255,.55)');
+      ctx.fillStyle = '#2f8f2f';
+      ctx.beginPath(); ctx.ellipse(fx + 2, fy - sz + bob, 2.6, 1.4, -0.5, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  /* ---------- Nội thất trong nhà ---------- */
+  /** Tường trong nhà nằm ngang (mặt tường cao 56px) */
+  function innerWallH(ctx, x1, x2, y) {
+    ctx.fillStyle = '#f3e6c8'; ctx.fillRect(x1, y - 56, x2 - x1, 50);
+    ctx.fillStyle = '#e2cfa4'; for (let x = x1 + 12; x < x2; x += 24) ctx.fillRect(x, y - 56, 2, 50);
+    ctx.fillStyle = '#9c5b2e'; ctx.fillRect(x1, y - 8, x2 - x1, 8);
+    ctx.fillStyle = '#7a4520'; ctx.fillRect(x1 - 2, y - 64, x2 - x1 + 4, 10);
+  }
+  function innerWallV(ctx, x, y1, y2) {
+    ctx.fillStyle = '#e2cfa4'; ctx.fillRect(x - 9, y1 - 56, 18, y2 - y1 + 50);
+    ctx.fillStyle = '#7a4520'; ctx.fillRect(x - 11, y1 - 64, 22, y2 - y1 + 10);
+  }
+
+  function sofa(ctx, x, y, color = '#4c6ef5') {
+    shadow(ctx, x, y, 110, 12);
+    ctx.fillStyle = color; rr(ctx, x - 104, y - 74, 208, 50, 14); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; rr(ctx, x - 96, y - 70, 192, 12, 8); ctx.fill();
+    ctx.fillStyle = color; rr(ctx, x - 116, y - 52, 30, 50, 10); ctx.fill(); rr(ctx, x + 86, y - 52, 30, 50, 10); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,.12)'; rr(ctx, x - 86, y - 30, 172, 28, 8); ctx.fill();
+    ctx.fillStyle = '#ffd43b'; rr(ctx, x - 70, y - 64, 30, 26, 6); ctx.fill();
+    ctx.fillStyle = '#ff8fab'; rr(ctx, x + 40, y - 64, 30, 26, 6); ctx.fill();
+  }
+
+  function tvSet(ctx, x, y, t) {
+    shadow(ctx, x, y, 100, 10);
+    ctx.fillStyle = '#7a4520'; rr(ctx, x - 96, y - 40, 192, 40, 6); ctx.fill();
+    ctx.fillStyle = '#a0602e'; ctx.fillRect(x - 90, y - 34, 84, 26); ctx.fillRect(x + 6, y - 34, 84, 26);
+    ctx.fillStyle = '#212529'; rr(ctx, x - 80, y - 132, 160, 92, 8); ctx.fill();
+    const g = ctx.createLinearGradient(x - 72, 0, x + 72, 0);
+    g.addColorStop(0, '#74c0fc'); g.addColorStop(1, '#b197fc');
+    ctx.fillStyle = g; ctx.fillRect(x - 72, y - 124, 144, 76);
+    ctx.fillStyle = '#000'; ctx.font = '26px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(['🐼', '⚽', '🎵', '🌏'][Math.floor((t || 0) / 3) % 4], x, y - 86);
+    ctx.fillStyle = '#495057'; ctx.fillRect(x - 6, y - 44, 12, 6);
+  }
+
+  function coffeeTable(ctx, x, y) {
+    shadow(ctx, x, y, 60, 8);
+    ctx.fillStyle = '#6b3618'; ctx.fillRect(x - 50, y - 22, 6, 22); ctx.fillRect(x + 44, y - 22, 6, 22);
+    ctx.fillStyle = '#a0602e'; ctx.beginPath(); ctx.ellipse(x, y - 24, 62, 20, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c98a4b'; ctx.beginPath(); ctx.ellipse(x, y - 27, 56, 16, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.font = '18px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+    ctx.fillText('🫖', x - 14, y - 34); ctx.fillText('🍪', x + 18, y - 30);
+  }
+
+  function bookshelf(ctx, x, y) {
+    shadow(ctx, x, y, 50, 8);
+    ctx.fillStyle = '#7a4520'; rr(ctx, x - 48, y - 150, 96, 150, 4); ctx.fill();
+    const cols = ['#e03131', '#1971c2', '#2f9e44', '#f59f00', '#7048e8', '#e64980'];
+    for (let r = 0; r < 4; r++) {
+      ctx.fillStyle = '#5c3214'; ctx.fillRect(x - 42, y - 144 + r * 36, 84, 30);
+      for (let k = 0; k < 7; k++) { ctx.fillStyle = cols[(r * 3 + k) % 6]; ctx.fillRect(x - 40 + k * 11.5, y - 140 + r * 36 + (k % 3), 9, 26 - (k % 3)); }
+    }
+  }
+
+  function plantPot(ctx, x, y) {
+    shadow(ctx, x, y, 22, 6);
+    ctx.fillStyle = '#e8590c'; ctx.beginPath(); ctx.moveTo(x - 18, y - 30); ctx.lineTo(x + 18, y - 30); ctx.lineTo(x + 13, y); ctx.lineTo(x - 13, y); ctx.closePath(); ctx.fill();
+    [[-14, -60, -0.5], [14, -62, 0.5], [0, -76, 0], [-8, -48, -0.9], [9, -46, 0.9]].forEach(([dx, dy, a]) => {
+      ctx.save(); ctx.translate(x + dx * 0.3, y - 30); ctx.rotate(a); ctx.fillStyle = '#2f9e44';
+      ctx.beginPath(); ctx.ellipse(0, dy / 1.6 + 10, 8, 22, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    });
+  }
+
+  function kitchenCounter(ctx, x, y, w) {
+    shadow(ctx, x + w / 2, y, w / 2 + 8, 8);
+    ctx.fillStyle = '#f8f9fa'; ctx.fillRect(x, y - 62, w, 62);
+    ctx.fillStyle = '#ced4da'; for (let k = 0; k < w; k += 70) ctx.fillRect(x + k + 4, y - 50, 62, 44);
+    for (let k = 0; k < w; k += 70) circle(ctx, x + k + 56, y - 28, 2.5, '#868e96');
+    ctx.fillStyle = '#495057'; ctx.fillRect(x - 4, y - 70, w + 8, 10);
+    const sx = x + w * 0.3;
+    ctx.fillStyle = '#212529'; ctx.fillRect(sx - 40, y - 70, 80, 8);
+    [-20, 20].forEach((d) => { ctx.strokeStyle = '#ff6b3d'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx + d, y - 66, 12, 4, 0, 0, Math.PI * 2); ctx.stroke(); });
+    ctx.fillStyle = '#868e96'; rr(ctx, sx - 32, y - 92, 26, 20, 4); ctx.fill();
+    ctx.fillStyle = '#495057'; ctx.fillRect(sx - 36, y - 94, 34, 4);
+    const kx = x + w * 0.72;
+    ctx.fillStyle = '#74c0fc'; ctx.beginPath(); ctx.ellipse(kx, y - 66, 26, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#adb5bd'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(kx, y - 70); ctx.lineTo(kx, y - 92); ctx.lineTo(kx + 14, y - 92); ctx.stroke();
+    ctx.fillStyle = '#c98a4b'; ctx.fillRect(x, y - 150, w, 46);
+    ctx.fillStyle = '#a0602e'; for (let k = 0; k < w; k += 70) ctx.fillRect(x + k + 4, y - 146, 62, 38);
+  }
+
+  function fridge(ctx, x, y) {
+    shadow(ctx, x, y, 40, 8);
+    ctx.fillStyle = '#e9ecef'; rr(ctx, x - 36, y - 160, 72, 160, 8); ctx.fill();
+    ctx.fillStyle = '#ced4da'; ctx.fillRect(x - 36, y - 106, 72, 4);
+    ctx.fillStyle = '#868e96'; ctx.fillRect(x + 22, y - 150, 5, 34); ctx.fillRect(x + 22, y - 96, 5, 40);
+    ctx.font = '14px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+    ctx.fillText('🍓', x - 14, y - 132); ctx.fillText('⭐', x - 4, y - 80);
+  }
+
+  function diningTable(ctx, x, y) {
+    shadow(ctx, x, y + 10, 110, 16);
+    [[-70, 30], [70, 30], [-70, -38], [70, -38]].forEach(([dx, dy]) => { ctx.fillStyle = '#8a4b22'; rr(ctx, x + dx - 16, y + dy - 34, 32, 30, 5); ctx.fill(); ctx.fillStyle = '#a0602e'; ctx.fillRect(x + dx - 16, y + dy - 34, 32, 8); });
+    ctx.fillStyle = '#6b3618'; ctx.fillRect(x - 80, y - 30, 8, 30); ctx.fillRect(x + 72, y - 30, 8, 30);
+    ctx.fillStyle = '#c98a4b'; rr(ctx, x - 92, y - 52, 184, 30, 6); ctx.fill();
+    ctx.fillStyle = '#fff'; rr(ctx, x - 60, y - 50, 120, 24, 4); ctx.fill();
+    ctx.font = '16px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+    ctx.fillText('🍲', x - 26, y - 40); ctx.fillText('🥗', x + 4, y - 38); ctx.fillText('🍚', x + 32, y - 40);
+  }
+
+  function bedFurn(ctx, x, y) {
+    shadow(ctx, x, y + 4, 90, 14);
+    ctx.fillStyle = '#7a4520'; rr(ctx, x - 80, y - 190, 160, 34, 8); ctx.fill();
+    ctx.fillStyle = '#a0602e'; rr(ctx, x - 78, y - 160, 156, 160, 6); ctx.fill();
+    ctx.fillStyle = '#fff'; rr(ctx, x - 70, y - 158, 140, 150, 8); ctx.fill();
+    ctx.fillStyle = '#f8f0e3'; rr(ctx, x - 58, y - 152, 52, 30, 10); ctx.fill(); rr(ctx, x + 6, y - 152, 52, 30, 10); ctx.fill();
+    const g = ctx.createLinearGradient(0, y - 116, 0, y);
+    g.addColorStop(0, '#91a7ff'); g.addColorStop(1, '#748ffc');
+    ctx.fillStyle = g; rr(ctx, x - 72, y - 116, 144, 112, 10); ctx.fill();
+    for (let i = 0; i < 4; i++) ART.star(ctx, x - 44 + i * 30, y - 70 + (i % 2) * 22, 6, 2.6, 'rgba(255,255,255,.55)');
+  }
+
+  function wardrobe(ctx, x, y) {
+    shadow(ctx, x, y, 56, 8);
+    ctx.fillStyle = '#8a4b22'; rr(ctx, x - 54, y - 170, 108, 170, 6); ctx.fill();
+    ctx.fillStyle = '#a0602e'; ctx.fillRect(x - 48, y - 162, 46, 150); ctx.fillRect(x + 2, y - 162, 46, 150);
+    circle(ctx, x - 8, y - 88, 3, '#ffd43b'); circle(ctx, x + 8, y - 88, 3, '#ffd43b');
+  }
+
+  function nightstand(ctx, x, y) {
+    shadow(ctx, x, y, 26, 5);
+    ctx.fillStyle = '#a0602e'; rr(ctx, x - 24, y - 40, 48, 40, 4); ctx.fill();
+    ctx.fillStyle = '#7a4520'; ctx.fillRect(x - 18, y - 30, 36, 3);
+    ctx.fillStyle = '#868e96'; ctx.fillRect(x - 2, y - 66, 4, 26);
+    ctx.fillStyle = '#ffe066'; ctx.beginPath(); ctx.moveTo(x - 16, y - 66); ctx.lineTo(x + 16, y - 66); ctx.lineTo(x + 10, y - 84); ctx.lineTo(x - 10, y - 84); ctx.closePath(); ctx.fill();
+  }
+
+  function bathtub(ctx, x, y) {
+    shadow(ctx, x, y, 90, 12);
+    ctx.fillStyle = '#f8f9fa'; rr(ctx, x - 84, y - 70, 168, 70, 30); ctx.fill();
+    ctx.fillStyle = '#74c0fc'; rr(ctx, x - 72, y - 64, 144, 30, 14); ctx.fill();
+    ['#fff', '#e7f5ff', '#fff'].forEach((c, i) => circle(ctx, x - 40 + i * 34, y - 58, 10, c));
+    ctx.strokeStyle = '#adb5bd'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x + 70, y - 66); ctx.lineTo(x + 70, y - 96); ctx.lineTo(x + 54, y - 96); ctx.stroke();
+    ctx.font = '18px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000'; ctx.fillText('🦆', x - 10, y - 66);
+  }
+
+  function sinkMirror(ctx, x, y) {
+    shadow(ctx, x, y, 34, 6);
+    ctx.fillStyle = '#f8f9fa'; rr(ctx, x - 30, y - 56, 60, 56, 6); ctx.fill();
+    ctx.fillStyle = '#74c0fc'; ctx.beginPath(); ctx.ellipse(x, y - 52, 20, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ced4da'; rr(ctx, x - 26, y - 128, 52, 64, 26); ctx.fill();
+    ctx.fillStyle = '#e7f5ff'; rr(ctx, x - 20, y - 122, 40, 52, 20); ctx.fill();
+  }
+
+  function storageShelf(ctx, x, y) {
+    shadow(ctx, x, y, 70, 8);
+    ctx.fillStyle = '#7a4520'; ctx.fillRect(x - 70, y - 150, 8, 150); ctx.fillRect(x + 62, y - 150, 8, 150);
+    for (let r = 0; r < 3; r++) {
+      ctx.fillStyle = '#a0602e'; ctx.fillRect(x - 70, y - 50 - r * 48, 140, 6);
+      for (let k = 0; k < 3; k++) {
+        ctx.fillStyle = ['#e8b46a', '#d9a05a', '#c98a4b'][(r + k) % 3];
+        rr(ctx, x - 60 + k * 42, y - 86 - r * 48, 36, 36, 3); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.fillRect(x - 60 + k * 42, y - 72 - r * 48, 36, 3);
+      }
+    }
+  }
+
+  function chest(ctx, x, y) {
+    shadow(ctx, x, y, 50, 8);
+    ctx.fillStyle = '#8a4b22'; rr(ctx, x - 46, y - 50, 92, 50, 6); ctx.fill();
+    ctx.fillStyle = '#a0602e'; ctx.beginPath(); ctx.moveTo(x - 46, y - 46); ctx.quadraticCurveTo(x, y - 82, x + 46, y - 46); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fcc419'; ctx.fillRect(x - 48, y - 48, 96, 6); ctx.fillRect(x - 30, y - 64, 6, 64); ctx.fillRect(x + 24, y - 64, 6, 64);
+    rr(ctx, x - 8, y - 46, 16, 16, 3); ctx.fill();
+    circle(ctx, x, y - 38, 3, '#5c3214');
+  }
+
+  function homeDoor(ctx, x, y) {
+    ctx.fillStyle = '#5c3214'; rr(ctx, x - 44, y - 16, 88, 20, 4); ctx.fill();
+    ctx.fillStyle = '#e8590c'; rr(ctx, x - 38, y - 12, 76, 12, 4); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '800 11px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('RA NGOÀI', x, y - 6);
+  }
+
   /* ---------- Trường học ---------- */
   /** Bảng đen trên giá gỗ. (x,y) = chân giữa; vùng viết chữ: x±160, y-220..y-70 */
   function blackboard(ctx, x, y) {
@@ -882,5 +1079,5 @@ Object.assign(ART, (() => {
     }
   }
 
-  return { lantern, pillar, wallH, wallV, farmGate, barn, windmill, flowerBed, trough, blackboard, desk, podium, flagPole, fishingRod, biteMark, stonePath, BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
+  return { innerWallH, innerWallV, sofa, tvSet, coffeeTable, bookshelf, plantPot, kitchenCounter, fridge, diningTable, bedFurn, wardrobe, nightstand, bathtub, sinkMirror, storageShelf, chest, homeDoor, treeFruits, lantern, pillar, wallH, wallV, farmGate, barn, windmill, flowerBed, trough, blackboard, desk, podium, flagPole, fishingRod, biteMark, stonePath, BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
 })());

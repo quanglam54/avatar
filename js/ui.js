@@ -173,7 +173,7 @@ const UI = (() => {
     const status = (st, cfg, label) => {
       if (!st.fedAt) return `${label}: <b>đói bụng</b> — cần ${cfg.feed} 🌾`;
       const left = Math.ceil(cfg.time - (now - st.fedAt) / 1000);
-      return left > 0 ? `${label}: đang sản xuất, còn <b>${left}s</b>` : `${label}: <b>đã sẵn sàng thu hoạch!</b>`;
+      return left > 0 ? `${label}: đang sản xuất, còn <b>${AV.fmtDur(left)}</b>` : `${label}: <b>đã sẵn sàng thu hoạch!</b>`;
     };
     const p = panel('🎒 Túi đồ', `
       <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Cấp ${S.level}</div>
@@ -200,12 +200,17 @@ const UI = (() => {
           const have = S.inv['seed_' + id] || 0;
           return `<div class="shop-row ${locked ? 'locked' : ''}">
             <span class="ic">${c.icon}</span>
-            <div class="info"><b>Hạt ${c.name.toLowerCase()}</b><small>⏱ ${c.time}s · thu ${c.yield} ${c.icon} · bán ${c.sell} xu/cái · đang có ${have}</small></div>
+            <div class="info"><b>Hạt ${c.name.toLowerCase()}</b><small>⏱ ${AV.fmtDur(c.time)} · thu ${c.yield} ${c.icon}/ô · bán ${c.sell} xu/cái · đang có ${have}</small></div>
             ${locked ? `<span class="lock">🔒 Cấp ${c.lvl}</span>` : `
               <button class="btn small" data-buy="${id}" data-n="1">Mua 1 · ${c.seed}💰</button>
               <button class="btn small ghost" data-buy="${id}" data-n="5">×5 · ${c.seed * 5}💰</button>`}
           </div>`;
-        }).join('');
+        }).join('') + `<div class="shop-row">
+            <span class="ic">🧪</span>
+            <div class="info"><b>Phân bón</b><small>Bón cho cây nhanh hơn ${Math.round(DATA.FERT.cut * 100)}% · đang có ${S.inv.fertilizer || 0} gói</small></div>
+            <button class="btn small" data-fertbuy="1">Mua 1 · ${DATA.FERT.price}💰</button>
+            <button class="btn small ghost" data-fertbuy="10">×10 · ${DATA.FERT.price * 10}💰</button>
+          </div>`;
       } else {
         const items = Object.entries(S.inv).filter(([id, n]) => n > 0 && DATA.ITEMS[id].sell > 0);
         list = items.length ? items.map(([id, n]) => {
@@ -224,6 +229,7 @@ const UI = (() => {
         <div class="shop-list">${list}</div>`;
       p.body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
       p.body.querySelectorAll('[data-buy]').forEach((b) => b.onclick = () => { AV.buySeed(b.dataset.buy, +b.dataset.n); render(); });
+      p.body.querySelectorAll('[data-fertbuy]').forEach((b) => b.onclick = () => { AV.buyFert(+b.dataset.fertbuy); render(); });
       p.body.querySelectorAll('[data-sell]').forEach((b) => b.onclick = () => { AV.sell(b.dataset.sell, +b.dataset.n); render(); });
     };
     render();
@@ -281,7 +287,7 @@ const UI = (() => {
         const c = DATA.CROPS[id];
         const have = S.inv['seed_' + id];
         return `<div class="shop-row"><span class="ic">${c.icon}</span>
-          <div class="info"><b>${c.name}</b><small>⏱ ${c.time}s · còn ${have} hạt · bán ${c.sell} xu</small></div>
+          <div class="info"><b>${c.name}</b><small>⏱ ${AV.fmtDur(c.time)} · thu ${c.yield}/ô · còn ${have} hạt · bán ${c.sell} xu</small></div>
           <button class="btn small ghost" data-one="${id}">Gieo 1 ô</button>
           <button class="btn small" data-all="${id}">Cả luống (${Math.min(have, empty)})</button></div>`;
       }).join('')}</div>`
@@ -546,6 +552,47 @@ const UI = (() => {
     setTimeout(() => el.remove(), 15000);
   }
 
+  /* ---------- Chăm sóc luống: tưới nước, bón phân ---------- */
+  function careBed(bed) {
+    const p = panel('🌱 Chăm sóc luống', '');
+    const render = () => {
+      const c = AV.bedCare(bed);
+      if (!c.growing) { p.close(); return; }
+      p.body.innerHTML = `
+        <p class="muted">Luống có <b>${c.growing}</b> cây đang lớn · cây chín sớm nhất còn <b>${AV.fmtDur(c.soonest)}</b>.</p>
+        <div class="shop-list">
+          <div class="shop-row"><span class="ic">💧</span><div class="info"><b>Tưới nước</b><small>Miễn phí · nhanh hơn ${Math.round(DATA.WATER_CUT * 100)}% · ${c.dry ? c.dry + ' cây chưa tưới' : 'đã tưới hết'}</small></div>
+            <button class="btn small" data-water ${c.dry ? '' : 'disabled'}>Tưới</button></div>
+          <div class="shop-row"><span class="ic">🧪</span><div class="info"><b>Bón phân</b><small>1 gói/ô · nhanh hơn ${Math.round(DATA.FERT.cut * 100)}% · ${c.unfert ? c.unfert + ' cây chưa bón' : 'đã bón hết'} · đang có <b>${c.fert}</b> gói</small></div>
+            <button class="btn small" data-fert ${c.unfert && c.fert ? '' : 'disabled'}>Bón</button></div>
+        </div>
+        ${c.fert ? '' : '<p class="muted small-note">Hết phân bón? Mua ở 🛒 Chợ trong Khu mua sắm (5 xu/gói).</p>'}`;
+      p.body.querySelector('[data-water]').onclick = () => { AV.waterBed(bed); render(); };
+      p.body.querySelector('[data-fert]').onclick = () => { AV.fertBed(bed); render(); };
+    };
+    render();
+  }
+
+  /* ---------- Rương cất đồ trong nhà ---------- */
+  function storage() {
+    const S = AV.S;
+    const p = panel('📦 Rương cất đồ', '', { wide: true });
+    const list = (obj, toChest) => {
+      const items = Object.entries(obj || {}).filter(([id, n]) => n > 0 && DATA.ITEMS[id]);
+      return items.length ? items.map(([id, n]) => `<div class="shop-row"><span class="ic">${DATA.ITEMS[id].icon}</span>
+        <div class="info"><b>${DATA.ITEMS[id].name}</b><small>× ${n}</small></div>
+        <button class="btn small ${toChest ? '' : 'ghost'}" data-move="${id}" data-to="${toChest ? 1 : 0}">${toChest ? 'Cất vào rương →' : '← Lấy ra túi'}</button></div>`).join('')
+        : '<p class="muted">Trống</p>';
+    };
+    const render = () => {
+      p.body.innerHTML = `<p class="muted">Đồ cất trong rương được giữ an toàn, không bị bán nhầm ở Chợ. Muốn bán thì lấy ra túi trước.</p>
+        <div class="store-cols"><div><h4>🎒 Túi đồ</h4><div class="shop-list">${list(S.inv, true)}</div></div>
+        <div><h4>📦 Rương</h4><div class="shop-list">${list(S.storage, false)}</div></div></div>`;
+      p.body.querySelectorAll('[data-move]').forEach((b) => b.onclick = () => { AV.storeItem(b.dataset.move, b.dataset.to === '1'); render(); });
+    };
+    render();
+  }
+
   /* ---------- Nhiệm vụ hằng ngày ---------- */
   function questsPanel() {
     const p = panel('📜 Nhiệm vụ hôm nay', '', { wide: true });
@@ -581,18 +628,19 @@ const UI = (() => {
     const p = panel('❓ Cách chơi', `
       <ul class="help">
         <li>👆 <b>Chạm / click</b> vào mặt đất để đi, hoặc dùng <b>phím mũi tên / WASD</b>.</li>
-        <li>🌾 Bấm <b>ô ruộng</b> để gieo hạt (gieo 1 ô hoặc cả luống). Cây khát nước 😟 thì bấm để tưới, chín thì bấm thu hoạch cả luống.</li>
+        <li>🌾 Bấm <b>ô ruộng</b> để gieo hạt (gieo 1 ô hoặc cả luống). Bấm luống đang lớn để <b>💧 tưới nước</b> (nhanh hơn 10%) và <b>🧪 bón phân</b> (nhanh hơn 30%). Cây khát 😟 thì phải tưới mới lớn tiếp.</li>
         <li>🐔 Cho <b>gà</b> ăn 3 lúa mì → có 5 trứng. 🐄 Cho <b>gia súc</b> ăn 4 lúa mì → có sữa & len.</li>
         <li>🃏 Ở <b>Khu giải trí</b>, bấm bàn <b>Tiến lên</b> để ngồi, mời bạn bè cùng chơi (thiếu người có máy chơi thay).</li>
         <li>🏫 Tới <b>Trường học</b>: cô giáo ra câu đố tiếng Anh mỗi 20 giây, gõ đáp án vào chat (hoặc bấm nút A/B/C/D). Ai đúng đầu tiên được thưởng nhiều nhất!</li>
         <li>📜 Bấm nút <b>📜</b> xem nhiệm vụ hằng ngày để nhận thêm xu.</li>
+        <li>🍊 <b>Vườn Cây</b> trong nông trại tự ra quả (cam, táo, xoài, đào) — không cần trồng, quả chín để lâu không hỏng, ghé hái rồi đem bán.</li>
         <li>🍳 Vào <b>Nhà Bếp</b> ở Nông trại nấu bánh, súp, khăn len… bán được giá cao hơn nhiều.</li>
         <li>🗺️ Ra <b>trạm xe buýt</b> hoặc bấm <b>Bản đồ</b> để đi 6 khu: Nông trại, Quảng trường, Khu mua sắm, Khu giải trí, Công viên, Bãi biển.</li>
         <li>🛍️ <b>Khu mua sắm</b>: Chợ, Tiệm Thời Trang, Tiệm Thú Cưng. 🎡 <b>Khu giải trí</b>: Bầu cua, Bài cào, sân khấu, vòng quay.</li>
         <li>🎣 Câu cá ở <b>Công viên</b>, 🐚 nhặt vỏ sò ở <b>Bãi biển</b> rồi đem bán ở Chợ.</li>
         <li>💬 Gõ chat ở thanh dưới cùng — người chơi khác cùng khu vực sẽ thấy, NPC trong thị trấn cũng trả lời!</li>
         <li>👥 Bấm ô <b>🟢 online</b> trên cùng để xem ai đang ở cùng khu vực với bạn.</li>
-        <li>🏠 Vào <b>nhà</b> hoặc bấm <b>Tủ đồ</b> để thay trang phục.</li>
+        <li>🏠 Bấm vào <b>nhà</b> để vào trong: phòng khách (xem TV), bếp (nấu ăn), phòng ngủ (ngủ, tủ quần áo), phòng tắm, kho (rương cất đồ).</li>
         <li>⏱ Cây và vật nuôi vẫn lớn khi bạn tắt game.</li>
       </ul>
       <div class="row-end"><button class="btn" data-ok>Đã hiểu!</button></div>`);
@@ -745,5 +793,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed };
 })();

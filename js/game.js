@@ -13,10 +13,12 @@
       name: '',
       look: { skin: DATA.SKINS[0], hair: 'short', hairColor: DATA.HAIR_COLORS[0], shirt: DATA.SHIRT_COLORS[5], shirtStyle: 'plain', pants: DATA.PANTS_COLORS[0], hat: 'none', pet: 'none' },
       coins: 50, xp: 0, level: 1,
-      inv: { seed_wheat: 6, seed_carrot: 3, wheat: 3 },
+      inv: { seed_wheat: 6, seed_carrot: 3, wheat: 3, fertilizer: 5 },
       owned: { hats: ['none'], shirtStyles: ['plain'], pets: ['none'] },
       tiles: Array.from({ length: 96 }, () => ({ crop: null, plantedAt: 0, watered: false })),
       beds: [true, false, false, false, false, false, false, false],
+      trees: DATA.ORCHARD.map(() => ({ at: 0 })),
+      storage: {},
       coop: { fedAt: 0 },
       pen: { fedAt: 0 },
       map: 'farm', x: null, y: null,
@@ -36,6 +38,8 @@
     // nông trại mở rộng: 8 luống × 12 ô
     while (s.tiles.length < 96) s.tiles.push({ crop: null, plantedAt: 0, watered: false });
     while ((s.beds || []).length < 8) s.beds = [...(s.beds || [true]), false];
+    s.trees = s.trees || [];
+    while (s.trees.length < DATA.ORCHARD.length) s.trees.push({ at: 0 });
     return { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned }, settings: { ...d.settings, ...s.settings } };
   }
 
@@ -84,7 +88,7 @@
     player.pending = null;
     myPet.x = player.x - 30; myPet.y = player.y + 3;
     UI.setLocation(map.name);
-    NET.enter(id);
+    NET.enter(map.private ? `${id}-${S.owner || NET.pid}` : id);
     TABLE.onMapChange();
   }
 
@@ -203,6 +207,16 @@
     floats.push({ text, x, y, t: 0, color });
   }
 
+  /** 75 → "1 phút 15 giây", 3700 → "1 giờ 2 phút" */
+  function fmtDur(sec) {
+    sec = Math.max(0, Math.ceil(sec));
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    if (h) return `${h} giờ${m ? ' ' + m + ' phút' : ''}`;
+    if (m) return `${m} phút${s && m < 5 ? ' ' + s + ' giây' : ''}`;
+    return `${s} giây`;
+  }
+  AV.fmtDur = fmtDur;
+
   /* ---------- Kinh tế & cấp độ ---------- */
   function addItem(id, n) { S.inv[id] = (S.inv[id] || 0) + n; }
 
@@ -307,23 +321,71 @@
     return null;
   };
 
+  /** Tưới cả luống: cây khát được tưới thì lớn tiếp; mọi cây được tưới đều nhanh hơn 10% */
   function waterBed(bed) {
     let n = 0;
+    now = Date.now();
     bedTiles(bed).forEach((t) => {
       const st = tileState(t);
-      if (!st.thirsty) return;
+      if (st.stage < 0 || st.stage === 2 || t.watered) return;
       const total = DATA.CROPS[t.crop].time * 1000;
-      t.plantedAt += now - (t.plantedAt + DATA.THIRSTY_AT * total);
+      if (st.thirsty) t.plantedAt += now - (t.plantedAt + DATA.THIRSTY_AT * total);
+      t.plantedAt -= DATA.WATER_CUT * total;
       t.watered = true;
       n++;
     });
     if (n) {
-      addXP(Math.ceil(n / 3));
+      addXP(Math.ceil(n / 2) + 1);
       float(`💧 Tưới ${n} cây`, player.x, player.y - 110, '#a5d8ff');
       changed();
     }
     return n;
   }
+
+  /** Bón phân cả luống: mỗi ô 1 gói, nhanh hơn 30% (mỗi lần trồng bón 1 lần) */
+  function fertBed(bed) {
+    now = Date.now();
+    let n = 0;
+    for (const t of bedTiles(bed)) {
+      const st = tileState(t);
+      if (st.stage < 0 || st.stage === 2 || t.fert) continue;
+      if ((S.inv.fertilizer || 0) < 1) break;
+      S.inv.fertilizer--;
+      t.plantedAt -= DATA.FERT.cut * DATA.CROPS[t.crop].time * 1000;
+      t.fert = true;
+      n++;
+    }
+    if (n) {
+      addXP(Math.ceil(n / 3) + 1);
+      float(`🧪 Bón phân ${n} cây`, player.x, player.y - 110, '#b2f2bb');
+      changed();
+    }
+    return n;
+  }
+
+  /** Thống kê luống để hiện trong bảng chăm sóc */
+  AV.bedCare = (bed) => {
+    const tiles = bedTiles(bed).filter((t) => t.crop && tileState(t).stage < 2);
+    return {
+      growing: tiles.length,
+      dry: tiles.filter((t) => !t.watered).length,
+      unfert: tiles.filter((t) => !t.fert).length,
+      soonest: tiles.reduce((m, t) => Math.min(m, tileState(t).left), Infinity),
+      fert: S.inv.fertilizer || 0,
+    };
+  };
+  AV.waterBed = (bed) => waterBed(bed);
+  AV.fertBed = (bed) => {
+    const n = fertBed(bed);
+    if (!n) UI.toast((S.inv.fertilizer || 0) < 1 ? 'Hết phân bón — mua ở Chợ (Khu mua sắm) 5 xu/gói' : 'Các cây trong luống đã được bón phân rồi');
+    return n;
+  };
+  AV.buyFert = (n) => {
+    if (!AV.spend(DATA.FERT.price * n)) return;
+    addItem('fertilizer', n);
+    UI.toast(`Đã mua ${n} gói phân bón 🧪`);
+    changed();
+  };
 
   function harvestBed(bed) {
     const got = {};
@@ -333,7 +395,7 @@
       const c = DATA.CROPS[t.crop];
       got[t.crop] = (got[t.crop] || 0) + c.yield;
       xp += c.xp;
-      t.crop = null; t.plantedAt = 0; t.watered = false;
+      t.crop = null; t.plantedAt = 0; t.watered = false; t.fert = false;
     });
     const keys = Object.keys(got);
     if (!keys.length) return false;
@@ -363,8 +425,7 @@
     if (st.stage === 2 || (st.stage >= 0 && bedTiles(bed).some((x) => tileState(x).stage === 2))) { harvestBed(bed); return; }
     if (st.thirsty || bedTiles(bed).some((x) => tileState(x).thirsty)) { waterBed(bed); return; }
     if (st.stage < 0) return UI.seedPicker(i);
-    const c = DATA.CROPS[t.crop];
-    UI.toast(`${c.icon} ${c.name} còn ${Math.ceil(st.left)}s nữa mới thu hoạch được`);
+    UI.careBed(bed);
   };
 
   function plantTile(i, crop) {
@@ -389,6 +450,31 @@
   };
   AV.emptyInBed = (i) => bedTiles(bedOf(i)).filter((t) => !t.crop).length;
 
+  /* ---------- Vườn cây ăn quả: tự ra quả, chín để lâu không hỏng ---------- */
+  function treeState(i) {
+    const f = DATA.FRUITS[DATA.ORCHARD[i]];
+    const el = (now - (S.trees[i].at || 0)) / 1000;
+    return { f, ripe: el >= f.time, p: Math.min(1, el / f.time), left: f.time - el };
+  }
+  AV.treeState = treeState;
+
+  AV.treeIndicator = (i) => {
+    const st = treeState(i);
+    if (st.ripe) return st.f.icon;
+    return Math.hypot(player.x - AV._treePos[i][0], player.y - AV._treePos[i][1]) < 260 ? { p: st.p, left: st.left } : null;
+  };
+
+  AV.useTree = (i) => {
+    const st = treeState(i);
+    if (!st.ripe) return UI.toast(`${st.f.icon} Cây ${st.f.name.toLowerCase()} đang ra quả, còn ${fmtDur(st.left)} nữa`);
+    S.trees[i].at = Date.now();
+    addItem(DATA.ORCHARD[i], st.f.yield);
+    addXP(st.f.xp);
+    float(`+${st.f.yield} ${st.f.icon}`, player.x, player.y - 110);
+    AV.quest('harvest', st.f.yield);
+    changed();
+  };
+
   /* ---------- Chuồng trại ---------- */
   function farmBuilding(st, cfg, opts) {
     const t = Date.now();
@@ -397,7 +483,7 @@
         S.inv.wheat -= cfg.feed;
         st.fedAt = t;
         float(`-${cfg.feed} 🌾`, player.x, player.y - 100);
-        UI.toast(`${opts.fedMsg} Quay lại sau ${cfg.time}s nhé!`);
+        UI.toast(`${opts.fedMsg} Quay lại sau ${fmtDur(cfg.time)} nhé!`);
         map.animals.filter((a) => opts.kinds.includes(a.kind)).forEach((a) => { a.wait = 0; a.bubble = { text: '❤️', until: t + 1800, big: true }; });
       } else {
         UI.toast(`Cần ${cfg.feed} 🌾 lúa mì để cho ăn (đang có ${S.inv.wheat || 0}). Trồng lúa mì ở Ruộng nhé!`, 3400);
@@ -408,7 +494,7 @@
       AV.quest('collect');
       addXP(cfg.xp);
     } else {
-      UI.toast(`${opts.waitMsg} còn ${Math.ceil(cfg.time - (t - st.fedAt) / 1000)}s`);
+      UI.toast(`${opts.waitMsg} còn ${fmtDur(cfg.time - (t - st.fedAt) / 1000)}`);
     }
     changed();
   }
@@ -510,16 +596,16 @@
 
   AV.useFerris = () => {
     if (!AV.spend(5)) return;
-    addXP(3);
+    addXP(6);
     say(player, ['Ngắm cả thành phố từ trên cao, đẹp quá! 🎡', 'Woaa, thấy cả bãi biển luôn! 🌊', 'Gió mát ghê~ 🌤️'][Math.floor(Math.random() * 3)]);
     float('-5 💰', player.x, player.y - 100, '#ffd43b');
   };
 
   AV.buyIceCream = () => {
     if (!AV.spend(5)) return;
-    addXP(2);
+    addXP(4);
     say(player, ['🍦', '🍧', '🍨'][Math.floor(Math.random() * 3)]);
-    UI.toast('Mát lạnh! 🍦 +2 XP');
+    UI.toast('Mát lạnh! 🍦 +4 XP');
   };
 
   AV.buyPet = (id) => {
@@ -541,7 +627,7 @@
     if (!map.pickupArea) return;
     map.pickupTimer = (map.pickupTimer || 0) - dt;
     if (map.pickups.length >= 7 || map.pickupTimer > 0) return;
-    map.pickupTimer = 5 + Math.random() * 5;
+    map.pickupTimer = 40 + Math.random() * 40;
     const a = map.pickupArea;
     for (let tries = 0; tries < 10; tries++) {
       const x = a.l + Math.random() * (a.r - a.l), y = a.t + Math.random() * (a.b - a.t);
@@ -558,7 +644,7 @@
     if (i < 0) return;
     map.pickups.splice(i, 1);
     addItem(p.item.id, 1);
-    addXP(1);
+    addXP(3);
     AV.quest('shell');
     float(`+1 ${p.item.icon}`, player.x, player.y - 100);
     if (p.item.id === 'pearl') UI.toast('✨ Wow! Bạn nhặt được Ngọc trai quý hiếm!');
@@ -662,7 +748,7 @@
     quizState.answered = true;
     const first = !quizState.firstWinner;
     quizState.firstWinner = quizState.firstWinner || S.name;
-    const coins = first ? 15 : 5, xp = first ? 5 : 2;
+    const coins = first ? 5 : 2, xp = first ? 8 : 4;
     S.coins += coins;
     addXP(xp);
     float(`+${coins} 💰`, player.x, player.y - 120, '#ffd43b');
@@ -732,7 +818,7 @@
     const { bx, by } = bobberSpot();
     player.target = null; player.pending = null; marker = null;
     player.dir = bx >= player.x ? 1 : -1;
-    player.fishing = { state: 'wait', bx, by, biteAt: Date.now() + 2500 + Math.random() * 5000, endAt: 0 };
+    player.fishing = { state: 'wait', bx, by, biteAt: Date.now() + 6000 + Math.random() * 9000, endAt: 0 };
     UI.toast('🎣 Đã thả câu — chờ phao giật rồi bấm GIẬT CẦN!');
     NET.sendState();
   };
@@ -749,14 +835,14 @@
     const f = player.fishing;
     if (!f) return;
     if (f.state !== 'bite') {
-      f.biteAt = Date.now() + 2500 + Math.random() * 4500;
+      f.biteAt = Date.now() + 6000 + Math.random() * 9000;
       UI.toast('Giật sớm quá, cá sợ bơi mất rồi 😅');
       return;
     }
     let r = Math.random() * DATA.FISH.reduce((a, x) => a + x.w, 0);
     const fish = DATA.FISH.find((x) => (r -= x.w) < 0) || DATA.FISH[0];
     addItem(fish.id, 1);
-    addXP(fish.id === 'boot' ? 0 : 2);
+    addXP(fish.id === 'boot' ? 1 : 5);
     if (fish.id !== 'boot') AV.quest('fish');
     float(`+1 ${fish.icon}`, player.x, player.y - 120);
     say(player, fish.id === 'boot' ? 'Ơ… chiếc giày cũ 👢😂' : `Câu được ${fish.icon} ${fish.name}!`);
@@ -764,7 +850,7 @@
     UI.chatLog('', `${S.name} ${msg}`, true, true);
     NET.sendSys(`${S.name} ${msg}`);
     f.state = 'wait';
-    f.biteAt = Date.now() + 2500 + Math.random() * 5000;
+    f.biteAt = Date.now() + 6000 + Math.random() * 9000;
     changed();
   };
 
@@ -778,7 +864,7 @@
       if (navigator.vibrate) navigator.vibrate(80);
       NET.sendState();
     } else if (f.state === 'bite' && t >= f.endAt) {
-      f.state = 'wait'; f.biteAt = t + 2500 + Math.random() * 5000;
+      f.state = 'wait'; f.biteAt = t + 6000 + Math.random() * 9000;
       UI.toast('Chậm quá, cá chạy mất rồi 😢');
       NET.sendState();
     }
@@ -815,6 +901,7 @@
 
   /** Chọn điểm đến trên bản đồ thành phố: tự đi ra trạm và lên xe */
   AV.travelTo = (id) => {
+    if (!map.busStop) return UI.toast('Ra khỏi nhà rồi mới đi xe buýt được nhé 🏠');
     if (!maps[id]) return;
     if (id === map.id) return UI.toast(`Bạn đang ở ${map.name} rồi 😄`);
     if (player.hidden || bus.carrying) return;
@@ -881,11 +968,43 @@
   }
 
   /** Chuyển thẳng tới một khu (dùng khi mới vào game) */
-  AV.teleport = (id, showHelp) => {
+  AV.teleport = (id, showHelp, x, y, label) => {
     if (!maps[id] || fade.mode) return;
     fade.teleport = id;
     fade.afterHelp = !!showHelp;
+    fade.pos = x != null ? [x, y] : null;
+    fade.label = label || '🚌 Đang di chuyển…';
     fade.mode = 'out';
+  };
+
+  /* ---------- Vào / ra nhà ---------- */
+  AV.enterHome = () => AV.teleport('home', false, 800, 900, '🏠 Vào nhà…');
+  AV.leaveHome = () => AV.teleport('farm', false, 2520, 762, '🌾 Ra nông trại…');
+
+  /** Hoạt động trong nhà, có thời gian chờ để không spam XP */
+  function homeActivity(key, cooldownMin, xp, msg, bubble, waitMsg) {
+    const last = S[key] || 0, wait = cooldownMin * 60000 - (Date.now() - last);
+    if (wait > 0) { UI.toast(`${waitMsg} (còn ${fmtDur(wait / 1000)})`); say(player, bubble); return; }
+    S[key] = Date.now();
+    addXP(xp);
+    say(player, bubble);
+    float(`+${xp} XP`, player.x, player.y - 120, '#a5d8ff');
+    UI.toast(msg);
+    changed();
+  }
+  AV.sleep = () => homeActivity('lastSleep', 120, 30, '😴 Ngủ một giấc thật ngon! +30 XP', '😴 Zzz…', 'Bạn chưa buồn ngủ');
+  AV.bathe = () => homeActivity('lastBath', 60, 15, '🛁 Tắm xong thơm tho quá! +15 XP', '🛁 La la la~', 'Vừa tắm xong mà');
+  AV.watchTV = () => homeActivity('lastTV', 30, 8, '📺 Xem TV vui ghê! +8 XP', '📺 Phim hay quá!', 'Xem nhiều quá mỏi mắt đó');
+
+  /** Rương cất đồ: chuyển vật phẩm giữa túi và rương */
+  AV.storeItem = (id, toChest) => {
+    S.storage = S.storage || {};
+    const from = toChest ? S.inv : S.storage, to = toChest ? S.storage : S.inv;
+    const n = from[id] || 0;
+    if (!n) return;
+    from[id] = 0;
+    to[id] = (to[id] || 0) + n;
+    changed();
   };
 
   function updateFade(dt) {
@@ -894,10 +1013,11 @@
       if (fade.a >= 1 && fade.teleport) {
         const id = fade.teleport;
         fade.teleport = null;
-        enterMap(id, maps[id].busStop.x + 50, maps[id].busStop.y + 12);
+        const pos = fade.pos || (maps[id].busStop ? [maps[id].busStop.x + 50, maps[id].busStop.y + 12] : [maps[id].spawn.x, maps[id].spawn.y]);
+        enterMap(id, pos[0], pos[1]);
         player.hidden = false;
         fade.mode = 'in';
-        UI.toast(`📍 Chào mừng tới ${map.name}!`);
+        if (!fade.pos) UI.toast(`📍 Chào mừng tới ${map.name}!`);
         saveNow();
         if (fade.afterHelp) { fade.afterHelp = false; setTimeout(UI.help, 800); }
       } else if (fade.a >= 1) {
@@ -1083,7 +1203,7 @@
     updateQuizBar();
     const nearPk = !player.hidden && map.pickups.find((p) => Math.hypot(p.x - player.x, p.y - player.y) < 20);
     if (nearPk) collectPickup(nearPk);
-    updateBus(dt);
+    if (map.busStop) updateBus(dt);
     TABLE.tick(dt);
     NET.tick(dt);
     NET.update(dt);
@@ -1190,8 +1310,8 @@
     g.imageSmoothingEnabled = true;
     ensureGround(map, px ? 1 : FX.scale);
     g.drawImage(map.ground, 0, 0, map.w, map.h);
-    ART.backdrop(g, map.w, map.hz, cam.x, clock, map.id === 'beach');
-    const night = nightFactor();
+    if (!map.indoor) ART.backdrop(g, map.w, map.hz, cam.x, clock, map.id === 'beach');
+    const night = map.indoor ? 0 : nightFactor();
     ART.nightSky(g, map.w, map.hz, night, clock);
 
     if (marker) {
@@ -1229,7 +1349,7 @@
       charDraw(player.x, player.y, S.look, { ...player, dance: player.dancing > now }, player);
       if (S.look.pet && S.look.pet !== 'none') petDraw(myPet, S.look.pet);
     }
-    if (bus.state !== 'away' && bus.state !== 'travel') {
+    if (map.busStop && bus.state !== 'away' && bus.state !== 'travel') {
       const busY = map.busY || BUS_Y;
       list.push({ y: busY, draw: () => out((c) => ART.bus(c, bus.x, busY, clock, bus.state !== 'waiting'), bus.x, busY, BOX_BUS, bus, 70) });
     }
@@ -1328,7 +1448,7 @@
         ctx.fillStyle = '#fff';
         ctx.font = '800 22px "Be Vietnam Pro", system-ui';
         ctx.textAlign = 'center';
-        ctx.fillText('🚌 Đang di chuyển…', W / 2, H / 2);
+        ctx.fillText(fade.label || '🚌 Đang di chuyển…', W / 2, H / 2);
       }
     }
   }
@@ -1393,9 +1513,11 @@
     if (herd) say(ent, SOUNDS[ent.kind]);
     const o = ind || herd || interAt(w.x, w.y);
     if (o) {
-      goTo(o.ax, o.ay);
-      player.pending = { ax: o.ax, ay: o.ay, use: o.use };
-      marker = { x: o.ax, y: o.ay, t: 0 };
+      // chuồng có nhiều chỗ đứng (trên, dưới, bên hông): chọn chỗ gần nhân vật nhất
+      const [ax, ay] = (o.approaches || [[o.ax, o.ay]]).reduce((b, p) => (Math.hypot(p[0] - player.x, p[1] - player.y) < Math.hypot(b[0] - player.x, b[1] - player.y) ? p : b));
+      goTo(ax, ay);
+      player.pending = { ax, ay, use: o.use };
+      marker = { x: ax, y: ay, t: 0 };
       return;
     }
     goTo(w.x, w.y);

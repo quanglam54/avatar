@@ -31,24 +31,26 @@ const DATA = {
     { id: 'crown', name: 'Vương miện', price: 300, lvl: 5 },
   ],
   CROPS: {
-    wheat: { name: 'Lúa mì', icon: '🌾', seed: 2, sell: 5, time: 30, xp: 1, lvl: 1, yield: 2 },
-    carrot: { name: 'Cà rốt', icon: '🥕', seed: 4, sell: 9, time: 60, xp: 2, lvl: 1, yield: 1 },
-    rose: { name: 'Hoa hồng', icon: '🌹', seed: 7, sell: 15, time: 90, xp: 3, lvl: 2, yield: 1 },
-    strawberry: { name: 'Dâu tây', icon: '🍓', seed: 9, sell: 19, time: 120, xp: 3, lvl: 2, yield: 1 },
-    corn: { name: 'Ngô', icon: '🌽', seed: 13, sell: 28, time: 180, xp: 4, lvl: 3, yield: 1 },
-    pumpkin: { name: 'Bí ngô', icon: '🎃', seed: 22, sell: 60, time: 300, xp: 6, lvl: 4, yield: 1 },
+    wheat: { name: 'Lúa mì', icon: '🌾', seed: 2, sell: 5, time: 300, xp: 4, lvl: 1, yield: 4 },
+    carrot: { name: 'Cà rốt', icon: '🥕', seed: 4, sell: 9, time: 600, xp: 6, lvl: 1, yield: 3 },
+    rose: { name: 'Hoa hồng', icon: '🌹', seed: 7, sell: 15, time: 1200, xp: 8, lvl: 2, yield: 3 },
+    strawberry: { name: 'Dâu tây', icon: '🍓', seed: 9, sell: 19, time: 1800, xp: 10, lvl: 2, yield: 3 },
+    corn: { name: 'Ngô', icon: '🌽', seed: 13, sell: 28, time: 3600, xp: 14, lvl: 3, yield: 3 },
+    pumpkin: { name: 'Bí ngô', icon: '🎃', seed: 22, sell: 60, time: 7200, xp: 20, lvl: 4, yield: 2 },
   },
   PRODUCTS: {
     egg: { name: 'Trứng gà', icon: '🥚', sell: 6 },
     milk: { name: 'Sữa bò', icon: '🥛', sell: 18 },
     wool: { name: 'Len cừu', icon: '🧶', sell: 22 },
   },
-  COOP: { time: 60, feed: 3, eggs: 5, xp: 5 },
-  PEN: { time: 120, feed: 4, milk: 2, wool: 1, xp: 8 },
+  COOP: { time: 900, feed: 3, eggs: 10, xp: 16 },
+  PEN: { time: 1800, feed: 4, milk: 8, wool: 4, xp: 24 },
   PLOT_PRICES: [0, 0, 0, 0, 0, 0, 40, 80, 120, 200],
   BED_PRICES: [0, 150, 400, 900, 1500, 2200, 3000, 4000],
   TILES_PER_BED: 12,
   THIRSTY_AT: 0.4,
+  WATER_CUT: 0.1,
+  FERT: { id: 'fertilizer', name: 'Phân bón', icon: '🧪', price: 5, cut: 0.3 },
   xpNeed: (lvl) => 20 + lvl * 25,
   EMOTES: ['😀', '😂', '😍', '😎', '👋', '❤️', '😴', '😡'],
   NPC_LINES: [
@@ -101,23 +103,35 @@ DATA.BAUCUA = [
 
 /** Nhiệm vụ hằng ngày: luôn có nhiệm vụ tiếng Anh + 3 nhiệm vụ ngẫu nhiên theo ngày */
 DATA.QUESTS = [
-  { id: 'quiz', icon: '🏫', text: 'Trả lời đúng {n} câu tiếng Anh ở Trường học', n: 5, coins: 60, xp: 20 },
-  { id: 'fish', icon: '🎣', text: 'Câu được {n} con cá ở Công viên', n: 3, coins: 40, xp: 12 },
-  { id: 'harvest', icon: '🌾', text: 'Thu hoạch {n} nông sản', n: 20, coins: 40, xp: 12 },
-  { id: 'cook', icon: '🍳', text: 'Nấu {n} món ở Nhà bếp', n: 2, coins: 50, xp: 15 },
-  { id: 'shell', icon: '🐚', text: 'Nhặt {n} vỏ sò / sao biển ở Bãi biển', n: 5, coins: 35, xp: 10 },
-  { id: 'collect', icon: '🥚', text: 'Thu trứng / sữa ở chuồng {n} lần', n: 2, coins: 35, xp: 10 },
-  { id: 'chat', icon: '💬', text: 'Trò chuyện {n} câu với mọi người', n: 5, coins: 25, xp: 8 },
-  { id: 'dance', icon: '💃', text: 'Nhảy trên sân khấu Khu giải trí {n} lần', n: 1, coins: 25, xp: 8 },
+  { id: 'quiz', icon: '🏫', text: 'Trả lời đúng {n} câu tiếng Anh ở Trường học', n: 5, coins: 60, xp: 40 },
+  { id: 'fish', icon: '🎣', text: 'Câu được {n} con cá ở Công viên', n: 3, coins: 40, xp: 24 },
+  { id: 'harvest', icon: '🌾', text: 'Thu hoạch {n} nông sản', n: 20, coins: 40, xp: 24 },
+  { id: 'cook', icon: '🍳', text: 'Nấu {n} món ở Nhà bếp', n: 2, coins: 50, xp: 30 },
+  { id: 'shell', icon: '🐚', text: 'Nhặt {n} vỏ sò / sao biển ở Bãi biển', n: 5, coins: 35, xp: 20 },
+  { id: 'collect', icon: '🥚', text: 'Thu trứng / sữa ở chuồng {n} lần', n: 2, coins: 35, xp: 20 },
+  { id: 'chat', icon: '💬', text: 'Trò chuyện {n} câu với mọi người', n: 5, coins: 25, xp: 16 },
+  { id: 'dance', icon: '💃', text: 'Nhảy trên sân khấu Khu giải trí {n} lần', n: 1, coins: 25, xp: 16 },
 ];
 
+/** Cây ăn quả trong vườn: tự ra quả, không cần trồng, quả chín để lâu không hỏng */
+DATA.FRUITS = {
+  orange: { name: 'Cam', icon: '🍊', color: '#fd7e14', sell: 12, time: 2400, yield: 6, xp: 8 },
+  apple: { name: 'Táo', icon: '🍎', color: '#e03131', sell: 14, time: 2700, yield: 6, xp: 8 },
+  mango: { name: 'Xoài', icon: '🥭', color: '#fcc419', sell: 16, time: 3000, yield: 5, xp: 10 },
+  peach: { name: 'Đào', icon: '🍑', color: '#ff8fab', sell: 20, time: 3600, yield: 5, xp: 12 },
+};
+DATA.ORCHARD = ['orange', 'apple', 'mango', 'peach', 'orange', 'mango', 'peach', 'orange', 'apple', 'mango', 'apple', 'peach', 'orange', 'apple', 'mango'];
+
 DATA.RECIPES = [
-  { id: 'cake_egg', name: 'Bánh trứng', icon: '🥮', need: { egg: 2, wheat: 1 }, sell: 30, xp: 4 },
-  { id: 'carrot_cake', name: 'Bánh cà rốt', icon: '🍰', need: { carrot: 3, egg: 1, wheat: 1 }, sell: 55, xp: 5 },
-  { id: 'milk_straw', name: 'Sữa dâu', icon: '🥤', need: { milk: 1, strawberry: 2 }, sell: 65, xp: 6 },
-  { id: 'corn_soup', name: 'Súp ngô', icon: '🍲', need: { corn: 2, milk: 1 }, sell: 85, xp: 8 },
-  { id: 'wool_scarf', name: 'Khăn len', icon: '🧣', need: { wool: 2 }, sell: 70, xp: 6 },
-  { id: 'pumpkin_pie', name: 'Bánh bí ngô', icon: '🥧', need: { pumpkin: 1, egg: 2, milk: 1 }, sell: 170, xp: 12 },
+  { id: 'cake_egg', name: 'Bánh trứng', icon: '🥮', need: { egg: 2, wheat: 1 }, sell: 30, xp: 8 },
+  { id: 'carrot_cake', name: 'Bánh cà rốt', icon: '🍰', need: { carrot: 3, egg: 1, wheat: 1 }, sell: 55, xp: 10 },
+  { id: 'milk_straw', name: 'Sữa dâu', icon: '🥤', need: { milk: 1, strawberry: 2 }, sell: 65, xp: 12 },
+  { id: 'corn_soup', name: 'Súp ngô', icon: '🍲', need: { corn: 2, milk: 1 }, sell: 85, xp: 16 },
+  { id: 'wool_scarf', name: 'Khăn len', icon: '🧣', need: { wool: 2 }, sell: 70, xp: 12 },
+  { id: 'pumpkin_pie', name: 'Bánh bí ngô', icon: '🥧', need: { pumpkin: 1, egg: 2, milk: 1 }, sell: 170, xp: 24 },
+  { id: 'orange_juice', name: 'Nước cam', icon: '🧃', need: { orange: 4 }, sell: 65, xp: 10 },
+  { id: 'mango_smoothie', name: 'Sinh tố xoài', icon: '🥤', need: { mango: 2, milk: 1 }, sell: 75, xp: 12 },
+  { id: 'fruit_salad', name: 'Salad trái cây', icon: '🥗', need: { apple: 2, peach: 2, orange: 2 }, sell: 140, xp: 20 },
 ];
 
 /** Danh sách mọi vật phẩm trong túi đồ: hạt giống, nông sản, sản phẩm chăn nuôi */
@@ -129,5 +143,7 @@ DATA.ITEMS = (() => {
   }
   for (const [id, p] of Object.entries(DATA.PRODUCTS)) items[id] = { name: p.name, icon: p.icon, sell: p.sell };
   for (const f of [...DATA.FISH, ...DATA.SHELLS, ...DATA.RECIPES]) items[f.id] = { name: f.name, icon: f.icon, sell: f.sell };
+  for (const [id, f] of Object.entries(DATA.FRUITS)) items[id] = { name: f.name, icon: f.icon, sell: f.sell };
+  items.fertilizer = { name: 'Phân bón', icon: '🧪', sell: 0 };
   return items;
 })();
