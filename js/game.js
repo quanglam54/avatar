@@ -15,8 +15,8 @@
       coins: 50, xp: 0, level: 1,
       inv: { seed_wheat: 6, seed_carrot: 3, wheat: 3 },
       owned: { hats: ['none'], shirtStyles: ['plain'], pets: ['none'] },
-      tiles: Array.from({ length: 48 }, () => ({ crop: null, plantedAt: 0, watered: false })),
-      beds: [true, false, false, false],
+      tiles: Array.from({ length: 96 }, () => ({ crop: null, plantedAt: 0, watered: false })),
+      beds: [true, false, false, false, false, false, false, false],
       coop: { fedAt: 0 },
       pen: { fedAt: 0 },
       map: 'farm', x: null, y: null,
@@ -36,6 +36,9 @@
           (s.plots || []).forEach((p, i) => { if (p && p.crop && i < 12) s.tiles[i] = { crop: p.crop, plantedAt: p.plantedAt, watered: true }; });
           s.beds = [true, (s.plots || []).filter((p) => p && p.unlocked).length > 6, false, false];
         }
+        // nông trại mở rộng: 8 luống × 12 ô
+        while (s.tiles.length < 96) s.tiles.push({ crop: null, plantedAt: 0, watered: false });
+        while ((s.beds || []).length < 8) s.beds = [...(s.beds || [true]), false];
         return { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned }, settings: { ...d.settings, ...s.settings } };
       }
     } catch (e) { /* dùng dữ liệu mặc định */ }
@@ -68,6 +71,7 @@
 
   function enterMap(id, x, y) {
     if (map && map.id !== id) { map.ground = null; }
+    player.path = [];
     map = maps[id];
     player.x = x ?? map.spawn.x;
     player.y = y ?? map.spawn.y;
@@ -81,13 +85,103 @@
   }
 
   /* ---------- Va chạm ---------- */
-  function blocked(x, y) {
-    const b = map.bounds;
+  function blockedIn(m, x, y) {
+    const b = m.bounds;
     if (x < b.l || x > b.r || y < b.t || y > b.b) return true;
-    for (const c of map.colliders) {
+    for (const c of m.colliders) {
       if (x > c.x - 9 && x < c.x + c.w + 9 && y > c.y - 4 && y < c.y + c.h + 4) return true;
     }
     return false;
+  }
+  const blocked = (x, y) => blockedIn(map, x, y);
+
+  /* ---------- Tự tìm đường (A*) để đi vòng qua cổng, nhà, chuồng ---------- */
+  const NAV = 20;
+  function navGrid(m) {
+    if (m._nav) return m._nav;
+    const cols = Math.ceil(m.w / NAV), rows = Math.ceil(m.h / NAV);
+    const g = new Uint8Array(cols * rows);
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const x = c * NAV + NAV / 2, y = r * NAV + NAV / 2;
+      g[r * cols + c] = blockedIn(m, x, y) || blockedIn(m, x - 6, y) || blockedIn(m, x + 6, y) ? 1 : 0;
+    }
+    m._nav = { cols, rows, g };
+    return m._nav;
+  }
+
+  function lineFree(x1, y1, x2, y2) {
+    const d = Math.hypot(x2 - x1, y2 - y1), n = Math.ceil(d / 8);
+    for (let i = 1; i <= n; i++) if (blocked(x1 + (x2 - x1) * i / n, y1 + (y2 - y1) * i / n)) return false;
+    return true;
+  }
+
+  function findPath(sx, sy, tx, ty) {
+    const { cols, rows, g } = navGrid(map);
+    const cell = (x, y) => [Math.max(0, Math.min(cols - 1, Math.floor(x / NAV))), Math.max(0, Math.min(rows - 1, Math.floor(y / NAV)))];
+    const [sc, sr] = cell(sx, sy);
+    let [tc, tr] = cell(tx, ty);
+    if (g[tr * cols + tc]) {
+      // điểm đích nằm trong vật cản: tìm ô trống gần nhất
+      let best = null;
+      for (let rad = 1; rad < 12 && !best; rad++) {
+        for (let dr = -rad; dr <= rad && !best; dr++) for (let dc = -rad; dc <= rad; dc++) {
+          const c = tc + dc, r = tr + dr;
+          if (c >= 0 && r >= 0 && c < cols && r < rows && !g[r * cols + c]) { best = [c, r]; break; }
+        }
+      }
+      if (!best) return null;
+      [tc, tr] = best;
+    }
+    const N = cols * rows, start = sr * cols + sc, goal = tr * cols + tc;
+    const gs = new Float32Array(N).fill(Infinity), came = new Int32Array(N).fill(-1), closed = new Uint8Array(N);
+    const open = [start];
+    gs[start] = 0;
+    const h = (i) => Math.hypot((i % cols) - tc, Math.floor(i / cols) - tr);
+    const fs2 = new Float32Array(N).fill(Infinity);
+    fs2[start] = h(start);
+    let guard = 0;
+    while (open.length && guard++ < 40000) {
+      let bi = 0;
+      for (let i = 1; i < open.length; i++) if (fs2[open[i]] < fs2[open[bi]]) bi = i;
+      const cur = open[bi];
+      open[bi] = open[open.length - 1]; open.pop();
+      if (cur === goal) break;
+      if (closed[cur]) continue;
+      closed[cur] = 1;
+      const cc = cur % cols, cr = Math.floor(cur / cols);
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        if (!dr && !dc) continue;
+        const nc = cc + dc, nr = cr + dr;
+        if (nc < 0 || nr < 0 || nc >= cols || nr >= rows) continue;
+        const ni = nr * cols + nc;
+        if (g[ni] || closed[ni]) continue;
+        if (dr && dc && (g[cr * cols + nc] || g[nr * cols + cc])) continue;
+        const ng = gs[cur] + (dr && dc ? 1.414 : 1);
+        if (ng < gs[ni]) { gs[ni] = ng; came[ni] = cur; fs2[ni] = ng + h(ni); open.push(ni); }
+      }
+    }
+    if (came[goal] < 0 && goal !== start) return null;
+    const pts = [];
+    for (let i = goal; i !== start && i >= 0; i = came[i]) pts.push({ x: (i % cols) * NAV + NAV / 2, y: Math.floor(i / cols) * NAV + NAV / 2 });
+    pts.reverse();
+    if (!g[Math.floor(ty / NAV) * cols + Math.floor(tx / NAV)]) pts.push({ x: tx, y: ty });
+    // làm mượt: bỏ các điểm giữa nếu đi thẳng được
+    const out = [];
+    let px = sx, py = sy, k = 0;
+    while (k < pts.length) {
+      let far = k;
+      for (let j = pts.length - 1; j > k; j--) if (lineFree(px, py, pts[j].x, pts[j].y)) { far = j; break; }
+      out.push(pts[far]);
+      px = pts[far].x; py = pts[far].y; k = far + 1;
+    }
+    return out;
+  }
+
+  /** Đi tới (x,y): đi thẳng nếu không vướng, không thì tự tìm đường vòng */
+  function goTo(x, y) {
+    if (lineFree(player.x, player.y, x, y)) { player.path = []; player.target = { x, y }; return; }
+    const p = findPath(player.x, player.y, x, y);
+    if (p && p.length) { player.target = p.shift(); player.path = p; } else { player.path = []; player.target = { x, y }; }
   }
 
   function tryMove(e, dx, dy) {
@@ -719,7 +813,7 @@
     if (bus.state === 'away') bus.timer = 0;
     const st = map.busStop;
     if (Math.hypot(player.x - st.x, player.y - st.y) > 150) {
-      player.target = { x: st.x + 44, y: st.y + 12 };
+      goTo(st.x + 44, st.y + 12);
       player.pending = null;
       marker = { x: st.x + 44, y: st.y + 12, t: 0 };
       UI.toast(`Đang ra trạm xe buýt đi ${maps[id].name} 🚌`);
@@ -888,7 +982,10 @@
       player.target = null; player.pending = null; marker = null;
     } else if (player.target) {
       const dx = player.target.x - player.x, dy = player.target.y - player.y, d = Math.hypot(dx, dy);
-      if (d < 4) { player.target = null; marker = null; }
+      if (d < 4) {
+        if (player.path && player.path.length) player.target = player.path.shift();
+        else { player.target = null; marker = null; }
+      }
       else {
         const sp = Math.min(SPEED, d / dt);
         vx = dx / d * sp; vy = dy / d * sp;
@@ -900,7 +997,7 @@
       if (Math.abs(vx) > 1) player.dir = vx > 0 ? 1 : -1;
       if (!moved && player.target) {
         player.stuck += dt;
-        if (player.stuck > 0.35) { player.target = null; marker = null; }
+        if (player.stuck > 0.35) { player.target = null; player.path = []; marker = null; }
       } else player.stuck = 0;
     } else player.moving = false;
 
@@ -1003,7 +1100,8 @@
 
   /** Vẽ nền của khu ở độ phân giải phù hợp (tối đa 2x để tiết kiệm bộ nhớ) */
   function ensureGround(m, scale) {
-    const gs = Math.max(1, Math.min(2, scale));
+    // bản đồ lớn: giới hạn khoảng 9 triệu điểm ảnh để không tốn bộ nhớ
+    const gs = Math.max(1, Math.min(2, scale, Math.sqrt(9e6 / (m.w * m.h))));
     if (m.ground && m.groundScale === gs) return;
     const c = m.ground || document.createElement('canvas');
     c.width = Math.round(m.w * gs);
@@ -1114,7 +1212,8 @@
       if (S.look.pet && S.look.pet !== 'none') petDraw(myPet, S.look.pet);
     }
     if (bus.state !== 'away' && bus.state !== 'travel') {
-      list.push({ y: BUS_Y, draw: () => out((c) => ART.bus(c, bus.x, BUS_Y, clock, bus.state !== 'waiting'), bus.x, BUS_Y, BOX_BUS, bus, 70) });
+      const busY = map.busY || BUS_Y;
+      list.push({ y: busY, draw: () => out((c) => ART.bus(c, bus.x, busY, clock, bus.state !== 'waiting'), bus.x, busY, BOX_BUS, bus, 70) });
     }
     list.sort((a, b) => a.y - b.y);
     list.forEach((o) => o.draw(g, clock));
@@ -1123,6 +1222,17 @@
       g.fillStyle = `rgba(16,26,72,${0.45 * night})`;
       g.fillRect(cam.x - vw / 2 - 10, map.hz, vw + 20, vh + 400);
       ART.fireflies(g, cam.x, cam.y, vw, vh, night, clock);
+      if (map.lights) {
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        for (const [lx, ly, lr] of map.lights) {
+          if (Math.abs(lx - cam.x) > vw / 2 + lr || Math.abs(ly - cam.y) > vh / 2 + lr) continue;
+          const gr = g.createRadialGradient(lx, ly, 2, lx, ly, lr);
+          gr.addColorStop(0, `rgba(255,200,110,${0.38 * night})`); gr.addColorStop(1, 'rgba(255,180,80,0)');
+          g.fillStyle = gr; g.beginPath(); g.arc(lx, ly, lr, 0, Math.PI * 2); g.fill();
+        }
+        g.restore();
+      }
     }
 
     if (px) {
@@ -1134,7 +1244,7 @@
 
     // Lớp chữ & giao diện trong thế giới: vẽ ở độ phân giải đầy đủ cho sắc nét
     worldTransform(ctx, DPR * ZOOM, DPR * (W / 2 - cam.x * ZOOM), DPR * (H / 2 - cam.y * ZOOM));
-    map.labels.forEach((l) => ART.label(ctx, l.dynamic === 'home' ? `🏠 Nhà ${S.name || 'của bạn'}` : l.text, l.x, l.y));
+    map.labels.forEach((l) => ART.label(ctx, l.dynamic === 'home' ? `🏠 Nhà ${S.name || 'của bạn'}` : l.dynamic === 'gate' ? `Nông trại của ${S.name || 'bạn'}` : l.text, l.x, l.y));
     map.inter.forEach((o) => {
       if (!o.indicator) return;
       const r = o.indicator();
@@ -1246,7 +1356,7 @@
     const w = toWorld(e.clientX, e.clientY);
     const pk = map.pickups.find((p) => Math.abs(p.x - w.x) < 22 && w.y > p.y - 30 && w.y < p.y + 8);
     if (pk) {
-      player.target = { x: pk.x, y: pk.y + 4 };
+      goTo(pk.x, pk.y + 4);
       player.pending = { ax: pk.x, ay: pk.y + 4, use: () => collectPickup(pk) };
       marker = { x: pk.x, y: pk.y + 4, t: 0 };
       return;
@@ -1255,12 +1365,12 @@
     if (ent) { poke(ent); return; }
     const o = interAt(w.x, w.y);
     if (o) {
-      player.target = { x: o.ax, y: o.ay };
+      goTo(o.ax, o.ay);
       player.pending = { ax: o.ax, ay: o.ay, use: o.use };
       marker = { x: o.ax, y: o.ay, t: 0 };
       return;
     }
-    player.target = { x: w.x, y: w.y };
+    goTo(w.x, w.y);
     player.pending = null;
     marker = { x: w.x, y: w.y, t: 0 };
   });
@@ -1316,6 +1426,6 @@
   window.addEventListener('beforeunload', saveNow);
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
 
-  AV._debug = { player, bus, maps, get map() { return map; }, enterMap, update, draw };
+  AV._debug = { player, bus, maps, get map() { return map; }, enterMap, update, draw, goTo, findPath };
   requestAnimationFrame(loop);
 })();

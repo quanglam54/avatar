@@ -664,6 +664,143 @@ Object.assign(ART, (() => {
     }
   }
 
+  /* ---------- Nông trại mở rộng: tường rào, cổng, chuồng đỏ, cối xay gió, luống hoa ---------- */
+  function lantern(ctx, x, y) {
+    ctx.strokeStyle = '#3d2410'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x, y - 14); ctx.lineTo(x, y - 6); ctx.stroke();
+    ctx.fillStyle = '#e03131';
+    ctx.beginPath(); ctx.ellipse(x, y + 4, 9, 11, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffd43b'; ctx.fillRect(x - 6, y - 8, 12, 3); ctx.fillRect(x - 6, y + 13, 12, 3);
+    ctx.strokeStyle = 'rgba(120,0,0,.6)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x - 4, y - 6); ctx.quadraticCurveTo(x - 9, y + 4, x - 4, y + 14); ctx.moveTo(x + 4, y - 6); ctx.quadraticCurveTo(x + 9, y + 4, x + 4, y + 14); ctx.stroke();
+    ctx.strokeStyle = '#ffd43b'; ctx.beginPath(); ctx.moveTo(x, y + 16); ctx.lineTo(x, y + 24); ctx.stroke();
+  }
+
+  function pillar(ctx, x, y, h = 70) {
+    ctx.fillStyle = '#c9b48a';
+    ctx.fillRect(x - 16, y - h, 32, h);
+    ctx.fillStyle = '#b39b6e';
+    for (let yy = y - h + 10; yy < y; yy += 14) ctx.fillRect(x - 16, yy, 32, 2);
+    ctx.fillStyle = '#8f7a52'; ctx.fillRect(x - 20, y - h - 8, 40, 10);
+    ctx.fillStyle = '#e8590c';
+    ctx.beginPath(); ctx.moveTo(x - 22, y - h - 8); ctx.lineTo(x, y - h - 24); ctx.lineTo(x + 22, y - h - 8); ctx.closePath(); ctx.fill();
+    circle(ctx, x, y - h - 26, 4, '#ffd43b');
+  }
+
+  /** Tường gạch ngang có trụ và đèn lồng */
+  function wallH(ctx, x1, x2, y) {
+    const r = srand(x1 + y);
+    ctx.fillStyle = '#e6d7b4';
+    ctx.fillRect(x1, y - 48, x2 - x1, 48);
+    for (let row = 0; row < 4; row++) {
+      for (let x = x1 + (row % 2) * 18; x < x2; x += 36) {
+        ctx.fillStyle = ['#d8c49a', '#e2d0a8', '#cfb98c'][Math.floor(r() * 3)];
+        ctx.fillRect(x + 1, y - 46 + row * 12, Math.min(34, x2 - x - 1), 10);
+      }
+    }
+    ctx.fillStyle = '#9c5b2e'; ctx.fillRect(x1, y - 56, x2 - x1, 10);
+    ctx.fillStyle = '#c0703a'; ctx.fillRect(x1, y - 58, x2 - x1, 4);
+    for (let x = x1; x <= x2; x += 220) { pillar(ctx, x, y, 72); lantern(ctx, x + (x === x2 ? -26 : 26), y - 66); }
+  }
+
+  /** Một đoạn tường dọc (hai bên hông) */
+  function wallV(ctx, x, y, step) {
+    ctx.fillStyle = '#d8c49a';
+    ctx.fillRect(x - 12, y - 48 - step, 24, 48 + step);
+    ctx.fillStyle = '#9c5b2e'; ctx.fillRect(x - 14, y - 56 - step, 28, step + 10);
+    ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.fillRect(x - 12, y - 10, 24, 10);
+  }
+
+  /** Cổng lớn của nông trại */
+  function farmGate(ctx, x, y) {
+    shadow(ctx, x, y + 4, 140, 14, 0.18);
+    // cánh cổng gỗ mở hé
+    ctx.fillStyle = '#8a4b22';
+    ctx.beginPath(); ctx.moveTo(x - 70, y); ctx.lineTo(x - 70, y - 70); ctx.lineTo(x - 104, y - 60); ctx.lineTo(x - 104, y + 6); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x + 70, y); ctx.lineTo(x + 70, y - 70); ctx.lineTo(x + 104, y - 60); ctx.lineTo(x + 104, y + 6); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#5c2f12'; ctx.lineWidth = 2;
+    [[-70, -104], [70, 104]].forEach(([a, b]) => { ctx.beginPath(); ctx.moveTo(x + a, y - 35); ctx.lineTo(x + b, y - 28); ctx.stroke(); });
+    pillar(ctx, x - 92, y, 130); pillar(ctx, x + 92, y, 130);
+    // vòm cổng
+    ctx.fillStyle = '#9c5b2e';
+    ctx.beginPath(); ctx.moveTo(x - 112, y - 136); ctx.quadraticCurveTo(x, y - 196, x + 112, y - 136); ctx.lineTo(x + 112, y - 120); ctx.quadraticCurveTo(x, y - 176, x - 112, y - 120); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e8590c';
+    ctx.beginPath(); ctx.moveTo(x - 124, y - 138); ctx.quadraticCurveTo(x, y - 212, x + 124, y - 138); ctx.lineTo(x + 112, y - 136); ctx.quadraticCurveTo(x, y - 196, x - 112, y - 136); ctx.closePath(); ctx.fill();
+    // biển tên
+    ctx.fillStyle = '#5a3010'; rr(ctx, x - 96, y - 182, 192, 40, 8); ctx.fill();
+    ctx.fillStyle = '#ffd99a'; rr(ctx, x - 90, y - 177, 180, 30, 6); ctx.fill();
+    ctx.fillStyle = '#5a3010'; ctx.font = '900 18px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🌾 NÔNG TRẠI', x, y - 161);
+    lantern(ctx, x - 60, y - 132); lantern(ctx, x + 60, y - 132);
+    // hoa hai bên
+    [[-140, '#ff6b6b'], [140, '#ffd43b']].forEach(([dx, c]) => {
+      circle(ctx, x + dx, y - 14, 18, '#2f8f2f');
+      for (let i = 0; i < 7; i++) circle(ctx, x + dx - 12 + (i * 7) % 24, y - 22 + (i * 5) % 14, 4, c);
+    });
+  }
+
+  /** Chuồng bò sơn đỏ */
+  function barn(ctx, x, y) {
+    shadow(ctx, x, y + 2, 130, 14, 0.18);
+    ctx.fillStyle = '#c92a2a';
+    ctx.beginPath(); ctx.moveTo(x - 110, y); ctx.lineTo(x - 110, y - 110); ctx.lineTo(x, y - 170); ctx.lineTo(x + 110, y - 110); ctx.lineTo(x + 110, y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#a61e1e'; ctx.fillRect(x - 110, y - 14, 220, 14);
+    ctx.fillStyle = '#495057';
+    ctx.beginPath(); ctx.moveTo(x - 124, y - 104); ctx.lineTo(x, y - 180); ctx.lineTo(x + 124, y - 104); ctx.lineTo(x + 112, y - 100); ctx.lineTo(x, y - 166); ctx.lineTo(x - 112, y - 100); ctx.closePath(); ctx.fill();
+    // cửa lớn có chữ X trắng
+    ctx.fillStyle = '#8f1a1a'; ctx.fillRect(x - 44, y - 92, 88, 92);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 5;
+    ctx.strokeRect(x - 44, y - 92, 88, 92);
+    ctx.beginPath(); ctx.moveTo(x - 44, y - 92); ctx.lineTo(x, y - 46); ctx.lineTo(x + 44, y - 92); ctx.moveTo(x - 44, y); ctx.lineTo(x, y - 46); ctx.lineTo(x + 44, y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y - 92); ctx.lineTo(x, y); ctx.stroke();
+    // cửa sổ gác
+    ctx.fillStyle = '#fff'; ctx.fillRect(x - 18, y - 140, 36, 30);
+    ctx.fillStyle = '#e8a93a'; ctx.fillRect(x - 14, y - 136, 28, 22);
+    ctx.fillStyle = '#fff'; ctx.fillRect(x - 1.5, y - 140, 3, 30);
+  }
+
+  /** Cối xay gió quay */
+  function windmill(ctx, x, y, t) {
+    shadow(ctx, x, y + 2, 50, 10);
+    ctx.fillStyle = '#f1e3c6';
+    ctx.beginPath(); ctx.moveTo(x - 34, y); ctx.lineTo(x - 22, y - 150); ctx.lineTo(x + 22, y - 150); ctx.lineTo(x + 34, y); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#8a4b22';
+    ctx.beginPath(); ctx.moveTo(x - 30, y - 150); ctx.lineTo(x, y - 182); ctx.lineTo(x + 30, y - 150); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#6b3618'; rr(ctx, x - 10, y - 34, 20, 34, 6); ctx.fill();
+    ctx.fillStyle = '#74c0fc'; ctx.fillRect(x - 7, y - 110, 14, 16);
+    ctx.save(); ctx.translate(x, y - 150); ctx.rotate(t * 0.8);
+    for (let i = 0; i < 4; i++) {
+      ctx.rotate(Math.PI / 2);
+      ctx.fillStyle = '#8a4b22'; ctx.fillRect(-3, 0, 6, 86);
+      ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fillRect(3, 18, 22, 64);
+      ctx.strokeStyle = '#c9b48a'; ctx.lineWidth = 1;
+      for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(3, 26 + k * 15); ctx.lineTo(25, 26 + k * 15); ctx.stroke(); }
+    }
+    ctx.restore();
+    circle(ctx, x, y - 150, 7, '#5c2f12');
+  }
+
+  /** Luống hoa nhiều màu */
+  function flowerBed(ctx, x, y, w, palette) {
+    ctx.fillStyle = '#7a4a26'; rr(ctx, x, y - 26, w, 30, 8); ctx.fill();
+    ctx.fillStyle = '#9a6238'; rr(ctx, x + 3, y - 24, w - 6, 24, 6); ctx.fill();
+    const r = srand(x * 3 + y);
+    for (let fx = x + 10; fx < x + w - 6; fx += 12) {
+      const fy = y - 14 - r() * 10;
+      ctx.strokeStyle = '#2f8f2f'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(fx, y - 4); ctx.lineTo(fx, fy); ctx.stroke();
+      const c = palette[Math.floor(r() * palette.length)];
+      for (let k = 0; k < 5; k++) { const a = k * 1.2566; circle(ctx, fx + Math.cos(a) * 3.4, fy + Math.sin(a) * 3.4, 3, c); }
+      circle(ctx, fx, fy, 2, '#ffe066');
+    }
+  }
+
+  function trough(ctx, x, y) {
+    shadow(ctx, x, y, 40, 6);
+    ctx.fillStyle = '#7a4a26'; rr(ctx, x - 40, y - 20, 80, 20, 4); ctx.fill();
+    ctx.fillStyle = '#4dabf7'; rr(ctx, x - 34, y - 18, 68, 8, 3); ctx.fill();
+  }
+
   /* ---------- Trường học ---------- */
   /** Bảng đen trên giá gỗ. (x,y) = chân giữa; vùng viết chữ: x±160, y-220..y-70 */
   function blackboard(ctx, x, y) {
@@ -745,5 +882,5 @@ Object.assign(ART, (() => {
     }
   }
 
-  return { blackboard, desk, podium, flagPole, fishingRod, biteMark, stonePath, BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
+  return { lantern, pillar, wallH, wallV, farmGate, barn, windmill, flowerBed, trough, blackboard, desk, podium, flagPole, fishingRod, biteMark, stonePath, BED, bed, roseHedge, scarecrow, doorArrow, nightSky, fireflies, shed, kitchen, timerLabel, backdrop, cloud, woodFence, tulips, namePlate, pet, flowerPot, palm, umbrella, pickup, seaWaves, lake, dock, building, ferrisWheel, stage, gameTable, iceCart, signBoard, swing };
 })());

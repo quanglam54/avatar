@@ -46,7 +46,7 @@ const DATA = {
   COOP: { time: 60, feed: 3, eggs: 5, xp: 5 },
   PEN: { time: 120, feed: 4, milk: 2, wool: 1, xp: 8 },
   PLOT_PRICES: [0, 0, 0, 0, 0, 0, 40, 80, 120, 200],
-  BED_PRICES: [0, 150, 400, 900],
+  BED_PRICES: [0, 150, 400, 900, 1500, 2200, 3000, 4000],
   TILES_PER_BED: 12,
   THIRSTY_AT: 0.4,
   xpNeed: (lvl) => 20 + lvl * 25,
