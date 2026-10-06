@@ -109,6 +109,20 @@ const CLOUD = (() => {
     return data.filter((r) => ok.has(r.id));
   }
 
+  /** Nhận mã quà dùng chung cả server: bảng gift_claims có khoá chính là mã → chỉ người đầu tiên ghi được */
+  async function claimGift(hash, name) {
+    const { error } = await client.from('gift_claims').insert({ code: hash, user_id: user.id, name });
+    if (!error) return;
+    const m = String(error.message || '');
+    if (/duplicate key|unique/i.test(m)) {
+      let who = '';
+      try { const { data } = await client.from('gift_claims').select('name').eq('code', hash).maybeSingle(); who = data && data.name ? data.name : ''; } catch (e) { /* bỏ qua */ }
+      throw new Error(`Chậm chân rồi! Mã đã có người nhận${who ? ' (' + who + ')' : ''} 😢`);
+    }
+    if (/gift_claims|does not exist|Could not find the table/i.test(m)) throw new Error('Chủ game chưa bật mã quà toàn server (chạy file supabase/06-ma-qua-1-nguoi.sql)');
+    throw new Error(viError(error));
+  }
+
   /** Báo đã hái trộm 1 ô ruộng (chủ nông trại tự xử lý khi online) */
   async function sendSteal(row) {
     const { error } = await client.from('farm_steals').insert({ ...row, thief: user.id });
@@ -197,7 +211,7 @@ const CLOUD = (() => {
   }
 
   const api = {
-    init, signUp, signIn, signOut, pull, push, pushOnExit, getFarm, recentFarms, sendHelp, pullHelps, sendSteal, pullSteals, history, peekChangedAt,
+    init, signUp, signIn, signOut, pull, push, pushOnExit, getFarm, recentFarms, sendHelp, pullHelps, sendSteal, pullSteals, history, peekChangedAt, claimGift,
     onPushed: null,
     markDirty: () => { dirty = true; },
     get user() { return user; },

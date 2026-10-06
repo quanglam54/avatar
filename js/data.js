@@ -116,7 +116,7 @@ const DATA = {
   WATER_CUT: 0.1,
   FERT: { id: 'fertilizer', name: 'Phân bón', icon: '🧪', price: 5, cut: 0.3, noFertYield: 0.6 },
   /** Sâu bệnh: ~45% lần gieo sẽ bị sâu giữa chừng → cây đứng không lớn tới khi xịt thuốc (1 chai / luống) */
-  PEST: { id: 'pesticide', name: 'Thuốc trừ sâu', icon: '🧴', price: 8, chance: 0.45 },
+  PEST: { id: 'pesticide', name: 'Thuốc trừ sâu', icon: '🧴', price: 8, chance: 0.04 },
   /** XP cần để lên cấp tiếp: cấp càng cao càng cần nhiều (tăng theo bình phương) */
   xpNeed: (lvl) => 30 + lvl * 30 + lvl * lvl * 5,
   EMOTES: ['😀', '😂', '😍', '😎', '👋', '❤️', '😴', '😡'],

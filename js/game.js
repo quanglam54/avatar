@@ -50,6 +50,15 @@
     const out = { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned }, settings: { ...d.settings, ...s.settings } };
     out.guard = normTeam(s.guard, s.owned && s.owned.guards);
     out.pen = normPen(s.pen);
+    if (!out.pestFix1) {
+      out.pestFix1 = true;
+      const now = Date.now();
+      (out.tiles || []).forEach((t) => {
+        if (!t || !t.crop || !t.pestAt || t.sprayed || !DATA.CROPS[t.crop]) return;
+        const p = (now - t.plantedAt) / (DATA.CROPS[t.crop].time * 1000);
+        if (p < t.pestAt && Math.random() > 0.1) t.pestAt = 0;
+      });
+    }
     return out;
   }
 
@@ -3146,10 +3155,28 @@
 
   /** Mã quà tặng (mỗi mã dùng 1 lần cho mỗi nhân vật) */
   const GIFTS = { 'XINLOI3500': { coins: 3500, msg: 'Quà xin lỗi vì lỗi mất đồ' }, 'QUANGLAM100K': { coins: 100000, msg: 'Voucher quà tặng 100K' }, 'QUANGLAM10TR': { coins: 10000000, msg: 'Voucher 10 triệu xu', expired: true } };
+  /** Mã dùng chung cả server: chỉ 1 người nhận được (ai nhanh tay). Chỉ lưu bản băm của mã, không lộ mã trong code */
+  const GLOBAL_GIFTS = { '83fb97087d6471ebf6ec252ad41511f9f28f5a624a69265ac539fcd4f8c81a37': { coins: 15000000, msg: 'Voucher 15 triệu xu' } };
+  async function redeemGlobal(c) {
+    let h = '';
+    try {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('QLGIFT|' + c));
+      h = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) { /* trình duyệt cũ */ }
+    const g = GLOBAL_GIFTS[h];
+    if (!g) return UI.toast('Mã quà không đúng 🤔');
+    if (!CLOUD.user) return UI.toast('🔐 Đăng nhập tài khoản mới nhận được mã này');
+    try { await CLOUD.claimGift(h, S.name); } catch (e) { return UI.toast('⚠️ ' + e.message, 5000); }
+    S.coins += g.coins;
+    float(`+${g.coins.toLocaleString('vi-VN')} 💰`, player.x, player.y - 120, '#ffd43b');
+    UI.toast(`🎉 Bạn là người NHANH NHẤT! ${g.msg}: +${g.coins.toLocaleString('vi-VN')} xu!`, 6000);
+    NET.sendSys(`🎉 ${S.name} vừa giành được ${g.msg}!`);
+    changed();
+  }
   AV.redeem = (code) => {
     const c = String(code || '').trim().toUpperCase().replace(/\s+/g, '');
     const g = GIFTS[c];
-    if (!g) return UI.toast('Mã quà không đúng 🤔');
+    if (!g) return redeemGlobal(c);
     S.redeemed = S.redeemed || [];
     if (g.expired) return UI.toast('⛔ Mã này đã bị khoá / hết hạn');
     if (!g.unlimited && S.redeemed.includes(c)) return UI.toast('Bạn đã dùng mã này rồi');
