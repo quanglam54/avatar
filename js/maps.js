@@ -487,7 +487,42 @@ const MAPS = (() => {
     col(m, 2418, 1412, 74, 28);
     inter(m, { x: 2410, y: 1318, w: 90, h: 124, ax: 2455, ay: 1470, name: 'Cây ATM QuangLamBank', use: () => BANK.panel('atm'), arrow: { x: 2455, y: 1300, text: 'ATM' } });
     addBusStop(m, GATE + 140, 1432, 1);
-    addStreetSign(m, GATE - 360, 1430);
+    /* ----- Biển chúc mừng 20/10 cạnh cổng (hiện từ 1/10 đến hết 21/10) ----- */
+    const WX = 1300, WY = 1430;
+    const womensDay = () => { const d = new Date(); return d.getMonth() === 9 && d.getDate() <= 21; };
+    const wdSprite = FX.sprite((c) => {
+      // 2 cột gỗ quấn hoa
+      [[-120, 0], [120, 0]].forEach(([dx]) => { c.fillStyle = '#8a5a3c'; c.fillRect(WX + dx - 7, WY - 150, 14, 150); });
+      // bảng hồng viền hoa
+      c.fillStyle = '#ffdeeb'; c.beginPath(); c.roundRect(WX - 150, WY - 330, 300, 190, 22); c.fill();
+      c.strokeStyle = '#e64980'; c.lineWidth = 7; c.stroke();
+      c.fillStyle = '#fff0f6'; c.beginPath(); c.roundRect(WX - 136, WY - 316, 272, 162, 16); c.fill();
+      for (let k = 0; k < 16; k++) {
+        const a = k / 16 * Math.PI * 2, fx = WX + Math.cos(a) * 158, fy = WY - 235 + Math.sin(a) * 102;
+        const col = ['#f783ac', '#ffd43b', '#ff6b6b', '#da77f2'][k % 4];
+        for (let p = 0; p < 5; p++) { const pa = p * 1.2566; c.fillStyle = col; c.beginPath(); c.arc(fx + Math.cos(pa) * 6, fy + Math.sin(pa) * 6, 5, 0, Math.PI * 2); c.fill(); }
+        c.fillStyle = '#fff3bf'; c.beginPath(); c.arc(fx, fy, 3.5, 0, Math.PI * 2); c.fill();
+      }
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillStyle = '#c2255c'; c.font = '900 26px "Be Vietnam Pro", system-ui'; c.fillText('CHÚC MỪNG', WX, WY - 292);
+      c.font = '900 22px "Be Vietnam Pro", system-ui'; c.fillText('NGÀY PHỤ NỮ VIỆT NAM', WX, WY - 262);
+      c.fillStyle = '#e64980'; c.font = '900 50px "Be Vietnam Pro", system-ui'; c.fillText('20/10', WX, WY - 218);
+      c.fillStyle = '#862e9c'; c.font = '800 14px "Be Vietnam Pro", system-ui';
+      c.fillText('Chúc chị em luôn xinh đẹp,', WX, WY - 182); c.fillText('hạnh phúc và thật nhiều niềm vui! 💐', WX, WY - 164);
+      // bó hoa dưới chân biển
+      [[-122, '#ff6b6b'], [122, '#f783ac']].forEach(([dx, col]) => {
+        c.fillStyle = '#2f9e44'; c.beginPath(); c.arc(WX + dx, WY - 16, 22, 0, Math.PI * 2); c.fill();
+        [[-10, -24], [8, -28], [0, -14], [-14, -10], [14, -12]].forEach(([fx, fy]) => { c.fillStyle = col; c.beginPath(); c.arc(WX + dx + fx, WY + fy, 8, 0, Math.PI * 2); c.fill(); c.fillStyle = '#fff3bf'; c.beginPath(); c.arc(WX + dx + fx, WY + fy, 3, 0, Math.PI * 2); c.fill(); });
+      });
+    }, WX, WY, { l: -175, t: -345, w: 350, h: 355 });
+    obj(m, WY, (ctx, t) => {
+      if (!womensDay()) return;
+      wdSprite(ctx);
+      // tim bay lên lấp lánh
+      for (let k = 0; k < 5; k++) { const ph = (t * 0.35 + k / 5) % 1; ctx.globalAlpha = 1 - ph; ctx.font = '18px system-ui'; ctx.textAlign = 'center'; ctx.fillText('💗', WX - 120 + k * 60, WY - 340 - ph * 70); }
+      ctx.globalAlpha = 1;
+    }, [WX - 180, WY - 430, WX + 180, WY + 10]);
+    m.colliders.push({ x: WX - 132, y: WY - 10, w: 24, h: 12, when: womensDay }, { x: WX + 108, y: WY - 10, w: 24, h: 12, when: womensDay });
     addStreetSign(m, 3420, 1430, ['Cầu Giấy', 'Hồ Tùng Mậu']);
     sobj(m, 0, 1594, (c) => ART.roseHedge(c, 0, m.w, 1594), { l: -10, t: -44, w: m.w + 20, h: 48 });
 
