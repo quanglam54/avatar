@@ -756,3 +756,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* Tủ đồ: các mục tự phối đồ xếp như cũ */
 .vec-opts { display: contents; }
 .vec-opts[hidden] { display: none; }
+
+/* QuangLamBank */
+.bk-card { display: flex; gap: 10px; align-items: center; background: linear-gradient(135deg, #00703c, #2f9e44); color: #fff; border-radius: 14px; padding: 10px 12px; margin-bottom: 10px; }
+.bk-card b { font-size: 17px; } .bk-card small { display: block; opacity: .9; }
+.bk-logo { width: 42px; height: 42px; border-radius: 50%; background: #7bc142; border: 3px solid #fff; display: grid; place-items: center; font-weight: 900; color: #fff; flex: none; }
+.bk-row { display: flex; gap: 6px; align-items: center; } .bk-row .field { flex: 1; min-width: 0; }
+.bk-bal { display: grid; text-align: center; background: #ebfbee; border: 2px solid #8ce99a; border-radius: 14px; padding: 10px; margin-bottom: 10px; }
+.bk-bal b { font-size: 26px; color: #00703c; }
+.bk-msg { color: #e03131; font-weight: 700; margin: 8px 0 0; min-height: 1em; } .bk-msg.ok { color: #2b8a3e; }
+.bk-log { margin-top: 10px; display: grid; gap: 4px; max-height: 150px; overflow: auto; font-size: 13px; }
+.bk-log div { display: grid; grid-template-columns: 1fr auto; background: #f8f9fa; border-radius: 8px; padding: 4px 8px; }
+.bk-log small { grid-column: 1 / -1; color: #868e96; } .bk-log .in { color: #2b8a3e; } .bk-log .out { color: #e03131; }

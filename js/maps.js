@@ -153,7 +153,7 @@ const MAPS = (() => {
     const hh = o.h || w * 1.1;
     obj(m, o.sortY ?? y, (ctx) => {
       const im = IMG.get(src);
-      if (!im) { if (o.fallback) o.fallback(ctx); return; }
+      if (!im) { if (o.fallback) o.fallback(ctx, performance.now() / 1000); return; }
       const h = w * im.naturalHeight / im.naturalWidth;
       ctx.drawImage(im, x - w / 2, y - h, w, h);
       const sg = o.sign;
@@ -186,10 +186,10 @@ const MAPS = (() => {
     col(m, x - 5, y - 6, 10, 8);
   }
 
-  function street(m) {
-    addBusStop(m, 1000, 862);
+  function street(m, busX = 1000, sign2X = m.w - 320) {
+    addBusStop(m, busX, 862);
     addStreetSign(m, 600, 860);
-    addStreetSign(m, m.w - 320, 860, [...STREETS].reverse());
+    addStreetSign(m, sign2X, 860, [...STREETS].reverse());
     edges(m);
   }
 
@@ -277,7 +277,7 @@ const MAPS = (() => {
     sobj(m, GATE + 108, WB, (c) => ART.wallH(c, GATE + 108, WR, WB), { l: -30, t: -112, w: WR - GATE - 108 + 60, h: 120 });
     col(m, WL - 12, WB - 14, GATE - 92 - WL, 16);
     col(m, GATE + 92, WB - 14, WR - GATE - 80, 16);
-    sobj(m, GATE, WB + 2, (c) => ART.farmGate(c, GATE, WB + 2), { l: -170, t: -225, w: 340, h: 240 });
+    pic(m, 'img/farm/' + 'gate.png', GATE, WB + 40, 300, { h: 300, sortY: WB + 2, sign: { text: 'NÔNG TRẠI', x: 0.5, y: 0.17, w: 0.36, color: '#7a3d0c' }, fallback: (c) => ART.farmGate(c, GATE, WB + 2) });
     m.labels.push({ text: '', x: GATE, y: WB - 232, dynamic: 'gate' });
     for (let x = WL; x <= WR; x += 220) m.lights.push([x + 26, WT - 62, 42]);
     m.lights.push([GATE - 60, WB - 126, 46], [GATE + 60, WB - 126, 46]);
@@ -326,8 +326,8 @@ const MAPS = (() => {
     woodPen(m, 780, 884, 1000, 1240);
     sobj(m, 340, 1040, (c) => ART.barn(c, 340, 1040), { l: -140, t: -200, w: 280, h: 214 });
     col(m, 228, 990, 224, 52);
-    sobj(m, 470, 1215, (c) => ART.hayStack(c, 470, 1215));
-    sobj(m, 650, 960, (c) => ART.hayBale(c, 650, 960));
+    pic(m, 'img/farm/' + 'hay.png', 470, 1225, 90, { h: 80, fallback: (c) => ART.hayStack(c, 470, 1215) });
+    pic(m, 'img/farm/' + 'hay.png', 650, 970, 70, { h: 62, fallback: (c) => ART.hayBale(c, 650, 960) });
     sobj(m, 890, 1000, (c) => ART.pigSty(c, 890, 1000), { l: -125, t: -156, w: 250, h: 164 });
     col(m, 792, 950, 196, 50);
     obj(m, 1080, (ctx, t) => ART.mudPool(ctx, 880, 1160, t), [790, 1110, 970, 1210]);
@@ -348,18 +348,18 @@ const MAPS = (() => {
 
     /* ----- Ao cá + sân gà thả rông cạnh ao ----- */
     m.lake = { x: 1300, y: 1060, rx: 180, ry: 110 };
-    obj(m, 950, (ctx, t) => ART.lake(ctx, 1300, 1060, 180, 110, t));
+    pic(m, 'img/farm/' + 'pond.png', 1300, 1196, 430, { h: 340, sortY: 950, fallback: (c, t) => ART.lake(c, 1300, 1060, 180, 110, t) });
     col(m, 1140, 970, 320, 180);
     m.labels.push({ text: '🎣 Ao Cá', x: 1300, y: 900 }, { text: '🐔 Sân Gà', x: 1865, y: 900 });
     addBench(m, 1180, 1255);
     // bảng tin: ai đến trộm, có bị cắn / phạt không, ai tưới giúp
-    sobj(m, 1400, 1250, (c) => ART.noticeBoard(c, 1400, 1250), { l: -72, t: -172, w: 144, h: 178 });
+    pic(m, 'img/farm/' + 'board.png', 1400, 1262, 140, { h: 170, sortY: 1250, fallback: (c) => ART.noticeBoard(c, 1400, 1250) });
     col(m, 1350, 1240, 100, 12);
     inter(m, { x: 1334, y: 1084, w: 132, h: 170, ax: 1400, ay: 1282, name: 'Bảng tin nông trại (ai đến trộm, ai tưới giúp)', use: () => AV.useNoticeBoard(), indicator: () => AV.noticeIndicator(), ix: 1400, iy: 1072 });
     sobj(m, 1865, 1060, (c) => ART.henNest(c, 1865, 1060), { l: -80, t: -78, w: 160, h: 88 });
     col(m, 1805, 1042, 120, 20);
-    sobj(m, 1975, 980, (c) => ART.hayBale(c, 1975, 980));
-    sobj(m, 1760, 1215, (c) => ART.hayStack(c, 1760, 1215));
+    pic(m, 'img/farm/' + 'hay.png', 1975, 990, 72, { h: 64, fallback: (c) => ART.hayBale(c, 1975, 980) });
+    pic(m, 'img/farm/' + 'hay.png', 1760, 1225, 90, { h: 80, fallback: (c) => ART.hayStack(c, 1760, 1215) });
     for (let i = 0; i < 5; i++) animal(m, 'chicken', { l: 1720, t: 930, r: 2010, b: 1240 }, i);
     for (let i = 5; i < 9; i++) animal(m, 'chicken', { l: 240, t: 834, r: 2280, b: 860 }, i);
     inter(m, {
@@ -373,7 +373,10 @@ const MAPS = (() => {
     for (let k = 0; k < DATA.FLOWER_BEDS; k++) addBed(DATA.FIELD_BEDS + k, GX + (k % 2) * (BD.w + 40), GY + Math.floor(k / 2) * FSTEP, 'Ô trồng hoa');
 
     /* ----- Góc nhỏ: bù nhìn, ghế, bụi hoa ----- */
-    sobj(m, 2945, 1040, (c) => ART.scarecrow(c, 2945, 1040), { l: -45, t: -100, w: 90, h: 106 });
+    pic(m, 'img/farm/' + 'scarecrow.png', 2890, 1050, 96, { h: 135, fallback: (c) => ART.scarecrow(c, 2890, 1040) });
+    // giếng nước
+    pic(m, 'img/farm/' + 'well.png', 3010, 1140, 120, { h: 160 });
+    col(m, 2960, 1100, 100, 40);
     addBench(m, 2945, 1200);
     addBush(m, 2860, 960, '#ff8fab'); addBush(m, 3035, 960, '#ffd43b'); addPot(m, 2860, 1230, 'mai'); addPot(m, 3035, 1230, 'dao');
 
@@ -384,8 +387,16 @@ const MAPS = (() => {
       const x = 3895 + k * 168 + row * 84, y = row ? 772 : 640;
       const fr = DATA.FRUITS[DATA.ORCHARD[i]];
       AV._treePos[i] = [x, y];
-      addTree(m, x, y, fr === DATA.FRUITS.peach ? 'pink' : 'green');
-      obj(m, y + 1, (ctx, t) => { const st = AV.treeState(i); ART.treeFruits(ctx, x, y, fr.color, st.p, st.ripe, t); });
+      const kind = DATA.ORCHARD[i];
+      if (kind === 'orange' || kind === 'peach') {
+        // cây cam / đào vẽ sẵn (quả có sẵn trong ảnh); cây chín thì lấp lánh
+        pic(m, 'img/farm/' + kind + '.png', x, y + 14, 150, { h: 185, fallback: (c) => ART.tree(c, x, y, kind === 'peach' ? 'pink' : 'green') });
+        col(m, x - 14, y - 10, 28, 12);
+        obj(m, y + 2, (ctx, t) => { const st = AV.treeState(i); if (st.ripe) for (let k = 0; k < 4; k++) { const a = t * 2 + k * 1.6; ART.circle(ctx, x + Math.cos(a) * 46, y - 100 + Math.sin(a * 1.3) * 34, 2.6 + Math.sin(t * 6 + k) * 1.2, 'rgba(255,255,200,.95)'); } });
+      } else {
+        addTree(m, x, y, fr === DATA.FRUITS.peach ? 'pink' : 'green');
+        obj(m, y + 1, (ctx, t) => { const st = AV.treeState(i); ART.treeFruits(ctx, x, y, fr.color, st.p, st.ripe, t); });
+      }
       inter(m, {
         x: x - 62, y: y - 180, w: 124, h: 186, ax: x, ay: y + 30, name: `Cây ${fr.name.toLowerCase()} (hái quả)`,
         use: () => AV.useTree(i), indicator: () => AV.treeIndicator(i), ix: x, iy: y - 186,
@@ -401,7 +412,7 @@ const MAPS = (() => {
     sobj(m, 4300, 1010, (c) => ART.signBoard(c, 4300, 1010, 'CẨN THẬN\nCÓ THÚ DỮ 🦷\nCấm hái trộm!'));
     col(m, 4262, 1000, 80, 12);
     sobj(m, 4180, 1092, (c) => ART.dogBowl(c, 4180, 1092), { l: -22, t: -14, w: 44, h: 20 });
-    sobj(m, 4560, 960, (c) => ART.hayBale(c, 4560, 960));
+    pic(m, 'img/farm/' + 'hay.png', 4560, 970, 72, { h: 64, fallback: (c) => ART.hayBale(c, 4560, 960) });
     [[4760, 1000, 'green'], [5080, 960, 'fruit'], [4980, 1230, 'pink'], [3880, 1230, 'green']].forEach(([x, y, v]) => addTree(m, x, y, v));
     addBush(m, 4420, 1245, '#ff8fab'); addBush(m, 4660, 1250, '#ffd43b');
     addBench(m, 4820, 1180);
@@ -468,10 +479,12 @@ const MAPS = (() => {
 
   /* ---------- Quảng trường ---------- */
   let town = function town() {
-    const m = base('town', 'Quảng trường', 2000, 1070);
+    const m = base('town', 'Quảng trường', 2750, 1070);
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 29);
       paintPaved(g, 180, 370, 1640, 440);
+      // sân lát đá trước ngân hàng
+      paintPaved(g, 1960, 640, 700, 200, '#e3efe6');
       g.fillStyle = '#d6c3a1';
       g.beginPath(); g.roundRect(960, 800, 80, 50, 6); g.fill();
       paintStreet(g, m.w, 870, 1000);
@@ -496,7 +509,17 @@ const MAPS = (() => {
     npc(m, 'Cô Mai', { skin: '#f8c9a2', hair: 'long', hairColor: '#2b2b33', shirt: '#fcc419', shirtStyle: 'plain', pants: '#8b5a2b', hat: 'nonla' }, plazaArea, 1160, 690);
     npc(m, 'Bác Ba', { skin: '#b97a51', hair: 'bald', hairColor: '#e9ecef', shirt: '#40c057', shirtStyle: 'overall', pants: '#364fc7', hat: 'none' }, plazaArea, 1520, 690, 'pug');
 
-    street(m);
+    /* ----- QuangLamBank + cây ATM ----- */
+    const BX = 2260, BY = 770;
+    sobj(m, BX, BY, (c) => BANK.building(c, BX, BY), { l: -270, t: -410, w: 540, h: 440 });
+    col(m, BX - 230, BY - 70, 160, 66); col(m, BX + 70, BY - 70, 160, 66); col(m, BX - 70, BY - 70, 140, 24);
+    inter(m, { x: BX - 70, y: BY - 150, w: 140, h: 150, ax: BX, ay: BY + 40, name: 'QuangLamBank (mở tài khoản, gửi / rút xu)', use: () => BANK.panel('counter'), arrow: { x: BX, y: BY - 118, text: 'Vào ngân hàng' } });
+    pic(m, 'img/mall/atm.png', 2585, 800, 92, { h: 132 });
+    col(m, 2546, 772, 78, 30);
+    inter(m, { x: 2540, y: 670, w: 90, h: 132, ax: 2585, ay: 830, name: 'Cây ATM QuangLamBank', use: () => BANK.panel('atm'), arrow: { x: 2585, y: 660, text: 'ATM' } });
+    addLamp(m, 1960, 600); addBench(m, 2620, 650);
+
+    street(m, 2000, 1700);
     m.spawn = { x: 1050, y: 875 };
     m.bounds = { l: 20, t: 380, r: m.w - 20, b: m.h - 40 };
     return m;
@@ -531,6 +554,7 @@ const MAPS = (() => {
     // cây ATM giữa 2 tiệm
     pic(m, A + 'atm.png', 1275, 575, 95, { h: 135 });
     col(m, 1235, 545, 80, 30);
+    inter(m, { x: 1228, y: 440, w: 94, h: 135, ax: 1275, ay: 605, name: 'Cây ATM QuangLamBank', use: () => BANK.panel('atm'), arrow: { x: 1275, y: 430, text: 'ATM' } });
 
     // Tiệm Thú Cưng
     pic(m, A + 'petshop.png', 1555, 570, 380, { h: 370, sign: { text: 'THÚ CƯNG', x: 0.485, y: 0.236, w: 0.38, color: '#2b8a3e' }, fallback: (c) => ART.building(c, 1550, 520, { w: 240, wall: '#e6fcf5', roof: '#20c997', awning: '#0ca678', sign: '🐶 THÚ CƯNG', icons: ['🐕', '🐈'], door: '#087f5b' }) });
