@@ -229,6 +229,14 @@ DATA.AVATARS = [
   { id: 'girl', name: '👧 Bạn nữ', src: 'img/char/girl.png' },
   { id: 'custom', name: '🎨 Tự phối đồ' },
 ];
+/** Kiểu tóc cho nhân vật vẽ: mỗi kiểu là 1 ảnh trọn người (đã sẵn dáng chibi) img/char/<avatar>_<id>.png */
+DATA.PAINT_HAIRS = {
+  boy: [
+    { id: '', name: 'Tóc rối (gốc)' }, { id: 'h1', name: 'Rẽ ngôi nâu' }, { id: 'h2', name: 'Dựng đen' }, { id: 'h3', name: 'Two-block nâu tro' },
+    { id: 'h4', name: 'Xoăn nâu' }, { id: 'h5', name: 'Vàng bạch kim' }, { id: 'h6', name: 'Buộc đuôi ngựa' }, { id: 'h7', name: 'Đầu đinh' }, { id: 'h8', name: 'Mullet highlight đỏ' },
+  ],
+  girl: [{ id: '', name: 'Tóc dài xoăn (gốc)' }],
+};
 
 /** Xe máy tự lái trên đường phố (mua 1 lần dùng mãi). max = tốc độ tối đa (÷10 ra km/h) */
 DATA.BIKES = [

@@ -66,7 +66,7 @@ const UI = (() => {
       ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
     }
     ctx.save();
-    if (headOnly) { ctx.translate(w / 2, h / 2 + (ART.isPainted(look) ? 101 : 55) * scale - 2); }
+    if (headOnly) { ctx.translate(w / 2, h / 2 + (ART.isPainted(look) ? 74 : 55) * scale - 2); }
     else ctx.translate(w / 2, h - 14 * scale / 1.6);
     ctx.scale(scale, scale);
     ART.character(ctx, 0, 0, look, { t, dir: 1 });
@@ -123,7 +123,9 @@ const UI = (() => {
           </div>
           <div class="opts">
             <label>Nhân vật</label>${chips('avatar', DATA.AVATARS, (ART.avatarOf(look) || { id: 'custom' }).id)}
-            <small class="muted">${ART.avatarOf(look) ? 'Nhân vật vẽ sẵn mặc sẵn đồ — chọn 🎨 Tự phối đồ để thay áo, tóc, mũ…' : 'Đang tự phối đồ: chỉnh màu da, tóc, áo, quần bên dưới'}</small>
+            ${ART.avatarOf(look) && (DATA.PAINT_HAIRS[ART.avatarOf(look).id] || []).length > 1 ? `<label>Kiểu tóc (nhân vật vẽ)</label>${chips('phair', DATA.PAINT_HAIRS[ART.avatarOf(look).id], look.phair || '')}` : ''}
+            <small class="muted">${ART.avatarOf(look) ? 'Nhân vật vẽ mặc sẵn đồ — sắp có thêm bộ đồ ở Tiệm Thời Trang. Chọn 🎨 Tự phối đồ để dùng đồ kiểu cũ.' : 'Đang tự phối đồ: chỉnh màu da, tóc, áo, quần bên dưới'}</small>
+            <div class="vec-opts" ${ART.avatarOf(look) ? 'hidden' : ''}>
             <label>Màu da</label>${swatches('skin', DATA.SKINS, look.skin)}
             <label>Kiểu tóc</label>${chips('hair', DATA.HAIR_STYLES, look.hair)}
             <label>Màu tóc</label>${swatches('hairColor', DATA.HAIR_COLORS, look.hairColor)}
@@ -136,6 +138,7 @@ const UI = (() => {
             ${pxChips('back', 'Áo choàng', 'backs', DATA.PX_BACKS, 'Không')}
             <label>Mũ / phụ kiện</label>${chips('hat', hats, look.hat)}
             <label>Trang sức / kính ${isNew ? '' : '<small>(mua ở Tiệm Thời Trang)</small>'}</label>${chips('acc', accs, look.acc || 'none')}
+            </div>
           </div>
         </div>
         <div class="row-end">

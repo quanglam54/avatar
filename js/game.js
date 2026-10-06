@@ -2778,7 +2778,7 @@
 
     // bảng tên gỗ trên đầu nhân vật
     // bảng tên nằm sát trên đỉnh đầu (cao hơn khi đội mũ); bong bóng chat nằm trên bảng tên
-    const nameTop = (look) => (ART.isPainted(look) ? 142 : !look || look.hat === 'none' ? 118 : look.hat === 'nonla' ? 138 : 130);
+    const nameTop = (look) => (ART.isPainted(look) ? 124 : !look || look.hat === 'none' ? 118 : look.hat === 'nonla' ? 138 : 130);
     map.npcs.forEach((n) => { if (!n.hw || AV.hw()) ART.namePlate(ctx, n.name, n.x, n.y - nameTop(n.look), 'npc'); });
     others.forEach((r) => ART.namePlate(ctx, r.name, r.rx, r.ry - nameTop(r.look), 'other'));
     if (!player.hidden && !(pose && pose.front)) ART.namePlate(ctx, S.name || 'Bạn', player.x, player.y - nameTop(S.look), 'me');

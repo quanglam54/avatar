@@ -99,15 +99,28 @@ const ART = (() => {
     const id = look.avatar === 'boy' || look.avatar === 'girl' ? look.avatar : (GIRLISH[look.hair] || DRESSY_ST[look.shirtStyle] || look.top === 'cute' ? 'girl' : 'boy');
     return DATA.AVATARS.find((a) => a.id === id) || null;
   }
-  const paintedImg = (look) => { const a = avatarOf(look); return a && typeof IMG !== 'undefined' ? IMG.get(a.src) : null; };
+  /** Ảnh nhân vật vẽ theo look: { src, squash } (squash = ảnh gốc dáng cao cần thu ngắn thân) */
+  function paintedSrc(look) {
+    const a = avatarOf(look);
+    if (!a) return null;
+    const list = (DATA.PAINT_HAIRS && DATA.PAINT_HAIRS[a.id]) || [];
+    if (look.phair && list.some((h) => h.id === look.phair)) return { src: `img/char/${a.id}_${look.phair}.png`, squash: false };
+    return { src: a.src, squash: true };
+  }
+  const paintedImg = (look) => { const p = paintedSrc(look); return p && typeof IMG !== 'undefined' ? IMG.get(p.src) : null; };
+  /** Dáng chibi lùn: giữ nguyên đầu (phần trên SPLIT của ảnh), thân + chân thu ngắn còn BODY_K */
+  const SPLIT = 0.36, BODY_K = 0.6;
   /** Đang hiện nhân vật ảnh (ảnh đã tải xong) */
   const isPainted = (look) => !!paintedImg(look);
-  const PAINT_H = 126;
+  const PAINT_H = 108;
   function painted(ctx, x, y, look, o) {
     const im = paintedImg(look);
     if (!im) return false;
     const s = (o.scale ?? 1.18) / 1.18, t = o.t || 0;
-    const H = PAINT_H * s, W = H * im.naturalWidth / im.naturalHeight;
+    // chiều cao ảnh gốc khi vẽ (trước khi thu ngắn thân) sao cho cả người cao PAINT_H
+    const squash = paintedSrc(look).squash, split = squash ? SPLIT : 0.5, bk = squash ? BODY_K : 1;
+    const H = PAINT_H * s / (split + (1 - split) * bk), W = H * im.naturalWidth / im.naturalHeight;
+    const iw = im.naturalWidth, ih = im.naturalHeight, headH = H * split, bodyH = H * (1 - split) * bk;
     let bob = 0, tilt = 0, sq = 1;
     if (o.dance) { bob = Math.abs(Math.sin(t * 7)) * 9 * s; tilt = Math.sin(t * 4) * 0.12; }
     else if (o.moving) { bob = Math.abs(Math.sin(t * 12)) * 3 * s; tilt = Math.sin(t * 12) * 0.045; }
@@ -116,7 +129,9 @@ const ART = (() => {
     shadow(ctx, x, y, 17 * s, 5 * s);
     ctx.save();
     ctx.translate(x, y - bob); ctx.rotate(tilt); ctx.scale(dir < 0 ? -1 : 1, sq);
-    ctx.drawImage(im, -W / 2, -H, W, H);
+    // thân + chân (thu ngắn) rồi đến đầu (giữ nguyên), chồng 1 chút cho liền mạch
+    ctx.drawImage(im, 0, ih * split, iw, ih * (1 - split), -W / 2, -bodyH, W, bodyH);
+    ctx.drawImage(im, 0, 0, iw, ih * split + 1, -W / 2, -bodyH - headH, W, headH + 1);
     ctx.restore();
     return true;
   }

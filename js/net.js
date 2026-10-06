@@ -161,7 +161,8 @@ const NET = (() => {
     const d = AV.S.look;
     if (!l || typeof l !== 'object') return { ...d };
     const out = {};
-    for (const k of Object.keys(d)) { if (k === 'avatar') continue; out[k] = clean(l[k] ?? d[k], 24); }
+    for (const k of Object.keys(d)) { if (k === 'avatar' || k === 'phair') continue; out[k] = clean(l[k] ?? d[k], 24); }
+    if (/^h[1-9]$/.test(l.phair || '')) out.phair = l.phair;
     if (l.avatar === 'boy' || l.avatar === 'girl' || l.avatar === 'custom') out.avatar = l.avatar;
     return out;
   }

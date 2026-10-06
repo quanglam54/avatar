@@ -752,3 +752,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hud-left { flex-direction: column; align-items: flex-start; max-width: none !important; flex-wrap: nowrap !important; }
 .hud-left .hud-row { display: flex; gap: inherit; }
 .hud-left .hud-more { display: flex; flex-direction: column; flex-wrap: wrap; gap: inherit; align-content: flex-start; max-height: calc(100vh - 170px); }
+
+/* Tủ đồ: các mục tự phối đồ xếp như cũ */
+.vec-opts { display: contents; }
+.vec-opts[hidden] { display: none; }
