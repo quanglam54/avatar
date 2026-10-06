@@ -321,10 +321,17 @@ const MUSIC = (() => {
   function zone(url) {
     url = url || null;
     if (url === zoneUrl) return;
+    const wasMute = zoneUrl === 'mute';
     zoneUrl = url;
     const S = typeof AV !== 'undefined' && AV.S;
     const mine = (S && S.settings && S.settings.musicUrl) ?? DEFAULT;
+    if (url === 'mute') {
+      pauseCustom();
+      if (ac && src.kind === 'chill') { fadeTo(0, 0.5); clearInterval(timer); timer = null; started = false; }
+      return;
+    }
     setSource(url || mine, true);
+    if (wasMute && on && kicked) { if (src.kind === 'chill') start(); else playCustom(); }
     if (url && typeof UI !== 'undefined') UI.toast(on ? '🪩 Nhạc của H-Club đang phát — quẩy lên nào!' : '🔇 Bạn đang tắt nhạc — bấm 🎵 để nghe nhạc H-Club', 3500);
   }
 

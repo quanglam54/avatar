@@ -159,6 +159,15 @@ const ART = (() => {
   }
 
   function character(ctx, x, y, look, o = {}) {
+    if (look && look.stick && typeof CONCERT !== 'undefined' && AV.currentMap && AV.currentMap() === 'concert') {
+      characterOnly(ctx, x, y, look, o);
+      const s = (o.scale ?? 1.18) / 1.18, bob = o.dance ? Math.abs(Math.sin((o.t || 0) * 7)) * 9 * s : 0;
+      CONCERT.heldStick(ctx, x, y - bob, look.stick, (o.t || 0) + x * 0.01, s);
+      return;
+    }
+    characterOnly(ctx, x, y, look, o);
+  }
+  function characterOnly(ctx, x, y, look, o) {
     if (!o.vector && painted(ctx, x, y, look, o)) return;
     if (typeof PX !== 'undefined' && PX.ready && !o.vector) return PX.draw(ctx, x, y, look, o);
     const s = o.scale ?? 1.18;

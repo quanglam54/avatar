@@ -11,7 +11,7 @@
   function defaultState() {
     return {
       name: '',
-      look: { skin: DATA.SKINS[0], hair: 'short', hairColor: DATA.HAIR_COLORS[0], shirt: DATA.SHIRT_COLORS[5], shirtStyle: 'plain', pants: DATA.PANTS_COLORS[0], hat: 'none', pet: 'none', acc: 'none' },
+      look: { skin: DATA.SKINS[0], hair: 'short', hairColor: DATA.HAIR_COLORS[0], shirt: DATA.SHIRT_COLORS[5], shirtStyle: 'plain', pants: DATA.PANTS_COLORS[0], hat: 'none', pet: 'none', acc: 'none', stick: '' },
       coins: 50, xp: 0, level: 1,
       inv: { seed_wheat: 6, seed_carrot: 3, wheat: 3, fertilizer: 5 },
       owned: { hats: ['none'], shirtStyles: ['plain'], pets: ['none'], accs: ['none'], guards: ['none'] },
@@ -179,6 +179,8 @@
     BIL.onMapChange();
     // khu có nhạc riêng (H-Club): vào mới nghe, ra thì trả lại nhạc của bạn
     if (typeof MUSIC !== 'undefined' && MUSIC.zone) MUSIC.zone(map.music || null);
+    if (typeof CONCERT !== 'undefined') CONCERT.onMap(id);
+    applyZoom();
   }
 
   /** Phòng online của khu hiện tại: nông trại và nhà là riêng từng người */
@@ -1109,6 +1111,7 @@
 
   /** Chọn điểm đến trên bản đồ thành phố: tự đi ra trạm và lên xe */
   AV.travelTo = (id) => {
+    if (map.id === 'concert' && id === 'fun') return AV.teleport('fun', false, 3430, 840, '🎡 Ra Khu giải trí…');
     if (id === 'sky') { if (map.id === 'sky') return UI.toast('Bạn đang ở Đảo Trên Trời rồi ☁️'); return SKY.fly(true); }
     if (id === 'farm' && VISIT && map.id === 'farm') return AV.goHomeFarm();
     if (!map.busStop) {
@@ -2214,12 +2217,12 @@
     startPose('bench', '🪑 Ngồi đợi xe buýt — bấm 🗺️ hoặc cột biển trạm để chọn nơi đến', { x, y: y - 22, dir: 1, sortY: y - 21, clipY: y - 34, front: (g) => ART.benchFront(g, L + 14, R - 14, y), back: [x, y + 12] });
   };
   /** Ngồi một chỗ trống trên ghế dài (khán đài) */
-  AV.sitSeat = (L, R, y, msg) => {
+  AV.sitSeat = (L, R, y, msg, frontFn) => {
     const used = NET.players().filter((r) => Math.abs(r.ry - (y - 22)) < 8).map((r) => r.rx);
     const slots = []; for (let x = L; x <= R; x += 42) slots.push(x);
     slots.sort((a, b) => Math.abs(a - player.x) - Math.abs(b - player.x));
     const x = slots.find((sx) => !used.some((u) => Math.abs(u - sx) < 30)) ?? slots[0];
-    startPose('bench', msg, { x, y: y - 22, dir: 1, sortY: y - 21, clipY: y - 34, front: (g) => ART.benchFront(g, L - 14, R + 14, y), back: [x, y + 14] });
+    startPose('bench', msg, { x, y: y - 22, dir: 1, sortY: y - 21, clipY: y - 34, front: frontFn || ((g) => ART.benchFront(g, L - 14, R + 14, y)), back: [x, y + 14] });
   };
   AV.sleep = () => { startPose('bed', '🛏️ Đang nằm ngủ'); homeActivity('lastSleep', 120, 30, '😴 Ngủ một giấc thật ngon! +30 XP', '😴 Zzz…', 'Bạn chưa buồn ngủ'); };
   AV.bathe = () => { startPose('bath', '🛁 Đang ngâm mình trong bồn'); homeActivity('lastBath', 60, 15, '🛁 Tắm xong thơm tho quá! +15 XP', '🛁 La la la~', 'Vừa tắm xong mà'); };
@@ -2563,7 +2566,9 @@
     // chừa thêm khoảng bằng ô chat ở đáy màn hình → cửa ra / đồ vật sát mép dưới không bị ô chat che
     const padB = 96 / ZOOM;
     const clampY = (v) => (vh >= map.h + padB ? (map.h + padB) / 2 : Math.max(vh / 2, Math.min(map.h + padB - vh / 2, v)));
-    const bx = player.x, by = player.y - 150;
+    const bx = player.x;
+    // khu có camTop (sân vận động): luôn cố nhìn thấy phần trên (màn LED), chỉ lùi xuống khi nhân vật sắp ra khỏi khung
+    const by = map.camTop != null ? Math.max(map.camTop + vh / 2, player.y + 110 - vh / 2) : player.y - 150;
     cam.x = clampX(bx + camOff.x); cam.y = clampY(by + camOff.y);
     // không cho độ lệch vượt quá mép bản đồ (để kéo ngược lại có tác dụng ngay)
     camOff.x = cam.x - bx; camOff.y = cam.y - by;
@@ -2573,6 +2578,10 @@
   let recenterShown = false;
   AV.recenter = () => { camOff.x = 0; camOff.y = 0; };
   AV.player = player;
+  /** Toạ độ thế giới → toạ độ màn hình (để đặt video lên màn LED) */
+  AV.toScreen = (x, y) => ({ x: W / 2 + (x - cam.x) * ZOOM, y: H / 2 + (y - cam.y) * ZOOM });
+  /** Tính lại đường đi khi vật cản thay đổi (vd mua vé VIP) */
+  AV.resetNav = (id) => { if (maps[id]) maps[id]._nav = null; };
   AV.addItemPublic = (id, n) => addItem(id, n);
   /** Nhảy lên mây nhún */
   AV.bounce = () => { player.bounceUntil = Date.now() + 1800; say(player, ['Boing~ ☁️', 'Hú hú! 🤸', 'Bay lên nào!'][Math.floor(Math.random() * 3)]); };
@@ -2875,7 +2884,7 @@
 
   function applyZoom() {
     const baseZoom = Math.max(0.62, Math.min(1.15, Math.min(W / 1050, H / 720)));
-    ZOOM = baseZoom * (typeof zoomMul === 'number' ? zoomMul : 1);
+    ZOOM = baseZoom * (typeof zoomMul === 'number' ? zoomMul : 1) * ((map && map.zoom) || 1);
     FX.setScale(Math.min(saver() ? 1.5 : 3, DPR * ZOOM));
   }
 

@@ -784,3 +784,21 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @keyframes flyDown { from { top: 15%; } to { top: 62%; } }
 @keyframes cloudsDown { from { transform: translateY(-20%); } to { transform: translateY(25%); } }
 @keyframes cloudsUp { from { transform: translateY(25%); } to { transform: translateY(-20%); } }
+
+/* Chừa góc dưới phải cho nhãn "Powered by Netlify" (Netlify tự chèn, không tắt được) */
+@media (max-width: 1300px) {
+  .chatbar { left: max(12px, env(safe-area-inset-left)); transform: none; width: min(560px, calc(100% - 330px)); }
+}
+@media (max-width: 600px) {
+  .chatbar { width: calc(100% - 24px); bottom: 64px; }
+}
+
+/* Concert Ngàn Chông Gai */
+.led-video { position: fixed; z-index: 1; display: none; pointer-events: none; background: #000; box-shadow: 0 0 30px rgba(120,160,255,.5); }
+.led-video iframe { width: 100%; height: 100%; border: 0; display: block; }
+.led-tap { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); z-index: 8; display: none; border: 3px solid #fff; border-radius: 16px; padding: 12px 22px; font: inherit; font-weight: 900; font-size: 18px; color: #fff; background: linear-gradient(#ff3ea5, #c2255c); box-shadow: 0 0 0 2px #1b2f48, 0 4px 0 2px #1b2f48; cursor: pointer; }
+.ct-hero { background: linear-gradient(90deg, #ff6b6b, #ffd43b, #4dabf7); color: #1b2f48; font-weight: 900; text-align: center; border-radius: 12px; padding: 8px; margin-bottom: 10px; }
+.ct-tickets { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ct-t { border: 3px solid #dee2e6; border-radius: 14px; padding: 10px; display: grid; gap: 4px; text-align: center; background: #f8f9fa; }
+.ct-t.vip { border-color: #fcc419; background: #fff9db; }
+.ct-t em { font-style: normal; font-weight: 900; font-size: 20px; color: #e8590c; }
