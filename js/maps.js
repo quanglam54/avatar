@@ -151,10 +151,25 @@ const MAPS = (() => {
   function pic(m, src, x, y, w, o = {}) {
     IMG.get(src);
     const hh = o.h || w * 1.1;
+    let cache = null;
     obj(m, o.sortY ?? y, (ctx) => {
       const im = IMG.get(src);
       if (!im) { if (o.fallback) o.fallback(ctx, performance.now() / 1000); return; }
-      const h = w * im.naturalHeight / im.naturalWidth;
+      const h = w * im.naturalHeight / im.naturalWidth, k = FX.scale;
+      if (!cache || cache.k !== k) {
+        // thu nhỏ ảnh + ghi chữ biển hiệu MỘT lần (đỡ nặng cho điện thoại)
+        const c = document.createElement('canvas');
+        c.width = Math.ceil(w * k); c.height = Math.ceil(h * k);
+        const g = c.getContext('2d');
+        g.imageSmoothingQuality = 'high';
+        g.scale(k, k);
+        g.translate(w / 2 - x, h - y);
+        paint(g, im, h);
+        cache = { c, k };
+      }
+      ctx.drawImage(cache.c, x - w / 2, y - h, w, h);
+    }, [x - w / 2 - 10, y - hh - 20, x + w / 2 + 10, y + 10]);
+    function paint(ctx, im, h) {
       ctx.drawImage(im, x - w / 2, y - h, w, h);
       const sg = o.sign;
       if (sg) {
@@ -169,7 +184,7 @@ const MAPS = (() => {
         ctx.fillStyle = sg.color; ctx.fillText(sg.text, tx, ty);
         ctx.restore();
       }
-    }, [x - w / 2 - 10, y - hh - 20, x + w / 2 + 10, y + 10]);
+    }
   }
 
   /** Hàng rào gỗ + luống tulip ở đường chân trời, tulip viền dưới đáy — giống nhau ở mọi khu */
@@ -455,16 +470,22 @@ const MAPS = (() => {
     /* ----- Bên ngoài cổng ----- */
     [[3760, 1400, 'fruit'], [4300, 1395, 'green'], [4800, 1400, 'pink'], [5250, 1395, 'fruit']].forEach(([x, y, v]) => addTree(m, x, y, v));
     /* ----- Phố ẩm thực trước cổng: cơm, phở, bún bò, mì cay | trà sữa, cà phê ----- */
-    m.labels.push({ text: '🍜 Phố Ẩm Thực', x: 620, y: 1250 }, { text: '☕ Trà Sữa · Cà Phê', x: 2780, y: 1250 });
+    m.labels.push({ text: '🍜 Phố Ẩm Thực', x: 620, y: 1250 }, { text: '☕ Trà Sữa · Cà Phê', x: 3000, y: 1250 });
     DATA.EATERIES.forEach((e, i) => {
-      const x = i < 4 ? 260 + i * 240 : 2420 + (i - 4) * 240, y = 1425;
+      const x = i < 4 ? 260 + i * 240 : 2640 + (i - 4) * 240, y = 1425;
       sobj(m, x, y, (c) => ART.foodShop(c, x, y, e), { l: -125, t: -165, w: 260, h: 172 });
       col(m, x - 105, y - 46, 210, 44);
       inter(m, { x: x - 105, y: y - 160, w: 210, h: 160, ax: x - 40, ay: y + 28, name: `${e.name} (ăn uống +XP)`, use: () => UI.eateryPanel(e.id) });
     });
     addPot(m, 1450, 1360, 'mai'); addPot(m, 1750, 1360, 'dao');
-    sobj(m, 2160, 1385, (c) => ART.signBoard(c, 2160, 1385, 'NÔNG TRẠI\nCửa hàng cạnh\nnhà bếp 🌱'));
-    col(m, 2122, 1375, 80, 12);
+    /* QuangLamBank + cây ATM cạnh trạm xe buýt (vẽ sẵn 1 lần → nhẹ cho điện thoại) */
+    const BX = 2200, BY = 1428, BK = 0.74;
+    sobj(m, BX, BY, (c) => { c.save(); c.translate(BX, BY); c.scale(BK, BK); BANK.building(c, 0, 0); c.restore(); }, { l: -200, t: -305, w: 400, h: 330 });
+    col(m, BX - 170, BY - 52, 120, 50); col(m, BX + 50, BY - 52, 120, 50); col(m, BX - 50, BY - 52, 100, 18);
+    inter(m, { x: BX - 52, y: BY - 110, w: 104, h: 112, ax: BX, ay: BY + 30, name: 'QuangLamBank (mở tài khoản, gửi / rút xu)', use: () => BANK.panel('counter'), arrow: { x: BX, y: BY - 88, text: 'Ngân hàng' } });
+    pic(m, 'img/mall/atm.png', 2455, 1440, 86, { h: 124 });
+    col(m, 2418, 1412, 74, 28);
+    inter(m, { x: 2410, y: 1318, w: 90, h: 124, ax: 2455, ay: 1470, name: 'Cây ATM QuangLamBank', use: () => BANK.panel('atm'), arrow: { x: 2455, y: 1300, text: 'ATM' } });
     addBusStop(m, GATE + 140, 1432, 1);
     addStreetSign(m, GATE - 360, 1430);
     addStreetSign(m, 3420, 1430, ['Cầu Giấy', 'Hồ Tùng Mậu']);
@@ -479,12 +500,10 @@ const MAPS = (() => {
 
   /* ---------- Quảng trường ---------- */
   let town = function town() {
-    const m = base('town', 'Quảng trường', 2750, 1070);
+    const m = base('town', 'Quảng trường', 2000, 1070);
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 29);
       paintPaved(g, 180, 370, 1640, 440);
-      // sân lát đá trước ngân hàng
-      paintPaved(g, 1960, 640, 700, 200, '#e3efe6');
       g.fillStyle = '#d6c3a1';
       g.beginPath(); g.roundRect(960, 800, 80, 50, 6); g.fill();
       paintStreet(g, m.w, 870, 1000);
@@ -509,17 +528,7 @@ const MAPS = (() => {
     npc(m, 'Cô Mai', { skin: '#f8c9a2', hair: 'long', hairColor: '#2b2b33', shirt: '#fcc419', shirtStyle: 'plain', pants: '#8b5a2b', hat: 'nonla' }, plazaArea, 1160, 690);
     npc(m, 'Bác Ba', { skin: '#b97a51', hair: 'bald', hairColor: '#e9ecef', shirt: '#40c057', shirtStyle: 'overall', pants: '#364fc7', hat: 'none' }, plazaArea, 1520, 690, 'pug');
 
-    /* ----- QuangLamBank + cây ATM ----- */
-    const BX = 2260, BY = 770;
-    sobj(m, BX, BY, (c) => BANK.building(c, BX, BY), { l: -270, t: -410, w: 540, h: 440 });
-    col(m, BX - 230, BY - 70, 160, 66); col(m, BX + 70, BY - 70, 160, 66); col(m, BX - 70, BY - 70, 140, 24);
-    inter(m, { x: BX - 70, y: BY - 150, w: 140, h: 150, ax: BX, ay: BY + 40, name: 'QuangLamBank (mở tài khoản, gửi / rút xu)', use: () => BANK.panel('counter'), arrow: { x: BX, y: BY - 118, text: 'Vào ngân hàng' } });
-    pic(m, 'img/mall/atm.png', 2585, 800, 92, { h: 132 });
-    col(m, 2546, 772, 78, 30);
-    inter(m, { x: 2540, y: 670, w: 90, h: 132, ax: 2585, ay: 830, name: 'Cây ATM QuangLamBank', use: () => BANK.panel('atm'), arrow: { x: 2585, y: 660, text: 'ATM' } });
-    addLamp(m, 1960, 600); addBench(m, 2620, 650);
-
-    street(m, 2000, 1700);
+    street(m);
     m.spawn = { x: 1050, y: 875 };
     m.bounds = { l: 20, t: 380, r: m.w - 20, b: m.h - 40 };
     return m;
@@ -529,6 +538,7 @@ const MAPS = (() => {
   function mall() {
     const m = base('mall', 'Khu mua sắm', 2000, 1070);
     const A = 'img/mall/';
+    m.groundImgs = true;
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 41);
       // nền trời + thành phố xa (ảnh vẽ sẵn)

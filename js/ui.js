@@ -165,7 +165,7 @@ const UI = (() => {
         if (n.length < 2) { p.body.querySelector('#nameErr').textContent = 'Tên cần ít nhất 2 ký tự.'; return; }
         S.name = n;
         S.look = look;
-        AV.saveNow();
+        AV.markChanged();
         updateHud();
         NET.sendState(isNew ? 'hello' : 'state');
         p.close();

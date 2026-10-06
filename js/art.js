@@ -113,14 +113,38 @@ const ART = (() => {
   /** Đang hiện nhân vật ảnh (ảnh đã tải xong) */
   const isPainted = (look) => !!paintedImg(look);
   const PAINT_H = 100;
+  /** Ảnh nhân vật dựng sẵn: thu lùn thân + viền nâu đậm, ở độ phân giải k (chiều cao PAINT_H) */
+  const spriteCache = new Map();
+  function paintedSprite(look, im) {
+    const p = paintedSrc(look), k = Math.min(3, Math.max(1, (typeof FX !== 'undefined' && FX.scale) || 1));
+    const key = p.src + '|' + k;
+    let e = spriteCache.get(key);
+    if (e) return e;
+    const split = p.squash ? SPLIT : 0.42, bk = p.squash ? BODY_K : 0.72;
+    const H = PAINT_H / (split + (1 - split) * bk), W = H * im.naturalWidth / im.naturalHeight;
+    const iw = im.naturalWidth, ih = im.naturalHeight, headH = H * split, bodyH = H * (1 - split) * bk;
+    const pad = 3, cw = Math.ceil((W + pad * 2) * k), chh = Math.ceil((PAINT_H + pad * 2) * k);
+    const a = document.createElement('canvas'); a.width = cw; a.height = chh;
+    const g = a.getContext('2d'); g.imageSmoothingQuality = 'high';
+    g.setTransform(k, 0, 0, k, pad * k, pad * k);
+    g.drawImage(im, 0, ih * split, iw, ih * (1 - split), 0, headH, W, bodyH);
+    g.drawImage(im, 0, 0, iw, ih * split + 1, 0, 0, W, headH + 1);
+    // viền nâu đậm như mọi hình trong game
+    const out = document.createElement('canvas'); out.width = cw; out.height = chh;
+    const o2 = out.getContext('2d'), d = Math.max(1, Math.round(1.4 * k));
+    for (const [dx, dy] of [[-d, 0], [d, 0], [0, -d], [0, d], [-d, -d], [d, -d], [-d, d], [d, d]]) o2.drawImage(a, dx, dy);
+    o2.globalCompositeOperation = 'source-in'; o2.fillStyle = '#2b1a10'; o2.fillRect(0, 0, cw, chh);
+    o2.globalCompositeOperation = 'source-over'; o2.drawImage(a, 0, 0);
+    e = { c: out, w: W + pad * 2, h: PAINT_H + pad * 2, pad };
+    if (spriteCache.size > 40) spriteCache.clear();
+    spriteCache.set(key, e);
+    return e;
+  }
   function painted(ctx, x, y, look, o) {
     const im = paintedImg(look);
     if (!im) return false;
     const s = (o.scale ?? 1.18) / 1.18, t = o.t || 0;
-    // chiều cao ảnh gốc khi vẽ (trước khi thu ngắn thân) sao cho cả người cao PAINT_H
-    const squash = paintedSrc(look).squash, split = squash ? SPLIT : 0.42, bk = squash ? BODY_K : 0.72;
-    const H = PAINT_H * s / (split + (1 - split) * bk), W = H * im.naturalWidth / im.naturalHeight;
-    const iw = im.naturalWidth, ih = im.naturalHeight, headH = H * split, bodyH = H * (1 - split) * bk;
+    const sp = paintedSprite(look, im);
     let bob = 0, tilt = 0, sq = 1;
     if (o.dance) { bob = Math.abs(Math.sin(t * 7)) * 9 * s; tilt = Math.sin(t * 4) * 0.12; }
     else if (o.moving) { bob = Math.abs(Math.sin(t * 12)) * 3 * s; tilt = Math.sin(t * 12) * 0.045; }
@@ -128,10 +152,8 @@ const ART = (() => {
     const dir = o.dance ? (Math.sin(t * 4) > 0 ? 1 : -1) : (o.dir || 1);
     shadow(ctx, x, y, 17 * s, 5 * s);
     ctx.save();
-    ctx.translate(x, y - bob); ctx.rotate(tilt); ctx.scale(dir < 0 ? -1 : 1, sq);
-    // thân + chân (thu ngắn) rồi đến đầu (giữ nguyên), chồng 1 chút cho liền mạch
-    ctx.drawImage(im, 0, ih * split, iw, ih * (1 - split), -W / 2, -bodyH, W, bodyH);
-    ctx.drawImage(im, 0, 0, iw, ih * split + 1, -W / 2, -bodyH - headH, W, headH + 1);
+    ctx.translate(x, y - bob); ctx.rotate(tilt); ctx.scale((dir < 0 ? -1 : 1) * s, sq * s);
+    ctx.drawImage(sp.c, -sp.w / 2, -sp.h + sp.pad, sp.w, sp.h);
     ctx.restore();
     return true;
   }
