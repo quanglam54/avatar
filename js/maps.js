@@ -488,9 +488,10 @@ const MAPS = (() => {
     inter(m, { x: 2410, y: 1318, w: 90, h: 124, ax: 2455, ay: 1470, name: 'Cây ATM QuangLamBank', use: () => BANK.panel('atm'), arrow: { x: 2455, y: 1300, text: 'ATM' } });
     addBusStop(m, GATE + 140, 1432, 1);
     /* ----- Biển chúc mừng 20/10 cạnh cổng (hiện từ 1/10 đến hết 21/10) ----- */
-    const WX = 1300, WY = 1430;
+    const WX = 1300, WY = 1430, WK = 0.62;
     const womensDay = () => { const d = new Date(); return d.getMonth() === 9 && d.getDate() <= 21; };
     const wdSprite = FX.sprite((c) => {
+      c.save(); c.translate(WX, WY); c.scale(WK, WK); c.translate(-WX, -WY);
       // 2 cột gỗ quấn hoa
       [[-120, 0], [120, 0]].forEach(([dx]) => { c.fillStyle = '#8a5a3c'; c.fillRect(WX + dx - 7, WY - 150, 14, 150); });
       // bảng hồng viền hoa
@@ -514,15 +515,16 @@ const MAPS = (() => {
         c.fillStyle = '#2f9e44'; c.beginPath(); c.arc(WX + dx, WY - 16, 22, 0, Math.PI * 2); c.fill();
         [[-10, -24], [8, -28], [0, -14], [-14, -10], [14, -12]].forEach(([fx, fy]) => { c.fillStyle = col; c.beginPath(); c.arc(WX + dx + fx, WY + fy, 8, 0, Math.PI * 2); c.fill(); c.fillStyle = '#fff3bf'; c.beginPath(); c.arc(WX + dx + fx, WY + fy, 3, 0, Math.PI * 2); c.fill(); });
       });
-    }, WX, WY, { l: -175, t: -345, w: 350, h: 355 });
+      c.restore();
+    }, WX, WY, { l: -110, t: -216, w: 220, h: 224 });
     obj(m, WY, (ctx, t) => {
       if (!womensDay()) return;
       wdSprite(ctx);
       // tim bay lên lấp lánh
-      for (let k = 0; k < 5; k++) { const ph = (t * 0.35 + k / 5) % 1; ctx.globalAlpha = 1 - ph; ctx.font = '18px system-ui'; ctx.textAlign = 'center'; ctx.fillText('💗', WX - 120 + k * 60, WY - 340 - ph * 70); }
+      for (let k = 0; k < 5; k++) { const ph = (t * 0.35 + k / 5) % 1; ctx.globalAlpha = 1 - ph; ctx.font = '18px system-ui'; ctx.textAlign = 'center'; ctx.fillText('💗', WX - 75 + k * 37, WY - 212 - ph * 45); }
       ctx.globalAlpha = 1;
-    }, [WX - 180, WY - 430, WX + 180, WY + 10]);
-    m.colliders.push({ x: WX - 132, y: WY - 10, w: 24, h: 12, when: womensDay }, { x: WX + 108, y: WY - 10, w: 24, h: 12, when: womensDay });
+    }, [WX - 115, WY - 270, WX + 115, WY + 10]);
+    m.colliders.push({ x: WX - 84, y: WY - 8, w: 18, h: 10, when: womensDay }, { x: WX + 66, y: WY - 8, w: 18, h: 10, when: womensDay });
     addStreetSign(m, 3420, 1430, ['Cầu Giấy', 'Hồ Tùng Mậu']);
     sobj(m, 0, 1594, (c) => ART.roseHedge(c, 0, m.w, 1594), { l: -10, t: -44, w: m.w + 20, h: 48 });
 
