@@ -1006,8 +1006,8 @@ const RIDE = (() => {
       moto(c, x, y, b, () => {
         ART.character(c, x - 8, y - 25, look, { scale: 0.62, t, dir: 1 });
         c.fillStyle = b.helmet || '#fff';
-        c.beginPath(); c.arc(x - 8, y - 63, 13.5, Math.PI * 1.02, -0.02); c.fill();
-        c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(x - 21, y - 64, 27, 3);
+        c.beginPath(); c.arc(x - 8, y - 61, 16.5, Math.PI * 1.02, -0.02); c.fill();
+        c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(x - 24, y - 62, 32, 3);
         c.strokeStyle = look.skin || '#ffd8b5'; c.lineWidth = 4; c.beginPath(); c.moveTo(x - 2, y - 42); c.lineTo(x + 14, y - 60); c.stroke();
       });
       top = y - 84;
@@ -1044,7 +1044,7 @@ const RIDE = (() => {
     g.setTransform(d * 0.95, 0, 0, d * 0.95, d * w / 2, d * (h - 6));
     moto(g, 0, 0, b, look ? () => {
       ART.character(g, -8, -25, look, { scale: 0.62, t: 0, dir: 1 });
-      g.fillStyle = b.helmet || '#fff'; g.beginPath(); g.arc(-8, -63, 13.5, Math.PI * 1.02, -0.02); g.fill();
+      g.fillStyle = b.helmet || '#fff'; g.beginPath(); g.arc(-8, -61, 16.5, Math.PI * 1.02, -0.02); g.fill();
     } : null);
   }
 

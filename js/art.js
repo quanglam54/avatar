@@ -99,6 +99,13 @@ const ART = (() => {
     ctx.restore();
   }
 
+  /* Nét viền nâu đậm bên trong (giống nét vẽ game Avatar) */
+  const OUT = '#3a2214';
+  function ol(ctx, w = 1.3) { ctx.strokeStyle = OUT; ctx.lineWidth = w; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke(); }
+  /** Khung vẽ đầu: đầu to kiểu chibi (vẽ theo toạ độ cũ: tâm đầu 0,-55 bán kính 19) */
+  const headFrame = (ctx) => { ctx.translate(0, -52); ctx.scale(1.24, 1.24); ctx.translate(0, 55); };
+  const GIRLY = { long: 1, pigtails: 1, bun: 1, bob: 1 };
+
   function characterBase(ctx, x, y, look, o) {
     const t = o.t || 0;
     const dir = o.dance ? (Math.sin(t * 4) > 0 ? 1 : -1) : (o.dir || 1);
@@ -108,65 +115,122 @@ const ART = (() => {
     ctx.save();
     ctx.translate(x, y - bob);
 
-    const hairBack = look.hair === 'long' || look.hair === 'pigtails';
-    if (hairBack) {
-      ctx.fillStyle = look.hairColor;
-      if (look.hair === 'long') { rr(ctx, -21, -62, 42, 44, 14); ctx.fill(); }
-      else { circle(ctx, -22, -48, 9, look.hairColor); circle(ctx, 22, -48, 9, look.hairColor); }
-    }
+    // ---- phía sau: cánh, tóc sau
+    if (look.acc === 'wings') wings(ctx, t);
+    ctx.save(); headFrame(ctx); hairBack(ctx, look); ctx.restore();
 
-    cape(ctx, look);
-
-    // chân
-    const lLift = Math.max(0, swing) * 0.6, rLift = Math.max(0, -swing) * 0.6;
-    ctx.fillStyle = look.pants;
-    rr(ctx, -9, -17 - lLift, 8, 14, 3); ctx.fill();
-    rr(ctx, 1, -17 - rLift, 8, 14, 3); ctx.fill();
-    ctx.fillStyle = '#3a2f2a';
-    ctx.beginPath(); ctx.ellipse(-5, -3 - lLift, 5.5, 3, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(5, -3 - rLift, 5.5, 3, 0, 0, Math.PI * 2); ctx.fill();
-
-    // tay
-    ctx.fillStyle = look.shirt;
-    rr(ctx, -17, -35 + swing * 0.4, 7, 13, 3); ctx.fill();
-    rr(ctx, 10, -35 - swing * 0.4, 7, 13, 3); ctx.fill();
-    circle(ctx, -13.5, -21 + swing * 0.4, 4, look.skin);
-    circle(ctx, 13.5, -21 - swing * 0.4, 4, look.skin);
-
-    // thân áo
-    ctx.fillStyle = look.shirt;
-    rr(ctx, -12, -37, 24, 23, 8); ctx.fill();
+    // ---- thân người nhỏ kiểu chibi
     ctx.save();
-    rr(ctx, -12, -37, 24, 23, 8); ctx.clip();
+    ctx.scale(0.86, 0.86);
+    cape(ctx, look);
+    const lLift = Math.max(0, swing) * 0.6, rLift = Math.max(0, -swing) * 0.6;
+    const dress = !!DRESSES[look.shirtStyle] || look.shirtStyle === 'witchdress';
+    // chân + giày
+    [[-9, lLift], [1, rLift]].forEach(([lx, lift]) => {
+      ctx.fillStyle = look.pants; rr(ctx, lx, -18 - lift, 8, 14, 3); ctx.fill(); ol(ctx, 1.1);
+      ctx.fillStyle = '#4a2f22'; ctx.beginPath(); ctx.ellipse(lx + 4, -3.5 - lift, 6, 3.4, 0, 0, Math.PI * 2); ctx.fill(); ol(ctx, 1.1);
+      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(lx + 1, -5.5 - lift, 4, 1.3);
+    });
+    // thân áo
+    const light = shade(look.shirt, 0.25), dark = shade(look.shirt, -0.22);
+    ctx.fillStyle = look.shirt;
+    rr(ctx, -12, -38, 24, 24, 8); ctx.fill();
+    ctx.save();
+    rr(ctx, -12, -38, 24, 24, 8); ctx.clip();
+    ctx.fillStyle = dark; ctx.fillRect(6, -38, 7, 24);
+    ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fillRect(-10, -38, 4, 24);
+    if (!dress) { ctx.fillStyle = dark; ctx.fillRect(-12, -18, 24, 4); }
     shirtStyle(ctx, look.shirtStyle);
     bodice(ctx, look);
+    // cổ áo
+    if (!dress && look.shirtStyle !== 'overall') {
+      ctx.fillStyle = light;
+      ctx.beginPath(); ctx.moveTo(-7, -38); ctx.lineTo(0, -32); ctx.lineTo(7, -38); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = shade(look.skin, -0.08);
+      ctx.beginPath(); ctx.moveTo(-4, -38); ctx.lineTo(0, -34); ctx.lineTo(4, -38); ctx.closePath(); ctx.fill();
+    }
     ctx.restore();
+    rr(ctx, -12, -38, 24, 24, 8); ol(ctx, 1.2);
     skirt(ctx, look, swing);
+    // thắt lưng
+    if (!dress) {
+      ctx.fillStyle = '#3b2a1a'; ctx.fillRect(-11.5, -17.5, 23, 3);
+      ctx.fillStyle = '#fcc419'; ctx.fillRect(-2, -18, 4, 4);
+    }
+    // tay
+    [[-17.5, swing * 0.4], [10.5, -swing * 0.4]].forEach(([ax, sw]) => {
+      ctx.fillStyle = look.shirt; rr(ctx, ax, -36 + sw, 7, 12, 3.5); ctx.fill(); ol(ctx, 1.1);
+      ctx.fillStyle = light; ctx.fillRect(ax + 1, -26 + sw, 5, 2);
+      ctx.fillStyle = look.skin; ctx.beginPath(); ctx.arc(ax + 3.5, -21 + sw, 3.8, 0, Math.PI * 2); ctx.fill(); ol(ctx, 1);
+    });
+    ctx.restore();
 
-    // đầu
-    circle(ctx, -18, -53, 4.5, look.skin);
-    circle(ctx, 18, -53, 4.5, look.skin);
-    circle(ctx, 0, -55, 19, look.skin);
-    ctx.fillStyle = 'rgba(0,0,0,.05)';
-    ctx.beginPath(); ctx.arc(0, -55, 19, 0.2, Math.PI - 0.2); ctx.fill();
-
+    // ---- đầu to
+    ctx.save();
+    headFrame(ctx);
+    // tai
+    [-18.5, 18.5].forEach((ex2) => { ctx.fillStyle = look.skin; ctx.beginPath(); ctx.arc(ex2, -53, 4.2, 0, Math.PI * 2); ctx.fill(); ol(ctx, 1); });
     // mặt
-    const ex = dir * 2;
-    ctx.fillStyle = '#2b2b33';
-    ctx.beginPath(); ctx.ellipse(-6 + ex, -53, 2.4, 3.2, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(6 + ex, -53, 2.4, 3.2, 0, 0, Math.PI * 2); ctx.fill();
-    circle(ctx, -5.3 + ex, -54.2, 0.9, '#fff');
-    circle(ctx, 6.7 + ex, -54.2, 0.9, '#fff');
-    ctx.fillStyle = 'rgba(255,120,140,.45)';
-    ctx.beginPath(); ctx.ellipse(-10 + ex, -47, 3.6, 2.2, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(10 + ex, -47, 3.6, 2.2, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#7a3b2e'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.arc(ex, -47, 3, 0.2, Math.PI - 0.2); ctx.stroke();
-
+    ctx.fillStyle = look.skin;
+    ctx.beginPath(); ctx.arc(0, -55, 19, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,.06)';
+    ctx.beginPath(); ctx.arc(0, -55, 19, 0.15, Math.PI - 0.15); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -55, 19, 0, Math.PI * 2); ol(ctx, 1.1);
+    face(ctx, look, dir, t);
     hairFront(ctx, look);
-    accessory(ctx, look.acc, ex, look.skin);
+    accessory(ctx, look.acc, dir * 2, look.skin);
     hat(ctx, look.hat, dir);
     ctx.restore();
+    ctx.restore();
+  }
+
+  /** Mắt to long lanh kiểu anime, má hồng, miệng cười */
+  function face(ctx, look, dir, t) {
+    const ex = dir * 2;
+    const blink = (t * 0.35) % 4 > 3.88;
+    const girly = GIRLY[look.hair];
+    [-6.5, 6.5].forEach((dx) => {
+      const cx = dx + ex, cy = -52;
+      if (blink) { ctx.strokeStyle = '#2b1a10'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(cx - 3, cy); ctx.quadraticCurveTo(cx, cy + 1.6, cx + 3, cy); ctx.stroke(); return; }
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(cx, cy, 3.6, 4.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#2b1a10'; ctx.beginPath(); ctx.ellipse(cx + dir * 0.4, cy + 0.4, 2.9, 4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#5c3a21'; ctx.beginPath(); ctx.ellipse(cx + dir * 0.4, cy + 1.8, 2, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+      circle(ctx, cx - 0.9, cy - 1.6, 1.3, '#fff');
+      circle(ctx, cx + 1.1, cy + 1.6, 0.6, '#fff');
+      // mí trên đậm + mi cong ở đuôi mắt (tóc nữ)
+      const o = dx < 0 ? -1 : 1;
+      ctx.strokeStyle = '#2b1a10'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(cx, cy, 3.6, 4.6, 0, Math.PI * 1.12, Math.PI * 1.88); ctx.stroke();
+      if (girly) { ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(cx + o * 3.2, cy - 2.4); ctx.quadraticCurveTo(cx + o * 4.8, cy - 2.8, cx + o * 5.4, cy - 1.6); ctx.stroke(); }
+    });
+    ctx.fillStyle = 'rgba(255,110,130,.42)';
+    ctx.beginPath(); ctx.ellipse(-11 + ex, -46.5, 3.6, 2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(11 + ex, -46.5, 3.6, 2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#7a3b2e'; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(ex, -46.5, 2.6, 0.25, Math.PI - 0.25); ctx.stroke();
+  }
+
+  /** Cánh thiên thần sau lưng (khẽ vỗ) */
+  function wings(ctx, t) {
+    const flap = Math.sin(t * 3) * 0.12;
+    [-1, 1].forEach((sd) => {
+      ctx.save();
+      ctx.translate(sd * 5, -32);
+      ctx.rotate(-sd * (0.45 + flap));
+      ctx.scale(1.3, 1.3);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(sd * 18, -26, sd * 36, -22);
+      ctx.quadraticCurveTo(sd * 31, -14, sd * 34, -10);
+      ctx.quadraticCurveTo(sd * 26, -6, sd * 30, 0);
+      ctx.quadraticCurveTo(sd * 20, 2, sd * 22, 8);
+      ctx.quadraticCurveTo(sd * 10, 8, 0, 4);
+      ctx.closePath(); ctx.fill(); ol(ctx, 1.2);
+      ctx.strokeStyle = '#a5d8ff'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(sd * 6, -2); ctx.quadraticCurveTo(sd * 18, -12, sd * 30, -14); ctx.moveTo(sd * 6, 2); ctx.quadraticCurveTo(sd * 16, -2, sd * 26, -3); ctx.stroke();
+      ctx.restore();
+    });
   }
 
   /** Áo choàng ma cà rồng: vạt choàng đen viền đỏ phía sau người */
@@ -375,44 +439,114 @@ const ART = (() => {
     ctx.fill();
   }
 
+  /* ---------- Tóc kiểu Avatar: phồng, nhiều lọn nhọn, có viền, đổ bóng và vệt bóng sáng ---------- */
+  const BIG_HATS = { cap: 1, beanie: 1, nonla: 1, cowboy: 1, witch: 1, pumpkinhead: 1, beret: 1 };
+  /** Lọn tóc nhọn: từ gốc (bx,by) hướng ra đầu nhọn (tx,ty), bề rộng w */
+  function lock(ctx, bx, by, tx, ty, w, col) {
+    const dx = tx - bx, dy = ty - by, L = Math.hypot(dx, dy) || 1, nx = -dy / L * w, ny = dx / L * w;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(bx - nx, by - ny);
+    ctx.quadraticCurveTo(bx + dx * 0.55 - nx * 0.6, by + dy * 0.55 - ny * 0.6, tx, ty);
+    ctx.quadraticCurveTo(bx + dx * 0.55 + nx * 0.3, by + dy * 0.55 + ny * 0.3, bx + nx, by + ny);
+    ctx.closePath(); ctx.fill(); ol(ctx, 1.1);
+  }
+  /** Phần tóc ôm đầu + mái lởm chởm. tips: các đỉnh mái từ phải sang trái */
+  function hairCap(ctx, c, tips, side = -44) {
+    ctx.beginPath();
+    ctx.moveTo(-21.5, side);
+    ctx.quadraticCurveTo(-26, -60, -20, -69);
+    ctx.arc(0, -58, 22, Math.PI * 1.15, Math.PI * 1.85);
+    ctx.quadraticCurveTo(26, -60, 21.5, side);
+    ctx.lineTo(17.5, -53);
+    tips.forEach(([px, py], i) => {
+      const prev = i ? tips[i - 1] : [17.5, -53];
+      ctx.quadraticCurveTo((prev[0] + px) / 2 + 1, Math.min(prev[1], py) - 3, px, py);
+    });
+    ctx.lineTo(-17.5, -53);
+    ctx.closePath();
+    ctx.fillStyle = c; ctx.fill();
+    // bóng sẫm phía dưới mái + vệt bóng sáng trên đỉnh
+    ctx.save(); ctx.clip();
+    ctx.fillStyle = shade(c, -0.28); ctx.fillRect(-30, -62, 60, 22);
+    ctx.fillStyle = shade(c, -0.12); ctx.fillRect(-30, -66, 60, 4);
+    ctx.strokeStyle = 'rgba(255,255,255,.42)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, -58, 15, Math.PI * 1.22, Math.PI * 1.48); ctx.stroke();
+    ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, -58, 15, Math.PI * 1.56, Math.PI * 1.66); ctx.stroke();
+    ctx.restore();
+    ol(ctx, 1.3);
+  }
+  const FRINGE = {
+    short: [[13, -58], [8, -63], [3, -57], [-2, -63], [-7, -57], [-12, -62], [-15, -56]],
+    spiky: [[14, -56], [9, -63], [4, -55], [-1, -63], [-6, -56], [-11, -63], [-15, -55]],
+    long: [[14, -58], [7, -64], [1, -58], [-5, -64], [-11, -58], [-15, -61]],
+    bob: [[15, -58], [9, -59], [3, -58], [-3, -59], [-9, -58], [-15, -58]],
+    emo: [[15, -60], [10, -64], [4, -58], [-2, -56], [-8, -52], [-13, -48], [-16, -47]],
+    mohawk: [[12, -64], [-12, -64]],
+  };
+
+  /** Tóc phía sau đầu (vẽ trước thân): tóc dài, hai bím, xoăn */
+  function hairBack(ctx, look) {
+    const c = look.hairColor, d = shade(c, -0.2);
+    if (look.hair === 'long') {
+      ctx.fillStyle = d;
+      ctx.beginPath(); ctx.moveTo(-22, -62); ctx.quadraticCurveTo(-28, -38, -24, -22); ctx.lineTo(-17, -26); ctx.lineTo(-12, -20); ctx.lineTo(0, -24); ctx.lineTo(12, -20); ctx.lineTo(17, -26); ctx.lineTo(24, -22); ctx.quadraticCurveTo(28, -38, 22, -62); ctx.closePath(); ctx.fill(); ol(ctx, 1.2);
+    } else if (look.hair === 'pigtails') {
+      [-1, 1].forEach((sd) => {
+        ctx.save(); ctx.translate(sd * 25, -50); ctx.rotate(sd * -0.25);
+        ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(-5, -10); ctx.quadraticCurveTo(-11, 6, -2, 20); ctx.quadraticCurveTo(0, 14, 3, 21); ctx.quadraticCurveTo(10, 6, 5, -10); ctx.closePath(); ctx.fill(); ol(ctx, 1.2);
+        ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fillRect(-3, -4, 2, 12);
+        ctx.restore();
+      });
+    } else if (look.hair === 'curly') {
+      for (let i = 0; i < 9; i++) { const a = Math.PI * (0.85 + i * 0.165); ctx.fillStyle = d; ctx.beginPath(); ctx.arc(Math.cos(a) * 22, -54 + Math.sin(a) * 21, 8, 0, Math.PI * 2); ctx.fill(); ol(ctx, 1.1); }
+    } else if (look.hair === 'bob') {
+      ctx.fillStyle = d; rr(ctx, -24, -66, 48, 30, 10); ctx.fill(); ol(ctx, 1.2);
+    }
+  }
+
   function hairFront(ctx, look) {
-    const c = look.hairColor;
-    ctx.fillStyle = c;
-    if (look.hair === 'bald') {
-      ctx.strokeStyle = c; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(2, -76, 4, Math.PI * 0.9, Math.PI * 2.2); ctx.stroke();
+    const c = look.hairColor, h = look.hair;
+    if (h === 'bald') {
+      ctx.fillStyle = 'rgba(255,255,255,.35)';
+      ctx.beginPath(); ctx.ellipse(-6, -68, 6, 3, -0.4, 0, Math.PI * 2); ctx.fill();
       return;
     }
-    // phần mái chung
-    ctx.beginPath();
-    ctx.arc(0, -57, 20.5, Math.PI * 1.02, Math.PI * 1.98);
-    let x = 20;
-    ctx.lineTo(x, -58);
-    while (x > -20) { ctx.quadraticCurveTo(x - 4, -54, x - 8, -59); x -= 8; }
-    ctx.closePath();
-    ctx.fill();
-    if (look.hair === 'spiky') {
-      // tóc anime dựng tua tủa kiểu Avatar
-      for (let i = 0; i < 9; i++) {
-        const a = Math.PI * (1.05 + i * 0.112);
-        const bx = Math.cos(a) * 17, by = -58 + Math.sin(a) * 17;
-        const tx = Math.cos(a) * 31, ty = -58 + Math.sin(a) * 29 - 4;
-        const nx = -Math.sin(a) * 7, ny = Math.cos(a) * 7;
-        ctx.beginPath(); ctx.moveTo(bx - nx, by - ny); ctx.lineTo(tx, ty); ctx.lineTo(bx + nx, by + ny); ctx.fill();
-      }
-      ctx.beginPath(); ctx.moveTo(-4, -66); ctx.lineTo(-10, -48); ctx.lineTo(2, -60); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(6, -66); ctx.lineTo(13, -50); ctx.lineTo(14, -62); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(-19, -62); ctx.lineTo(-23, -44); ctx.lineTo(-14, -56); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(19, -62); ctx.lineTo(23, -44); ctx.lineTo(14, -56); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.28)';
-      ctx.beginPath(); ctx.ellipse(-6, -70, 7, 3, -0.4, 0, Math.PI * 2); ctx.fill();
-    } else if (look.hair === 'bun') {
-      circle(ctx, 0, -79, 9, c);
-    } else if (look.hair === 'long') {
-      rr(ctx, -21, -60, 7, 30, 4); ctx.fill();
-      rr(ctx, 14, -60, 7, 30, 4); ctx.fill();
-    } else if (look.hair === 'pigtails') {
-      circle(ctx, -15, -68, 4, '#ff6b9a'); circle(ctx, 15, -68, 4, '#ff6b9a');
+    const big = BIG_HATS[look.hat];
+    if (h === 'spiky' && !big) {
+      // tóc dựng tua tủa: các lọn chĩa lên trên và sang hai bên
+      [[-1.15, 33], [-0.85, 37], [-0.55, 39], [-0.25, 38], [0.08, 36], [0.38, 34]].forEach(([a, r]) => {
+        const an = Math.PI * 1.5 + a * 1.25;
+        lock(ctx, Math.cos(an) * 12, -58 + Math.sin(an) * 12, Math.cos(an) * r, -58 + Math.sin(an) * r, 7, c);
+      });
+      lock(ctx, -18, -56, -31, -46, 5, c); lock(ctx, 18, -56, 31, -47, 5, c);
+    }
+    if (h === 'mohawk' && !big) {
+      for (let i = -2; i <= 2; i++) lock(ctx, i * 4, -70, i * 6, -92 + Math.abs(i) * 5, 4, c);
+    }
+    if (h === 'bun') {
+      ctx.fillStyle = c; ctx.beginPath(); ctx.arc(0, -80, 9.5, 0, Math.PI * 2); ctx.fill(); ol(ctx, 1.2);
+      ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, -80, 6, Math.PI * 1.1, Math.PI * 1.5); ctx.stroke();
+      ctx.fillStyle = '#ff6b9a'; rr(ctx, -6, -73, 12, 3.5, 1.5); ctx.fill(); ol(ctx, 0.9);
+    }
+    if (h === 'curly') {
+      hairCap(ctx, c, FRINGE.short, -48);
+      for (let i = 0; i < 7; i++) { const a = Math.PI * (1.1 + i * 0.13); ctx.fillStyle = c; ctx.beginPath(); ctx.arc(Math.cos(a) * 18, -58 + Math.sin(a) * 18, 6.2, 0, Math.PI * 2); ctx.fill(); ol(ctx, 1); }
+      return;
+    }
+    if (h === 'mohawk') {
+      ctx.save(); ctx.globalAlpha = 0.55; hairCap(ctx, c, FRINGE.mohawk, -52); ctx.restore();
+      return;
+    }
+    hairCap(ctx, c, FRINGE[h] || FRINGE.short, h === 'bob' ? -40 : h === 'long' || h === 'emo' ? -42 : -45);
+    if (h === 'long') {
+      // tóc mai dài buông trước vai
+      [-1, 1].forEach((sd) => { ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(sd * 21, -50); ctx.quadraticCurveTo(sd * 25, -36, sd * 21, -28); ctx.lineTo(sd * 17, -34); ctx.quadraticCurveTo(sd * 18, -42, sd * 17, -50); ctx.closePath(); ctx.fill(); ol(ctx, 1.1); });
+    }
+    if (h === 'pigtails') {
+      circle(ctx, -18, -65, 3.6, '#ff6b9a'); circle(ctx, 18, -65, 3.6, '#ff6b9a');
+      ctx.beginPath(); ctx.arc(-18, -65, 3.6, 0, Math.PI * 2); ol(ctx, 0.9);
+      ctx.beginPath(); ctx.arc(18, -65, 3.6, 0, Math.PI * 2); ol(ctx, 0.9);
     }
   }
 

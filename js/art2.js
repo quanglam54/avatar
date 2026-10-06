@@ -673,22 +673,17 @@ Object.assign(ART, (() => {
   }
 
   function namePlate(ctx, text, x, y, kind) {
-    ctx.font = '800 12px "Be Vietnam Pro", system-ui, sans-serif';
+    ctx.font = '900 13px "Be Vietnam Pro", system-ui, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const w = Math.max(44, ctx.measureText(text).width + 18);
-    const bg = kind === 'me' ? '#ffb547' : kind === 'npc' ? '#efe2bf' : '#f6c77e';
-    ctx.fillStyle = '#5a3010';
-    rr(ctx, x - w / 2 - 2, y - 2, w + 4, 22, 6); ctx.fill();
-    ctx.fillStyle = bg;
-    rr(ctx, x - w / 2, y, w, 18, 5); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(x - w / 2 + 4, y + 2, w - 8, 3);
-    ctx.fillStyle = '#7a4316'; circle(ctx, x - w / 2 + 5, y + 9, 1.6, '#7a4316'); circle(ctx, x + w / 2 - 5, y + 9, 1.6, '#7a4316');
-    ctx.fillStyle = '#3d1f08';
-    ctx.fillText(text, x, y + 9.5);
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 3.6; ctx.strokeStyle = '#3a1d08';
+    ctx.strokeText(text, x, y + 10);
+    ctx.fillStyle = kind === 'me' ? '#ffe066' : kind === 'npc' ? '#fff4d6' : '#ffa62b';
+    ctx.fillText(text, x, y + 10);
     if (kind === 'me') {
       ctx.fillStyle = '#ffd43b';
-      ctx.beginPath(); ctx.moveTo(x - 5, y + 21); ctx.lineTo(x + 5, y + 21); ctx.lineTo(x, y + 27); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = '#5a3010'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x - 5, y + 20); ctx.lineTo(x + 5, y + 20); ctx.lineTo(x, y + 26); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#3a1d08'; ctx.lineWidth = 1.5; ctx.stroke();
     }
   }
 

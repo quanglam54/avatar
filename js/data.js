@@ -13,6 +13,10 @@ const DATA = {
     { id: 'long', name: 'Dài' },
     { id: 'bun', name: 'Búi' },
     { id: 'pigtails', name: 'Hai bím' },
+    { id: 'emo', name: 'Mái lệch' },
+    { id: 'bob', name: 'Tóc bob' },
+    { id: 'curly', name: 'Xoăn' },
+    { id: 'mohawk', name: 'Mohican' },
   ],
   SHIRT_STYLES: [
     { id: 'plain', name: 'Áo trơn', price: 0 },
@@ -49,6 +53,7 @@ const DATA = {
     { id: 'pearl', name: 'Vòng ngọc trai', price: 200, lvl: 3 },
     { id: 'glasses', name: 'Kính tròn', price: 70 },
     { id: 'sunglasses', name: 'Kính râm', price: 90 },
+    { id: 'wings', name: 'Cánh thiên thần', price: 400, lvl: 3 },
   ],
   ARCADE: [
     { id: 'pikachu', name: 'Pikachu', icon: '⚡', color: '#fcc419', div: 30 },
