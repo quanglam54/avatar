@@ -91,6 +91,7 @@ const ART = (() => {
 
   /* ---------------- Nhân vật ---------------- */
   function character(ctx, x, y, look, o = {}) {
+    if (typeof PX !== 'undefined' && PX.ready && !o.vector) return PX.draw(ctx, x, y, look, o);
     const s = o.scale ?? 1.18;
     ctx.save();
     ctx.translate(x, y);

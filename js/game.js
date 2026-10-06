@@ -392,6 +392,39 @@
     changed();
   };
 
+  /* ---------- Bộ trang phục pixel ---------- */
+  const OUTFIT_KEYS = { top: 'tops', bottom: 'bottoms', shoes: 'shoes', back: 'backs', hat: 'hats', acc: 'accs' };
+  AV.ownsOutfit = (id) => (S.owned.outfits || []).includes(id);
+  AV.wearingOutfit = (id) => { const o = DATA.OUTFITS.find((x) => x.id === id); return !!o && Object.entries(o.look).every(([k, v]) => (S.look[k] || '') === v); };
+  AV.buyOutfit = (id) => {
+    const o = DATA.OUTFITS.find((x) => x.id === id);
+    if (!o || AV.ownsOutfit(id)) return false;
+    if (o.lvl && S.level < o.lvl) { UI.toast(`Cần đạt cấp ${o.lvl}`); return false; }
+    if (!AV.spend(o.price)) return false;
+    S.owned.outfits = [...(S.owned.outfits || []), id];
+    Object.entries(o.look).forEach(([k, v]) => {
+      if (!v) return;
+      const ok = OUTFIT_KEYS[k];
+      S.owned[ok] = S.owned[ok] || (k === 'hat' || k === 'acc' ? ['none'] : []);
+      if (!S.owned[ok].includes(v)) S.owned[ok].push(v);
+    });
+    AV.wearOutfit(id);
+    UI.toast(`✨ Đã mua bộ ${o.name}!`, 3000);
+    return true;
+  };
+  /** Nhân vật mặc bộ o: bỏ mũ / phụ kiện của bộ khác nếu bộ này không có */
+  AV.outfitLook = (o) => {
+    const setItem = (list, id) => { const it = list.find((x) => x.id === id); return !!(it && it.set); };
+    return { ...S.look, back: '', hat: setItem(DATA.HATS, S.look.hat) ? 'none' : S.look.hat, acc: setItem(DATA.ACCS, S.look.acc) ? 'none' : S.look.acc, ...o.look };
+  };
+  AV.wearOutfit = (id) => {
+    const o = DATA.OUTFITS.find((x) => x.id === id);
+    if (!o || !AV.ownsOutfit(id)) return;
+    S.look = AV.outfitLook(o);
+    changed();
+    UI.updateHud();
+  };
+
   /* ---------- Ruộng: 20 luống × 12 ô (0–7 và 12–19 rau củ, 8–11 hoa), cây khát nước phải tưới ---------- */
   const TPB = DATA.TILES_PER_BED;
   /** Luống 0–7 trồng rau củ, 8–11 trồng hoa */
@@ -2569,7 +2602,8 @@
     });
     map.pickups.forEach((p) => inView(p.x, p.y) && list.push({ y: p.y, draw: () => out((c) => ART.pickup(c, p.x, p.y, p.item.icon, clock), p.x, p.y, BOX_PICK, p, 120) }));
     const petDraw = (p, kind) => list.push({ y: p.y, draw: () => out((c) => ART.pet(c, p.x, p.y, kind, p.dir, p.t, p.moving), p.x, p.y, FX.BOX.pet, p) });
-    const charDraw = (x, y, look, o, key) => list.push({ y, draw: () => out((c) => ART.character(c, x, y, look, o), x, y, FX.BOX.character, key) });
+    // sprite pixel đã có viền sẵn → vẽ thẳng, không thêm viền mềm
+    const charDraw = (x, y, look, o, key) => list.push({ y, draw: () => (PX.ready ? ART.character(g, x, y, look, o) : out((c) => ART.character(c, x, y, look, o), x, y, FX.BOX.character, key)) });
     map.npcs.forEach((n) => {
       if ((n.hw && !AV.hw()) || !inView(n.x, n.y)) return;
       charDraw(n.x, n.y, n.look, n, n);
@@ -2588,7 +2622,8 @@
       list.push({ y: p.sortY, draw: () => {
         g.save();
         g.beginPath(); g.rect(p.x - 120, p.y - 400, 240, p.clipY - (p.y - 400)); g.clip();
-        out((c) => ART.character(c, p.x, p.y, S.look, { ...player, moving: false }), p.x, p.y, FX.BOX.character, player);
+        if (PX.ready) ART.character(g, p.x, p.y, S.look, { ...player, moving: false });
+        else out((c) => ART.character(c, p.x, p.y, S.look, { ...player, moving: false }), p.x, p.y, FX.BOX.character, player);
         g.restore();
         if (p.front) p.front(g, clock);
       } });

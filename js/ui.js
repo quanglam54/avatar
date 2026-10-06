@@ -104,6 +104,12 @@ const UI = (() => {
     let name = S.name;
     const p = panel(isNew ? '✨ Tạo nhân vật của bạn' : '👕 Tủ đồ', '', { wide: true, locked: isNew });
     let timer;
+    /** Chip chọn món pixel đã sở hữu (chỉ hiện khi đã mua ít nhất 1 món loại đó) */
+    const pxChips = (key, label, ownKey, names, none) => {
+      const own = (S.owned[ownKey] || []).filter((id) => names[id]);
+      if (!own.length) return '';
+      return `<label>${label}</label>${chips(key, [{ id: '', name: none }, ...own.map((id) => ({ id, name: names[id] }))], look[key] || '')}`;
+    };
     const render = () => {
       const hats = DATA.HATS.filter((h) => S.owned.hats.includes(h.id));
       const accs = DATA.ACCS.filter((a) => (S.owned.accs || ['none']).includes(a.id));
@@ -122,6 +128,10 @@ const UI = (() => {
             <label>Màu áo</label>${swatches('shirt', DATA.SHIRT_COLORS, look.shirt)}
             <label>Kiểu áo ${isNew ? '' : '<small>(mua thêm ở Tiệm Thời Trang)</small>'}</label>${chips('shirtStyle', styles, look.shirtStyle)}
             <label>Màu quần</label>${swatches('pants', DATA.PANTS_COLORS, look.pants)}
+            ${pxChips('top', 'Áo / váy (bộ đồ)', 'tops', DATA.PX_TOPS, 'Áo cơ bản')}
+            ${pxChips('bottom', 'Quần / chân váy', 'bottoms', DATA.PX_BOTTOMS, 'Quần cơ bản')}
+            ${pxChips('shoes', 'Giày', 'shoes', DATA.PX_SHOES, 'Giày cơ bản')}
+            ${pxChips('back', 'Áo choàng', 'backs', DATA.PX_BACKS, 'Không')}
             <label>Mũ / phụ kiện</label>${chips('hat', hats, look.hat)}
             <label>Trang sức / kính ${isNew ? '' : '<small>(mua ở Tiệm Thời Trang)</small>'}</label>${chips('acc', accs, look.acc || 'none')}
           </div>
@@ -291,8 +301,31 @@ const UI = (() => {
   function boutique() {
     const S = AV.S;
     const p = panel('👗 Tiệm Thời Trang', '', { wide: true });
-    let tab = 'shirt';
+    const TABS = [['set', '🧥 Bộ đồ'], ['shirt', '👗 Váy & áo'], ['hat', '🎩 Mũ'], ['acc', '💍 Trang sức']];
+    const tabsHtml = () => `<div class="tabs">${TABS.map(([k, l]) => `<button class="chip ${tab === k ? 'on' : ''}" data-btab="${k}">${l}</button>`).join('')}</div>`;
+    /** Tab bộ đồ: mỗi bộ có độ hiếm (viền màu), xem trước trên nhân vật của bạn */
+    const renderSets = () => {
+      p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Cấp ${S.level}</div>${tabsHtml()}
+        <div class="b-grid sets">${DATA.OUTFITS.map((o) => {
+          const r = DATA.RARITY[o.rarity], own = AV.ownsOutfit(o.id), wearing = own && AV.wearingOutfit(o.id), locked = o.lvl && S.level < o.lvl;
+          const btn = wearing ? '<button class="btn small ghost" disabled>Đang mặc</button>'
+            : own ? `<button class="btn small" data-owear="${o.id}">Mặc bộ này</button>`
+              : locked ? `<button class="btn small ghost" disabled>🔒 Cấp ${o.lvl}</button>`
+                : `<button class="btn small" data-obuy="${o.id}">Mua · ${o.price.toLocaleString('vi-VN')}💰</button>`;
+          return `<div class="b-card set-card" style="--rar:${r.color}"><span class="rar">${r.name}</span><canvas data-opv="${o.id}"></canvas><b>${esc(o.name)}</b><small>${esc(o.desc)}</small>${btn}</div>`;
+        }).join('')}</div>
+        <p class="muted small-note">Mua bộ nào thì từng món trong bộ cũng về Tủ đồ — phối áo, quần, giày tuỳ thích. Áo của bộ "Áo phông & Jeans" đổi theo màu áo bạn chọn.</p>`;
+      p.body.querySelectorAll('[data-btab]').forEach((b) => b.onclick = () => { tab = b.dataset.btab; render(); });
+      p.body.querySelectorAll('[data-opv]').forEach((c) => {
+        const o = DATA.OUTFITS.find((x) => x.id === c.dataset.opv);
+        drawAvatar(c, AV.outfitLook(o), { scale: 1.15 });
+      });
+      p.body.querySelectorAll('[data-obuy]').forEach((b) => b.onclick = () => { if (AV.buyOutfit(b.dataset.obuy)) render(); });
+      p.body.querySelectorAll('[data-owear]').forEach((b) => b.onclick = () => { AV.wearOutfit(b.dataset.owear); render(); });
+    };
+    let tab = 'set';
     const render = () => {
+      if (tab === 'set') return renderSets();
       const card = (kind, it) => {
         const KEY = { hat: ['hats', 'hat'], shirt: ['shirtStyles', 'shirtStyle'], acc: ['accs', 'acc'] }[kind];
         const owned = (S.owned[KEY[0]] || ['none']).includes(it.id);
@@ -307,9 +340,9 @@ const UI = (() => {
       };
       p.body.innerHTML = `
         <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
-        <div class="tabs">${[['shirt', '👗 Váy & áo'], ['hat', '🎩 Mũ'], ['acc', '💍 Trang sức']].map(([k, l]) => `<button class="chip ${tab === k ? 'on' : ''}" data-btab="${k}">${l}</button>`).join('')}</div>
-        <div class="b-grid">${tab === 'hat' ? DATA.HATS.filter((h) => h.id !== 'none' && !h.event).map((h) => card('hat', h)).join('')
-          : tab === 'acc' ? DATA.ACCS.filter((a) => a.id !== 'none').map((a) => card('acc', a)).join('')
+        <div class="tabs">${TABS.map(([k, l]) => `<button class="chip ${tab === k ? 'on' : ''}" data-btab="${k}">${l}</button>`).join('')}</div>
+        <div class="b-grid">${tab === 'hat' ? DATA.HATS.filter((h) => h.id !== 'none' && !h.event && !h.set).map((h) => card('hat', h)).join('')
+          : tab === 'acc' ? DATA.ACCS.filter((a) => a.id !== 'none' && !a.set).map((a) => card('acc', a)).join('')
             : DATA.SHIRT_STYLES.filter((s) => s.id !== 'plain' && !s.event).map((s) => card('shirt', s)).join('')}</div>
         <p class="muted small-note">Mua xong thay đổi tự do trong 👕 Tủ đồ. Hình xem trước dùng màu áo hiện tại của bạn.</p>`;
       p.body.querySelectorAll('[data-btab]').forEach((b) => b.onclick = () => { tab = b.dataset.btab; render(); });

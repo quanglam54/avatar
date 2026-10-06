@@ -45,6 +45,10 @@ const DATA = {
     { id: 'crown', name: 'Vương miện', price: 300, lvl: 5 },
     { id: 'witch', name: 'Mũ phù thuỷ', price: 0, event: true },
     { id: 'pumpkinhead', name: 'Đầu bí ngô', price: 0, event: true },
+    { id: 'snapback', name: 'Mũ snapback', price: 0, set: true },
+    { id: 'beanie_winter', name: 'Mũ len mùa đông', price: 0, set: true },
+    { id: 'catears', name: 'Bờm tai mèo', price: 0, set: true },
+    { id: 'laurel', name: 'Vòng nguyệt quế', price: 0, set: true },
   ],
   ACCS: [
     { id: 'none', name: 'Không đeo', price: 0 },
@@ -54,6 +58,8 @@ const DATA = {
     { id: 'glasses', name: 'Kính tròn', price: 70 },
     { id: 'sunglasses', name: 'Kính râm', price: 90 },
     { id: 'wings', name: 'Cánh thiên thần', price: 400, lvl: 3 },
+    { id: 'chain', name: 'Dây xích vàng', price: 0, set: true },
+    { id: 'scarf', name: 'Khăn len đỏ', price: 0, set: true },
   ],
   ARCADE: [
     { id: 'pikachu', name: 'Pikachu', icon: '⚡', color: '#fcc419', div: 30 },
@@ -181,6 +187,33 @@ DATA.EATERIES = [
     menu: [{ id: 'sb_caramel', name: 'Caramel Macchiato', icon: '☕', price: 40, xp: 15 }, { id: 'sb_frap', name: 'Java Chip Frappuccino', icon: '🥤', price: 42, xp: 16 }, { id: 'sb_cake', name: 'Bánh cheesecake', icon: '🍰', price: 30, xp: 11 }] },
   { id: 'tch', name: 'The Coffee House', nameSize: 14, sub: 'CÀ PHÊ · TRÀ', logo: '🏠', wall: '#fff4e6', trim: '#f08c00', awn: ['#212529', '#ff922b'], signBg: '#fff', signFg: '#212529', subFg: '#f08c00', items: ['☕', '🍑', '🧁'], deco: 'cafe',
     menu: [{ id: 'tch_suada', name: 'Cà phê sữa đá', icon: '☕', price: 20, xp: 8 }, { id: 'tch_dao', name: 'Trà đào cam sả', icon: '🍑', price: 26, xp: 11 }, { id: 'tch_cake', name: 'Bánh mousse', icon: '🧁', price: 18, xp: 7 }] },
+];
+
+/* ---------- Trang phục pixel (sprite trong sprites/atlas.png) ---------- */
+DATA.RARITY = {
+  common: { name: 'Thường', color: '#adb5bd' },
+  rare: { name: 'Hiếm', color: '#4dabf7' },
+  epic: { name: 'Sử thi', color: '#b197fc' },
+  legend: { name: 'Huyền thoại', color: '#fcc419' },
+};
+DATA.PX_TOPS = { tee_star: 'Áo phông ngôi sao', hoodie: 'Áo hoodie', school: 'Áo đồng phục', varsity: 'Áo khoác bóng chày', couple_l: 'Áo đôi (Anh)', couple_r: 'Áo đôi (Em)', puffer: 'Áo phao', cute: 'Váy hồng nơ', leather: 'Áo khoác da', thunder: 'Áo Thần Sấm', armor: 'Giáp Rồng Vàng' };
+DATA.PX_BOTTOMS = { jeans: 'Quần jeans', baggy: 'Quần rộng', school_pants: 'Quần âu', school_skirt: 'Chân váy xếp ly', baggy_denim: 'Quần jeans rộng', shorts: 'Quần short', warm: 'Quần nỉ', ripped: 'Quần rách', track: 'Quần thể thao', knight: 'Quần hiệp sĩ' };
+DATA.PX_SHOES = { sneaker: 'Giày thể thao', chunky: 'Giày đế to', school: 'Giày học sinh', hightop: 'Giày cổ cao', slipon: 'Giày lười', boots: 'Bốt lông', maryjane: 'Giày búp bê', combat: 'Bốt chiến binh', thunder: 'Giày Thần Sấm', armor: 'Giày giáp vàng' };
+DATA.PX_BACKS = { cape_red: 'Áo choàng đỏ' };
+/** Bộ trang phục: mua cả bộ, mặc cả bộ hoặc phối từng món trong Tủ đồ */
+DATA.OUTFITS = [
+  { id: 'o_basic', name: 'Áo phông & Jeans', rarity: 'common', price: 150, look: { top: 'tee_star', bottom: 'jeans', shoes: 'sneaker' }, desc: 'Bộ cơ bản ai cũng có, áo đổi theo màu áo bạn chọn' },
+  { id: 'o_hoodie', name: 'Hoodie Quần Rộng', rarity: 'common', price: 300, look: { top: 'hoodie', bottom: 'baggy', shoes: 'chunky' }, desc: 'Hoodie xám, quần kaki rộng, giày đế to' },
+  { id: 'o_school_m', name: 'Đồng Phục (Nam)', rarity: 'common', price: 250, look: { top: 'school', bottom: 'school_pants', shoes: 'school' }, desc: 'Sơ mi trắng, khăn quàng đỏ, quần âu' },
+  { id: 'o_school_f', name: 'Đồng Phục (Nữ)', rarity: 'common', price: 250, look: { top: 'school', bottom: 'school_skirt', shoes: 'school' }, desc: 'Sơ mi trắng, khăn quàng đỏ, chân váy xếp ly' },
+  { id: 'o_hiphop', name: 'Hip-hop Đường Phố', rarity: 'rare', price: 800, look: { top: 'varsity', bottom: 'baggy_denim', shoes: 'hightop', hat: 'snapback', acc: 'chain' }, desc: 'Áo bóng chày, xích vàng, mũ snapback' },
+  { id: 'o_couple_m', name: 'Đồ Đôi (Anh)', rarity: 'rare', price: 600, look: { top: 'couple_l', bottom: 'shorts', shoes: 'slipon' }, desc: 'Đứng cạnh "Đồ Đôi (Em)" thành trái tim' },
+  { id: 'o_couple_f', name: 'Đồ Đôi (Em)', rarity: 'rare', price: 600, look: { top: 'couple_r', bottom: 'shorts', shoes: 'slipon' }, desc: 'Đứng cạnh "Đồ Đôi (Anh)" thành trái tim' },
+  { id: 'o_winter', name: 'Mùa Đông Hà Nội', rarity: 'rare', price: 900, look: { top: 'puffer', bottom: 'warm', shoes: 'boots', hat: 'beanie_winter', acc: 'scarf' }, desc: 'Áo phao, khăn len, mũ len, bốt lông' },
+  { id: 'o_cute', name: 'Mèo Con Dễ Thương', rarity: 'rare', price: 900, look: { top: 'cute', bottom: '', shoes: 'maryjane', hat: 'catears' }, desc: 'Váy hồng nơ đỏ, bờm tai mèo, giày búp bê' },
+  { id: 'o_edgy', name: 'Cá Tính Rock', rarity: 'epic', price: 1800, lvl: 3, look: { top: 'leather', bottom: 'ripped', shoes: 'combat', acc: 'sunglasses' }, desc: 'Áo da đinh tán, quần rách, bốt chiến binh' },
+  { id: 'o_thunder', name: 'Thần Sấm', rarity: 'epic', price: 3000, lvl: 4, look: { top: 'thunder', bottom: 'track', shoes: 'thunder' }, desc: '⚡ Hiệu ứng tia điện lấp lánh quanh người' },
+  { id: 'o_dragon', name: 'Rồng Vàng', rarity: 'legend', price: 8000, lvl: 6, look: { top: 'armor', bottom: 'knight', shoes: 'armor', hat: 'laurel', back: 'cape_red' }, desc: '👑 Giáp vàng, áo choàng đỏ, hào quang + đốm lửa vàng bay lên' },
 ];
 
 /** Xe máy tự lái trên đường phố (mua 1 lần dùng mãi). max = tốc độ tối đa (÷10 ra km/h) */
