@@ -2081,9 +2081,9 @@ Object.assign(ART, (() => {
     ctx.fillStyle = '#2b8a3e'; rr(ctx, L + 10, y - 176, W - 20, 36, 8); ctx.fill();
     ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 3; rr(ctx, L + 10, y - 176, W - 20, 36, 8); ctx.stroke();
     ctx.fillStyle = '#fff'; ctx.font = '900 14px "Be Vietnam Pro", system-ui, sans-serif';
-    ctx.fillText('🌱 HẠT GIỐNG', x, y - 164);
+    ctx.fillText('🌱 CỬA HÀNG', x, y - 164);
     ctx.font = '700 8.5px "Be Vietnam Pro", system-ui, sans-serif'; ctx.fillStyle = '#ffe066';
-    ctx.fillText('PHÂN BÓN · THUỐC TRỪ SÂU', x, y - 150);
+    ctx.fillText('HẠT GIỐNG · THU MUA NÔNG SẢN', x, y - 150);
   }
   return { seedStall };
 })());

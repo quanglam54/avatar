@@ -457,7 +457,7 @@ const MAPS = (() => {
     // sạp hạt giống ngay cổng nông trại
     sobj(m, 2190, 1425, (c) => ART.seedStall(c, 2190, 1425), { l: -115, t: -182, w: 230, h: 190 });
     col(m, 2092, 1378, 196, 46);
-    inter(m, { x: 2090, y: 1250, w: 200, h: 175, ax: 2190, ay: 1455, name: 'Cửa hàng hạt giống (giống, phân bón, thuốc trừ sâu)', use: () => UI.seedShop(), arrow: { x: 2190, y: 1240, text: 'Mua hạt giống' } });
+    inter(m, { x: 2090, y: 1250, w: 200, h: 175, ax: 2190, ay: 1455, name: 'Cửa hàng nông trại (mua hạt giống, phân bón, thuốc · bán đồ)', use: () => UI.seedShop(), arrow: { x: 2190, y: 1240, text: 'Cửa hàng' } });
     addBusStop(m, GATE + 140, 1432, 1);
     addStreetSign(m, GATE - 360, 1430);
     addStreetSign(m, 3420, 1430, ['Cầu Giấy', 'Hồ Tùng Mậu']);

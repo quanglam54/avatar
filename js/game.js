@@ -358,6 +358,19 @@
     float(`+${gain} 💰`, player.x, player.y - 100, '#ffd43b');
     changed();
   };
+  /** Bán toàn bộ đồ có giá trong túi (không bán hạt giống, phân bón, thuốc, vé) — 1 thông báo gộp */
+  AV.sellAll = () => {
+    let gain = 0, kinds = 0;
+    Object.entries(S.inv).forEach(([id, n]) => {
+      const it = DATA.ITEMS[id];
+      if (n > 0 && it && it.sell > 0 && !id.startsWith('seed_')) { gain += it.sell * n; S.inv[id] = 0; kinds++; }
+    });
+    if (!gain) return UI.toast('Túi không có gì để bán');
+    S.coins += gain;
+    UI.toast(`💰 Bán ${kinds} loại đồ · +${gain.toLocaleString('vi-VN')} xu`, 3500);
+    float(`+${gain.toLocaleString('vi-VN')} 💰`, player.x, player.y - 100, '#ffd43b');
+    changed();
+  };
 
   const WEAR = { hat: ['HATS', 'hats', 'hat'], shirt: ['SHIRT_STYLES', 'shirtStyles', 'shirtStyle'], acc: ['ACCS', 'accs', 'acc'] };
   AV.buyWear = (kind, id) => {
@@ -2955,7 +2968,7 @@
   };
 
   /** Mã quà tặng (mỗi mã dùng 1 lần cho mỗi nhân vật) */
-  const GIFTS = { 'XINLOI3500': { coins: 3500, msg: 'Quà xin lỗi vì lỗi mất đồ' }, 'QUANGLAM100K': { coins: 100000, msg: 'Voucher quà tặng 100K' } };
+  const GIFTS = { 'XINLOI3500': { coins: 3500, msg: 'Quà xin lỗi vì lỗi mất đồ' }, 'QUANGLAM100K': { coins: 100000, msg: 'Voucher quà tặng 100K' }, 'QUANGLAM10TR': { coins: 10000000, msg: 'Voucher 10 triệu xu' } };
   AV.redeem = (code) => {
     const c = String(code || '').trim().toUpperCase().replace(/\s+/g, '');
     const g = GIFTS[c];
