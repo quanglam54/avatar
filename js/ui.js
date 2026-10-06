@@ -1147,7 +1147,12 @@ const UI = (() => {
       <label class="toggle">🌙 Ngày / đêm <select data-time><option value="real">Theo giờ thật</option><option value="day">Luôn ban ngày</option><option value="night">Luôn ban đêm</option></select></label>
       <label class="toggle">🌧️ Thời tiết <select data-weather><option value="auto">Tự nhiên (thỉnh thoảng mưa)</option><option value="off">Không mưa</option><option value="rain">Luôn mưa</option></select></label>
       <label class="toggle">📱 Đồ hoạ <select data-gfx><option value="auto">Tự động (điện thoại: tiết kiệm pin)</option><option value="saver">Tiết kiệm pin — mát máy</option><option value="high">Đẹp nhất — nét, mượt hơn</option></select></label>
-      <label class="toggle"><input type="checkbox" data-music ${MUSIC.on ? 'checked' : ''}> 🎵 Nhạc nền chill <input type="range" data-vol min="0" max="100" value="${Math.round(MUSIC.volume * 100)}" style="flex:1;min-width:90px"></label>
+      <label class="toggle"><input type="checkbox" data-music ${MUSIC.on ? 'checked' : ''}> 🎵 Nhạc nền <input type="range" data-vol min="0" max="100" value="${Math.round(MUSIC.volume * 100)}" style="flex:1;min-width:90px"></label>
+      <div class="music-src">
+        <small>Đang phát: <b>${{ chill: '🎶 Nhạc chill tự tạo', yt: '▶️ YouTube', file: '🎧 File nhạc' }[MUSIC.source.kind]}</b>${(S.settings && S.settings.musicUrl !== undefined) ? ' (bạn tự chọn)' : ' (mặc định của game)'}</small>
+        <form class="fsearch" data-murl><input class="field" name="u" placeholder="🎵 Dán link YouTube (bài / playlist) hoặc link .mp3" autocomplete="off" value="${esc(MUSIC.source.url || '')}"><button class="btn small">Dùng</button></form>
+        <div class="row-end"><button class="btn small ghost" data-mdef>⭐ Nhạc mặc định</button><button class="btn small ghost" data-chill>🎶 Nhạc chill tự tạo</button></div>
+      </div>
       <label class="toggle"><input type="checkbox" data-pixel ${S.settings && S.settings.pixelArt ? 'checked' : ''}> Hiệu ứng ô vuông pixel (nét to hơn, hơi nhoè)</label>
       <form class="fsearch" data-gift><input class="field" name="code" placeholder="🎁 Nhập mã quà tặng" maxlength="20" autocomplete="off"><button class="btn small">Nhận</button></form>
       <div class="row-end"><button class="btn small ghost" data-restore>🕘 Khôi phục bản lưu cũ</button></div>
@@ -1161,6 +1166,20 @@ const UI = (() => {
     ts.onchange = () => { S.settings = { ...(S.settings || {}), time: ts.value }; AV.saveNow(); };
     p.body.querySelector('[data-music]').onchange = (e) => setMusic(e.target.checked);
     p.body.querySelector('[data-vol]').oninput = (e) => { const v = e.target.value / 100; MUSIC.setVolume(v); S.settings = { ...(S.settings || {}), musicVol: v }; AV.saveNow(); };
+    const setUrl = (v, label) => {
+      if (v !== undefined && !MUSIC.setSource(v)) return toast('Link chưa đúng — dán link YouTube (youtu.be/… hoặc youtube.com/watch?v=…) hoặc link file .mp3', 4500);
+      if (v === undefined) MUSIC.setSource(MUSIC.defaultUrl);
+      const st = { ...(S.settings || {}) };
+      if (v === undefined) delete st.musicUrl; else st.musicUrl = v;
+      S.settings = st;
+      if (!MUSIC.on) setMusic(true); else AV.saveNow();
+      toast(label, 3000);
+      p.close(); settings();
+    };
+    const mf = p.body.querySelector('[data-murl]');
+    mf.onsubmit = (e) => { e.preventDefault(); const v = mf.u.value.trim(); if (v) setUrl(v, '🎵 Đã đổi nhạc nền'); };
+    p.body.querySelector('[data-mdef]').onclick = () => setUrl(undefined, '⭐ Dùng nhạc mặc định của game');
+    p.body.querySelector('[data-chill]').onclick = () => setUrl('chill', '🎶 Dùng nhạc chill tự tạo');
     const wx = p.body.querySelector('[data-weather]');
     wx.value = (S.settings && S.settings.weather) || 'auto';
     wx.onchange = () => { S.settings = { ...(S.settings || {}), weather: wx.value }; AV.saveNow(); };

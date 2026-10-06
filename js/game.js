@@ -57,7 +57,7 @@
   function normPen(p) {
     const old = p && typeof p.fedAt === 'number' ? p.fedAt : 0;
     const out = {};
-    Object.keys(DATA.PENS).forEach((k) => { out[k] = { fedAt: p && p[k] && p[k].fedAt ? p[k].fedAt : old }; });
+    Object.keys(DATA.PENS).forEach((k) => { out[k] = { fedAt: p && p[k] && p[k].fedAt ? p[k].fedAt : old }; if (p && p[k] && p[k].took) out[k].took = p[k].took; });
     return out;
   }
 
@@ -92,10 +92,48 @@
     if (!player.hidden) { S.x = Math.round(player.x); S.y = Math.round(player.y); }
     S.savedAt = Date.now();
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* bỏ qua */ }
-    if (CLOUD.user && cloudReady) CLOUD.markDirty();
   }
   /** Đã quyết định xong dùng bản lưu nào sau khi đăng nhập thì mới được đẩy lên mạng */
   let cloudReady = false;
+  /** Mốc changedAt của bản trên mạng mà máy này đã biết (tải về hoặc tự đẩy lên) */
+  let syncedAt = 0, syncing = false;
+
+  /** Đẩy lên mạng an toàn: nếu máy khác vừa lưu bản mới hơn thì tải bản đó về, KHÔNG ghi đè */
+  async function pushSafe() {
+    if (!CLOUD.user || !cloudReady || syncing) return false;
+    syncing = true;
+    try {
+      let remote = 0;
+      try { remote = await CLOUD.peekChangedAt(); } catch (e) { return false; }
+      if (remote > syncedAt && remote !== S.changedAt) { await adoptRemote(); return false; }
+      const ok = await CLOUD.push(S);
+      if (ok) { syncedAt = S.changedAt || syncedAt; NET.farmPing('saverev', S.owner); }
+      return ok;
+    } finally { syncing = false; }
+  }
+  /** Kiểm tra máy khác có vừa lưu không (khi quay lại tab, khi máy kia báo, định kỳ) */
+  async function checkRemote() {
+    if (!CLOUD.user || !cloudReady || syncing) return;
+    syncing = true;
+    try {
+      const remote = await CLOUD.peekChangedAt();
+      if (remote > syncedAt && remote !== S.changedAt) await adoptRemote();
+    } catch (e) { /* thử lại sau */ } finally { syncing = false; }
+  }
+  /** Lấy bản mới nhất từ mạng (giữ nguyên chỗ đang đứng) */
+  async function adoptRemote() {
+    const cloud = await CLOUD.pull();
+    if (!cloud || !cloud.data || !cloud.data.name) return;
+    backupLocal('trước khi tải bản mới từ máy khác');
+    const uid = S.owner;
+    const d = { ...cloud.data, map: map.id, x: Math.round(player.x), y: Math.round(player.y) };
+    replaceState(d);
+    S.owner = uid;
+    syncedAt = cloud.data.changedAt || Date.now();
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* bỏ qua */ }
+    UI.toast('☁️ Đã cập nhật tiến trình mới nhất từ máy khác của bạn', 4000);
+  }
+  AV.checkRemote = () => checkRemote();
 
   /* ---------- Thực thể ---------- */
   const player = { x: 0, y: 0, dir: 1, moving: false, t: 0, target: null, pending: null, hidden: false, bubble: null, stuck: 0, dancing: 0, fishing: null };
@@ -285,7 +323,8 @@
     S.changedAt = Date.now();
     saveNow();
     // có thay đổi quan trọng: lưu lên mạng sau 3 giây (gom nhiều thay đổi liền nhau)
-    if (CLOUD.user && cloudReady && !cloudTimer) cloudTimer = setTimeout(() => { cloudTimer = null; CLOUD.push(S); }, 3000);
+    if (CLOUD.user && cloudReady) CLOUD.markDirty();
+    if (CLOUD.user && cloudReady && !cloudTimer) cloudTimer = setTimeout(() => { cloudTimer = null; pushSafe(); }, 3000);
     UI.updateHud();
     NET.sendState();
   }
@@ -449,9 +488,9 @@
     bedTiles(bed).forEach((t) => {
       if (tileState(t).stage !== 2) return;
       const c = DATA.CROPS[t.crop];
-      got[t.crop] = (got[t.crop] || 0) + c.yield;
+      got[t.crop] = (got[t.crop] || 0) + Math.max(1, c.yield - (t.stolen || 0));
       xp += c.xp;
-      t.crop = null; t.plantedAt = 0; t.watered = false; t.fert = false;
+      t.crop = null; t.plantedAt = 0; t.watered = false; t.fert = false; t.stolen = 0;
     });
     const keys = Object.keys(got);
     if (!keys.length) return false;
@@ -525,11 +564,12 @@
     if (VISIT) return AV.stealTree(i);
     const st = treeState(i);
     if (!st.ripe) return UI.toast(`${st.f.icon} Cây ${st.f.name.toLowerCase()} đang ra quả, còn ${fmtDur(st.left)} nữa`);
-    S.trees[i].at = Date.now();
-    addItem(DATA.ORCHARD[i], st.f.yield);
+    const n = Math.max(1, st.f.yield - (S.trees[i].stolen || 0));
+    S.trees[i].at = Date.now(); S.trees[i].stolen = 0;
+    addItem(DATA.ORCHARD[i], n);
     addXP(st.f.xp);
-    float(`+${st.f.yield} ${st.f.icon}`, player.x, player.y - 110);
-    AV.quest('harvest', st.f.yield);
+    float(`+${n} ${st.f.icon}`, player.x, player.y - 110);
+    AV.quest('harvest', n);
     changed();
   };
 
@@ -547,7 +587,8 @@
         UI.toast(`Cần ${cfg.feed} 🌾 lúa mì để cho ăn (đang có ${S.inv.wheat || 0}). Trồng lúa mì ở Ruộng nhé!`, 3400);
       }
     } else if (t - st.fedAt >= cfg.time * 1000) {
-      opts.collect();
+      opts.collect(st.took || {});
+      st.took = null;
       st.fedAt = 0;
       AV.quest('collect');
       addXP(cfg.xp);
@@ -565,7 +606,7 @@
 
   AV.useCoop = () => VISIT ? AV.stealBarn('coop') : farmBuilding(S.coop, DATA.COOP, {
     kinds: ['chicken'], fedMsg: 'Đã cho gà ăn! 🐔', waitMsg: 'Gà đang đẻ trứng…',
-    collect: () => { addItem('egg', DATA.COOP.eggs); float(`+${DATA.COOP.eggs} 🥚`, player.x, player.y - 100); },
+    collect: (took) => { const n = Math.max(1, DATA.COOP.eggs - (took.egg || 0)); addItem('egg', n); float(`+${n} 🥚`, player.x, player.y - 100); },
   });
   AV.coopIndicator = () => {
     const r = buildingIndicator(FD().coop || { fedAt: 0 }, DATA.COOP);
@@ -580,9 +621,10 @@
     S.pen = normPen(S.pen);
     farmBuilding(S.pen[kind], P, {
       kinds: [kind], fedMsg: P.fedMsg, waitMsg: P.waitMsg,
-      collect: () => {
-        Object.entries(P.out).forEach(([id, n]) => addItem(id, n));
-        float(Object.entries(P.out).map(([id, n]) => `+${n} ${DATA.ITEMS[id].icon}`).join('  '), player.x, player.y - 100);
+      collect: (took) => {
+        const got = Object.entries(P.out).map(([id, n]) => [id, Math.max(1, n - (took[id] || 0))]);
+        got.forEach(([id, n]) => addItem(id, n));
+        float(got.map(([id, n]) => `+${n} ${DATA.ITEMS[id].icon}`).join('  '), player.x, player.y - 100);
       },
     });
   };
@@ -968,7 +1010,11 @@
   /** Chọn điểm đến trên bản đồ thành phố: tự đi ra trạm và lên xe */
   AV.travelTo = (id) => {
     if (id === 'farm' && VISIT && map.id === 'farm') return AV.goHomeFarm();
-    if (!map.busStop) return UI.toast('Ra khỏi nhà rồi mới đi xe buýt được nhé 🏠');
+    if (!map.busStop) {
+      if (!maps[id] || id === map.id) return;
+      const z = DATA.ZONES.find((x) => x.id === id);
+      return AV.teleport(id, false, undefined, undefined, `🚕 Đi taxi tới ${z ? z.name : maps[id].name}…`);
+    }
     if (pose) AV.leavePose();
     if (!maps[id]) return;
     if (id === map.id) return UI.toast(`Bạn đang ở ${map.name} rồi 😄`);
@@ -1197,10 +1243,10 @@
       Object.entries(v.stolen).forEach(([key, at]) => {
         const k = +key;
         if (at === -1) return;
-        if (k === STEAL_COOP) d.coop = { fedAt: 0 };
-        else if (penOfKey(k)) d.pen[penOfKey(k)] = { fedAt: 0 };
-        else if (k >= STEAL_TREE) { if (d.trees[k - STEAL_TREE]) d.trees[k - STEAL_TREE].at = at; }
-        else { const t = d.tiles[k]; if (t && t.plantedAt === at) Object.assign(t, { crop: null, plantedAt: 0, watered: false, fert: false }); }
+        if (k === STEAL_COOP) d.coop.took = d.coop.took || { egg: 1 };
+        else if (penOfKey(k)) d.pen[penOfKey(k)].took = d.pen[penOfKey(k)].took || { x: 1 };
+        else if (k >= STEAL_TREE) { if (d.trees[k - STEAL_TREE]) d.trees[k - STEAL_TREE].stolen = d.trees[k - STEAL_TREE].stolen || 1; }
+        else { const t = d.tiles[k]; if (t && t.plantedAt === at) t.stolen = t.stolen || 1; }
       });
       v.data = d;
       v.rev = f.updated_at;
@@ -1219,6 +1265,7 @@
   };
   /** Tin nhắn ngắn qua phòng chung: farmrev = nông trại vừa đổi, farmhit = có người tưới giúp / hái trộm */
   AV.onFarmPing = (t, uid) => {
+    if (t === 'saverev' && uid === S.owner) { setTimeout(checkRemote, 600); return; }
     if (t === 'farmrev' && VISIT && VISIT.uid === uid) refreshVisit();
     if (t === 'farmhit' && uid === S.owner) setTimeout(() => { receiveHelps(); receiveSteals(); }, 1500);
   };
@@ -1432,7 +1479,10 @@
   const STEAL_TREE = 1000, STEAL_COOP = 2000, STEAL_PEN = 2001;
   const PEN_KEYS = { cow: 2001, sheep: 2002, pig: 2003 };
   const penOfKey = (k) => Object.keys(PEN_KEYS).find((p) => PEN_KEYS[p] === k);
-  const halfOf = (n) => Math.max(1, Math.round(n * DATA.STEAL.share));
+  /** Phần kẻ trộm lấy được: một nửa (làm tròn xuống), chủ luôn còn lại ít nhất 1 */
+  const halfOf = (n) => Math.min(n - 1, Math.floor(n * DATA.STEAL.share));
+  const tooLittle = () => UI.toast('Ít quá, trộm nữa thì chủ nhà hết phần mất 😅', 3000);
+  const alreadyStolen = () => UI.toast('Chỗ này đã bị trộm bớt rồi, để phần còn lại cho chủ nhà đi 😅', 3500);
 
   /** Trộm một thứ ở nông trại bạn. Mỗi thú giữ nhà có thể cắn riêng → bị phạt cộng dồn (xu về túi chủ nhà)
    *  o = { key, crop, give: { id: số lượng }, label, mark: (giá trị lưu khi trộm được) , apply: () => xoá ở bản đang xem } */
@@ -1477,18 +1527,22 @@
   AV.stealTile = (i) => {
     const t = VISIT && VISIT.data.tiles[i];
     if (!t || tileState(t).stage !== 2) return;
-    const c = DATA.CROPS[t.crop];
-    return stealThing({ key: i, crop: t.crop, give: { [t.crop]: halfOf(c.yield) }, label: c.name.toLowerCase(), mark: t.plantedAt,
-      apply: () => Object.assign(t, { crop: null, plantedAt: 0, watered: false, fert: false }) });
+    const c = DATA.CROPS[t.crop], q = halfOf(c.yield);
+    if (t.stolen) return alreadyStolen();
+    if (q < 1) return tooLittle();
+    return stealThing({ key: i, crop: t.crop, give: { [t.crop]: q }, label: c.name.toLowerCase(), mark: t.plantedAt,
+      apply: () => { t.stolen = q; } });
   };
 
   /** Cây ăn quả đã chín */
   AV.stealTree = (i) => {
     const st = treeState(i), name = VISIT.data.name;
     if (!st.ripe) return UI.toast(`${st.f.icon} Cây ${st.f.name.toLowerCase()} nhà ${name} chưa có quả chín để hái trộm (còn ${fmtDur(st.left)})`, 3500);
-    const id = DATA.ORCHARD[i], at = Date.now();
-    return stealThing({ key: STEAL_TREE + i, crop: id, give: { [id]: halfOf(st.f.yield) }, label: st.f.name.toLowerCase(), mark: at,
-      apply: () => { VISIT.data.trees[i].at = at; } });
+    const id = DATA.ORCHARD[i], q = halfOf(st.f.yield);
+    if (VISIT.data.trees[i].stolen) return alreadyStolen();
+    if (q < 1) return tooLittle();
+    return stealThing({ key: STEAL_TREE + i, crop: id, give: { [id]: q }, label: st.f.name.toLowerCase(), mark: 1,
+      apply: () => { VISIT.data.trees[i].stolen = q; } });
   };
 
   /** Chuồng gà có trứng / chuồng bò có sữa / chuồng cừu có len / chuồng heo có thịt */
@@ -1500,10 +1554,12 @@
       const what = coop ? 'Chuồng gà' : cfg.name, prod = coop ? 'trứng' : DATA.ITEMS[Object.keys(cfg.out)[0]].name.toLowerCase();
       return UI.toast(st.fedAt ? `${what} nhà ${v.data.name} chưa có ${prod} (còn ${fmtDur(cfg.time - (Date.now() - st.fedAt) / 1000)})` : `${what} nhà ${v.data.name} chưa cho ăn nên chưa có ${prod} để trộm`, 3500);
     }
+    if (st.took) return alreadyStolen();
     const give = {};
     if (coop) give.egg = halfOf(cfg.eggs); else Object.entries(cfg.out).forEach(([id, n]) => { give[id] = halfOf(n); });
+    if (Object.values(give).every((n) => n < 1)) return tooLittle();
     return stealThing({ key: coop ? STEAL_COOP : PEN_KEYS[kind], crop: Object.keys(give)[0], give, label: `ở ${coop ? 'chuồng gà' : cfg.name.toLowerCase()}`, mark: 1,
-      apply: () => { if (coop) v.data.coop = { fedAt: 0 }; else v.data.pen[kind] = { fedAt: 0 }; } });
+      apply: () => { st.took = { ...give }; if (coop) v.data.coop = st; else v.data.pen[kind] = st; } });
   };
 
   /** Chủ nông trại: xử lý các lần bị hái trộm (mất cây chín / nhận tiền phạt kẻ bị cắn) */
@@ -1522,20 +1578,24 @@
       const k = r.tile | 0;
       if (k === STEAL_COOP || penOfKey(k)) {
         const pk = penOfKey(k), st = pk ? S.pen[pk] : S.coop, cfg = pk ? DATA.PENS[pk] : DATA.COOP;
-        if (st.fedAt && Date.now() - st.fedAt >= cfg.time * 1000) { st.fedAt = 0; lost++; }
+        if (st.fedAt && Date.now() - st.fedAt >= cfg.time * 1000) {
+          st.took = st.took || {};
+          st.took[r.crop] = (st.took[r.crop] || 0) + (r.qty | 0);
+          lost++;
+        }
       } else if (k >= STEAL_TREE) {
         const i = k - STEAL_TREE;
-        if (S.trees[i] && treeState(i).ripe) { S.trees[i].at = Date.now(); lost++; }
+        if (S.trees[i] && treeState(i).ripe) { S.trees[i].stolen = Math.min(treeState(i).f.yield - 1, (S.trees[i].stolen || 0) + (r.qty | 0)); lost++; }
       } else {
         const t = S.tiles[k];
-        if (t && t.crop === r.crop && tileState(t).stage === 2) { Object.assign(t, { crop: null, plantedAt: 0, watered: false, fert: false }); lost++; }
+        if (t && t.crop === r.crop && tileState(t).stage === 2) { t.stolen = Math.min(DATA.CROPS[t.crop].yield - 1, (t.stolen || 0) + (r.qty | 0)); lost++; }
       }
       thieves.add(who);
     });
     if (fines) { S.coins += fines; float(`+${fines} 💰`, player.x, player.y - 120, '#ffd43b'); }
     const team = S.guard || [];
     const msgs = [];
-    if (thieves.size) msgs.push(`🥷 ${[...thieves].join(', ')} đã trộm ${lost} lần ở nông trại của bạn (ruộng / quả / trứng / sữa / len / thịt)!${team.length ? '' : ' Mua thú giữ nhà ở Chuồng Thú (góc phải nông trại) nhé 🐕'}`);
+    if (thieves.size) msgs.push(`🥷 ${[...thieves].join(', ')} đã trộm bớt ${lost} lần ở nông trại của bạn — phần còn lại vẫn là của bạn, thu hoạch nhanh kẻo trộm tiếp!${team.length ? '' : ' Mua thú giữ nhà ở Chuồng Thú (góc phải nông trại) nhé 🐕'}`);
     if (bitten.size) msgs.push(`${teamIcons(team) || '🐕'} Thú giữ nhà đã cắn ${[...bitten].join(', ')} khi hái trộm — bạn nhận ${fines} xu tiền phạt!`);
     msgs.push('📋 Xem chi tiết ở Bảng tin nông trại (cạnh cổng)');
     msgs.forEach((m, k) => { setTimeout(() => UI.toast(m, 6000), k * 600); UI.chatLog('', m, false, true); });
@@ -2709,7 +2769,7 @@
     const m = mergeSave(JSON.parse(JSON.stringify(data)));
     Object.keys(S).forEach((k) => { delete S[k]; });
     Object.assign(S, m);
-    enterMap(maps[S.map] ? S.map : 'farm', S.x, S.y);
+    if (!map || S.map !== map.id) enterMap(maps[S.map] ? S.map : 'farm', S.x, S.y);
     UI.updateHud();
     UI.updateQuestDot();
     NET.sendState();
@@ -2735,7 +2795,7 @@
     S.changedAt = Date.now();
     saveNow();
     joinRoom();
-    if (CLOUD.user) await CLOUD.push(S);
+    if (CLOUD.user) { await CLOUD.push(S); syncedAt = S.changedAt; }
     UI.toast(`✅ Đã khôi phục ${label || 'bản lưu'}`, 4000);
   };
 
@@ -2747,7 +2807,7 @@
     const uid = CLOUD.user.id;
     let cloud = null;
     try { cloud = await CLOUD.pull(); } catch (e) { UI.toast('⚠️ ' + e.message, 6000); }
-    const finish = () => { cloudReady = true; saveNow(); joinRoom(); };
+    const finish = () => { cloudReady = true; syncedAt = S.changedAt || 0; saveNow(); joinRoom(); MUSIC.refresh(S.settings || {}); };
     if (cloud && cloud.data && cloud.data.name) {
       const local = S.owner === uid && S.name ? S : null;
       const lc = local ? local.changedAt || 0 : 0, cc = cloud.data.changedAt || 0;
@@ -2781,6 +2841,7 @@
       S.owner = uid;
       S.changedAt = Date.now();
       cloudReady = true;
+      syncedAt = S.changedAt;
       saveNow();
       joinRoom();
       const ok = await CLOUD.push(S);
@@ -2797,7 +2858,7 @@
   };
 
   /** Mã quà tặng (mỗi mã dùng 1 lần cho mỗi nhân vật) */
-  const GIFTS = { 'XINLOI3500': { coins: 3500, msg: 'Quà xin lỗi vì lỗi mất đồ' } };
+  const GIFTS = { 'XINLOI3500': { coins: 3500, msg: 'Quà xin lỗi vì lỗi mất đồ' }, 'QUANGLAM100K': { coins: 100000, msg: 'Voucher quà tặng 100K' } };
   AV.redeem = (code) => {
     const c = String(code || '').trim().toUpperCase().replace(/\s+/g, '');
     const g = GIFTS[c];
@@ -2833,12 +2894,17 @@
     UI.authPanel(true);
   })();
 
-  setInterval(() => { if (CLOUD.user && cloudReady && CLOUD.dirty) CLOUD.push(S); }, 10000);
+  setInterval(() => { if (CLOUD.user && cloudReady && CLOUD.dirty) pushSafe(); }, 10000);
+  setInterval(() => { if (!document.hidden && !CLOUD.dirty) checkRemote(); }, 45000);
+  window.addEventListener('focus', () => { if (!CLOUD.dirty) checkRemote(); });
   window.addEventListener('pagehide', () => { saveNow(); if (cloudReady) CLOUD.pushOnExit(S); });
 
   setInterval(saveNow, 5000);
   window.addEventListener('beforeunload', saveNow);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) { saveNow(); if (CLOUD.user && cloudReady) CLOUD.push(S); } });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { saveNow(); if (CLOUD.user && cloudReady && CLOUD.dirty) pushSafe(); }
+    else if (CLOUD.dirty) pushSafe(); else checkRemote();
+  });
 
   AV._debug = { player, bus, maps, get map() { return map; }, enterMap, update, draw, goTo, findPath, clickWorld, camOff, cam, get zoom() { return ZOOM; }, guards, get attack() { return attack; }, refreshVisit, fw: () => ({ rockets: rockets.length, sparks: sparks.length }), get visit() { return VISIT; }, set visit(v) { VISIT = v; } };
   requestAnimationFrame(loop);

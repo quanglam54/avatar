@@ -229,7 +229,7 @@ const NET = (() => {
       if (!m || m.id === pid) return;
       if (m.t === 'where') where.set(m.id, { map: String(m.map), seen: Date.now() });
       else if (m.t === 'bye') where.delete(m.id);
-      else if ((m.t === 'farmrev' || m.t === 'farmhit') && m.u) AV.onFarmPing(m.t, String(m.u));
+      else if ((m.t === 'farmrev' || m.t === 'farmhit' || m.t === 'saverev') && m.u) AV.onFarmPing(m.t, String(m.u));
     });
     announce();
   }

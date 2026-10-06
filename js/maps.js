@@ -634,8 +634,11 @@ const MAPS = (() => {
     furnLike(m, 1470, 520, (c) => ART.plantPot(c, 1470, 520), { l: -30, t: -95, w: 60, h: 100 }, 34, 14);
     aobj(m, 1470, 860, (c, t) => ART.grandClock(c, 1470, 860, t), { l: -36, t: -166, w: 72, h: 172 });
     col(m, 1444, 838, 52, 22);
-    sobj(m, 800, 962, (c) => ART.homeDoor(c, 800, 962), { l: -50, t: -22, w: 100, h: 28 });
-    inter(m, { x: 740, y: 900, w: 120, h: 70, ax: 800, ay: 930, name: 'Ra sân trường', use: () => AV.leaveClass(), arrow: { x: 800, y: 905, text: 'Ra ngoài' } });
+    // cửa ra ở giữa tường hai bên (phía dưới hay bị khung chat / thanh đáp án che)
+    [[110, 770], [1490, 650]].forEach(([dx, dy]) => {
+      sobj(m, dx, dy, (c) => ART.homeDoor(c, dx, dy), { l: -50, t: -22, w: 100, h: 28 }, dy - 40);
+      inter(m, { x: dx - 60, y: dy - 80, w: 120, h: 100, ax: dx, ay: dy - 20, name: 'Ra sân trường', use: () => AV.leaveClass(), arrow: { x: dx, y: dy - 50, text: 'Ra ngoài' } });
+    });
     m.spawn = { x: 800, y: 900 };
     m.bounds = { l: 56, t: 340, r: m.w - 56, b: 940 };
     return m;
@@ -807,7 +810,7 @@ const MAPS = (() => {
     col(m, 684, 552, 12, 10);
 
     inter(m, { x: 290, y: 380, w: 260, h: 160, ax: 420, ay: 578, name: 'Vào lớp học (đố vui tiếng Anh)', use: () => AV.enterClass(), arrow: { x: 420, y: 470, text: 'Vào lớp' } });
-    sobj(m, 1150, 600, (c) => ART.signBoard(c, 1150, 600, 'ĐỐ VUI TIẾNG ANH\nVào LỚP HỌC để\ntrả lời nhận xu 🏫'));
+    sobj(m, 1150, 600, (c) => ART.signBoard(c, 1150, 600, 'ĐỐ VUI\nTIẾNG ANH\nVào lớp 🏫'));
     col(m, 1112, 590, 80, 12);
     sobj(m, 1430, 645, (c) => ART.podium(c, 1430, 645), { l: -80, t: -30, w: 160, h: 36 });
     [[220, 790], [1780, 790], [1700, 420]].forEach(([x, y], i) => addBush(m, x, y, FLOWERS[i % 4]));

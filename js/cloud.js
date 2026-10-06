@@ -143,6 +143,13 @@ const CLOUD = (() => {
     return data;
   }
 
+  /** Mốc changedAt của bản lưu trên mạng (để biết máy khác vừa lưu chưa) */
+  async function peekChangedAt() {
+    const { data, error } = await client.from('saves').select('changed:data->changedAt').eq('user_id', user.id).maybeSingle();
+    if (error) throw new Error(viError(error));
+    return data ? Number(data.changed) || 0 : 0;
+  }
+
   async function push(state) {
     if (!user || !client || pushing) return false;
     pushing = true;
@@ -184,7 +191,7 @@ const CLOUD = (() => {
   }
 
   const api = {
-    init, signUp, signIn, signOut, pull, push, pushOnExit, getFarm, recentFarms, sendHelp, pullHelps, sendSteal, pullSteals, history,
+    init, signUp, signIn, signOut, pull, push, pushOnExit, getFarm, recentFarms, sendHelp, pullHelps, sendSteal, pullSteals, history, peekChangedAt,
     onPushed: null,
     markDirty: () => { dirty = true; },
     get user() { return user; },

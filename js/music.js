@@ -1,4 +1,5 @@
-/* Nhạc nền chill tự tạo bằng Web Audio: hợp âm lo-fi chậm, piano rải nhẹ, bass trầm (không cần file nhạc) */
+/* Nhạc nền: mặc định lấy link trong config (YouTube / mp3), hoặc nhạc chill tự tạo bằng Web Audio
+ * (hợp âm lo-fi chậm, piano rải nhẹ, bass trầm). Mỗi người đổi được trong Cài đặt (dán link khác). */
 const MUSIC = (() => {
   const BPM = 70, BEAT = 60 / BPM, BAR = BEAT * 4;
   /** Cmaj7 – Am7 – Fmaj7 – G6 (số MIDI) */
@@ -8,6 +9,9 @@ const MUSIC = (() => {
 
   let ac = null, master = null, bus = null, echo = null, timer = null;
   let on = true, vol = 0.5, bar = 0, nextBar = 0, started = false;
+  /* Nguồn nhạc: chill (tự tạo) | yt (YouTube) | file (mp3...) */
+  let src = { kind: 'chill' }, yt = null, ytReady = false, fileEl = null, kicked = false;
+  const DEFAULT = (window.AVATAR_CONFIG && window.AVATAR_CONFIG.defaultMusic) || 'chill';
 
   function build() {
     ac = new (window.AudioContext || window.webkitAudioContext)();
@@ -76,6 +80,7 @@ const MUSIC = (() => {
     try {
       if (!ac) build();
       if (ac.state === 'suspended') ac.resume();
+      if (src.kind !== 'chill') { playCustom(); return; }
       if (!started) { started = true; nextBar = ac.currentTime + 0.1; }
       if (!timer) timer = setInterval(pump, 300);
       pump();
@@ -84,6 +89,7 @@ const MUSIC = (() => {
   }
 
   function stop() {
+    pauseCustom();
     if (!ac) return;
     fadeTo(0, 0.6);
     setTimeout(() => { if (!on && ac) { ac.suspend(); clearInterval(timer); timer = null; started = false; } }, 700);
@@ -93,12 +99,18 @@ const MUSIC = (() => {
   function init(settings) {
     on = settings.music !== false;
     vol = typeof settings.musicVol === 'number' ? settings.musicVol : 0.5;
+    setSource(settings.musicUrl ?? DEFAULT, true);
     // trình duyệt chỉ cho phát tiếng sau khi người chơi chạm / bấm lần đầu
-    const kick = () => { if (on && (!ac || ac.state !== 'running' || !started)) start(); };
+    const kick = () => {
+      kicked = true;
+      if (!on) return;
+      if (src.kind !== 'chill') { if (!ac) { try { build(); } catch (e) { /* bỏ qua */ } } if (ac && ac.state === 'suspended') ac.resume(); playCustom(); return; }
+      if (!ac || ac.state !== 'running' || !started) start();
+    };
     ['pointerdown', 'keydown', 'touchend'].forEach((ev) => window.addEventListener(ev, kick, { passive: true }));
     document.addEventListener('visibilitychange', () => {
       if (!ac) return;
-      if (document.hidden) ac.suspend(); else if (on) { ac.resume(); start(); }
+      if (document.hidden) { ac.suspend(); pauseCustom(); } else if (on) { ac.resume(); start(); }
     });
   }
 
@@ -192,8 +204,115 @@ const MUSIC = (() => {
     o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.1);
   }
 
-  function setOn(v) { on = v; if (v) start(); else stop(); }
-  function setVolume(v) { vol = Math.max(0, Math.min(1, v)); if (on && ac) fadeTo(vol * 0.9, 0.3); }
+  function setOn(v) { on = v; if (v) start(); else stop(); updateMini(); }
+  function setVolume(v) {
+    vol = Math.max(0, Math.min(1, v));
+    if (on && ac && src.kind === 'chill') fadeTo(vol * 0.9, 0.3);
+    if (yt && ytReady) yt.setVolume(Math.round(vol * 100));
+    if (fileEl) fileEl.volume = vol;
+  }
 
-  return { init, setOn, setVolume, boom, whistle, melody, clack, bark, rain, get on() { return on; }, get volume() { return vol; } };
+  /* ---------- Nhạc từ link: YouTube (trình phát nhỏ ở góc) hoặc file mp3 ---------- */
+  /** Nhận diện link: trả về nguồn nhạc, null nếu link không dùng được */
+  function parseSource(url) {
+    const u = String(url || '').trim();
+    if (!u || u === 'chill') return { kind: 'chill' };
+    const m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([\w-]{11})/);
+    const list = (u.match(/[?&]list=([\w-]+)/) || [])[1];
+    if (m || list) return { kind: 'yt', id: m ? m[1] : null, list: list || null, url: u };
+    if (/^https?:\/\/\S+\.(mp3|m4a|ogg|wav|aac)(\?\S*)?$/i.test(u)) return { kind: 'file', url: u };
+    return null;
+  }
+
+  function loadYT() {
+    return new Promise((resolve) => {
+      if (window.YT && window.YT.Player) return resolve();
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => { if (prev) prev(); resolve(); };
+      if (!document.getElementById('ytApi')) {
+        const sc = document.createElement('script');
+        sc.id = 'ytApi'; sc.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(sc);
+      }
+    });
+  }
+
+  /** Trình phát nhỏ ở góc màn hình (YouTube không cho ẩn hẳn trình phát) */
+  function mini() {
+    let el = document.getElementById('ytMini');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'ytMini';
+      el.className = 'yt-mini';
+      el.innerHTML = '<div class="yt-bar"><span class="yt-title">🎵 Đang tải nhạc…</span><button data-yplay title="Phát / dừng">⏯</button><button data-ynext title="Bài tiếp">⏭</button><button data-ysmall title="Thu nhỏ">▁</button></div><div class="yt-frame"><div id="ytHolder"></div></div>';
+      document.body.appendChild(el);
+      el.querySelector('[data-yplay]').onclick = () => { kicked = true; if (!on) { setOn(true); return; } if (yt && ytReady) { if (yt.getPlayerState() === 1) yt.pauseVideo(); else yt.playVideo(); } };
+      el.querySelector('[data-ynext]').onclick = () => { if (yt && ytReady) { if (src.list) yt.nextVideo(); else yt.seekTo(0); } };
+      el.querySelector('[data-ysmall]').onclick = () => el.classList.toggle('small');
+    }
+    return el;
+  }
+  function updateMini() {
+    const el = document.getElementById('ytMini');
+    if (!el) return;
+    el.classList.toggle('hide', src.kind !== 'yt');
+    let title = '🎵 Nhạc nền';
+    try { const d = yt && ytReady && yt.getVideoData(); if (d && d.title) title = '🎵 ' + d.title; } catch (e) { /* bỏ qua */ }
+    if (!on) title = '🔇 Đã tắt nhạc — bấm ⏯ để bật';
+    el.querySelector('.yt-title').textContent = title;
+    el.querySelector('[data-ynext]').style.display = src.list ? '' : 'none';
+  }
+
+  async function setupYT() {
+    const me = src;
+    mini();
+    updateMini();
+    await loadYT();
+    if (src !== me) return;
+    if (yt) { try { yt.destroy(); } catch (e) { /* bỏ qua */ } yt = null; ytReady = false; document.querySelector('.yt-frame').innerHTML = '<div id="ytHolder"></div>'; }
+    const pv = { playsinline: 1, rel: 0, modestbranding: 1, controls: 1 };
+    if (me.list) { pv.listType = 'playlist'; pv.list = me.list; pv.loop = 1; } else { pv.loop = 1; pv.playlist = me.id; }
+    yt = new window.YT.Player('ytHolder', {
+      width: 200, height: 113, videoId: me.id || undefined, playerVars: pv,
+      events: {
+        onReady: () => { ytReady = true; yt.setVolume(Math.round(vol * 100)); if (on && kicked) yt.playVideo(); updateMini(); },
+        onStateChange: () => updateMini(),
+        onError: () => { const el = document.getElementById('ytMini'); if (el) el.querySelector('.yt-title').textContent = '⚠️ Video này không cho phát nhúng — thử link khác'; },
+      },
+    });
+  }
+
+  function playCustom() {
+    if (src.kind === 'yt' && yt && ytReady) yt.playVideo();
+    if (src.kind === 'file' && fileEl) fileEl.play().catch(() => {});
+  }
+  function pauseCustom() {
+    if (yt && ytReady) try { yt.pauseVideo(); } catch (e) { /* bỏ qua */ }
+    if (fileEl) fileEl.pause();
+  }
+
+  /** Đổi nguồn nhạc. Trả về false nếu link không dùng được */
+  function setSource(url, silent) {
+    const next = parseSource(url);
+    if (!next) return false;
+    if (next.kind === src.kind && next.url === src.url && (next.kind !== 'yt' || yt)) return true;
+    // dừng nguồn cũ
+    pauseCustom();
+    if (src.kind === 'chill' && ac) { fadeTo(0, 0.4); clearInterval(timer); timer = null; started = false; }
+    if (fileEl && next.kind !== 'file') { fileEl.src = ''; fileEl = null; }
+    if (yt && next.kind !== 'yt') { try { yt.destroy(); } catch (e) { /* bỏ qua */ } yt = null; ytReady = false; }
+    src = next;
+    if (src.kind === 'yt') setupYT();
+    else if (src.kind === 'file') { fileEl = new Audio(src.url); fileEl.loop = true; fileEl.volume = vol; if (on && kicked) fileEl.play().catch(() => {}); }
+    else if (on && kicked) start();
+    updateMini();
+    return true;
+  }
+  /** Sau khi đăng nhập (cài đặt có thể khác bản trên máy) */
+  function refresh(settings) {
+    if (typeof settings.musicVol === 'number') setVolume(settings.musicVol);
+    setSource(settings.musicUrl ?? DEFAULT, true);
+  }
+
+  return { init, setOn, setVolume, setSource, parseSource, refresh, get source() { return src; }, get defaultUrl() { return DEFAULT; }, boom, whistle, melody, clack, bark, rain, get on() { return on; }, get volume() { return vol; } };
 })();

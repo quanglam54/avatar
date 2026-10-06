@@ -577,3 +577,22 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .belly { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; margin: 4px 0 10px; font-weight: 700; font-size: 13px; }
 .belly .qbar { margin: 0; }
 .belly small { color: #6c5a3e; }
+
+/* Trình phát nhạc YouTube nhỏ ở góc */
+.yt-mini { position: fixed; right: 10px; top: 64px; z-index: 7; width: 212px; background: #1b2f48; border: 2px solid #fff; border-radius: 12px; box-shadow: 0 4px 0 rgba(0,0,0,.25); overflow: hidden; }
+.yt-mini.hide { display: none; }
+.yt-bar { display: flex; align-items: center; gap: 2px; padding: 3px 4px 3px 8px; }
+.yt-title { flex: 1; color: #fff; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yt-bar button { background: rgba(255,255,255,.15); color: #fff; border: 0; border-radius: 6px; width: 24px; height: 22px; font-size: 12px; cursor: pointer; }
+.yt-frame { padding: 0 6px 6px; }
+.yt-frame iframe { display: block; border-radius: 6px; }
+.yt-mini.small { width: 212px; }
+.yt-mini.small .yt-frame { height: 40px; overflow: hidden; opacity: .9; }
+.music-src { background: #f1f6ff; border-radius: 12px; padding: 8px 10px; display: grid; gap: 6px; }
+@media (max-width: 560px) { .yt-mini { top: auto; bottom: 150px; right: 6px; } }
+
+/* Thanh đáp án gọn 1 hàng trên màn hình rộng */
+@media (min-width: 700px) {
+  .quiz-bar { width: min(820px, calc(100% - 24px)); flex-wrap: nowrap; }
+  .quiz-bar button { flex: 1 1 0; min-width: 0; padding: 8px 10px; font-size: 14px; }
+}
