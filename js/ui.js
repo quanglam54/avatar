@@ -454,6 +454,53 @@ const UI = (() => {
     p.onClose = () => clearInterval(timer);
   }
 
+  /* ---------- Đấu Trường MMA: bảng đặt cược ---------- */
+  function arenaPanel() {
+    const S = AV.S;
+    let amt = 100;
+    const p = panel('⚔️ Đấu Trường MMA · Đặt cược', '', { wide: true });
+    let lastKey = '';
+    const render = (force) => {
+      const st = ARENA.state(), my = S.arenaBet && S.arenaBet.r === st.r ? S.arenaBet : null;
+      const key = [st.r, st.phase, my && my.amt, S.coins].join('|');
+      const tEl = p.body.querySelector('[data-time]');
+      if (tEl) tEl.textContent = st.phase === 'bet' ? `🔔 Còn ${Math.ceil(st.left)} giây để đặt cược` : st.phase === 'fight' ? `⚔️ Đang đấu — trận sau mở cược sau ${Math.ceil(st.left + 9)}s` : `🏆 ${st.fs[st.sim.win].name} thắng! Trận mới sau ${Math.ceil(st.left)}s`;
+      if (!force && key === lastKey) return;
+      lastKey = key;
+      const card = (f, k) => `<div class="ar-card ${my && my.side === k ? 'mine' : ''}">
+          <canvas data-fpv="${k}"></canvas>
+          <b>${f.icon} ${f.name}</b>
+          <small>❤️ ${f.hp} · ⚔️ ${f.atk.toFixed(1)} · 💨 ${f.spd}</small>
+          <div class="ar-odds">x${st.odds[k]}</div>
+          <button class="btn" data-side="${k}" ${st.phase !== 'bet' || (my && my.side !== k) ? 'disabled' : ''}>Cược ${f.name}</button>
+        </div>`;
+      p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
+        <p class="ar-time" data-time></p>
+        <div class="ar-vs">${card(st.fs[0], 0)}<div class="ar-x">VS</div>${card(st.fs[1], 1)}</div>
+        <label class="muted">Số xu cược</label>
+        <div class="chips">${[100, 500, 1000, 5000, 10000, 50000, 100000].map((v) => `<button class="chip ${amt === v ? 'on' : ''}" data-amt="${v}">${v.toLocaleString('vi-VN')}</button>`).join('')}<button class="chip" data-all>🔥 Tất tay</button></div>
+        <input class="field" type="number" min="1" data-amtin value="${amt}" style="margin-top:8px">
+        ${my ? `<p class="ar-mine">✅ Bạn đã cược <b>${my.amt.toLocaleString('vi-VN')} xu</b> cho ${st.fs[my.side].icon} ${st.fs[my.side].name} — thắng nhận <b>${Math.floor(my.amt * my.odds).toLocaleString('vi-VN')} xu</b>. Có thể cược thêm cùng bên.</p>` : ''}
+        <p class="muted small-note">Mỗi trận: 20 giây đặt cược → 24 giây đấu → công bố kết quả. Thắng nhận xu × tỉ lệ, thua mất xu cược. Ra khỏi đấu trường vẫn được trả thưởng khi trận kết thúc.</p>
+        ${(S.arenaLog || []).length ? `<div class="ar-log">${S.arenaLog.slice().reverse().map((l) => `<span class="${l.pay ? 'w' : 'l'}">${l.pay ? '🏆 +' + l.pay.toLocaleString('vi-VN') : '❌ −' + l.amt.toLocaleString('vi-VN')} · ${esc(l.f)}</span>`).join('')}</div>` : ''}`;
+      st.fs.forEach((f, k) => {
+        const cv = p.body.querySelector(`[data-fpv="${k}"]`), g = cv.getContext('2d'), d = Math.min(2, devicePixelRatio || 1);
+        cv.width = 150 * d; cv.height = 110 * d; g.setTransform(d, 0, 0, d, 0, 0);
+        g.translate(75, 100); g.scale(f.id === 'dog' || f.id === 'shepherd' ? 1.4 : 0.9, f.id === 'dog' || f.id === 'shepherd' ? 1.4 : 0.9);
+        ART.guard(g, 0, 0, f.id, k ? -1 : 1, 0, false, false);
+      });
+      p.body.querySelectorAll('[data-amt]').forEach((b) => b.onclick = () => { amt = +b.dataset.amt; render(true); });
+      p.body.querySelector('[data-all]').onclick = () => { amt = S.coins; render(true); };
+      const inp = p.body.querySelector('[data-amtin]');
+      inp.oninput = () => { amt = Math.max(0, Math.floor(+inp.value || 0)); };
+      p.body.querySelectorAll('[data-side]').forEach((b) => b.onclick = () => { if (ARENA.placeBet(+b.dataset.side, amt)) render(true); });
+      render(false);
+    };
+    render(true);
+    const timer = setInterval(() => render(false), 400);
+    p.onClose = () => clearInterval(timer);
+  }
+
   /* ---------- Chọn cách đi: xe buýt / taxi Xanh SM / xe máy ---------- */
   function rideChooser(id) {
     const S = AV.S, cur = AV.currentMap();
@@ -1508,5 +1555,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel };
 })();

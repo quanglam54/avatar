@@ -2083,8 +2083,10 @@
   AV.enterClass = () => AV.teleport('classroom', false, 800, 880, '🏫 Vào lớp học…');
   AV.leaveClass = () => AV.teleport('school', false, 420, 590, '🌳 Ra sân trường…');
   AV.enterCasino = () => AV.teleport('casino', false, 1000, 880, '🎰 Vào Nhà Casino…');
+  AV.enterArena = () => AV.teleport('arena', false, 1000, 990, '⚔️ Vào Đấu Trường MMA…');
+  AV.leaveArena = () => AV.teleport('fun', false, 360, 805, '🎡 Ra Khu giải trí…');
   AV.leaveCasino = () => AV.teleport('fun', false, 2260, 815, '🎡 Ra Khu giải trí…');
-  AV.leaveHome = () => AV.teleport('farm', false, 2520, 762, '🌾 Ra nông trại…');
+  AV.leaveHome = () => AV.teleport('farm', false, 2650, 762, '🌾 Ra nông trại…');
 
   /** Hoạt động trong nhà, có thời gian chờ để không spam XP */
   function homeActivity(key, cooldownMin, xp, msg, bubble, waitMsg) {

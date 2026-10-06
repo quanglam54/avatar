@@ -103,10 +103,10 @@ const DATA = {
     pig: { name: 'Chuồng heo', icon: '🐖', time: 2400, feed: 2, out: { pork: 3 }, xp: 10, fedMsg: 'Đã đổ cám cho heo! 🐖', waitMsg: 'Heo đang ăn no ngủ kỹ…' },
   },
   PLOT_PRICES: [0, 0, 0, 0, 0, 0, 40, 80, 120, 200],
-  BED_PRICES: [0, 150, 400, 900, 1500, 2200, 3000, 4000, 0, 300, 800, 1500, 4500, 5000, 5500, 6000, 7000, 8000, 9000, 10000],
+  BED_PRICES: [0, 150, 400, 900, 1500, 2200, 3000, 4000, 0, 300, 800, 1500, 4500, 5000, 5500, 6000, 7000, 8000, 9000, 10000, 11000, 12000],
   /** Luống 12–19: khu đất mở rộng (trồng rau củ) */
   EXTRA_BEDS: 8,
-  BED_COUNT: 20,
+  BED_COUNT: 22,
   FIELD_BEDS: 8,
   FLOWER_BEDS: 4,
   TILES_PER_BED: 12,

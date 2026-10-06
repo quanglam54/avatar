@@ -774,15 +774,22 @@ Object.assign(ART, (() => {
     ctx.fillStyle = '#4fb32c';
     rr(ctx, bx, by, BED.w, BED.h, 8); ctx.fill();
     if (!unlocked) {
-      ctx.fillStyle = '#6fd043'; rr(ctx, bx + 6, by + 6, BED.w - 12, BED.h - 14, 6); ctx.fill();
-      const cx = bx + BED.w / 2, cy = by + BED.h / 2;
-      ctx.fillStyle = '#7a4a2c'; ctx.fillRect(cx - 2, cy - 6, 4, 30);
-      ctx.fillStyle = '#e8b46a'; rr(ctx, cx - 30, cy - 26, 60, 26, 5); ctx.fill();
-      ctx.strokeStyle = '#7a4a2c'; ctx.lineWidth = 2; ctx.stroke();
-      ctx.font = '900 13px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#5c3010'; ctx.fillText('MUA', cx, cy - 13);
-      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(40,30,20,.75)'; ctx.fillStyle = '#fff';
-      ctx.strokeText(price + ' xu', cx, by + BED.h - 12); ctx.fillText(price + ' xu', cx, by + BED.h - 12);
+      // đất trống: cỏ lơ thơ + biển gỗ "MUA ĐẤT"
+      ctx.fillStyle = '#c9a66b'; rr(ctx, bx + 4, by + 4, BED.w - 8, BED.h - 10, 6); ctx.fill();
+      const fr = srand(bx * 3 + by);
+      for (let d = 0; d < 26; d++) {
+        const gx = bx + 14 + fr() * (BED.w - 28), gy = by + 12 + fr() * (BED.h - 26);
+        ctx.strokeStyle = d % 3 ? '#6fae3a' : '#4f8f26'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(gx, gy + 6); ctx.lineTo(gx - 3, gy); ctx.moveTo(gx, gy + 6); ctx.lineTo(gx + 3, gy - 1); ctx.stroke();
+      }
+      for (let d = 0; d < 6; d++) circle(ctx, bx + 20 + fr() * (BED.w - 40), by + 16 + fr() * (BED.h - 30), 3, '#a8895a');
+      const cx = bx + BED.w / 2, cy = by + BED.h / 2 + 4;
+      ctx.fillStyle = '#6b3f22'; ctx.fillRect(cx - 3, cy - 14, 6, 34);
+      ctx.fillStyle = '#e8b46a'; rr(ctx, cx - 44, cy - 38, 88, 30, 6); ctx.fill();
+      ctx.strokeStyle = '#6b3f22'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(cx - 38, cy - 34, 76, 4);
+      ctx.font = '900 14px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#5c3010'; ctx.fillText('🪧 MUA ĐẤT', cx, cy - 22);
       return;
     }
     tiles.forEach((tile, k) => {
