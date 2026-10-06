@@ -244,11 +244,11 @@ const MUSIC = (() => {
       el = document.createElement('div');
       el.id = 'ytMini';
       el.className = 'yt-mini';
-      el.innerHTML = '<div class="yt-bar"><span class="yt-title">🎵 Đang tải nhạc…</span><button data-yplay title="Phát / dừng">⏯</button><button data-ynext title="Bài tiếp">⏭</button><button data-ysmall title="Thu nhỏ">▁</button></div><div class="yt-frame"><div id="ytHolder"></div></div>';
+      el.innerHTML = '<div class="yt-bar"><span class="yt-title">🎵 Đang tải nhạc…</span><button data-yplay title="Phát / dừng">⏯</button><button data-ynext title="Bài tiếp">⏭</button><button data-yvid title="Hiện / ẩn video">📺</button></div><div class="yt-frame"><div id="ytHolder"></div></div>';
       document.body.appendChild(el);
       el.querySelector('[data-yplay]').onclick = () => { kicked = true; if (!on) { setOn(true); return; } if (yt && ytReady) { if (yt.getPlayerState() === 1) yt.pauseVideo(); else yt.playVideo(); } };
       el.querySelector('[data-ynext]').onclick = () => { if (yt && ytReady) { if (src.list) yt.nextVideo(); else yt.seekTo(0); } };
-      el.querySelector('[data-ysmall]').onclick = () => el.classList.toggle('small');
+      el.querySelector('[data-yvid]').onclick = () => el.classList.toggle('video');
     }
     return el;
   }

@@ -348,7 +348,9 @@ const UI = (() => {
           <button class="btn small ghost" data-one="${id}">Gieo 1 ô</button>
           <button class="btn small" data-all="${id}">Cả luống (${Math.min(have, empty)})</button></div>`;
       }).join('')}</div>`
-      : `<p class="muted">Bạn chưa có ${flowerBed ? 'hạt giống hoa (cúc, tulip, hướng dương, dâm bụt, hồng)' : 'hạt giống rau củ'}! Bấm 🗺️ đi xe buýt tới <b>Khu mua sắm</b> và ghé <b>Chợ</b> để mua nhé.</p>`);
+      : `<p class="muted">Bạn chưa có ${flowerBed ? 'hạt giống hoa (cúc, tulip, hướng dương, dâm bụt, hồng)' : 'hạt giống rau củ'}! Ra <b>🌱 Cửa hàng hạt giống</b> ngay cổng nông trại để mua nhé.</p><div class="row-end"><button class="btn" data-shop>🌱 Mở cửa hàng hạt giống</button></div>`);
+    const sb = p.body.querySelector('[data-shop]');
+    if (sb) sb.onclick = () => { p.close(); seedShop(); };
     p.body.querySelectorAll('[data-one]').forEach((b) => b.onclick = () => { p.close(); AV.plant(tileIndex, b.dataset.one); });
     p.body.querySelectorAll('[data-all]').forEach((b) => b.onclick = () => { p.close(); AV.plantBed(tileIndex, b.dataset.all); });
   }
@@ -623,12 +625,15 @@ const UI = (() => {
         <div class="shop-list">
           <div class="shop-row"><span class="ic">💧</span><div class="info"><b>Tưới nước</b><small>Miễn phí · nhanh hơn ${Math.round(DATA.WATER_CUT * 100)}% · ${c.dry ? c.dry + ' cây chưa tưới' : 'đã tưới hết'}</small></div>
             <button class="btn small" data-water ${c.dry ? '' : 'disabled'}>Tưới</button></div>
-          <div class="shop-row"><span class="ic">🧪</span><div class="info"><b>Bón phân</b><small>1 gói/ô · nhanh hơn ${Math.round(DATA.FERT.cut * 100)}% · ${c.unfert ? c.unfert + ' cây chưa bón' : 'đã bón hết'} · đang có <b>${c.fert}</b> gói</small></div>
+          <div class="shop-row"><span class="ic">🧪</span><div class="info"><b>Bón phân</b><small>1 gói/ô · nhanh hơn ${Math.round(DATA.FERT.cut * 100)}% · <b>không bón chỉ thu được ${Math.round(DATA.FERT.noFertYield * 100)}%</b> · ${c.unfert ? c.unfert + ' cây chưa bón' : 'đã bón hết'} · đang có <b>${c.fert}</b> gói</small></div>
             <button class="btn small" data-fert ${c.unfert && c.fert ? '' : 'disabled'}>Bón</button></div>
+          <div class="shop-row ${c.pests ? 'quest ready' : ''}"><span class="ic">🧴</span><div class="info"><b>Xịt thuốc trừ sâu</b><small>1 chai/luống · ${c.pests ? '🐛 <b>' + c.pests + ' cây đang bị sâu — không lớn được!</b>' : c.unsprayed ? 'phun phòng trước khi sâu tới' : 'đã phun thuốc'} · đang có <b>${c.pesticide}</b> chai</small></div>
+            <button class="btn small" data-spray ${c.unsprayed && c.pesticide ? '' : 'disabled'}>Xịt</button></div>
         </div>
-        ${c.fert ? '' : '<p class="muted small-note">Hết phân bón? Mua ở 🛒 Chợ trong Khu mua sắm (5 xu/gói).</p>'}`;
+        ${c.fert && c.pesticide ? '' : '<p class="muted small-note">Hết phân bón / thuốc trừ sâu? Mua ở 🌱 Cửa hàng hạt giống cạnh cổng nông trại.</p>'}`;
       p.body.querySelector('[data-water]').onclick = () => { AV.waterBed(bed); render(); };
       p.body.querySelector('[data-fert]').onclick = () => { AV.fertBed(bed); render(); };
+      p.body.querySelector('[data-spray]').onclick = () => { AV.sprayBed(bed); render(); };
     };
     render();
   }
@@ -713,7 +718,7 @@ const UI = (() => {
       if (!list) return;
       const ago = (t) => { const m = Math.floor((Date.now() - new Date(t).getTime()) / 60000); return m < 1 ? 'vừa xong' : m < 60 ? m + ' phút trước' : m < 1440 ? Math.floor(m / 60) + ' giờ trước' : Math.floor(m / 1440) + ' ngày trước'; };
       const others = (rows || []).filter((r) => r.username && r.username !== CLOUD.username);
-      list.innerHTML = others.length ? others.map((r) => `<div class="shop-row"><span class="ic">🧑‍🌾</span>
+      list.innerHTML = others.length ? others.map((r) => `<div class="shop-row"><span class="ic">🏡</span>
         <div class="info"><b>${esc(r.name)}</b><small>@${esc(r.username)} · Cấp ${r.level} · chơi ${ago(r.updated_at)}</small></div>
         <button class="btn small" data-v="${esc(r.username)}">🏡 Thăm</button></div>`).join('') : '<p class="muted">Chưa có người chơi nào khác.</p>';
       list.querySelectorAll('[data-v]').forEach((b) => b.onclick = () => { p.close(); AV.visitFarm(b.dataset.v); });
@@ -887,6 +892,101 @@ const UI = (() => {
     renderInfo();
   }
 
+  /* ---------- Cửa hàng hạt giống ở cổng nông trại (kiểu Avatar: lưới ô + thông tin + Mua) ---------- */
+  function seedShop(tab = 'seed') {
+    const S = AV.S;
+    const p = panel('🌱 Cửa hàng hạt giống', '', { wide: true });
+    let sel = null, qty = 1;
+    const tabs = [['seed', 'Giống'], ['item', 'Vật Phẩm'], ['store', 'Kho hàng'], ['seeds', 'Kho Giống']];
+    const entries = () => {
+      if (tab === 'seed') return Object.entries(DATA.CROPS).map(([id, c]) => ({ id, icon: c.icon, kind: 'seed', c, locked: S.level < (c.lvl || 1) }));
+      if (tab === 'item') return [{ id: 'fertilizer', icon: DATA.FERT.icon, kind: 'item' }, { id: 'pesticide', icon: DATA.PEST.icon, kind: 'item' }];
+      if (tab === 'store') return Object.entries(S.inv).filter(([id, n]) => n > 0 && DATA.ITEMS[id] && DATA.ITEMS[id].sell > 0 && !id.startsWith('seed_')).map(([id, n]) => ({ id, icon: DATA.ITEMS[id].icon, kind: 'sell', n }));
+      return Object.entries(S.inv).filter(([id, n]) => n > 0 && (id.startsWith('seed_') || id === 'fertilizer' || id === 'pesticide')).map(([id, n]) => ({ id, icon: id.startsWith('seed_') ? DATA.CROPS[id.slice(5)].icon : DATA.ITEMS[id].icon, kind: 'own', n }));
+    };
+    const detail = (e) => {
+      if (!e) return '<p class="muted">Chọn một ô để xem thông tin.</p>';
+      if (e.kind === 'seed') {
+        const c = e.c, low = Math.max(1, Math.round(c.yield * DATA.FERT.noFertYield));
+        return `<b>${c.name} (${AV.fmtDur(c.time)})</b><span>Giá: ${c.seed} xu / hạt</span><span>Cấp độ: ${c.lvl || 1}${e.locked ? ' 🔒' : ''}</span>
+          <span>Sản lượng: ${c.yield} ${c.name.toLowerCase()} / ô (có bón phân) · ${low} nếu không bón</span><span>Bán: ${c.sell} xu · ${c.kind === 'flower' ? 'trồng ở luống hoa' : c.kind === 'both' ? 'trồng được cả 2 loại luống' : 'trồng ở luống ruộng'}</span>`;
+      }
+      if (e.kind === 'item') {
+        const P = e.id === 'fertilizer' ? DATA.FERT : DATA.PEST;
+        return `<b>${P.icon} ${P.name}</b><span>Giá: ${P.price} xu</span><span>${e.id === 'fertilizer' ? `1 gói / ô · cây nhanh hơn ${Math.round(DATA.FERT.cut * 100)}% và <b>thu đủ sản lượng</b> (không bón chỉ được ${Math.round(DATA.FERT.noFertYield * 100)}%)` : '1 chai / luống · cây bị 🐛 sâu cắn sẽ đứng không lớn — xịt thuốc để cây lớn tiếp (xịt sớm để phòng sâu)'}</span><span>Đang có: ${S.inv[e.id] || 0}</span>`;
+      }
+      const it = DATA.ITEMS[e.id];
+      return `<b>${it.icon} ${it.name}</b><span>Đang có: ${e.n}</span>${e.kind === 'sell' ? `<span>Bán: ${it.sell} xu / cái</span>` : '<span>Dùng khi gieo hạt / chăm sóc luống</span>'}`;
+    };
+    const render = () => {
+      const list = entries();
+      if (sel && !list.find((e) => e.id === sel)) sel = null;
+      const e = list.find((x) => x.id === sel);
+      const canAct = e && (e.kind === 'seed' ? !e.locked : e.kind === 'item' || e.kind === 'sell');
+      const price = e ? (e.kind === 'seed' ? e.c.seed : e.kind === 'item' ? (e.id === 'fertilizer' ? DATA.FERT.price : DATA.PEST.price) : e.kind === 'sell' ? DATA.ITEMS[e.id].sell : 0) : 0;
+      const max = e && e.kind === 'sell' ? e.n : 99;
+      qty = Math.max(1, Math.min(qty, max));
+      p.body.innerHTML = `<div class="ss-tabs">${tabs.map(([k, l]) => `<button class="${k === tab ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
+        <div class="ss-box">
+          <div class="ss-grid">${list.length ? list.map((x) => `<button class="ss-cell ${x.id === sel ? 'sel' : ''} ${x.locked ? 'locked' : ''}" data-id="${x.id}"><span>${x.icon}</span>${x.n ? `<i>${x.n}</i>` : ''}${x.locked ? '<em>🔒</em>' : ''}</button>`).join('') : '<p class="muted">Trống</p>'}</div>
+          <div class="ss-info"><div class="ss-text">${detail(e)}</div>
+            ${canAct ? `<div class="ss-buy"><div class="qty-row"><button class="qbtn" data-q="-1">−</button><input class="qin" type="number" min="1" max="${max}" value="${qty}"><button class="qbtn" data-q="1">+</button></div>
+              <button class="btn ss-go" data-go>${e.kind === 'sell' ? 'Bán' : 'Mua'} · ${(price * qty).toLocaleString('vi-VN')} xu</button></div>` : ''}
+          </div>
+        </div>
+        <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Cấp ${S.level}</div>`;
+      p.body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab; sel = null; qty = 1; render(); });
+      p.body.querySelectorAll('[data-id]').forEach((b) => b.onclick = () => { sel = b.dataset.id; qty = 1; render(); });
+      p.body.querySelectorAll('[data-q]').forEach((b) => b.onclick = () => { qty = Math.max(1, Math.min(max, qty + +b.dataset.q)); render(); });
+      const qi = p.body.querySelector('.qin');
+      if (qi) qi.onchange = () => { qty = Math.max(1, Math.min(max, Math.floor(+qi.value) || 1)); render(); };
+      const go = p.body.querySelector('[data-go]');
+      if (go) go.onclick = () => {
+        if (e.kind === 'seed') AV.buySeed(e.id, qty);
+        else if (e.kind === 'item') AV.buyItem(e.id, qty);
+        else if (e.kind === 'sell') AV.sell(e.id, qty);
+        render();
+      };
+    };
+    render();
+  }
+
+  /* ---------- Điểm danh hằng ngày + đổi quà sự kiện ---------- */
+  function dailyPanel() {
+    const S = AV.S;
+    const p = panel('📅 Điểm danh & Đổi quà', '', { wide: true });
+    const label = (r) => [r.coins ? `💰 ${r.coins}` : '', r.item ? `${DATA.ITEMS[r.item].icon} ×${r.n}` : '', r.ticket ? `🎟️ ×${r.ticket}` : ''].filter(Boolean).join('<br>');
+    const render = () => {
+      const today = AV.checkinDay(), done = AV.checkedToday();
+      p.body.innerHTML = `<p class="muted">Đăng nhập mỗi ngày để nhận quà — đủ <b>7 ngày liên tiếp</b> quà càng to, bỏ 1 ngày thì tính lại từ ngày 1. Gom 🎟️ vé để đổi quà bên dưới.</p>
+        <div class="ck-row">${DATA.CHECKIN.map((r, i) => `<div class="ck-day ${i < today || (done && i === today) ? 'got' : ''} ${i === today && !done ? 'now' : ''}"><small>Ngày ${i + 1}</small><b>${label(r)}</b>${i < today || (done && i === today) ? '<i>✅</i>' : ''}</div>`).join('')}</div>
+        <div class="row-end"><button class="btn" data-ck ${done ? 'disabled' : ''}>${done ? '✅ Hôm nay đã điểm danh' : '📅 Điểm danh nhận quà'}</button></div>
+        <h4>🎁 Đổi quà sự kiện · bạn có <b>${S.inv.ticket || 0} 🎟️</b></h4>
+        <div class="shop-list">${DATA.EXCHANGE.map((x) => {
+          const owned = x.kind === 'pet' && S.owned.pets.includes(x.pet);
+          return `<div class="shop-row"><span class="ic">${x.icon}</span><div class="info"><b>${x.name}</b><small>${x.cost} 🎟️</small></div>
+            <button class="btn small" data-ex="${x.id}" ${owned || (S.inv.ticket || 0) < x.cost ? 'disabled' : ''}>${owned ? 'Đã có' : 'Đổi'}</button></div>`;
+        }).join('')}</div>`;
+      p.body.querySelector('[data-ck]').onclick = () => { AV.doCheckin(); render(); };
+      p.body.querySelectorAll('[data-ex]').forEach((b) => b.onclick = () => { AV.exchange(b.dataset.ex); render(); });
+    };
+    render();
+  }
+  function updateDailyDot() {
+    const b = $('#btnDaily');
+    if (b) b.classList.toggle('dot', !AV.checkedToday());
+  }
+
+  /* ---------- Đổi tên nhân vật ---------- */
+  function renamePanel() {
+    const S = AV.S;
+    const p = panel('✏️ Đổi tên nhân vật', `<p class="muted">Tên mới hiện trên đầu nhân vật và trong nông trại của bạn (2–16 ký tự).</p>
+      <form class="fsearch" data-rn><input class="field" name="n" maxlength="16" value="${esc(S.name)}" autocomplete="off"><button class="btn">Đổi tên</button></form>`);
+    const f = p.body.querySelector('[data-rn]');
+    f.onsubmit = (e) => { e.preventDefault(); if (AV.rename(f.n.value)) { p.close(); updateHud(); } };
+    setTimeout(() => { f.n.focus(); f.n.select(); }, 60);
+  }
+
   /* ---------- Quán ăn uống ---------- */
   function eateryPanel(id) {
     const e = DATA.EATERIES.find((x) => x.id === id);
@@ -1047,6 +1147,8 @@ const UI = (() => {
       ['map', '🗺️', 'Bản đồ', () => cityMap(false)],
       ['quest', '📜', 'Nhiệm vụ', questsPanel],
       ['friends', '🏡', 'Thăm bạn bè', friendsPanel],
+      ['daily', '📅', 'Điểm danh', () => dailyPanel()],
+      ['rename', '✏️', 'Đổi tên', renamePanel],
       ['people', '👥', 'Người chơi', playersPanel],
       ['help', '❓', 'Cách chơi', help],
       ['set', '⚙️', 'Cài đặt', settings],
@@ -1247,6 +1349,8 @@ const UI = (() => {
     $('#btnQuest').onclick = questsPanel;
     updateQuestDot();
     $('#btnWheel').onclick = wheelPanel;
+    $('#btnDaily').onclick = () => dailyPanel();
+    updateDailyDot();
     $('#btnMusic').onclick = () => setMusic(!MUSIC.on);
     updateWheelDot();
     $('#btnMap').onclick = () => cityMap(false);
@@ -1264,5 +1368,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel };
 })();

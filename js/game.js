@@ -313,7 +313,7 @@
       UI.toast(`🎉 Lên cấp ${S.level}!`, 3200);
       float('LÊN CẤP!', player.x, player.y - 110, '#ffd43b');
       const unlocked = Object.values(DATA.CROPS).filter((c) => c.lvl === S.level);
-      unlocked.forEach((c) => setTimeout(() => UI.toast(`🔓 Mở khoá hạt ${c.name.toLowerCase()} ${c.icon} ở Chợ`, 3500), 800));
+      unlocked.forEach((c) => setTimeout(() => UI.toast(`🔓 Mở khoá hạt ${c.name.toLowerCase()} ${c.icon} ở Cửa hàng hạt giống (cổng nông trại)`, 3500), 800));
     }
   }
 
@@ -392,25 +392,34 @@
     if (!t || !t.crop) return { stage: -1 };
     const total = DATA.CROPS[t.crop].time * 1000;
     let p = (now - t.plantedAt) / total;
-    const thirsty = !t.watered && p >= DATA.THIRSTY_AT;
-    if (thirsty) p = DATA.THIRSTY_AT;
+    // cây đứng lại khi khát nước hoặc bị sâu (chưa xịt thuốc)
+    let cap = 1, thirsty = false, pest = false;
+    if (!t.watered && p >= DATA.THIRSTY_AT) cap = DATA.THIRSTY_AT;
+    const pestOn = t.pestAt && !t.sprayed;
+    if (pestOn && p >= t.pestAt && t.pestAt < cap) cap = t.pestAt;
+    if (cap < 1 && p >= cap) { p = cap; thirsty = cap === DATA.THIRSTY_AT && !t.watered; pest = pestOn && cap === t.pestAt; }
     p = Math.min(1, p);
-    return { p, thirsty, left: Math.max(0, (1 - p) * total / 1000), stage: p >= 1 ? 2 : p >= 0.3 ? 1 : 0 };
+    return { p, thirsty, pest, left: Math.max(0, (1 - p) * total / 1000), stage: p >= 1 ? 2 : p >= 0.3 ? 1 : 0 };
   }
+  /** Sản lượng thật của 1 ô: không bón phân chỉ được ~60% */
+  const tileYield = (t) => { const y = DATA.CROPS[t.crop].yield; return t.fert ? y : Math.max(1, Math.round(y * DATA.FERT.noFertYield)); };
+  AV.tileYield = tileYield;
   AV.tileState = tileState;
 
   /** Chỉ báo của cả luống: số ô chín, ô khát nước, thời gian ô sớm nhất */
   AV.bedIndicator = (bed) => {
     if (!FD().beds[bed]) return null;
-    let ready = 0, thirsty = 0, minLeft = Infinity, p = 0;
+    let ready = 0, thirsty = 0, pests = 0, minLeft = Infinity, p = 0;
     bedTiles(bed).forEach((t) => {
       const st = tileState(t);
       if (st.stage < 0) return;
       if (st.stage === 2) ready++;
+      else if (st.pest) pests++;
       else if (st.thirsty) thirsty++;
       else if (st.left < minLeft) { minLeft = st.left; p = st.p; }
     });
     if (ready) return '🧺';
+    if (pests) return '🐛';
     if (thirsty) return '💧';
     if (minLeft < Infinity) return { p, left: minLeft };
     return null;
@@ -467,12 +476,41 @@
       unfert: tiles.filter((t) => !t.fert).length,
       soonest: tiles.reduce((m, t) => Math.min(m, tileState(t).left), Infinity),
       fert: S.inv.fertilizer || 0,
+      pests: tiles.filter((t) => tileState(t).pest).length,
+      unsprayed: tiles.filter((t) => t.pestAt && !t.sprayed).length,
+      pesticide: S.inv.pesticide || 0,
     };
+  };
+  /** Xịt thuốc trừ sâu cả luống: 1 chai. Cây đang bị sâu lớn tiếp, cây chưa bị thì được phòng luôn */
+  AV.sprayBed = (bed) => {
+    const tiles = bedTiles(bed).filter((t) => t.crop && tileState(t).stage < 2 && !t.sprayed);
+    if (!tiles.length) return UI.toast('Luống này không cần xịt thuốc 🌱');
+    if ((S.inv.pesticide || 0) < 1) { UI.toast(`🐛 Cây bị sâu! Cần ${DATA.PEST.icon} thuốc trừ sâu — mua ở Cửa hàng hạt giống cạnh cổng nông trại (${DATA.PEST.price} xu/chai)`, 4500); return; }
+    now = Date.now();
+    let cured = 0;
+    tiles.forEach((t) => {
+      const st = tileState(t);
+      if (st.pest) { const total = DATA.CROPS[t.crop].time * 1000; t.plantedAt += now - (t.plantedAt + t.pestAt * total); cured++; }
+      t.sprayed = true;
+    });
+    S.inv.pesticide--;
+    addXP(2 + cured);
+    float(cured ? `🧴 Diệt sâu ${cured} cây` : '🧴 Phun phòng sâu', player.x, player.y - 110, '#b2f2bb');
+    changed();
+  };
+  AV.buyItem = (id, n) => {
+    const price = id === 'pesticide' ? DATA.PEST.price : id === 'fertilizer' ? DATA.FERT.price : 0;
+    if (!price || n < 1) return false;
+    if (!AV.spend(price * n)) return false;
+    addItem(id, n);
+    UI.toast(`Đã mua ${n} ${DATA.ITEMS[id].icon} ${DATA.ITEMS[id].name.toLowerCase()}`);
+    changed();
+    return true;
   };
   AV.waterBed = (bed) => waterBed(bed);
   AV.fertBed = (bed) => {
     const n = fertBed(bed);
-    if (!n) UI.toast((S.inv.fertilizer || 0) < 1 ? 'Hết phân bón — mua ở Chợ (Khu mua sắm) 5 xu/gói' : 'Các cây trong luống đã được bón phân rồi');
+    if (!n) UI.toast((S.inv.fertilizer || 0) < 1 ? 'Hết phân bón — mua ở 🌱 Cửa hàng hạt giống cạnh cổng nông trại (5 xu/gói)' : 'Các cây trong luống đã được bón phân rồi');
     return n;
   };
   AV.buyFert = (n) => {
@@ -488,7 +526,7 @@
     bedTiles(bed).forEach((t) => {
       if (tileState(t).stage !== 2) return;
       const c = DATA.CROPS[t.crop];
-      got[t.crop] = (got[t.crop] || 0) + Math.max(1, c.yield - (t.stolen || 0));
+      got[t.crop] = (got[t.crop] || 0) + Math.max(1, tileYield(t) - (t.stolen || 0));
       xp += c.xp;
       t.crop = null; t.plantedAt = 0; t.watered = false; t.fert = false; t.stolen = 0;
     });
@@ -519,6 +557,7 @@
     const t = S.tiles[i];
     const st = tileState(t);
     if (st.stage === 2 || (st.stage >= 0 && bedTiles(bed).some((x) => tileState(x).stage === 2))) { harvestBed(bed); return; }
+    if (st.pest || bedTiles(bed).some((x) => tileState(x).pest)) { AV.sprayBed(bed); return; }
     if (st.thirsty || bedTiles(bed).some((x) => tileState(x).thirsty)) { waterBed(bed); return; }
     if (st.stage < 0) return UI.seedPicker(i);
     UI.careBed(bed);
@@ -528,7 +567,9 @@
     const key = 'seed_' + crop;
     if (!S.inv[key] || S.tiles[i].crop || !AV.cropAllowed(i, crop)) return false;
     S.inv[key]--;
-    S.tiles[i] = { crop, plantedAt: Date.now(), watered: false };
+    // có khả năng bị sâu ở giữa chừng (khác mốc khát nước)
+    const pestAt = Math.random() < DATA.PEST.chance ? Math.round((0.15 + Math.random() * 0.55) * 1000) / 1000 : 0;
+    S.tiles[i] = { crop, plantedAt: Date.now(), watered: false, pestAt: pestAt === DATA.THIRSTY_AT ? pestAt + 0.01 : pestAt };
     return true;
   }
 
@@ -542,7 +583,7 @@
     let n = 0;
     for (let k = bed * TPB; k < bed * TPB + TPB; k++) if (plantTile(k, crop)) n++;
     if (n) { float(`🌱 Gieo ${n} ô`, player.x, player.y - 110); changed(); }
-    if (!S.inv['seed_' + crop] && n < bedTiles(bed).length) UI.toast('Hết hạt giống — mua thêm ở Chợ (Khu mua sắm)');
+    if (!S.inv['seed_' + crop] && n < bedTiles(bed).length) UI.toast('Hết hạt giống — mua thêm ở 🌱 Cửa hàng hạt giống cạnh cổng nông trại');
   };
   AV.emptyInBed = (i) => bedTiles(bedOf(i)).filter((t) => !t.crop).length;
 
@@ -2031,6 +2072,56 @@
     return true;
   };
 
+  /* ---------- Điểm danh hằng ngày + đổi quà sự kiện ---------- */
+  const dayKeyOf = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  AV.checkin = () => S.checkin || { last: '', streak: 0 };
+  AV.checkedToday = () => AV.checkin().last === todayKey();
+  /** Hôm nay là ngày thứ mấy trong chuỗi 7 ngày (0..6) */
+  AV.checkinDay = () => {
+    const c = AV.checkin();
+    if (c.last === todayKey()) return (c.streak - 1) % DATA.CHECKIN.length;
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    return c.last === dayKeyOf(y) ? c.streak % DATA.CHECKIN.length : 0;
+  };
+  AV.doCheckin = () => {
+    if (AV.checkedToday()) return UI.toast('Hôm nay bạn điểm danh rồi, mai quay lại nhé 📅');
+    const day = AV.checkinDay(), r = DATA.CHECKIN[day];
+    S.checkin = { last: todayKey(), streak: day + 1 };
+    const got = [];
+    if (r.coins) { S.coins += r.coins; got.push(`${r.coins} xu`); }
+    if (r.item) { addItem(r.item, r.n); got.push(`${r.n} ${DATA.ITEMS[r.item].icon}`); }
+    if (r.ticket) { addItem('ticket', r.ticket); got.push(`${r.ticket} 🎟️`); }
+    addXP(5);
+    float('📅 Điểm danh!', player.x, player.y - 120, '#ffd43b');
+    UI.toast(`📅 Điểm danh ngày ${day + 1}: nhận ${got.join(' + ')}`, 4000);
+    changed();
+    UI.updateDailyDot();
+  };
+  AV.exchange = (id) => {
+    const x = DATA.EXCHANGE.find((e) => e.id === id);
+    if (!x) return;
+    if (x.kind === 'pet' && S.owned.pets.includes(x.pet)) return UI.toast('Bạn có thú cưng này rồi 🐾');
+    if ((S.inv.ticket || 0) < x.cost) return UI.toast(`Cần ${x.cost} 🎟️ vé — điểm danh mỗi ngày để nhận thêm`);
+    S.inv.ticket -= x.cost;
+    if (x.kind === 'pet') { S.owned.pets.push(x.pet); AV.wearPet(x.pet); }
+    else if (x.kind === 'coins') S.coins += x.n;
+    else addItem(x.item, x.n);
+    UI.toast(`🎁 Đã đổi ${x.icon} ${x.name}!`, 3500);
+    changed();
+  };
+  /** Đổi tên nhân vật */
+  AV.rename = (name) => {
+    const n = String(name || '').replace(/\s+/g, ' ').trim();
+    if (n.length < 2 || n.length > 16) { UI.toast('Tên dài 2–16 ký tự nhé'); return false; }
+    if (n === S.name) return true;
+    const old = S.name;
+    S.name = n;
+    changed();
+    NET.sendSys(`✏️ ${old} đã đổi tên thành ${n}`);
+    UI.toast(`✏️ Đã đổi tên thành ${n}`);
+    return true;
+  };
+
   /* ---------- Đồ nội thất ---------- */
   AV.hasFurn = (id) => (S.furniture || []).includes(id);
   AV.buyFurn = (id) => {
@@ -2760,7 +2851,10 @@
   /* ---------- Tài khoản: đăng nhập rồi mới vào chơi ---------- */
   function startLocal() {
     if (!S.name) UI.characterEditor(true);
-    else UI.toast(`Chào mừng trở lại, ${S.name}! 🌾`);
+    else {
+      UI.toast(`Chào mừng trở lại, ${S.name}! 🌾`);
+      setTimeout(() => { if (!AV.checkedToday() && !UI.isBlocking()) UI.dailyPanel(); }, 2500);
+    }
   }
   AV.playAsGuest = startLocal;
 
@@ -2807,7 +2901,10 @@
     const uid = CLOUD.user.id;
     let cloud = null;
     try { cloud = await CLOUD.pull(); } catch (e) { UI.toast('⚠️ ' + e.message, 6000); }
-    const finish = () => { cloudReady = true; syncedAt = S.changedAt || 0; saveNow(); joinRoom(); MUSIC.refresh(S.settings || {}); };
+    const finish = () => {
+      cloudReady = true; syncedAt = S.changedAt || 0; saveNow(); joinRoom(); MUSIC.refresh(S.settings || {});
+      setTimeout(() => { if (S.name && !AV.checkedToday() && !UI.isBlocking()) UI.dailyPanel(); UI.updateDailyDot(); }, 2500);
+    };
     if (cloud && cloud.data && cloud.data.name) {
       const local = S.owner === uid && S.name ? S : null;
       const lc = local ? local.changedAt || 0 : 0, cc = cloud.data.changedAt || 0;

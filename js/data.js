@@ -91,7 +91,9 @@ const DATA = {
   TILES_PER_BED: 12,
   THIRSTY_AT: 0.4,
   WATER_CUT: 0.1,
-  FERT: { id: 'fertilizer', name: 'Phân bón', icon: '🧪', price: 5, cut: 0.3 },
+  FERT: { id: 'fertilizer', name: 'Phân bón', icon: '🧪', price: 5, cut: 0.3, noFertYield: 0.6 },
+  /** Sâu bệnh: ~45% lần gieo sẽ bị sâu giữa chừng → cây đứng không lớn tới khi xịt thuốc (1 chai / luống) */
+  PEST: { id: 'pesticide', name: 'Thuốc trừ sâu', icon: '🧴', price: 8, chance: 0.45 },
   xpNeed: (lvl) => 20 + lvl * 25,
   EMOTES: ['😀', '😂', '😍', '😎', '👋', '❤️', '😴', '😡'],
   NPC_LINES: [
@@ -110,6 +112,8 @@ DATA.PETS = [
   { id: 'pug', name: 'Chó Pug', price: 180 },
   { id: 'ghost', name: 'Ma nhỏ', price: 0, event: true },
   { id: 'bat', name: 'Dơi con', price: 0, event: true },
+  { id: 'dino', name: 'Khủng long con', price: 600 },
+  { id: 'dino_pink', name: 'Khủng long hồng', price: 0, event: true },
 ];
 
 /** Thú giữ nhà: canh nông trại, kẻ hái trộm có thể bị cắn và bị phạt xu (xu phạt về túi chủ nhà) */
@@ -160,6 +164,26 @@ DATA.EATERIES = [
     menu: [{ id: 'sb_caramel', name: 'Caramel Macchiato', icon: '☕', price: 40, xp: 15 }, { id: 'sb_frap', name: 'Java Chip Frappuccino', icon: '🥤', price: 42, xp: 16 }, { id: 'sb_cake', name: 'Bánh cheesecake', icon: '🍰', price: 30, xp: 11 }] },
   { id: 'tch', name: 'The Coffee House', nameSize: 14, sub: 'CÀ PHÊ · TRÀ', logo: '🏠', wall: '#fff4e6', trim: '#f08c00', awn: ['#212529', '#ff922b'], signBg: '#fff', signFg: '#212529', subFg: '#f08c00', items: ['☕', '🍑', '🧁'], deco: 'cafe',
     menu: [{ id: 'tch_suada', name: 'Cà phê sữa đá', icon: '☕', price: 20, xp: 8 }, { id: 'tch_dao', name: 'Trà đào cam sả', icon: '🍑', price: 26, xp: 11 }, { id: 'tch_cake', name: 'Bánh mousse', icon: '🧁', price: 18, xp: 7 }] },
+];
+
+/** Điểm danh hằng ngày: 7 ngày liên tiếp, bỏ 1 ngày thì tính lại từ ngày 1 */
+DATA.CHECKIN = [
+  { coins: 50, ticket: 1 },
+  { coins: 80 },
+  { item: 'fertilizer', n: 10, ticket: 1 },
+  { coins: 120 },
+  { item: 'pesticide', n: 5, ticket: 1 },
+  { coins: 200, ticket: 1 },
+  { coins: 500, ticket: 3 },
+];
+/** Đổi quà sự kiện bằng 🎟️ vé (nhận từ điểm danh) */
+DATA.EXCHANGE = [
+  { id: 'x_dino', kind: 'pet', pet: 'dino_pink', icon: '🦕', name: 'Thú cưng Khủng long hồng', cost: 10 },
+  { id: 'x_coins', kind: 'coins', n: 1000, icon: '💰', name: '1.000 xu', cost: 5 },
+  { id: 'x_fert', kind: 'item', item: 'fertilizer', n: 20, icon: '🧪', name: '20 gói phân bón', cost: 2 },
+  { id: 'x_pest', kind: 'item', item: 'pesticide', n: 10, icon: '🧴', name: '10 chai thuốc trừ sâu', cost: 2 },
+  { id: 'x_pumpkin', kind: 'item', item: 'seed_pumpkin', n: 10, icon: '🎃', name: '10 hạt bí ngô', cost: 3 },
+  { id: 'x_hibiscus', kind: 'item', item: 'seed_hibiscus', n: 10, icon: '🌺', name: '10 hạt hoa dâm bụt', cost: 3 },
 ];
 
 /** Số thú giữ nhà tối đa cùng canh một nông trại */
@@ -283,6 +307,8 @@ DATA.ITEMS = (() => {
   for (const f of [...DATA.FISH, ...DATA.SHELLS, ...DATA.RECIPES]) items[f.id] = { name: f.name, icon: f.icon, sell: f.sell };
   for (const [id, f] of Object.entries(DATA.FRUITS)) items[id] = { name: f.name, icon: f.icon, sell: f.sell };
   items.fertilizer = { name: 'Phân bón', icon: '🧪', sell: 0 };
+  items.pesticide = { name: 'Thuốc trừ sâu', icon: '🧴', sell: 0 };
+  items.ticket = { name: 'Vé sự kiện', icon: '🎟️', sell: 0 };
   items.candy = { name: 'Kẹo Halloween', icon: '🍬', sell: 0 };
   return items;
 })();

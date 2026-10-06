@@ -596,3 +596,36 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .quiz-bar { width: min(820px, calc(100% - 24px)); flex-wrap: nowrap; }
   .quiz-bar button { flex: 1 1 0; min-width: 0; padding: 8px 10px; font-size: 14px; }
 }
+
+/* Cửa hàng hạt giống kiểu Avatar */
+.ss-tabs { display: flex; gap: 6px; padding-left: 10px; }
+.ss-tabs button { border: 3px solid #69db7c; border-bottom: 0; background: #2f9e44; color: #fff; font-weight: 800; border-radius: 12px 12px 0 0; padding: 6px 14px; cursor: pointer; font-family: inherit; }
+.ss-tabs button.on { background: #fff; color: #2b8a3e; }
+.ss-box { border: 4px solid #69db7c; border-radius: 16px; background: #fff; padding: 10px; display: grid; gap: 10px; }
+.ss-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 8px; }
+.ss-cell { position: relative; aspect-ratio: 1; border-radius: 12px; border: 2px solid transparent; background: #d0ebff; font-size: 28px; display: grid; place-items: center; cursor: pointer; }
+.ss-cell.sel { border-color: #fcc419; background: #fff9db; box-shadow: 0 0 0 2px #fcc419; }
+.ss-cell.locked span { filter: grayscale(1); opacity: .5; }
+.ss-cell i { position: absolute; right: 4px; bottom: 2px; font-size: 11px; font-style: normal; font-weight: 900; color: #1864ab; }
+.ss-cell em { position: absolute; left: 3px; top: 1px; font-size: 12px; font-style: normal; }
+.ss-info { display: flex; gap: 10px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; min-height: 96px; }
+.ss-text { display: grid; gap: 3px; color: #1c7ed6; font-size: 13px; }
+.ss-text b { color: #1864ab; font-size: 14px; }
+.ss-buy { display: grid; gap: 6px; justify-items: end; }
+.ss-go { background: linear-gradient(#ffe066, #fab005) !important; color: #5c3010 !important; font-weight: 900; }
+
+/* Điểm danh */
+.ck-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 8px 0; }
+.ck-day { position: relative; border: 2px solid #c9b48a; background: #fff8e6; border-radius: 12px; padding: 6px 2px; text-align: center; display: grid; gap: 4px; font-size: 12px; min-height: 74px; align-content: start; }
+.ck-day small { font-weight: 800; color: #6c5a3e; }
+.ck-day b { font-size: 12px; line-height: 1.35; }
+.ck-day.now { border-color: #fab005; background: #fff3bf; box-shadow: 0 0 0 3px #ffe066; }
+.ck-day.got { opacity: .6; }
+.ck-day i { position: absolute; right: 2px; top: 0; font-style: normal; }
+@media (max-width: 560px) { .ck-row { grid-template-columns: repeat(4, 1fr); } }
+/* Nhạc: chỉ còn thanh nhỏ, video ẩn (bấm 📺 để xem) */
+.yt-mini { width: auto; max-width: 240px; border-radius: 99px; }
+.yt-mini .yt-frame { position: absolute; left: -10000px; top: 0; }
+.yt-mini.video { border-radius: 12px; width: 212px; }
+.yt-mini.video .yt-frame { position: static; }
+.yt-title { max-width: 150px; }

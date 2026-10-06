@@ -275,7 +275,7 @@ const MAPS = (() => {
     for (let bedIdx = 0; bedIdx < 8; bedIdx++) {
       const bx = fx0 + (bedIdx % 4) * (BD.w + 40), by = 478 + Math.floor(bedIdx / 4) * (BD.h + 21);
       obj(m, by + BD.h - 25, (ctx, t) => {
-        const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert }));
+        const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert, stolen: x.stolen }));
         ART.bed(ctx, bx, by, AV.F().beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
       }, [bx - 10, by - 70, bx + BD.w + 10, by + BD.h + 20]);
       for (let k = 0; k < 12; k++) {
@@ -361,7 +361,7 @@ const MAPS = (() => {
       const bedIdx = 8 + k;
       const bx = 2420 + 6 + (k % 2) * (BDf.w + 6), by = 890 + Math.floor(k / 2) * (BDf.h + 40);
       obj(m, by + BDf.h - 25, (ctx, t) => {
-        const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert }));
+        const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert, stolen: x.stolen }));
         ART.bed(ctx, bx, by, AV.F().beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
       }, [bx - 10, by - 70, bx + BD.w + 10, by + BD.h + 20]);
       for (let j = 0; j < 12; j++) {
@@ -381,7 +381,7 @@ const MAPS = (() => {
       const bedIdx = DATA.FIELD_BEDS + DATA.FLOWER_BEDS + k;
       const bx = fx2 + (k % 4) * (BD.w + 40), by = 478 + Math.floor(k / 4) * (BD.h + 21);
       obj(m, by + BD.h - 25, (ctx, t) => {
-        const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert }));
+        const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert, stolen: x.stolen }));
         ART.bed(ctx, bx, by, AV.F().beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
       }, [bx - 10, by - 70, bx + BD.w + 10, by + BD.h + 20]);
       for (let j = 0; j < 12; j++) {
@@ -454,8 +454,10 @@ const MAPS = (() => {
       inter(m, { x: x - 105, y: y - 160, w: 210, h: 160, ax: x - 40, ay: y + 28, name: `${e.name} (ăn uống +XP)`, use: () => UI.eateryPanel(e.id) });
     });
     addPot(m, 1450, 1360, 'mai'); addPot(m, 1750, 1360, 'dao');
-    sobj(m, 2160, 1385, (c) => ART.signBoard(c, 2160, 1385, 'NÔNG TRẠI\nVào cổng để\ntrồng trọt 🌱'));
-    col(m, 2122, 1375, 80, 12);
+    // sạp hạt giống ngay cổng nông trại
+    sobj(m, 2190, 1425, (c) => ART.seedStall(c, 2190, 1425), { l: -115, t: -182, w: 230, h: 190 });
+    col(m, 2092, 1378, 196, 46);
+    inter(m, { x: 2090, y: 1250, w: 200, h: 175, ax: 2190, ay: 1455, name: 'Cửa hàng hạt giống (giống, phân bón, thuốc trừ sâu)', use: () => UI.seedShop(), arrow: { x: 2190, y: 1240, text: 'Mua hạt giống' } });
     addBusStop(m, GATE + 140, 1432, 1);
     addStreetSign(m, GATE - 360, 1430);
     addStreetSign(m, 3420, 1430, ['Cầu Giấy', 'Hồ Tùng Mậu']);
