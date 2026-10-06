@@ -2561,6 +2561,8 @@
   }
   let recenterShown = false;
   AV.recenter = () => { camOff.x = 0; camOff.y = 0; };
+  /** Ảnh vẽ sẵn vừa tải xong → vẽ lại nền bản đồ hiện tại */
+  AV.refreshGround = () => { if (map) map.groundScale = 0; };
 
   function progressBar(x, y, p) {
     ctx.fillStyle = '#3d2410';
@@ -2688,7 +2690,7 @@
     map.pickups.forEach((p) => inView(p.x, p.y) && list.push({ y: p.y, draw: () => out((c) => ART.pickup(c, p.x, p.y, p.item.icon, clock), p.x, p.y, BOX_PICK, p, 120) }));
     const petDraw = (p, kind) => list.push({ y: p.y, draw: () => out((c) => ART.pet(c, p.x, p.y, kind, p.dir, p.t, p.moving), p.x, p.y, FX.BOX.pet, p) });
     // sprite pixel đã có viền sẵn → vẽ thẳng, không thêm viền mềm
-    const charDraw = (x, y, look, o, key) => list.push({ y, draw: () => (PX.ready ? ART.character(g, x, y, look, o) : out((c) => ART.character(c, x, y, look, o), x, y, FX.BOX.character, key)) });
+    const charDraw = (x, y, look, o, key) => list.push({ y, draw: () => (PX.ready || ART.isPainted(look) ? ART.character(g, x, y, look, o) : out((c) => ART.character(c, x, y, look, o), x, y, FX.BOX.character, key)) });
     map.npcs.forEach((n) => {
       if ((n.hw && !AV.hw()) || !inView(n.x, n.y)) return;
       charDraw(n.x, n.y, n.look, n, n);
@@ -2707,7 +2709,7 @@
       list.push({ y: p.sortY, draw: () => {
         g.save();
         g.beginPath(); g.rect(p.x - 120, p.y - 400, 240, p.clipY - (p.y - 400)); g.clip();
-        if (PX.ready) ART.character(g, p.x, p.y, S.look, { ...player, moving: false });
+        if (PX.ready || ART.isPainted(S.look)) ART.character(g, p.x, p.y, S.look, { ...player, moving: false });
         else out((c) => ART.character(c, p.x, p.y, S.look, { ...player, moving: false }), p.x, p.y, FX.BOX.character, player);
         g.restore();
         if (p.front) p.front(g, clock);
@@ -2776,7 +2778,7 @@
 
     // bảng tên gỗ trên đầu nhân vật
     // bảng tên nằm sát trên đỉnh đầu (cao hơn khi đội mũ); bong bóng chat nằm trên bảng tên
-    const nameTop = (look) => (!look || look.hat === 'none' ? 118 : look.hat === 'nonla' ? 138 : 130);
+    const nameTop = (look) => (ART.isPainted(look) ? 142 : !look || look.hat === 'none' ? 118 : look.hat === 'nonla' ? 138 : 130);
     map.npcs.forEach((n) => { if (!n.hw || AV.hw()) ART.namePlate(ctx, n.name, n.x, n.y - nameTop(n.look), 'npc'); });
     others.forEach((r) => ART.namePlate(ctx, r.name, r.rx, r.ry - nameTop(r.look), 'other'));
     if (!player.hidden && !(pose && pose.front)) ART.namePlate(ctx, S.name || 'Bạn', player.x, player.y - nameTop(S.look), 'me');

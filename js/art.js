@@ -90,7 +90,39 @@ const ART = (() => {
   }
 
   /* ---------------- Nhân vật ---------------- */
+  /* ---------- Nhân vật vẽ sẵn (ảnh nam / nữ) ---------- */
+  const GIRLISH = { long: 1, pigtails: 1, bun: 1, bob: 1 };
+  const DRESSY_ST = { dress: 1, dress_flower: 1, princess: 1, witchdress: 1 };
+  /** Nhân vật ảnh nào cho look này (null = vẽ bằng code: NPC, hoặc người chơi chọn tự phối đồ) */
+  function avatarOf(look) {
+    if (!look || look.npc || look.avatar === 'custom' || typeof DATA === 'undefined' || !DATA.AVATARS) return null;
+    const id = look.avatar === 'boy' || look.avatar === 'girl' ? look.avatar : (GIRLISH[look.hair] || DRESSY_ST[look.shirtStyle] || look.top === 'cute' ? 'girl' : 'boy');
+    return DATA.AVATARS.find((a) => a.id === id) || null;
+  }
+  const paintedImg = (look) => { const a = avatarOf(look); return a && typeof IMG !== 'undefined' ? IMG.get(a.src) : null; };
+  /** Đang hiện nhân vật ảnh (ảnh đã tải xong) */
+  const isPainted = (look) => !!paintedImg(look);
+  const PAINT_H = 126;
+  function painted(ctx, x, y, look, o) {
+    const im = paintedImg(look);
+    if (!im) return false;
+    const s = (o.scale ?? 1.18) / 1.18, t = o.t || 0;
+    const H = PAINT_H * s, W = H * im.naturalWidth / im.naturalHeight;
+    let bob = 0, tilt = 0, sq = 1;
+    if (o.dance) { bob = Math.abs(Math.sin(t * 7)) * 9 * s; tilt = Math.sin(t * 4) * 0.12; }
+    else if (o.moving) { bob = Math.abs(Math.sin(t * 12)) * 3 * s; tilt = Math.sin(t * 12) * 0.045; }
+    else sq = 1 + Math.sin(t * 2) * 0.01;
+    const dir = o.dance ? (Math.sin(t * 4) > 0 ? 1 : -1) : (o.dir || 1);
+    shadow(ctx, x, y, 17 * s, 5 * s);
+    ctx.save();
+    ctx.translate(x, y - bob); ctx.rotate(tilt); ctx.scale(dir < 0 ? -1 : 1, sq);
+    ctx.drawImage(im, -W / 2, -H, W, H);
+    ctx.restore();
+    return true;
+  }
+
   function character(ctx, x, y, look, o = {}) {
+    if (!o.vector && painted(ctx, x, y, look, o)) return;
     if (typeof PX !== 'undefined' && PX.ready && !o.vector) return PX.draw(ctx, x, y, look, o);
     const s = o.scale ?? 1.18;
     ctx.save();
@@ -1469,7 +1501,7 @@ const ART = (() => {
   }
 
   return {
-    srand, rr, shadow, circle, label, bubble, iconBubble, character, chicken, cow, sheep, pig,
+    srand,isPainted, avatarOf,  rr, shadow, circle, label, bubble, iconBubble, character, chicken, cow, sheep, pig,
     tree, bush, lamp, hayStack, hayBale, picketsH, picket, woodPost, rope, nestBox, plot, plant,
     house, mailbox, stall, boutique, fountain, bench, busStop, bus, pond, star, heart,
   };

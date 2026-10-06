@@ -115,7 +115,8 @@ const DATA = {
   FERT: { id: 'fertilizer', name: 'Phân bón', icon: '🧪', price: 5, cut: 0.3, noFertYield: 0.6 },
   /** Sâu bệnh: ~45% lần gieo sẽ bị sâu giữa chừng → cây đứng không lớn tới khi xịt thuốc (1 chai / luống) */
   PEST: { id: 'pesticide', name: 'Thuốc trừ sâu', icon: '🧴', price: 8, chance: 0.45 },
-  xpNeed: (lvl) => 20 + lvl * 25,
+  /** XP cần để lên cấp tiếp: cấp càng cao càng cần nhiều (tăng theo bình phương) */
+  xpNeed: (lvl) => 30 + lvl * 30 + lvl * lvl * 5,
   EMOTES: ['😀', '😂', '😍', '😎', '👋', '❤️', '😴', '😡'],
   NPC_LINES: [
     'Hôm nay trời đẹp quá!', 'Chợ ở Khu mua sắm đó, đi xe buýt là tới!', 'Nón lá ở tiệm Thời Trang xinh lắm đó.', 'Ra Bãi biển nhặt vỏ sò đi, có cả ngọc trai đấy!', 'Khu giải trí có bầu cua vui lắm 🎲', 'Công viên câu được cá vàng hiếm đó 🐡',
@@ -220,6 +221,13 @@ DATA.OUTFITS = [
 DATA.CLUB_MENU = [
   { id: 'hclub', name: 'Quầy Bar H-Club', logo: '🍸', items: ['🍷', '🍸'],
     menu: [{ id: 'hc_beer', name: 'Bia tươi', icon: '🍺', price: 20, xp: 8 }, { id: 'hc_wine', name: 'Rượu vang đỏ', icon: '🍷', price: 60, xp: 20 }, { id: 'hc_cocktail', name: 'Cocktail nhiệt đới', icon: '🍹', price: 45, xp: 16 }, { id: 'hc_champagne', name: 'Sâm panh mừng tiệc', icon: '🍾', price: 120, xp: 40 }, { id: 'hc_soda', name: 'Nước ngọt có ga', icon: '🥤', price: 10, xp: 3 }] },
+];
+
+/** Nhân vật vẽ sẵn (ảnh). 'custom' = nhân vật tự phối đồ (vẽ bằng code) */
+DATA.AVATARS = [
+  { id: 'boy', name: '👦 Bạn nam', src: 'img/char/boy.png' },
+  { id: 'girl', name: '👧 Bạn nữ', src: 'img/char/girl.png' },
+  { id: 'custom', name: '🎨 Tự phối đồ' },
 ];
 
 /** Xe máy tự lái trên đường phố (mua 1 lần dùng mãi). max = tốc độ tối đa (÷10 ra km/h) */

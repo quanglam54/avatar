@@ -146,6 +146,32 @@ const MAPS = (() => {
     inter(m, { x: L + 14, y: y - 70, w: R - L - 28, h: 66, ax: (L + R) / 2, ay: y + 12, name: 'Ghế chờ xe buýt (ngồi đợi)', use: () => AV.sitBusBench(L, R, y) });
   }
 
+  /** Toà nhà / đồ vật vẽ sẵn (ảnh PNG). (x, y) = giữa chân ảnh, w = bề rộng trong game.
+   *  o.sign = chữ ghi lên biển hiệu trống { text, x, y, w (tỉ lệ theo ảnh), color }; o.fallback = vẽ hình cũ khi ảnh chưa tải xong */
+  function pic(m, src, x, y, w, o = {}) {
+    IMG.get(src);
+    const hh = o.h || w * 1.1;
+    obj(m, o.sortY ?? y, (ctx) => {
+      const im = IMG.get(src);
+      if (!im) { if (o.fallback) o.fallback(ctx); return; }
+      const h = w * im.naturalHeight / im.naturalWidth;
+      ctx.drawImage(im, x - w / 2, y - h, w, h);
+      const sg = o.sign;
+      if (sg) {
+        ctx.save();
+        let size = sg.size || 26;
+        const font = (n) => `900 ${n}px "Be Vietnam Pro", system-ui, sans-serif`;
+        ctx.font = font(size);
+        while (size > 10 && ctx.measureText(sg.text).width > w * sg.w) ctx.font = font(--size);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+        const tx = x - w / 2 + sg.x * w, ty = y - h + sg.y * h;
+        ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.strokeText(sg.text, tx, ty);
+        ctx.fillStyle = sg.color; ctx.fillText(sg.text, tx, ty);
+        ctx.restore();
+      }
+    }, [x - w / 2 - 10, y - hh - 20, x + w / 2 + 10, y + 10]);
+  }
+
   /** Hàng rào gỗ + luống tulip ở đường chân trời, tulip viền dưới đáy — giống nhau ở mọi khu */
   function edges(m, top = true) {
     if (top) sobj(m, 0, HZ + 18, (c) => { ART.woodFence(c, 0, m.w, HZ + 2); ART.tulips(c, 0, m.w, HZ + 18); }, { l: -10, t: -70, w: m.w + 20, h: 74 });
@@ -210,7 +236,7 @@ const MAPS = (() => {
   }
 
   function npc(m, name, look, area, x, y, pet) {
-    m.npcs.push({ name, look: { pet: pet || 'none', ...look }, kind: 'npc', x, y, tx: x, ty: y, area, wait: 1 + Math.random() * 3, dir: 1, t: Math.random() * 5, moving: false, nextTalk: 3 + Math.random() * 10, bubble: null, px: x - 30, py: y });
+    m.npcs.push({ name, look: { pet: pet || 'none', ...look, npc: true }, kind: 'npc', x, y, tx: x, ty: y, area, wait: 1 + Math.random() * 3, dir: 1, t: Math.random() * 5, moving: false, nextTalk: 3 + Math.random() * 10, bubble: null, px: x - 30, py: y });
   }
 
   /* ---------- Nông trại mở rộng: tường bao, cổng, 8 luống, khu gà, khu bò cừu, ao, vườn ---------- */
@@ -479,30 +505,51 @@ const MAPS = (() => {
   /* ---------- Khu mua sắm ---------- */
   function mall() {
     const m = base('mall', 'Khu mua sắm', 2000, 1070);
+    const A = 'img/mall/';
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 41);
+      // nền trời + thành phố xa (ảnh vẽ sẵn)
+      const sky = IMG.get(A + 'sky.jpg');
+      if (sky) { g.drawImage(sky, 0, 0, m.w, 345); g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(0, 0, m.w, 345); }
       paintPaved(g, 120, 370, 1760, 450, '#e7e1f5');
       paintStreet(g, m.w, 870, 1000);
     });
-    addTree(m, 60, 470, 'green'); addTree(m, 1940, 470, 'pink');
+    pic(m, A + 'tree.png', 70, 560, 170, { h: 200, fallback: (c) => ART.tree(c, 70, 470, 'green') });
+    pic(m, A + 'tree.png', 1930, 560, 170, { h: 200, fallback: (c) => ART.tree(c, 1930, 470, 'pink') });
+    col(m, 25, 530, 90, 30); col(m, 1885, 530, 90, 30);
 
-    sobj(m, 450, 520, (c) => ART.stall(c, 450, 520, 0));
-    col(m, 345, 472, 210, 50);
-    inter(m, { x: 340, y: 350, w: 220, h: 172, ax: 450, ay: 552, name: 'Chợ (mua hạt, bán nông sản)', use: () => UI.shop(), arrow: { x: 450, y: 470, text: 'Mua bán' } });
+    // Chợ nông sản
+    pic(m, A + 'market.png', 450, 570, 400, { h: 360, sign: { text: 'CHỢ NÔNG SẢN', x: 0.491, y: 0.149, w: 0.36, color: '#8a4b14' }, fallback: (c) => ART.stall(c, 450, 520, 0) });
+    col(m, 285, 470, 330, 92);
+    inter(m, { x: 270, y: 250, w: 360, h: 320, ax: 450, ay: 600, name: 'Chợ (mua hạt, bán nông sản)', use: () => UI.shop(), arrow: { x: 450, y: 320, text: 'Mua bán' } });
 
-    sobj(m, 1000, 520, (c) => ART.boutique(c, 1000, 520));
-    col(m, 875, 440, 250, 82);
-    inter(m, { x: 870, y: 340, w: 260, h: 182, ax: 1000, ay: 552, name: 'Tiệm Thời Trang', use: () => UI.boutique(), arrow: { x: 1000, y: 445 } });
+    // Tiệm Thời Trang
+    pic(m, A + 'boutique.png', 1000, 570, 380, { h: 370, sign: { text: 'THỜI TRANG', x: 0.472, y: 0.142, w: 0.38, color: '#c2255c' }, fallback: (c) => ART.boutique(c, 1000, 520) });
+    col(m, 840, 450, 320, 104);
+    inter(m, { x: 840, y: 220, w: 320, h: 350, ax: 990, ay: 600, name: 'Tiệm Thời Trang', use: () => UI.boutique(), arrow: { x: 990, y: 430 } });
 
-    const petShop = { w: 240, wall: '#e6fcf5', roof: '#20c997', awning: '#0ca678', sign: '🐶 THÚ CƯNG', icons: ['🐕', '🐈'], door: '#087f5b' };
-    sobj(m, 1550, 520, (c) => ART.building(c, 1550, 520, petShop));
-    col(m, 1430, 440, 240, 82);
-    inter(m, { x: 1420, y: 340, w: 260, h: 182, ax: 1550, ay: 552, name: 'Tiệm Thú Cưng', use: () => UI.petShop(), arrow: { x: 1550, y: 445 } });
+    // cây ATM giữa 2 tiệm
+    pic(m, A + 'atm.png', 1275, 575, 95, { h: 135 });
+    col(m, 1235, 545, 80, 30);
 
-    [[720, 600, 'mai'], [1280, 600, 'dao'], [200, 700, 'dao'], [1800, 700, 'mai']].forEach(([x, y, k]) => addPot(m, x, y, k));
-    [[300, 780], [820, 780], [1700, 780]].forEach(([x, y]) => addLamp(m, x, y));
-    addBench(m, 650, 770); addBench(m, 1350, 770);
-    m.labels.push({ text: '🛍️ Khu Mua Sắm', x: 1000, y: 318 });
+    // Tiệm Thú Cưng
+    pic(m, A + 'petshop.png', 1555, 570, 380, { h: 370, sign: { text: 'THÚ CƯNG', x: 0.485, y: 0.236, w: 0.38, color: '#2b8a3e' }, fallback: (c) => ART.building(c, 1550, 520, { w: 240, wall: '#e6fcf5', roof: '#20c997', awning: '#0ca678', sign: '🐶 THÚ CƯNG', icons: ['🐕', '🐈'], door: '#087f5b' }) });
+    col(m, 1400, 450, 320, 104);
+    inter(m, { x: 1395, y: 220, w: 320, h: 350, ax: 1560, ay: 600, name: 'Tiệm Thú Cưng', use: () => UI.petShop(), arrow: { x: 1560, y: 430 } });
+
+    // đèn đôi, thùng rác, ghế gỗ dọc vỉa hè
+    [[300, 800], [820, 800], [1180, 800], [1700, 800]].forEach(([x, y]) => {
+      pic(m, A + 'lamp.png', x, y, 70, { h: 120, fallback: (c) => ART.lamp(c, x, y, false) });
+      col(m, x - 8, y - 8, 16, 10);
+      m.lights = (m.lights || []).concat([[x - 22, y - 104, 50], [x + 22, y - 104, 50]]);
+    });
+    [[360, 805], [1760, 805]].forEach(([x, y]) => { pic(m, A + 'bin.png', x, y, 46, { h: 66 }); col(m, x - 20, y - 12, 40, 14); });
+    [[650, 790], [1350, 790]].forEach(([x, y]) => {
+      pic(m, A + 'bench.png', x, y, 130, { h: 100, fallback: (c) => ART.bench(c, x, y) });
+      col(m, x - 60, y - 22, 120, 22);
+      inter(m, { x: x - 64, y: y - 70, w: 128, h: 70, ax: x, ay: y + 14, name: 'Ghế gỗ (ngồi nghỉ)', use: () => AV.sitSeat(x - 34, x + 34, y + 6, '🪑 Ngồi nghỉ ở Khu mua sắm — bấm nơi khác để đứng dậy') });
+    });
+    m.labels.push({ text: '🛍️ Khu Mua Sắm', x: 1000, y: 190 });
 
     npc(m, 'Chị Lan', { skin: '#f8c9a2', hair: 'bun', hairColor: '#6b3e26', shirt: '#cc5de8', shirtStyle: 'star', pants: '#343a40', hat: 'flower' }, { l: 200, t: 600, r: 1800, b: 800 }, 800, 680, 'cat');
 

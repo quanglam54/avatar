@@ -66,7 +66,7 @@ const UI = (() => {
       ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
     }
     ctx.save();
-    if (headOnly) { ctx.translate(w / 2, h / 2 + 55 * scale - 2); }
+    if (headOnly) { ctx.translate(w / 2, h / 2 + (ART.isPainted(look) ? 101 : 55) * scale - 2); }
     else ctx.translate(w / 2, h - 14 * scale / 1.6);
     ctx.scale(scale, scale);
     ART.character(ctx, 0, 0, look, { t, dir: 1 });
@@ -122,6 +122,8 @@ const UI = (() => {
             <div class="err" id="nameErr"></div>
           </div>
           <div class="opts">
+            <label>Nhân vật</label>${chips('avatar', DATA.AVATARS, (ART.avatarOf(look) || { id: 'custom' }).id)}
+            <small class="muted">${ART.avatarOf(look) ? 'Nhân vật vẽ sẵn mặc sẵn đồ — chọn 🎨 Tự phối đồ để thay áo, tóc, mũ…' : 'Đang tự phối đồ: chỉnh màu da, tóc, áo, quần bên dưới'}</small>
             <label>Màu da</label>${swatches('skin', DATA.SKINS, look.skin)}
             <label>Kiểu tóc</label>${chips('hair', DATA.HAIR_STYLES, look.hair)}
             <label>Màu tóc</label>${swatches('hairColor', DATA.HAIR_COLORS, look.hairColor)}
@@ -318,7 +320,7 @@ const UI = (() => {
       p.body.querySelectorAll('[data-btab]').forEach((b) => b.onclick = () => { tab = b.dataset.btab; render(); });
       p.body.querySelectorAll('[data-opv]').forEach((c) => {
         const o = DATA.OUTFITS.find((x) => x.id === c.dataset.opv);
-        drawAvatar(c, AV.outfitLook(o), { scale: 1.15 });
+        drawAvatar(c, { ...AV.outfitLook(o), avatar: 'custom' }, { scale: 1.15 });
       });
       p.body.querySelectorAll('[data-obuy]').forEach((b) => b.onclick = () => { if (AV.buyOutfit(b.dataset.obuy)) render(); });
       p.body.querySelectorAll('[data-owear]').forEach((b) => b.onclick = () => { AV.wearOutfit(b.dataset.owear); render(); });
@@ -349,7 +351,7 @@ const UI = (() => {
       p.body.querySelectorAll('[data-pv]').forEach((c) => {
         const [kind, id] = c.dataset.pv.split(':');
         const look = { ...S.look, [{ hat: 'hat', shirt: 'shirtStyle', acc: 'acc' }[kind]]: id };
-        drawAvatar(c, look, { scale: 1.15 });
+        drawAvatar(c, { ...look, avatar: 'custom' }, { scale: 1.15 });
       });
       p.body.querySelectorAll('[data-buy]').forEach((b) => b.onclick = () => {
         const [kind, id] = b.dataset.buy.split(':');
@@ -809,7 +811,7 @@ const UI = (() => {
         const it = DATA.HALLOWEEN.shop[+c.dataset.hwpv];
         const look = { ...S.look };
         if (it.kind === 'hat') look.hat = it.id; else if (it.kind === 'shirt') look.shirtStyle = it.id;
-        drawAvatar(c, look, { scale: 1.15 });
+        drawAvatar(c, { ...look, avatar: 'custom' }, { scale: 1.15 });
         if (it.kind === 'pet') { const ctx = c.getContext('2d'); ctx.save(); ctx.translate(c.clientWidth / 2 + 30, c.clientHeight - 14); ctx.scale(1.4, 1.4); ART.pet(ctx, 0, 0, it.id, -1, performance.now() / 1000, false); ctx.restore(); }
       });
       p.body.querySelectorAll('[data-hwbuy]').forEach((b) => b.onclick = () => { AV.hwBuy(DATA.HALLOWEEN.shop[+b.dataset.hwbuy]); render(); });
