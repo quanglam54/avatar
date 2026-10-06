@@ -109,16 +109,16 @@ const ART = (() => {
   }
   const paintedImg = (look) => { const p = paintedSrc(look); return p && typeof IMG !== 'undefined' ? IMG.get(p.src) : null; };
   /** Dáng chibi lùn: giữ nguyên đầu (phần trên SPLIT của ảnh), thân + chân thu ngắn còn BODY_K */
-  const SPLIT = 0.36, BODY_K = 0.6;
+  const SPLIT = 0.36, BODY_K = 0.48;
   /** Đang hiện nhân vật ảnh (ảnh đã tải xong) */
   const isPainted = (look) => !!paintedImg(look);
-  const PAINT_H = 108;
+  const PAINT_H = 100;
   function painted(ctx, x, y, look, o) {
     const im = paintedImg(look);
     if (!im) return false;
     const s = (o.scale ?? 1.18) / 1.18, t = o.t || 0;
     // chiều cao ảnh gốc khi vẽ (trước khi thu ngắn thân) sao cho cả người cao PAINT_H
-    const squash = paintedSrc(look).squash, split = squash ? SPLIT : 0.5, bk = squash ? BODY_K : 1;
+    const squash = paintedSrc(look).squash, split = squash ? SPLIT : 0.42, bk = squash ? BODY_K : 0.72;
     const H = PAINT_H * s / (split + (1 - split) * bk), W = H * im.naturalWidth / im.naturalHeight;
     const iw = im.naturalWidth, ih = im.naturalHeight, headH = H * split, bodyH = H * (1 - split) * bk;
     let bob = 0, tilt = 0, sq = 1;
