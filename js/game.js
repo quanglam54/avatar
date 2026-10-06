@@ -1290,7 +1290,10 @@
     if (VISIT.helped) return UI.toast(`Bạn đã tưới giúp ${name} rồi 💧 · Ô ruộng chín 🧺, cây có quả, chuồng có trứng / sữa mới hái trộm được`, 4000);
     const need = VISIT.data.tiles.filter((t) => t.crop && !t.watered && tileState(t).stage < 2).length;
     if (!need) return UI.toast(`Ô này chưa chín để hái trộm, ruộng của ${name} cũng không cần tưới lúc này 🌱`, 3500);
-    try { await CLOUD.sendHelp(VISIT.uid, S.name); } catch (e) { return UI.toast('⚠️ ' + e.message, 4500); }
+    try { await CLOUD.sendHelp(VISIT.uid, S.name); } catch (e) {
+      if (/đã tưới giúp/.test(e.message)) VISIT.helped = true;
+      return UI.toast((VISIT.helped ? '💧 ' : '⚠️ ') + e.message, 4500);
+    }
     VISIT.helped = true;
     VISIT.data.tiles.forEach((t) => { if (t.crop) t.watered = true; });
     addXP(12);

@@ -42,8 +42,9 @@ const CLOUD = (() => {
     if (/Email not confirmed/i.test(m)) return 'Tài khoản chưa xác nhận email — chủ game cần tắt "Confirm email" trong Supabase';
     if (/relation .*saves.* does not exist|Could not find the table/i.test(m)) return 'Chưa tạo bảng lưu trữ (saves) trên Supabase';
     if (/rate limit|too many/i.test(m)) return 'Thao tác quá nhanh, đợi một chút rồi thử lại';
-    if (/function .* does not exist|Could not find the function|farm_helps/i.test(m)) return 'Chủ game chưa cài tính năng thăm nông trại trên Supabase (chạy file supabase/02-tham-nong-trai.sql)';
+    // kiểm tra trùng TRƯỚC: lỗi trùng của bảng farm_helps có chứa chữ "farm_helps" nên trước đây bị báo nhầm là chưa chạy SQL
     if (/duplicate key|unique/i.test(m)) return 'Hôm nay bạn đã tưới giúp bạn này rồi, mai quay lại nhé!';
+    if (/function .* does not exist|Could not find the function|relation .*farm_helps.* does not exist|Could not find the table .*farm_helps/i.test(m)) return 'Chủ game chưa cài tính năng thăm nông trại trên Supabase (chạy file supabase/02-tham-nong-trai.sql)';
     if (/Failed to fetch|NetworkError/i.test(m)) return 'Không kết nối được máy chủ, kiểm tra mạng';
     return m || 'Có lỗi xảy ra';
   }
