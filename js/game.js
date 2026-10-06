@@ -1403,10 +1403,10 @@
         const side = gd.x < tp.x ? -1 : 1;
         gd.x = tp.x + side * Math.min(vw / 2 + 70, 460); gd.y = tp.y + (Math.random() - 0.5) * 90;
       }
-      const big = gd.id === 'lion' || gd.id === 'tiger';
+      const big = ['lion', 'tiger', 'trex', 'dragon'].includes(gd.id);
       gd.bubble = { text: big ? 'GRÀOOO!' : 'GÂU GÂU!', until: Date.now() + 1800, big: true };
     });
-    if (typeof MUSIC !== 'undefined' && MUSIC.bark) MUSIC.bark(ks.some((k) => guards[k] && (guards[k].id === 'lion' || guards[k].id === 'tiger')));
+    if (typeof MUSIC !== 'undefined' && MUSIC.bark) MUSIC.bark(ks.some((k) => guards[k] && ['lion', 'tiger', 'trex', 'dragon'].includes(guards[k].id)));
     if (target === 'me') {
       player.target = null; player.pending = null; marker = null; player.path = [];
       player.stun = true;
@@ -2521,7 +2521,7 @@
       if (!gd.id || !inView(gd.x, gd.y)) return;
       const ang = gd.angry > now;
       const hy = gd.y - (gd.hop || 0);
-      list.push({ y: gd.y, draw: () => out((c) => ART.guard(c, gd.x, hy, gd.id, gd.dir, gd.t, gd.moving, ang), gd.x, hy, { l: -80, t: -100, w: 160, h: 106 }, gd, ang ? 30 : 55) });
+      list.push({ y: gd.y, draw: () => out((c) => ART.guard(c, gd.x, hy, gd.id, gd.dir, gd.t, gd.moving, ang), gd.x, hy, { l: -115, t: -105, w: 230, h: 111 }, gd, ang ? 30 : 55) });
     });
     map.pickups.forEach((p) => inView(p.x, p.y) && list.push({ y: p.y, draw: () => out((c) => ART.pickup(c, p.x, p.y, p.item.icon, clock), p.x, p.y, BOX_PICK, p, 120) }));
     const petDraw = (p, kind) => list.push({ y: p.y, draw: () => out((c) => ART.pet(c, p.x, p.y, kind, p.dir, p.t, p.moving), p.x, p.y, FX.BOX.pet, p) });

@@ -133,6 +133,8 @@ DATA.GUARDS = [
   { id: 'shepherd', name: 'Chó béc-giê', icon: '🐺', price: 1500, bite: 0.5, fine: 80 },
   { id: 'tiger', name: 'Hổ vằn', icon: '🐯', price: 4000, bite: 0.65, fine: 150 },
   { id: 'lion', name: 'Sư tử', icon: '🦁', price: 8000, bite: 0.8, fine: 250 },
+  { id: 'trex', name: 'Khủng long bạo chúa', icon: '🦖', price: 12000, bite: 0.85, fine: 350 },
+  { id: 'dragon', name: 'Rồng lửa', icon: '🐉', price: 20000, bite: 0.9, fine: 500 },
 ];
 /** Pháo hoa ở Sân Chơi nông trại */
 DATA.FIREWORKS = [

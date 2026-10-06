@@ -1349,6 +1349,8 @@ Object.assign(ART, (() => {
 
   /** Thú giữ nhà nhìn sang phải (dir = -1 thì lật). angry = đang đuổi cắn kẻ trộm */
   function guard(ctx, x, y, kind, dir, t, moving, angry) {
+    if (kind === 'trex') return trex(ctx, x, y, dir, t, moving, angry);
+    if (kind === 'dragon') return dragon(ctx, x, y, dir, t, moving, angry);
     const L = LOOK[kind];
     if (!L) return;
     const s = L.s, run = angry ? 20 : 12;
@@ -1445,6 +1447,98 @@ Object.assign(ART, (() => {
     return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
   };
 
+  /** Khủng long bạo chúa: đi 2 chân, đầu to, tay ngắn; giận thì há miệng nhe răng */
+  function trex(ctx, x, y, dir, t, moving, angry) {
+    const s = 1.9, run = angry ? 18 : 10;
+    const bob = moving ? Math.abs(Math.sin(t * run)) * 2 : 0;
+    shadow(ctx, x, y, 20 * s, 5 * s);
+    ctx.save(); ctx.translate(x, y - bob * s); ctx.scale(dir * s, s);
+    const G = '#5c940d', DK = '#2b8a3e', BL = '#d8f5a2';
+    // đuôi
+    const wag = Math.sin(t * (angry ? 14 : 4)) * 2;
+    ctx.fillStyle = G; ctx.beginPath(); ctx.moveTo(-6, -26); ctx.quadraticCurveTo(-22, -24 + wag, -34, -16 + wag); ctx.quadraticCurveTo(-20, -15, -6, -16); ctx.closePath(); ctx.fill();
+    // chân
+    [-4, 4].forEach((lx, i) => {
+      const lift = moving ? Math.max(0, Math.sin(t * run + i * Math.PI)) * 4 : 0;
+      ctx.fillStyle = i ? G : DK; rr(ctx, lx - 3.5, -16 - lift, 7, 16, 3); ctx.fill();
+      ctx.fillStyle = DK; rr(ctx, lx - 3, -2 - lift, 9, 3, 1.5); ctx.fill();
+    });
+    // thân
+    ctx.fillStyle = G; ctx.beginPath(); ctx.ellipse(0, -24, 13, 11, -0.35, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = BL; ctx.beginPath(); ctx.ellipse(4, -21, 7, 7, -0.3, 0, Math.PI * 2); ctx.fill();
+    [[-6, -30], [-1, -32], [-8, -24]].forEach(([dx, dy]) => circle(ctx, dx, dy, 1.6, DK));
+    // cổ + đầu to
+    ctx.fillStyle = G; ctx.beginPath(); ctx.ellipse(8, -33, 6, 8, 0.5, 0, Math.PI * 2); ctx.fill();
+    const open = angry ? 3 + Math.abs(Math.sin(t * 16)) * 3 : 0;
+    rr(ctx, 6, -46, 20, 10, 5); ctx.fill();
+    ctx.fillStyle = DK; rr(ctx, 8, -37 + open, 16, 5, 2.5); ctx.fill();
+    if (open) {
+      ctx.fillStyle = '#c92a2a'; ctx.fillRect(9, -37, 14, open);
+      ctx.fillStyle = '#fff';
+      for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.moveTo(10 + k * 3, -37); ctx.lineTo(11.5 + k * 3, -34.5); ctx.lineTo(13 + k * 3, -37); ctx.fill(); }
+    }
+    circle(ctx, 15, -43, 2.4, '#fff'); circle(ctx, 15.6, -43, 1.3, angry ? '#c92a2a' : '#111');
+    if (angry) { ctx.strokeStyle = '#111'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(12, -46.5); ctx.lineTo(18, -45); ctx.stroke(); }
+    circle(ctx, 24, -43, 0.9, DK);
+    // tay ngắn
+    ctx.strokeStyle = DK; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(8, -24); ctx.lineTo(12, -21 + Math.sin(t * 9)); ctx.stroke();
+    // gai lưng
+    ctx.fillStyle = '#ffd43b';
+    [[-10, -32], [-4, -35], [2, -36]].forEach(([sx, sy]) => { ctx.beginPath(); ctx.moveTo(sx - 2.5, sy + 2); ctx.lineTo(sx, sy - 4); ctx.lineTo(sx + 2.5, sy + 2); ctx.closePath(); ctx.fill(); });
+    ctx.restore();
+  }
+
+  /** Rồng lửa: 4 chân, cánh vỗ, sừng, đuôi mũi giáo; giận thì phun lửa */
+  function dragon(ctx, x, y, dir, t, moving, angry) {
+    const s = 1.85, run = angry ? 18 : 10;
+    const bob = Math.sin(t * 3) * 1.5 + (moving ? Math.abs(Math.sin(t * run)) * 2 : 0);
+    shadow(ctx, x, y, 20 * s, 5 * s);
+    ctx.save(); ctx.translate(x, y - bob * s); ctx.scale(dir * s, s);
+    const R = '#e03131', DR = '#a61e1e', BY = '#ffd43b';
+    // cánh sau
+    const flap = Math.sin(t * (angry ? 14 : 5)) * 0.35;
+    const wing = (rot, col) => {
+      ctx.save(); ctx.translate(-2, -26); ctx.rotate(rot);
+      ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-8, -20); ctx.lineTo(-20, -16); ctx.quadraticCurveTo(-16, -10, -18, -6); ctx.quadraticCurveTo(-11, -6, -10, -1); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-20, -16); ctx.moveTo(0, 0); ctx.lineTo(-18, -6); ctx.stroke();
+      ctx.restore();
+    };
+    wing(-0.2 - flap, DR);
+    // đuôi
+    ctx.strokeStyle = R; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    const w = Math.sin(t * 4) * 3;
+    ctx.beginPath(); ctx.moveTo(-12, -16); ctx.quadraticCurveTo(-24, -10 + w, -32, -18 + w); ctx.stroke();
+    ctx.fillStyle = DR; ctx.beginPath(); ctx.moveTo(-31, -18 + w); ctx.lineTo(-38, -22 + w); ctx.lineTo(-35, -14 + w); ctx.closePath(); ctx.fill();
+    // chân
+    [-9, -3, 5, 10].forEach((lx, i) => { const lift = moving ? Math.max(0, Math.sin(t * run + i * 1.6)) * 3 : 0; ctx.fillStyle = i % 2 ? R : DR; rr(ctx, lx - 2.5, -10 - lift, 5, 10, 2); ctx.fill(); });
+    // thân + bụng vảy vàng
+    ctx.fillStyle = R; ctx.beginPath(); ctx.ellipse(0, -17, 15, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = BY; ctx.beginPath(); ctx.ellipse(2, -12, 10, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(160,80,0,.5)'; ctx.lineWidth = 0.8; for (let k = -6; k <= 8; k += 3.5) { ctx.beginPath(); ctx.moveTo(k, -15); ctx.lineTo(k, -9); ctx.stroke(); }
+    // gai lưng
+    ctx.fillStyle = BY; [[-9, -25], [-4, -26], [1, -26], [6, -25]].forEach(([sx, sy]) => { ctx.beginPath(); ctx.moveTo(sx - 2, sy + 2); ctx.lineTo(sx, sy - 3.5); ctx.lineTo(sx + 2, sy + 2); ctx.closePath(); ctx.fill(); });
+    // cổ + đầu
+    ctx.fillStyle = R; ctx.beginPath(); ctx.ellipse(11, -26, 5, 8, 0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(17, -33, 8, 6.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(24, -31, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
+    // sừng
+    ctx.fillStyle = '#fff3bf'; [[13, -38, -0.5], [18, -39, 0.1]].forEach(([hx, hy, a]) => { ctx.save(); ctx.translate(hx, hy); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(-1.6, 0); ctx.lineTo(0, -7); ctx.lineTo(1.6, 0); ctx.closePath(); ctx.fill(); ctx.restore(); });
+    circle(ctx, 19, -35, 2.2, BY); circle(ctx, 19.6, -35, 1.1, '#111');
+    circle(ctx, 28, -32, 0.8, DR);
+    // cánh trước
+    wing(-0.05 + flap, R);
+    // phun lửa khi giận
+    if (angry) {
+      for (let k = 0; k < 7; k++) {
+        const p = ((t * 3 + k / 7) % 1);
+        const fx = 30 + p * 26, fy = -31 + Math.sin(k * 2 + t * 10) * p * 6;
+        circle(ctx, fx, fy, 2.5 + p * 5, p < 0.4 ? '#fff3bf' : p < 0.7 ? '#ffa94d' : 'rgba(240,62,62,.7)');
+      }
+    }
+    ctx.restore();
+  }
+
   /** Chuồng thú bằng gỗ mái đỏ, có hình khúc xương */
   function kennel(ctx, x, y) {
     shadow(ctx, x, y, 66, 12);
@@ -1476,7 +1570,7 @@ Object.assign(ART, (() => {
     circle(ctx, x - 4, y - 7, 2, '#a0703a'); circle(ctx, x + 3, y - 7, 2, '#a0703a');
   }
 
-  return { guard, kennel, dogBowl };
+  return { guard, kennel, dogBowl, trex, dragon };
 })());
 
 /* Nhà Casino ở Khu giải trí: mặt tiền + bảng hiệu đèn nhấp nháy */

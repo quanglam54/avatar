@@ -830,7 +830,7 @@ const UI = (() => {
       const gr = ctx.createLinearGradient(0, 0, 0, c.clientHeight);
       gr.addColorStop(0, '#fff4e6'); gr.addColorStop(1, '#b2f2bb');
       ctx.fillStyle = gr; ctx.fillRect(0, 0, c.clientWidth, c.clientHeight);
-      const sc = ({ dog: 1.6, shepherd: 1.4, tiger: 1.2, lion: 1.15 }[id] || 1.3) * c.clientHeight / 120;
+      const sc = ({ dog: 1.6, shepherd: 1.4, tiger: 1.2, lion: 1.15, trex: 1.0, dragon: 0.95 }[id] || 1.3) * c.clientHeight / 120;
       ctx.save(); ctx.translate(c.clientWidth / 2 - 8 * sc, c.clientHeight - 16 * c.clientHeight / 120); ctx.scale(sc, sc);
       ART.guard(ctx, 0, 0, id, 1, 0, false, false);
       ctx.restore();
