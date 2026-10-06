@@ -1529,7 +1529,30 @@ const UI = (() => {
       <div class="shop-list">${row(S.name, S.level, true)}${list.map((r) => row(r.name, r.level, false)).join('')}</div>`);
   }
 
+  /** Thêm nút 👁 hiện / ẩn mật khẩu vào mọi ô type=password (tự áp dụng cho ô mới xuất hiện) */
+  function addEyes(root) {
+    root.querySelectorAll('input[type="password"]:not([data-eye])').forEach((inp) => {
+      inp.dataset.eye = '1';
+      const wrap = document.createElement('span');
+      wrap.className = 'pw-wrap';
+      inp.parentNode.insertBefore(wrap, inp);
+      wrap.appendChild(inp);
+      if (inp.style.marginTop) { wrap.style.marginTop = inp.style.marginTop; inp.style.marginTop = ''; }
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'pw-eye'; b.textContent = '👁'; b.title = 'Hiện mật khẩu';
+      b.onclick = () => {
+        const show = inp.type === 'password';
+        inp.type = show ? 'text' : 'password';
+        b.textContent = show ? '🙈' : '👁'; b.title = show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu';
+        inp.focus();
+      };
+      wrap.appendChild(b);
+    });
+  }
+
   function init() {
+    addEyes(document);
+    new MutationObserver(() => addEyes(document)).observe(document.body, { childList: true, subtree: true });
     $('#netStatus').onclick = playersPanel;
     $('#chatLog').onclick = () => $('#chatLog').classList.toggle('active');
     $('#btnMenu').onclick = menu;

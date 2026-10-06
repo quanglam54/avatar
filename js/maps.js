@@ -948,41 +948,41 @@ const MAPS = (() => {
     m.indoor = true;
     m.hz = 0;
     m.music = 'mute';
-    m.zoom = 0.66;
+    m.zoom = 0.62;
     m.camTop = 20;
     ground(m, (g) => {
       g.fillStyle = '#0b0912'; g.fillRect(0, 0, m.w, m.h);
-      g.fillStyle = '#1b1726'; g.fillRect(40, 640, 1920, 580);
-      g.fillStyle = 'rgba(255,255,255,.03)'; for (let x = 40; x < 1960; x += 80) for (let y = 640; y < 1220; y += 80) if ((x + y) % 160 === 0) g.fillRect(x, y, 80, 80);
+      g.fillStyle = '#1b1726'; g.fillRect(40, 700, 1920, 520);
+      g.fillStyle = 'rgba(255,255,255,.03)'; for (let x = 40; x < 1960; x += 80) for (let y = 700; y < 1220; y += 80) if ((x + y) % 160 === 0) g.fillRect(x, y, 80, 80);
       // khu VIP sát sân khấu: sàn vàng
-      g.fillStyle = '#3a2a10'; g.fillRect(380, 650, 1240, 130);
-      g.fillStyle = 'rgba(255,212,59,.18)'; g.fillRect(380, 650, 1240, 130);
-      g.font = '900 30px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = 'rgba(255,212,59,.5)'; g.fillText('★ KHU VIP ★', 1000, 718);
+      g.fillStyle = '#3a2a10'; g.fillRect(340, 710, 1320, 130);
+      g.fillStyle = 'rgba(255,212,59,.18)'; g.fillRect(340, 710, 1320, 130);
+      g.font = '900 30px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = 'rgba(255,212,59,.5)'; g.fillText('★ KHU VIP ★', 1000, 778);
       // thảm đỏ lối đi giữa + lối ra
-      g.fillStyle = '#7a1424'; g.fillRect(860, 790, 280, 430);
+      g.fillStyle = '#7a1424'; g.fillRect(860, 850, 280, 370);
       g.fillStyle = '#0b0912'; g.fillRect(0, 1220, m.w, 30); g.fillRect(0, 0, 40, m.h); g.fillRect(1960, 0, 40, m.h);
     });
-    obj(m, 0, (ctx, t) => CONCERT.stage(ctx, t), [380, 0, 1620, 650]);
+    obj(m, 0, (ctx, t) => CONCERT.stage(ctx, t), [340, 0, 1660, 710]);
     obj(m, 1, (ctx, t) => CONCERT.crowd(ctx, t), [40, 100, 1960, 640]);
-    col(m, 380, 0, 1240, 652);
-    col(m, 40, 100, 330, 545); col(m, 1630, 100, 330, 545);
+    col(m, 340, 0, 1320, 712);
+    col(m, 40, 100, 300, 610); col(m, 1660, 100, 300, 610);
     // 5 anh trai trên sân khấu
     CONCERT.BROS.forEach((b, i) => {
-      const x = 640 + i * 180, y = 625;
+      const x = 640 + i * 180, y = 688;
       npc(m, b.name, { skin: ['#ffe0c4', '#f8c9a2', '#e3a979'][i % 3], hair: b.hair, hairColor: b.hc, shirt: b.shirt, shirtStyle: 'star', pants: '#212529', hat: 'none', acc: i === 2 ? 'sunglasses' : 'none', stick: b.stick }, { l: x, t: y, r: x + 1, b: y + 1 }, x, y, 'none');
       m.npcs[m.npcs.length - 1].dance = true;
     });
     // dây chắn khu VIP (chỉ người có vé VIP đi qua được)
     const vipOnly = () => !CONCERT.hasVip();
-    m.colliders.push({ x: 370, y: 776, w: 1260, h: 10, when: vipOnly }, { x: 366, y: 650, w: 10, h: 136, when: vipOnly }, { x: 1624, y: 650, w: 10, h: 136, when: vipOnly });
-    obj(m, 781, (ctx, t) => {
-      for (let x = 380; x <= 1620; x += 124) { ctx.fillStyle = '#fcc419'; ctx.fillRect(x - 4, 742, 8, 40); ctx.beginPath(); ctx.arc(x, 740, 7, 0, Math.PI * 2); ctx.fill(); }
+    m.colliders.push({ x: 330, y: 836, w: 1340, h: 10, when: vipOnly }, { x: 326, y: 710, w: 10, h: 136, when: vipOnly }, { x: 1664, y: 710, w: 10, h: 136, when: vipOnly });
+    obj(m, 841, (ctx, t) => {
+      for (let x = 340; x <= 1660; x += 132) { ctx.fillStyle = '#fcc419'; ctx.fillRect(x - 4, 802, 8, 40); ctx.beginPath(); ctx.arc(x, 800, 7, 0, Math.PI * 2); ctx.fill(); }
       ctx.strokeStyle = '#c92a2a'; ctx.lineWidth = 5;
-      for (let x = 380; x < 1620; x += 124) { ctx.beginPath(); ctx.moveTo(x, 750); ctx.quadraticCurveTo(x + 62, 768, x + 124, 750); ctx.stroke(); }
-    }, [360, 720, 1640, 790]);
-    inter(m, { x: 900, y: 730, w: 200, h: 60, ax: 1000, ay: 820, name: 'Lối vào khu VIP (cần vé VIP)', use: () => (CONCERT.hasVip() ? UI.toast('🎫 Bạn có vé VIP — cứ đi thẳng lên sát sân khấu!') : CONCERT.ticketPanel()), arrow: { x: 1000, y: 700, text: 'Khu VIP' } });
+      for (let x = 340; x < 1660; x += 132) { ctx.beginPath(); ctx.moveTo(x, 810); ctx.quadraticCurveTo(x + 66, 828, x + 132, 810); ctx.stroke(); }
+    }, [320, 780, 1680, 850]);
+    inter(m, { x: 900, y: 790, w: 200, h: 60, ax: 1000, ay: 880, name: 'Lối vào khu VIP (cần vé VIP)', use: () => (CONCERT.hasVip() ? UI.toast('🎫 Bạn có vé VIP — cứ đi thẳng lên sát sân khấu!') : CONCERT.ticketPanel()), arrow: { x: 1000, y: 760, text: 'Khu VIP' } });
     // ghế khán giả: 3 dãy mỗi bên, lối đi giữa để ra cửa
-    [860, 935, 1010].forEach((y, r) => [[150, 780], [1220, 1850]].forEach(([L, R]) => {
+    [920, 995, 1070].forEach((y, r) => [[150, 780], [1220, 1850]].forEach(([L, R]) => {
       sobj(m, (L + R) / 2, y, (c) => CONCERT.seats(c, L, R, y), { l: -(R - L) / 2 - 30, t: -60, w: R - L + 60, h: 66 }, y - 40);
       col(m, L - 20, y - 52, R - L + 40, 24);
       inter(m, { x: L - 20, y: y - 62, w: R - L + 40, h: 62, ax: (L + R) / 2, ay: y + 20, name: `Ghế khán đài (dãy ${r + 1})`, use: () => AV.sitSeat(L, R, y, '🎤 Ngồi xem concert — bấm nơi khác để đứng dậy', (g) => CONCERT.seatsFront(g, L, R, y)) });
@@ -1003,7 +1003,7 @@ const MAPS = (() => {
     sobj(m, 1000, 1222, (c) => ART.homeDoor(c, 1000, 1222), { l: -50, t: -22, w: 100, h: 28 });
     inter(m, { x: 940, y: 1160, w: 120, h: 70, ax: 1000, ay: 1190, name: 'Ra Khu giải trí', use: () => AV.teleport('fun', false, 3430, 840, '🎡 Ra Khu giải trí…'), arrow: { x: 1000, y: 1165, text: 'Ra ngoài' } });
     m.spawn = { x: 1000, y: 1150 };
-    m.bounds = { l: 56, t: 660, r: m.w - 56, b: 1205 };
+    m.bounds = { l: 56, t: 720, r: m.w - 56, b: 1205 };
     return m;
   }
 

@@ -802,3 +802,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .ct-t { border: 3px solid #dee2e6; border-radius: 14px; padding: 10px; display: grid; gap: 4px; text-align: center; background: #f8f9fa; }
 .ct-t.vip { border-color: #fcc419; background: #fff9db; }
 .ct-t em { font-style: normal; font-weight: 900; font-size: 20px; color: #e8590c; }
+
+/* Nút 👁 xem mật khẩu */
+.pw-wrap { position: relative; display: block; flex: 1; min-width: 0; }
+.pw-wrap > input { width: 100%; padding-right: 46px; box-sizing: border-box; }
+.pw-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; font-size: 20px; cursor: pointer; padding: 4px 6px; line-height: 1; }

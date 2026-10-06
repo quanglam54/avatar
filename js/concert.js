@@ -2,7 +2,7 @@
    5 anh trai hát nhảy, khói, pháo giấy, laser, ghế ngồi, khu VIP sát sân khấu, lightstick. */
 const CONCERT = (() => {
   const VIDEO = '_41R6YGF4dA';
-  const LED = { x: 560, y: 40, w: 880, h: 495 };
+  const LED = { x: 470, y: 18, w: 1060, h: 596 };
   const PRICE = { normal: 300, vip: 1500 }, STICK_PRICE = 150;
   const STICKS = [
     { id: 'red', name: 'Đỏ — Anh Lửa', col: '#ff3b3b' }, { id: 'cyan', name: 'Xanh ngọc — Anh Gió', col: '#22e3ff' },
@@ -50,8 +50,8 @@ const CONCERT = (() => {
   /* ---------- Trong sân vận động ---------- */
   function stage(c, t) {
     // khung sân khấu + loa
-    c.fillStyle = '#1a1424'; c.fillRect(380, 0, 1240, 640);
-    [[430, 120], [1570, 120]].forEach(([x, y]) => {
+    c.fillStyle = '#1a1424'; c.fillRect(340, 0, 1320, 700);
+    [[405, 140], [1595, 140]].forEach(([x, y]) => {
       c.fillStyle = '#0a0a0a'; c.fillRect(x - 60, y, 120, 440);
       for (let k = 0; k < 4; k++) { const p = 1 + Math.abs(Math.sin(t * 8 + k)) * 0.1; c.fillStyle = '#333'; c.beginPath(); c.arc(x, y + 60 + k * 100, 38 * p, 0, Math.PI * 2); c.fill(); c.fillStyle = '#666'; c.beginPath(); c.arc(x, y + 60 + k * 100, 14, 0, Math.PI * 2); c.fill(); }
     });
@@ -59,20 +59,20 @@ const CONCERT = (() => {
     c.fillStyle = '#05050a'; c.fillRect(LED.x - 14, LED.y - 14, LED.w + 28, LED.h + 28);
     c.strokeStyle = `hsl(${(t * 80) % 360},90%,60%)`; c.lineWidth = 6; c.strokeRect(LED.x - 10, LED.y - 10, LED.w + 20, LED.h + 20);
     // sàn sân khấu
-    const g = c.createLinearGradient(0, 540, 0, 650); g.addColorStop(0, '#2d2440'); g.addColorStop(1, '#120d1c');
-    c.fillStyle = g; c.fillRect(380, 545, 1240, 100);
-    c.fillStyle = '#ffd43b'; c.fillRect(380, 640, 1240, 6);
-    for (let k = 0; k < 16; k++) { c.fillStyle = (Math.floor(t * 4) + k) % 2 ? '#ff6b6b' : '#4dabf7'; c.beginPath(); c.arc(400 + k * 80, 643, 5, 0, Math.PI * 2); c.fill(); }
+    const g = c.createLinearGradient(0, 615, 0, 705); g.addColorStop(0, '#2d2440'); g.addColorStop(1, '#120d1c');
+    c.fillStyle = g; c.fillRect(340, 618, 1320, 84);
+    c.fillStyle = '#ffd43b'; c.fillRect(340, 700, 1320, 6);
+    for (let k = 0; k < 17; k++) { c.fillStyle = (Math.floor(t * 4) + k) % 2 ? '#ff6b6b' : '#4dabf7'; c.beginPath(); c.arc(360 + k * 80, 703, 5, 0, Math.PI * 2); c.fill(); }
     c.font = '900 22px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#ffd43b';
-    c.fillText('★ CONCERT NGÀN CHÔNG GAI ★', 1000, 568);
+    c.fillText('★ CONCERT NGÀN CHÔNG GAI ★', 1000, 634);
   }
   /** Khói, pháo giấy, laser (vẽ trên cùng) */
   function fx(c, t) {
-    c.fillStyle = 'rgba(4,2,12,.62)'; c.fillRect(0, 640, 2000, 610); c.fillRect(0, 0, 380, 640); c.fillRect(1620, 0, 380, 640);
-    c.fillStyle = 'rgba(4,2,12,.3)'; c.fillRect(380, 0, 1240, 640);
+    c.fillStyle = 'rgba(4,2,12,.62)'; c.fillRect(0, 700, 2000, 550); c.fillRect(0, 0, 340, 700); c.fillRect(1660, 0, 340, 700);
+    c.fillStyle = 'rgba(4,2,12,.3)'; c.fillRect(340, 0, 1320, 700);
     // đèn sân khấu chiếu xuống các anh trai
     c.save(); c.globalCompositeOperation = 'lighter';
-    BROS.forEach((b, i) => { const x = 640 + i * 180, g = c.createRadialGradient(x, 560, 10, x, 600, 120); g.addColorStop(0, 'rgba(255,240,200,.28)'); g.addColorStop(1, 'rgba(255,240,200,0)'); c.fillStyle = g; c.fillRect(x - 130, 470, 260, 200); });
+    BROS.forEach((b, i) => { const x = 640 + i * 180, g = c.createRadialGradient(x, 620, 10, x, 660, 120); g.addColorStop(0, 'rgba(255,240,200,.28)'); g.addColorStop(1, 'rgba(255,240,200,0)'); c.fillStyle = g; c.fillRect(x - 130, 530, 260, 200); });
     c.restore();
     crowd(c, t, true);
     glowSticks(c, t);
@@ -87,7 +87,7 @@ const CONCERT = (() => {
     c.restore();
     // khói trắng dưới chân sân khấu
     for (let k = 0; k < 14; k++) {
-      const ph = (t * 0.25 + k / 14) % 1, x = 420 + ((k * 89) % 1160) + Math.sin(t + k) * 30, y = 650 - ph * 70;
+      const ph = (t * 0.25 + k / 14) % 1, x = 380 + ((k * 89) % 1240) + Math.sin(t + k) * 30, y = 712 - ph * 70;
       c.fillStyle = `rgba(235,235,255,${0.16 * (1 - ph)})`; c.beginPath(); c.ellipse(x, y, 60 + ph * 50, 22 + ph * 14, 0, 0, Math.PI * 2); c.fill();
     }
     // pháo giấy bung mỗi 15 giây, rơi khoảng 6 giây
@@ -99,7 +99,7 @@ const CONCERT = (() => {
       c.fillStyle = ['#ff6b6b', '#ffd43b', '#4dabf7', '#69db7c', '#f783ac', '#fff'][k % 6]; c.fillRect(-5, -3, 10, 6); c.restore();
     }
     // pháo tia hai bên sân khấu cùng lúc bung pháo giấy
-    if (cyc < 1.2) [[470, 640], [1530, 640]].forEach(([x, y]) => { for (let k = 0; k < 12; k++) { const h = cyc * 400; c.fillStyle = `rgba(255,230,140,${1 - cyc / 1.2})`; c.fillRect(x - 3 + Math.sin(k) * 14, y - h - k * 8, 4, 10); } });
+    if (cyc < 1.2) [[400, 700], [1600, 700]].forEach(([x, y]) => { for (let k = 0; k < 12; k++) { const h = cyc * 400; c.fillStyle = `rgba(255,230,140,${1 - cyc / 1.2})`; c.fillRect(x - 3 + Math.sin(k) * 14, y - h - k * 8, 4, 10); } });
   }
   /** Khán đài hai bên sân khấu: fan vẫy lightstick */
   function crowd(c, t, sticksOnly) {
