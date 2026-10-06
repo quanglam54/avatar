@@ -123,6 +123,11 @@ const NET = (() => {
     send('vc', p);
   }
 
+  /** Vị trí xe trên đường phố (ride.js) */
+  function sendRide(p) {
+    send('ride', p);
+  }
+
   function sendRps(p) {
     send('rps', p);
   }
@@ -199,6 +204,8 @@ const NET = (() => {
       BIL.onNet(m);
     } else if (m.t === 'quiz') {
       AV.onQuizWin(num(m.round, -1), clean(m.name, 16));
+    } else if (m.t === 'ride') {
+      if (typeof RIDE !== 'undefined') RIDE.onNet(m);
     } else if (m.t === 'rps') {
       if (typeof RPS !== 'undefined') RPS.onNet(m);
     } else if (m.t === 'vc') {
@@ -233,21 +240,30 @@ const NET = (() => {
     if (!lobby) return;
     lobby.on((m) => {
       if (!m || m.id === pid) return;
-      if (m.t === 'where') where.set(m.id, { map: String(m.map), seen: Date.now() });
+      if (m.t === 'where') where.set(m.id, { map: String(m.map), at: String(m.at || m.map), user: String(m.user || ''), seen: Date.now() });
       else if (m.t === 'bye') where.delete(m.id);
-      else if ((m.t === 'farmrev' || m.t === 'farmhit' || m.t === 'saverev') && m.u) AV.onFarmPing(m.t, String(m.u));
+      else if ((m.t === 'farmrev' || m.t === 'farmhit' || m.t === 'saverev' || m.t === 'dm') && m.u) AV.onFarmPing(m.t, String(m.u));
     });
     announce();
   }
 
   function announce() {
     lobbyBeat = 0;
-    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId === 'casino' ? 'fun' : mapId === 'classroom' ? 'school' : mapId.split('-')[0] });
+    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId === 'casino' ? 'fun' : mapId === 'classroom' ? 'school' : mapId.split('-')[0], at: mapId.split('-')[0], user: (typeof CLOUD !== 'undefined' && CLOUD.username) || '' });
   }
 
   /** Báo ngắn cho mọi người: nông trại của uid vừa thay đổi / vừa bị tưới giúp, hái trộm */
   function farmPing(t, uid) {
     if (lobby && uid) lobby.send({ t, id: pid, u: uid });
+  }
+
+  /** Người chơi (theo tên đăng nhập) đang online không, ở khu nào */
+  function onlineUser(u) {
+    if (!u) return null;
+    for (const r of remotes.values()) if (r.user === u) return { map: String(mapId || '').split('-')[0] };
+    const now = Date.now();
+    for (const w of where.values()) if (w.user === u && now - w.seen < 15000) return { map: w.at };
+    return null;
   }
 
   function zoneCounts() {
@@ -349,10 +365,11 @@ const NET = (() => {
   }
 
   return {
-    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing, sendFirework, sendBite, sendVoice, sendRps,
+    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing, sendFirework, sendBite, sendVoice, sendRps, sendRide,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],
+    onlineUser,
     renderStatus,
   };
 })();

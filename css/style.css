@@ -650,3 +650,56 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .rps-word { text-align: center; font-size: 32px; font-weight: 900; color: #e8590c; margin: 6px 0; }
 .rps-result { text-align: center; font-size: 22px; font-weight: 900; margin: 6px 0; }
 .rps-result.win { color: #2b8a3e; } .rps-result.lose { color: #c92a2a; } .rps-result.draw { color: #1c7ed6; }
+
+/* Bạn bè + nhắn tin riêng */
+#btnSocial { position: relative; }
+#btnSocial.has-n::after { content: attr(data-n); position: absolute; top: -8px; right: -8px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 99px; background: #e03131; color: #fff; font-size: 12px; font-weight: 900; display: grid; place-items: center; border: 2px solid #fff; }
+.fr-row .btn.small { padding: 6px 9px; }
+.fr-row { flex-wrap: wrap; }
+.dm-log { height: min(340px, 50vh); overflow-y: auto; background: #f1f6ff; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.dm-msg { max-width: 78%; align-self: flex-start; background: #fff; border: 1px solid #dee2e6; border-radius: 14px 14px 14px 4px; padding: 6px 10px; display: grid; gap: 2px; font-size: 14px; }
+.dm-msg.me { align-self: flex-end; background: #d3f9d8; border-color: #b2f2bb; border-radius: 14px 14px 4px 14px; }
+.dm-msg small { font-size: 10px; color: #868e96; justify-self: end; }
+.dm-form { display: flex; gap: 6px; }
+.dm-form .field { flex: 1; }
+.gift-grid { margin: 8px 0; }
+
+/* Cài app */
+.install-steps { margin: 8px 0 12px; padding-left: 22px; display: grid; gap: 8px; line-height: 1.45; }
+.ios-share { display: inline-block; padding: 0 4px; border-radius: 6px; background: #e7f5ff; }
+
+/* Đường phố: taxi Xanh SM + xe máy */
+.ride-view { position: fixed; inset: 0; z-index: 20; display: none; background: #0b1730; touch-action: none; user-select: none; -webkit-user-select: none; }
+.ride-view canvas { display: block; }
+.ride-top { position: absolute; top: max(10px, env(safe-area-inset-top)); left: 10px; right: 10px; display: flex; gap: 8px; justify-content: space-between; align-items: flex-start; pointer-events: none; flex-wrap: wrap; }
+.ride-street { background: #1864ab; color: #fff; border: 3px solid #fff; border-radius: 10px; padding: 4px 12px; box-shadow: 0 3px 0 rgba(0,0,0,.3); display: grid; }
+.ride-street b { font-size: 17px; letter-spacing: .5px; text-transform: uppercase; }
+.ride-street small { font-size: 11px; opacity: .85; }
+.ride-next { background: rgba(255,255,255,.95); color: #1b2f48; border-radius: 12px; padding: 7px 12px; font-weight: 800; font-size: 14px; box-shadow: 0 3px 0 rgba(0,0,0,.25); max-width: 60%; }
+.ride-banner { position: absolute; top: 34%; left: 50%; transform: translateX(-50%); display: none; background: rgba(27,47,72,.9); color: #fff; font-weight: 900; font-size: clamp(18px, 4vw, 28px); padding: 10px 22px; border-radius: 16px; border: 3px solid #fff; white-space: nowrap; pointer-events: none; animation: pop .25s; }
+.ride-speed { position: absolute; left: 12px; bottom: 14px; width: 74px; height: 74px; border-radius: 50%; background: radial-gradient(#2b3a55, #1b2f48); border: 3px solid #fff; color: #fff; display: none; place-items: center; align-content: center; box-shadow: 0 3px 0 rgba(0,0,0,.3); }
+.ride-speed b { font-size: 24px; line-height: 1; }
+.ride-speed small { font-size: 10px; opacity: .8; }
+.ride-view.bike .ride-speed { display: grid; }
+.ride-skip { position: absolute; right: 12px; top: 64px; border: 3px solid #fff; border-radius: 12px; padding: 7px 12px; font: inherit; font-weight: 900; color: #1b2f48; background: linear-gradient(#fff, #d7eeff); box-shadow: 0 3px 0 #1b2f48; cursor: pointer; }
+.ride-eat { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); display: none; border: 3px solid #fff; border-radius: 14px; padding: 10px 16px; font: inherit; font-weight: 900; color: #fff; background: linear-gradient(#ff922b, #e8590c); box-shadow: 0 0 0 2px #1b2f48, 0 4px 0 2px #1b2f48; cursor: pointer; animation: pop .2s; white-space: nowrap; }
+.ride-ctl { position: absolute; left: 0; right: 0; bottom: max(12px, env(safe-area-inset-bottom)); display: none; justify-content: space-between; padding: 0 12px 0 100px; pointer-events: none; }
+.ride-view.bike .ride-ctl { display: flex; }
+.ride-ctl button { pointer-events: auto; touch-action: none; width: 66px; height: 66px; border-radius: 18px; border: 3px solid #fff; font-size: 26px; font-weight: 900; color: #fff; background: rgba(27,47,72,.82); box-shadow: 0 4px 0 rgba(0,0,0,.35); display: grid; place-items: center; align-content: center; line-height: 1; cursor: pointer; }
+.ride-ctl button small { font-size: 10px; }
+.ride-ctl button.on { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.35); }
+.ride-lanes, .ride-pedals { display: flex; gap: 10px; }
+.ride-ctl .gas { width: 84px; height: 84px; background: linear-gradient(#51cf66, #2b8a3e); }
+.ride-ctl .brake { background: linear-gradient(#ff6b6b, #c92a2a); }
+.ride-route { font-weight: 700; margin: 0 0 8px; }
+.ride-opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.ride-opt { border: 3px solid #1b2f48; border-radius: 16px; background: #fff; padding: 10px 8px; display: grid; justify-items: center; gap: 2px; font: inherit; cursor: pointer; box-shadow: 0 4px 0 #1b2f48; }
+.ride-opt:active { transform: translateY(3px); box-shadow: 0 1px 0 #1b2f48; }
+.ride-opt span { font-size: 34px; line-height: 1.1; }
+.ride-opt small { color: #495057; font-size: 12px; }
+.ride-opt.taxi { background: linear-gradient(#e6fcfc, #c3fae8); }
+.ride-opt.shop { background: linear-gradient(#fff9db, #ffec99); }
+.ride-opt canvas, .bike-card canvas { width: 110px; height: 80px; }
+.bike-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 8px 0; }
+.bike-card { border: 2px solid #dee2e6; border-radius: 14px; padding: 8px; display: grid; justify-items: center; gap: 3px; text-align: center; background: #f8f9fa; }
+.bike-card small { color: #495057; font-size: 12px; }

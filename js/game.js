@@ -330,6 +330,7 @@
   }
 
   AV.saveNow = saveNow;
+  AV.markChanged = () => changed();
 
   AV.resetGame = () => {
     try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* bỏ qua */ }
@@ -1135,6 +1136,43 @@
     }
   }
 
+  /* ---------- Đi taxi Xanh SM / xe máy trên đường phố (ride.js) ---------- */
+  AV.hasBusStop = () => !!map.busStop;
+  AV.startRide = (dest, vehicle) => {
+    if (RIDE.active || fade.mode || !RIDE.canRide(map.id, dest)) return false;
+    if (pose) AV.leavePose();
+    if (player.fishing) AV.stopFishing(true);
+    if (bus.wantsBoard) bus.wantsBoard = false;
+    player.target = null; player.pending = null; player.path = []; player.dancing = 0;
+    player.hidden = true;
+    keys.clear();
+    if (!RIDE.start(RIDE.zoneOf(map.id), dest, vehicle)) { player.hidden = false; return false; }
+    NET.enter('road');
+    return true;
+  };
+  AV.endRide = (dest) => {
+    player.hidden = false;
+    VISIT = null;
+    const m = maps[dest], st = m && m.busStop;
+    if (!m) return;
+    enterMap(dest, st ? st.x + 50 : undefined, st ? st.y + 12 : undefined);
+    UI.toast(`📍 Đã tới ${m.name}`);
+    saveNow();
+  };
+  AV.buyBike = (id) => {
+    const b = (DATA.BIKES || []).find((x) => x.id === id);
+    if (!b) return false;
+    S.bikes = S.bikes || [];
+    if (S.bikes.includes(id)) { UI.toast('Bạn có xe này rồi 🛵'); return false; }
+    if (!AV.spend(b.price)) return false;
+    S.bikes.push(id);
+    S.bike = id;
+    changed();
+    UI.updateHud();
+    UI.toast(`🛵 Đã mua ${b.name}! Chọn khu trên bản đồ rồi chọn xe để tự lái nhé`, 4000);
+    return true;
+  };
+
   /** Chuyển thẳng tới một khu (dùng khi mới vào game) */
   AV.teleport = (id, showHelp, x, y, label) => {
     if (!maps[id] || fade.mode) return;
@@ -1320,6 +1358,7 @@
   /** Tin nhắn ngắn qua phòng chung: farmrev = nông trại vừa đổi, farmhit = có người tưới giúp / hái trộm */
   AV.onFarmPing = (t, uid) => {
     if (t === 'saverev' && uid === S.owner) { setTimeout(checkRemote, 600); return; }
+    if (t === 'dm' && uid === (CLOUD.user && CLOUD.user.id)) { setTimeout(() => SOCIAL.pull(), 500); return; }
     if (t === 'farmrev' && VISIT && VISIT.uid === uid) refreshVisit();
     if (t === 'farmhit' && uid === S.owner) setTimeout(() => { receiveHelps(); receiveSteals(); }, 1500);
   };
@@ -2071,7 +2110,7 @@
   }
   AV.belly = () => belly().v;
   AV.eat = (shopId, itemId) => {
-    const shop = DATA.EATERIES.find((e) => e.id === shopId), it = shop && shop.menu.find((x) => x.id === itemId);
+    const shop = [...DATA.EATERIES, ...(DATA.STREET_FOOD || [])].find((e) => e.id === shopId), it = shop && shop.menu.find((x) => x.id === itemId);
     if (!it) return false;
     const b = belly();
     if (b.v >= DATA.BELLY.max) { UI.toast(`😵 No căng bụng rồi! Đợi khoảng ${DATA.BELLY.digestMin} phút cho tiêu bớt nhé`, 3500); say(player, '🥴 No quá…'); return false; }
@@ -2464,6 +2503,8 @@
     return 0;
   }
 
+  AV.nightFactor = nightFactor;
+
   function worldTransform(c, scale, offX, offY) {
     c.setTransform(scale, 0, 0, scale, offX, offY);
   }
@@ -2846,6 +2887,7 @@
     if (saver() && last && t - last < 30) return;
     const dt = Math.min(0.05, (t - (last || t)) / 1000);
     last = t;
+    if (RIDE.active) { RIDE.frame(dt); return; }
     update(dt);
     draw();
   }
@@ -2855,6 +2897,7 @@
   enterMap(maps[S.map] ? S.map : 'farm', S.x, S.y);
   UI.init();
   MUSIC.init(S.settings || {});
+  SOCIAL.init();
   VOICE.init();
   UI.updateMusicBtn();
   TABLE.init();
@@ -2917,6 +2960,7 @@
     const finish = () => {
       cloudReady = true; syncedAt = S.changedAt || 0; saveNow(); joinRoom(); MUSIC.refresh(S.settings || {});
       setTimeout(() => { if (S.name && !AV.checkedToday() && !UI.isBlocking()) UI.dailyPanel(); UI.updateDailyDot(); }, 2500);
+      setTimeout(() => SOCIAL.pull(), 3500);
     };
     if (cloud && cloud.data && cloud.data.name) {
       const local = S.owner === uid && S.name ? S : null;

@@ -178,6 +178,34 @@ DATA.EATERIES = [
     menu: [{ id: 'tch_suada', name: 'Cà phê sữa đá', icon: '☕', price: 20, xp: 8 }, { id: 'tch_dao', name: 'Trà đào cam sả', icon: '🍑', price: 26, xp: 11 }, { id: 'tch_cake', name: 'Bánh mousse', icon: '🧁', price: 18, xp: 7 }] },
 ];
 
+/** Xe máy tự lái trên đường phố (mua 1 lần dùng mãi). max = tốc độ tối đa (÷10 ra km/h) */
+DATA.BIKES = [
+  { id: 'klara', name: 'Xe điện Klara', kind: 'electric', body: '#1c7ed6', helmet: '#fff', price: 2000, max: 430, accel: 280, desc: 'Êm, không xăng, chạy phố vừa đủ' },
+  { id: 'wave', name: 'Wave Alpha', kind: 'cub', body: '#e03131', helmet: '#ffd43b', price: 3000, max: 480, accel: 300, desc: 'Xe số quốc dân, bền bỉ' },
+  { id: 'vision', name: 'Vision', kind: 'scooter', body: '#f1f3f5', helmet: '#f783ac', price: 4500, max: 510, accel: 320, desc: 'Xe ga nhỏ gọn, lướt êm' },
+  { id: 'vespa', name: 'Vespa Sprint', kind: 'vespa', body: '#63e6be', helmet: '#7c4a2a', price: 8000, max: 560, accel: 360, desc: 'Cổ điển sang chảnh, bốc nhất' },
+];
+
+/** Quán vỉa hè dọc đường phố (đi xe máy chậm sát lề thì tấp vào ăn được) */
+DATA.STREET_FOOD = [
+  { id: 'sf_bundau', name: 'Bún Đậu Mắm Tôm', logo: '🍢', umb: '#2b8a3e', signBg: '#2b8a3e', signFg: '#fff', items: ['🍢', '🥬'],
+    menu: [{ id: 'bundau_full', name: 'Mẹt bún đậu đầy đủ', icon: '🍢', price: 35, xp: 16 }, { id: 'bundau_cha', name: 'Thêm chả cốm', icon: '🥮', price: 10, xp: 4 }, { id: 'bundau_tra', name: 'Trà đá', icon: '🧊', price: 3, xp: 1 }] },
+  { id: 'sf_banhmi', name: 'Bánh Mì Pate', logo: '🥖', umb: '#f59f00', signBg: '#f59f00', signFg: '#5c3010', items: ['🥖', '🥚'],
+    menu: [{ id: 'banhmi_pate', name: 'Bánh mì pate trứng', icon: '🥖', price: 15, xp: 7 }, { id: 'banhmi_xiu', name: 'Bánh mì xíu mại', icon: '🥪', price: 20, xp: 9 }] },
+  { id: 'sf_buncha', name: 'Bún Chả', logo: '🥗', umb: '#c92a2a', signBg: '#c92a2a', signFg: '#ffe066', items: ['🥗', '🍖'],
+    menu: [{ id: 'buncha_suat', name: 'Bún chả nem rán', icon: '🥗', price: 30, xp: 14 }, { id: 'buncha_nem', name: 'Thêm nem cua bể', icon: '🌯', price: 12, xp: 5 }] },
+  { id: 'sf_xoi', name: 'Xôi Xéo', logo: '🍙', umb: '#fab005', signBg: '#fab005', signFg: '#5c3010', items: ['🍙', '🍗'],
+    menu: [{ id: 'xoi_xeo', name: 'Xôi xéo hành phi', icon: '🍙', price: 12, xp: 6 }, { id: 'xoi_ga', name: 'Xôi gà xé', icon: '🍗', price: 22, xp: 10 }] },
+  { id: 'sf_nem', name: 'Nem Nướng', logo: '🍡', umb: '#d9480f', signBg: '#d9480f', signFg: '#fff', items: ['🍡', '🌿'],
+    menu: [{ id: 'nem_nuong', name: 'Nem nướng cuốn', icon: '🍡', price: 25, xp: 11 }, { id: 'nem_chua', name: 'Nem chua rán', icon: '🍤', price: 20, xp: 9 }] },
+  { id: 'sf_trada', name: 'Trà Đá Vỉa Hè', logo: '🧊', umb: '#1c7ed6', signBg: '#1c7ed6', signFg: '#fff', items: ['🧊', '🥜'],
+    menu: [{ id: 'trada_coc', name: 'Cốc trà đá', icon: '🧊', price: 3, xp: 1 }, { id: 'trada_huong', name: 'Hướng dương rang', icon: '🌻', price: 5, xp: 2 }, { id: 'trada_chanh', name: 'Trà chanh giã tay', icon: '🍋', price: 10, xp: 4 }] },
+  { id: 'sf_che', name: 'Chè Thập Cẩm', logo: '🍧', umb: '#e64980', signBg: '#e64980', signFg: '#fff', items: ['🍧', '🥥'],
+    menu: [{ id: 'che_thapcam', name: 'Chè thập cẩm', icon: '🍧', price: 15, xp: 7 }, { id: 'che_buoi', name: 'Chè bưởi', icon: '🥥', price: 15, xp: 7 }] },
+  { id: 'sf_ngo', name: 'Ngô Khoai Nướng', logo: '🌽', umb: '#5c940d', signBg: '#5c940d', signFg: '#fff', items: ['🌽', '🍠'],
+    menu: [{ id: 'ngo_nuong', name: 'Ngô nướng mỡ hành', icon: '🌽', price: 10, xp: 4 }, { id: 'khoai_nuong', name: 'Khoai lang nướng', icon: '🍠', price: 8, xp: 3 }] },
+];
+
 /** Điểm danh hằng ngày: 7 ngày liên tiếp, bỏ 1 ngày thì tính lại từ ngày 1 */
 DATA.CHECKIN = [
   { coins: 50, ticket: 1 },

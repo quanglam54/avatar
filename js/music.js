@@ -101,8 +101,11 @@ const MUSIC = (() => {
     vol = typeof settings.musicVol === 'number' ? settings.musicVol : 0.5;
     setSource(settings.musicUrl ?? DEFAULT, true);
     // trình duyệt chỉ cho phát tiếng sau khi người chơi chạm / bấm lần đầu
+    // chỉ tự phát 1 lần ở lần chạm đầu tiên — sau đó bấm/tưới cây không được tự bật lại nhạc người chơi đã tắt
     const kick = () => {
+      if (kicked) return;
       kicked = true;
+      ['pointerdown', 'keydown', 'touchend'].forEach((ev) => window.removeEventListener(ev, kick));
       if (!on) return;
       if (src.kind !== 'chill') { if (!ac) { try { build(); } catch (e) { /* bỏ qua */ } } if (ac && ac.state === 'suspended') ac.resume(); playCustom(); return; }
       if (!ac || ac.state !== 'running' || !started) start();
@@ -246,7 +249,7 @@ const MUSIC = (() => {
       el.className = 'yt-mini';
       el.innerHTML = '<div class="yt-bar"><span class="yt-title">🎵 Đang tải nhạc…</span><button data-yplay title="Phát / dừng">⏯</button><button data-ynext title="Bài tiếp">⏭</button><button data-yvid title="Hiện / ẩn video">📺</button></div><div class="yt-frame"><div id="ytHolder"></div></div>';
       document.body.appendChild(el);
-      el.querySelector('[data-yplay]').onclick = () => { kicked = true; if (!on) { setOn(true); return; } if (yt && ytReady) { if (yt.getPlayerState() === 1) yt.pauseVideo(); else yt.playVideo(); } };
+      el.querySelector('[data-yplay]').onclick = () => { kicked = true; const v = !on || !(yt && ytReady && yt.getPlayerState() === 1); setOn(v); if (api.onToggle) api.onToggle(v); };
       el.querySelector('[data-ynext]').onclick = () => { if (yt && ytReady) { if (src.list) yt.nextVideo(); else yt.seekTo(0); } };
       el.querySelector('[data-yvid]').onclick = () => el.classList.toggle('video');
     }
@@ -314,5 +317,6 @@ const MUSIC = (() => {
     setSource(settings.musicUrl ?? DEFAULT, true);
   }
 
-  return { init, setOn, setVolume, setSource, parseSource, refresh, get source() { return src; }, get defaultUrl() { return DEFAULT; }, boom, whistle, melody, clack, bark, rain, get on() { return on; }, get volume() { return vol; } };
+  const api = { init, setOn, setVolume, setSource, parseSource, refresh, get source() { return src; }, get defaultUrl() { return DEFAULT; }, boom, whistle, melody, clack, bark, rain, get on() { return on; }, get volume() { return vol; }, onToggle: null };
+  return api;
 })();

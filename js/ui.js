@@ -411,7 +411,7 @@ const UI = (() => {
           <small>${z.id === cur ? '📍 Bạn ở đây' : z.desc}</small>
           ${counts[z.id] ? `<em>👥 ${counts[z.id]}</em>` : ''}
         </button>`).join('');
-      zones.querySelectorAll('[data-z]').forEach((b) => b.onclick = () => { p.close(); if (start) AV.teleport(b.dataset.z, true); else AV.travelTo(b.dataset.z); });
+      zones.querySelectorAll('[data-z]').forEach((b) => b.onclick = () => { p.close(); if (start) AV.teleport(b.dataset.z, true); else rideChooser(b.dataset.z); });
       const fb = p.body.querySelector('[data-friends]');
       if (fb) fb.onclick = () => { p.close(); friendsPanel(); };
     };
@@ -419,6 +419,54 @@ const UI = (() => {
     render();
     const timer = setInterval(render, 2000);
     p.onClose = () => clearInterval(timer);
+  }
+
+  /* ---------- Chọn cách đi: xe buýt / taxi Xanh SM / xe máy ---------- */
+  function rideChooser(id) {
+    const S = AV.S, cur = AV.currentMap();
+    const inf = RIDE.canRide(cur, id) ? RIDE.info(cur, id) : null;
+    if (!inf) return AV.travelTo(id);
+    const z = DATA.ZONES.find((x) => x.id === id) || { icon: '📍', name: id };
+    const bikes = (S.bikes || []).map((b) => DATA.BIKES.find((x) => x.id === b)).filter(Boolean);
+    const p = panel(`🚦 Đi tới ${z.icon} ${z.name}`, `
+      <p class="ride-route">🛣️ ${inf.streets.map(esc).join(' → ')} <b>· ${inf.km}</b></p>
+      <div class="ride-opts">
+        ${AV.hasBusStop() ? '<button class="ride-opt" data-v="bus"><span>🚌</span><b>Xe buýt</b><small>Miễn phí · tới ngay</small></button>' : ''}
+        <button class="ride-opt taxi" data-v="taxi"><span>🚕</span><b>Taxi Xanh SM</b><small>${inf.fare} xu · ngồi ngắm phố</small></button>
+        ${bikes.map((b) => `<button class="ride-opt bike" data-v="${b.id}"><canvas data-pv="${b.id}"></canvas><b>${esc(b.name)}</b><small>Tự lái · miễn phí</small></button>`).join('')}
+        <button class="ride-opt shop" data-shop><span>🏍️</span><b>${bikes.length ? 'Mua thêm xe' : 'Mua xe máy'}</b><small>Từ ${Math.min(...DATA.BIKES.map((b) => b.price)).toLocaleString('vi-VN')} xu</small></button>
+      </div>
+      <p class="muted small-note">Đi taxi hoặc xe máy sẽ chạy qua các con phố Hà Nội — có đèn xanh đỏ, quán vỉa hè, gặp người chơi khác trên đường.</p>`);
+    p.body.querySelectorAll('[data-pv]').forEach((cv) => requestAnimationFrame(() => RIDE.preview(cv, cv.dataset.pv, S.look)));
+    p.body.querySelectorAll('[data-v]').forEach((b) => b.onclick = () => {
+      const v = b.dataset.v;
+      if (v === 'bus') { p.close(); AV.travelTo(id); return; }
+      if (v === 'taxi') { if (S.coins < inf.fare) { toast('Không đủ xu đi taxi 😢'); return; } p.close(); if (AV.startRide(id, 'taxi')) AV.spend(inf.fare); return; }
+      p.close();
+      S.bike = v;
+      AV.startRide(id, v);
+    });
+    p.body.querySelector('[data-shop]').onclick = () => { p.close(); bikeShop(id); };
+  }
+
+  /** Cửa hàng xe máy */
+  function bikeShop(backTo) {
+    const S = AV.S;
+    const p = panel('🏍️ Cửa hàng xe máy', '', { wide: true });
+    const render = () => {
+      const own = S.bikes || [];
+      p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
+        <div class="bike-grid">${DATA.BIKES.map((b) => `<div class="bike-card"><canvas data-pv="${b.id}"></canvas>
+          <b>${esc(b.name)}</b><small>${esc(b.desc)}</small><small>⚡ Tối đa ${Math.round(b.max / 10)} km/h</small>
+          ${own.includes(b.id) ? '<button class="btn small ghost" disabled>✅ Đã có</button>' : `<button class="btn small" data-buy="${b.id}">${b.price.toLocaleString('vi-VN')} xu</button>`}</div>`).join('')}</div>
+        <p class="muted small-note">Mua 1 lần dùng mãi. Khi chọn khu trên bản đồ thành phố, chọn xe của bạn để tự lái qua phố.</p>
+        ${backTo ? '<div class="row-end"><button class="btn ghost" data-back>⬅ Quay lại chọn xe</button></div>' : ''}`;
+      p.body.querySelectorAll('[data-pv]').forEach((cv) => requestAnimationFrame(() => RIDE.preview(cv, cv.dataset.pv, S.look)));
+      p.body.querySelectorAll('[data-buy]').forEach((bt) => bt.onclick = () => { if (AV.buyBike(bt.dataset.buy)) render(); });
+      const bk = p.body.querySelector('[data-back]');
+      if (bk) bk.onclick = () => { p.close(); rideChooser(backTo); };
+    };
+    render();
   }
 
   /* ---------- Tiệm thú cưng ---------- */
@@ -706,11 +754,16 @@ const UI = (() => {
       <div class="row-end">
         <button class="btn ghost" data-wave>👋 Vẫy tay</button>
         ${r.id && r.kind === 'remote' ? '<button class="btn" data-rps>✊ Oẳn tù tì</button>' : ''}
+        ${r.user && CLOUD.user && r.user !== CLOUD.username ? (SOCIAL.isFriend(r.user) ? '<button class="btn" data-dm>💬 Nhắn tin</button>' : '<button class="btn" data-add>➕ Kết bạn</button>') : ''}
         ${r.user ? '<button class="btn" data-visit>🏡 Thăm nông trại</button>' : ''}
       </div>
       ${r.user ? '' : '<p class="muted small-note">Người này chưa có tài khoản nên chưa thăm nông trại được.</p>'}`);
     drawAvatar(p.body.querySelector('.menu-av'), r.look || AV.S.look, { scale: 0.9 });
     p.body.querySelector('[data-wave]').onclick = () => { p.close(); AV.say(`👋 Chào ${r.name}!`); };
+    const ad = p.body.querySelector('[data-add]');
+    if (ad) ad.onclick = () => { p.close(); SOCIAL.addFriend(r.user); };
+    const dm = p.body.querySelector('[data-dm]');
+    if (dm) dm.onclick = () => { p.close(); SOCIAL.openChat((AV.S.friends || []).find((f) => f.username === r.user)); };
     const rp = p.body.querySelector('[data-rps]');
     if (rp) rp.onclick = () => { p.close(); RPS.challenge(r); };
     const v = p.body.querySelector('[data-visit]');
@@ -1018,7 +1071,7 @@ const UI = (() => {
 
   /* ---------- Quán ăn uống ---------- */
   function eateryPanel(id) {
-    const e = DATA.EATERIES.find((x) => x.id === id);
+    const e = [...DATA.EATERIES, ...(DATA.STREET_FOOD || [])].find((x) => x.id === id);
     if (!e) return;
     const S = AV.S;
     const p = panel(`${e.logo} ${e.name}`, '', { wide: true });
@@ -1168,6 +1221,28 @@ const UI = (() => {
     p.body.querySelector('[data-ok]').onclick = p.close;
   }
 
+  /** Cài game lên điện thoại như app: Android/PC bấm là cài, iPhone thì hướng dẫn */
+  function installApp() {
+    const standalone = matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || navigator.standalone;
+    if (standalone) { toast('✅ Bạn đang chơi trong app rồi!'); return; }
+    const ev = window.__installPrompt;
+    if (ev) {
+      ev.prompt();
+      ev.userChoice.then((c) => { window.__installPrompt = null; if (c.outcome === 'accepted') toast('📲 Đã cài! Tìm icon Nông Trại trên màn hình chính.'); });
+      return;
+    }
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const p = panel('📲 Cài game như app', ios ? `
+      <p>Trên iPhone/iPad (mở bằng <b>Safari</b>):</p>
+      <ol class="install-steps"><li>Bấm nút <b>Chia sẻ</b> <span class="ios-share">⬆️</span> ở thanh dưới</li><li>Chọn <b>Thêm vào MH chính</b> ➕</li><li>Bấm <b>Thêm</b> — icon Nông Trại hiện ra, mở là toàn màn hình</li></ol>
+      <div class="row-end"><button class="btn" data-ok>Đã hiểu!</button></div>` : `
+      <p>Trên Android (Chrome):</p>
+      <ol class="install-steps"><li>Bấm nút <b>⋮</b> góc trên bên phải</li><li>Chọn <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b></li><li>Mở icon Nông Trại — chơi toàn màn hình như app</li></ol>
+      <p class="muted">Nếu không thấy, hãy tải lại trang (F5) rồi thử lại.</p>
+      <div class="row-end"><button class="btn" data-ok>Đã hiểu!</button></div>`);
+    p.body.querySelector('[data-ok]').onclick = p.close;
+  }
+
   function menu() {
     const S = AV.S;
     const items = [
@@ -1175,12 +1250,14 @@ const UI = (() => {
       ['wear', '👕', 'Tủ đồ', () => characterEditor(false)],
       ['map', '🗺️', 'Bản đồ', () => cityMap(false)],
       ['quest', '📜', 'Nhiệm vụ', questsPanel],
-      ['friends', '🏡', 'Thăm bạn bè', friendsPanel],
+      ['social', '👥', 'Bạn bè', () => SOCIAL.open()],
+      ['friends', '🏡', 'Thăm nông trại', friendsPanel],
       ['daily', '📅', 'Điểm danh', () => dailyPanel()],
       ['rename', '✏️', 'Đổi tên', renamePanel],
       ['people', '👥', 'Người chơi', playersPanel],
       ['help', '❓', 'Cách chơi', help],
       ['set', '⚙️', 'Cài đặt', settings],
+      ['app', '📲', 'Cài app', installApp],
     ];
     const p = panel('☰ MENU', `
       <div class="menu-head"><canvas class="menu-av"></canvas><div><b>${esc(S.name)}</b><small>Cấp ${S.level} · 💰 ${S.coins.toLocaleString('vi-VN')} xu</small></div></div>
@@ -1381,6 +1458,7 @@ const UI = (() => {
     $('#btnDaily').onclick = () => dailyPanel();
     updateDailyDot();
     $('#btnMusic').onclick = () => setMusic(!MUSIC.on);
+    MUSIC.onToggle = (v) => { AV.S.settings = { ...(AV.S.settings || {}), music: v }; AV.saveNow(); updateMusicBtn(); };
     updateWheelDot();
     $('#btnMap').onclick = () => cityMap(false);
     $('#btnChat').onclick = () => { $('#chatLog').classList.add('active'); $('#chatInput').focus(); };
