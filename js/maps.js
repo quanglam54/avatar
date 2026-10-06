@@ -220,7 +220,7 @@ const MAPS = (() => {
     m.lights = [];
     const WL = 140, WR = 5260, WT = 420, WB = 1300, GATE = 1600;
     const BL = {
-      chick: [180, 450, 600, 330], field: [860, 450, 1400, 330], home: [2340, 450, 700, 330],
+      field: [180, 450, 2080, 385], home: [2340, 450, 700, 330],
       pasture: [180, 860, 840, 400], pond: [1100, 860, 440, 400], orchard: [1660, 860, 680, 400], garden: [2420, 860, 620, 400],
       play: [3120, 450, 600, 810],
       field2: [3800, 450, 1380, 330], yard: [3800, 860, 1380, 400],
@@ -256,24 +256,11 @@ const MAPS = (() => {
     for (let x = WL; x <= WR; x += 220) m.lights.push([x + 26, WT - 62, 42]);
     m.lights.push([GATE - 60, WB - 126, 46], [GATE + 60, WB - 126, 46]);
 
-    /* ----- Khu gà: rào trắng + chuồng mái tôn ----- */
-    picketPen(m, 200, 472, 760, 760);
-    sobj(m, 330, 640, (c) => ART.shed(c, 330, 640));
-    col(m, 230, 598, 200, 44);
-    sobj(m, 700, 540, (c) => ART.hayBale(c, 700, 540));
-    for (let i = 0; i < 8; i++) animal(m, 'chicken', { l: 450, t: 520, r: 735, b: 742 }, i);
-    m.labels.push({ text: '🐔 Khu Gà', x: 480, y: 442 });
-    inter(m, {
-      x: 220, y: 480, w: 230, h: 170, ax: 330, ay: 795, name: 'Chuồng gà (cho ăn / nhặt trứng)', arrow: { x: 330, y: 585 }, group: 'coop', approaches: [[330, 795], [790, 620]],
-      use: () => AV.useCoop(), indicator: () => AV.coopIndicator(), ix: 330, iy: 470,
-    });
-
-    /* ----- Khu trồng trọt: 8 luống ----- */
-    m.labels.push({ text: '🌾 Khu Trồng Trọt', x: 1560, y: 442 });
+    /* ----- Khu trồng trọt: 16 luống liền nhau (3 hàng × 6) + cửa hàng hạt giống ở góc ruộng ----- */
+    m.labels.push({ text: '🌾 Khu Trồng Trọt', x: 1220, y: 442 });
     const BD = ART.BED;
-    const fx0 = 860 + (1400 - (BD.w * 4 + 40 * 3)) / 2;
-    for (let bedIdx = 0; bedIdx < 8; bedIdx++) {
-      const bx = fx0 + (bedIdx % 4) * (BD.w + 40), by = 478 + Math.floor(bedIdx / 4) * (BD.h + 21);
+    /** Vẽ 1 luống + 12 ô bấm được */
+    const addBed = (bedIdx, bx, by, tileName) => {
       obj(m, by + BD.h - 25, (ctx, t) => {
         const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert, stolen: x.stolen }));
         ART.bed(ctx, bx, by, AV.F().beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
@@ -282,12 +269,19 @@ const MAPS = (() => {
         const i = bedIdx * 12 + k;
         const tx = bx + BD.padX + (k % 6) * BD.step, ty = by + BD.padY + Math.floor(k / 6) * BD.step;
         inter(m, {
-          x: tx - 2, y: ty - 2, w: BD.tile + 4, h: BD.tile + 4, ax: tx + BD.tile / 2, ay: by + BD.h + 8, name: 'Ô ruộng',
+          x: tx - 2, y: ty - 2, w: BD.tile + 4, h: BD.tile + 4, ax: tx + BD.tile / 2, ay: by + BD.h + 8, name: tileName,
           use: () => AV.useTile(i), indicator: k === 0 ? () => AV.bedIndicator(bedIdx) : null, ix: bx + BD.w / 2, iy: by - 2,
         });
       }
-    }
-    sobj(m, 2235, 700, (c) => ART.scarecrow(c, 2235, 700), { l: -45, t: -100, w: 90, h: 106 });
+    };
+    const FX0 = 180 + (2080 - (BD.w * 6 + 40 * 5)) / 2, FY0 = 466, FSTEP = BD.h + 12;
+    // thứ tự luống giữ nguyên số luống cũ (0–7 ruộng chính, 12–19 đất mở rộng) để không mất cây đang trồng
+    [0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19].forEach((bedIdx, slot) => addBed(bedIdx, FX0 + (slot % 6) * (BD.w + 40), FY0 + Math.floor(slot / 6) * FSTEP, 'Ô ruộng'));
+    // cửa hàng hạt giống nằm luôn trong khu ruộng (2 ô cuối hàng 3)
+    const SX = FX0 + 4 * (BD.w + 40) + (BD.w * 2 + 40) / 2, SY = FY0 + 2 * FSTEP + BD.h + 4;
+    sobj(m, SX, SY, (c) => { c.save(); c.translate(SX, SY); c.scale(0.74, 0.74); ART.seedStall(c, 0, 0); c.restore(); }, { l: -90, t: -140, w: 180, h: 150 });
+    col(m, SX - 72, SY - 36, 144, 34);
+    inter(m, { x: SX - 82, y: SY - 132, w: 164, h: 132, ax: SX, ay: SY + 24, name: 'Cửa hàng nông trại (mua hạt giống, phân bón, thuốc · bán đồ)', use: () => UI.seedShop(), arrow: { x: SX, y: SY - 136, text: 'Cửa hàng' } });
 
     /* ----- Nhà + bếp ----- */
     sobj(m, 2520, 720, (c) => ART.house(c, 2520, 720));
@@ -325,7 +319,6 @@ const MAPS = (() => {
       inter(m, { x: L, y: 884, w: R - L, h: 356, ax: cx, ay: 1272, name, use: () => AV.usePen(kind), group: kind, approaches: [[cx, 1272], [cx, 862]], indicator: () => AV.penIndicator(kind), ix, iy });
     });
     inter(m, { x: 220, y: 860, w: 240, h: 190, ax: 360, ay: 1272, name: 'Chuồng bò (cho ăn / vắt sữa)', arrow: { x: 340, y: 935 }, group: 'cow', approaches: [[360, 1272], [360, 862]], use: () => AV.usePen('cow') });
-    inter(m, { x: 200, y: 472, w: 560, h: 288, ax: 330, ay: 795, name: 'Sân gà (cho ăn / nhặt trứng)', use: () => AV.useCoop(), group: 'coop', approaches: [[330, 795], [790, 620]] });
 
     /* ----- Ao cá (câu được cá) ----- */
     m.lake = { x: 1320, y: 1060, rx: 180, ry: 110 };
@@ -340,7 +333,7 @@ const MAPS = (() => {
 
     /* ----- Vườn cây ăn quả ----- */
     AV._treePos = [];
-    [960, 1110, 1250].forEach((y, row) => [1730, 1870, 2010, 2150, 2290].forEach((x0, k) => {
+    [1000, 1125, 1250].forEach((y, row) => [1730, 1870, 2010, 2150, 2290].forEach((x0, k) => {
       const i = row * 5 + k, x = x0 + (row % 2) * 30;
       const fr = DATA.FRUITS[DATA.ORCHARD[i]];
       AV._treePos[i] = [x, y];
@@ -353,46 +346,23 @@ const MAPS = (() => {
     }));
     m.labels.push({ text: '🍊 Vườn Cây', x: 2000, y: 852 });
 
-    /* ----- Vườn hoa + cối xay gió ----- */
-    /* 4 luống hoa (luống số 9–12) trồng được: cúc, tulip, hướng dương, dâm bụt, hồng */
-    m.labels.push({ text: '🌼 Vườn Hoa', x: 2730, y: 852 });
-    const BDf = ART.BED;
-    for (let k = 0; k < 4; k++) {
-      const bedIdx = 8 + k;
-      const bx = 2420 + 6 + (k % 2) * (BDf.w + 6), by = 890 + Math.floor(k / 2) * (BDf.h + 40);
-      obj(m, by + BDf.h - 25, (ctx, t) => {
-        const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert, stolen: x.stolen }));
-        ART.bed(ctx, bx, by, AV.F().beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
-      }, [bx - 10, by - 70, bx + BD.w + 10, by + BD.h + 20]);
-      for (let j = 0; j < 12; j++) {
-        const i = bedIdx * 12 + j;
-        const tx = bx + BDf.padX + (j % 6) * BDf.step, ty = by + BDf.padY + Math.floor(j / 6) * BDf.step;
-        inter(m, {
-          x: tx - 2, y: ty - 2, w: BDf.tile + 4, h: BDf.tile + 4, ax: tx + BDf.tile / 2, ay: by + BDf.h + 8, name: 'Ô trồng hoa',
-          use: () => AV.useTile(i), indicator: j === 0 ? () => AV.bedIndicator(bedIdx) : null, ix: bx + BDf.w / 2, iy: by - 2,
-        });
-      }
-    }
+    /* ----- Sân gà thả rông: không chuồng, gà chạy khắp lối đi; ổ rơm để cho ăn / nhặt trứng ----- */
+    m.labels.push({ text: '🐔 Sân Gà', x: 2730, y: 852 });
+    sobj(m, 2620, 1080, (c) => ART.henNest(c, 2620, 1080), { l: -80, t: -78, w: 160, h: 88 });
+    col(m, 2560, 1062, 120, 20);
+    sobj(m, 2900, 1010, (c) => ART.hayBale(c, 2900, 1010));
+    sobj(m, 2500, 1220, (c) => ART.hayStack(c, 2500, 1220));
+    for (let i = 0; i < 5; i++) animal(m, 'chicken', { l: 2450, t: 910, r: 3020, b: 1240 }, i);
+    for (let i = 5; i < 9; i++) animal(m, 'chicken', { l: 240, t: 834, r: 2280, b: 860 }, i);
+    inter(m, {
+      x: 2545, y: 1000, w: 150, h: 90, ax: 2620, ay: 1112, name: 'Ổ rơm (cho gà ăn / nhặt trứng)', arrow: { x: 2620, y: 996 }, group: 'coop',
+      use: () => AV.useCoop(), indicator: () => AV.coopIndicator(), ix: 2620, iy: 985,
+    });
 
-    /* ----- Đất mở rộng: 8 luống ruộng (luống 13–20) ----- */
-    m.labels.push({ text: '🌾 Đất Mở Rộng', x: 4490, y: 442 });
+    /* ----- Vườn hoa (khu mở rộng): 4 luống hoa ----- */
+    m.labels.push({ text: '🌸 Vườn Hoa', x: 4490, y: 442 });
     const fx2 = 3800 + (1380 - (BD.w * 4 + 40 * 3)) / 2;
-    for (let k = 0; k < DATA.EXTRA_BEDS; k++) {
-      const bedIdx = DATA.FIELD_BEDS + DATA.FLOWER_BEDS + k;
-      const bx = fx2 + (k % 4) * (BD.w + 40), by = 478 + Math.floor(k / 4) * (BD.h + 21);
-      obj(m, by + BD.h - 25, (ctx, t) => {
-        const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert, stolen: x.stolen }));
-        ART.bed(ctx, bx, by, AV.F().beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
-      }, [bx - 10, by - 70, bx + BD.w + 10, by + BD.h + 20]);
-      for (let j = 0; j < 12; j++) {
-        const i = bedIdx * 12 + j;
-        const tx = bx + BD.padX + (j % 6) * BD.step, ty = by + BD.padY + Math.floor(j / 6) * BD.step;
-        inter(m, {
-          x: tx - 2, y: ty - 2, w: BD.tile + 4, h: BD.tile + 4, ax: tx + BD.tile / 2, ay: by + BD.h + 8, name: 'Ô ruộng',
-          use: () => AV.useTile(i), indicator: j === 0 ? () => AV.bedIndicator(bedIdx) : null, ix: bx + BD.w / 2, iy: by - 2,
-        });
-      }
-    }
+    for (let k = 0; k < DATA.FLOWER_BEDS; k++) addBed(DATA.FIELD_BEDS + k, fx2 + k * (BD.w + 40), 540, 'Ô trồng hoa');
 
     /* ----- Chuồng thú giữ nhà: mua chó, hổ, sư tử canh nông trại ----- */
     m.labels.push({ text: '🐕 Chuồng Thú Giữ Nhà', x: 4490, y: 852 });
@@ -438,7 +408,7 @@ const MAPS = (() => {
     inter(m, { x: 3580, y: 820, w: 120, h: 82, ax: 3640, ay: 935, name: 'Bệ bắn pháo hoa', use: () => UI.fireworksPanel(), arrow: { x: 3640, y: 800, text: 'Bắn pháo hoa' } });
 
     /* ----- Đèn đường dọc lối đi (sáng về đêm) ----- */
-    [[820, 830], [1600, 830], [2300, 830], [1520, 1280], [1680, 1280], [1060, 1270], [2380, 1270]].forEach(([x, y]) => {
+    [[2300, 830], [1520, 1280], [1680, 1280], [1060, 1270], [2380, 1270]].forEach(([x, y]) => {
       addLamp(m, x, y);
       m.lights.push([x - 24, y - 112, 58], [x + 24, y - 112, 58]);
     });
@@ -454,10 +424,8 @@ const MAPS = (() => {
       inter(m, { x: x - 105, y: y - 160, w: 210, h: 160, ax: x - 40, ay: y + 28, name: `${e.name} (ăn uống +XP)`, use: () => UI.eateryPanel(e.id) });
     });
     addPot(m, 1450, 1360, 'mai'); addPot(m, 1750, 1360, 'dao');
-    // sạp hạt giống ngay cổng nông trại
-    sobj(m, 2190, 1425, (c) => ART.seedStall(c, 2190, 1425), { l: -115, t: -182, w: 230, h: 190 });
-    col(m, 2092, 1378, 196, 46);
-    inter(m, { x: 2090, y: 1250, w: 200, h: 175, ax: 2190, ay: 1455, name: 'Cửa hàng nông trại (mua hạt giống, phân bón, thuốc · bán đồ)', use: () => UI.seedShop(), arrow: { x: 2190, y: 1240, text: 'Cửa hàng' } });
+    sobj(m, 2160, 1385, (c) => ART.signBoard(c, 2160, 1385, 'NÔNG TRẠI\nCửa hàng ở\ntrong ruộng 🌱'));
+    col(m, 2122, 1375, 80, 12);
     addBusStop(m, GATE + 140, 1432, 1);
     addStreetSign(m, GATE - 360, 1430);
     addStreetSign(m, 3420, 1430, ['Cầu Giấy', 'Hồ Tùng Mậu']);

@@ -920,6 +920,49 @@ const ART = (() => {
       ctx.strokeStyle = '#e8590c'; ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.ellipse(x, y - 6, 4, 7.5, 0, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = '#5c940d'; ctx.fillRect(x - 1, y - 16, 2.5, 4);
+    } else if (crop === 'tomato') {
+      ctx.strokeStyle = '#8b5a2b'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(x, y - 24); ctx.stroke();
+      [[-6, -10], [6, -14], [-4, -20], [5, -6]].forEach(([dx, dy]) => { ctx.fillStyle = '#37b24d'; ctx.beginPath(); ctx.ellipse(x + dx + sway, y + dy, 5, 2.5, dx > 0 ? 0.5 : -0.5, 0, Math.PI * 2); ctx.fill(); });
+      [[-5, -6], [5, -12], [-3, -17]].forEach(([dx, dy]) => { circle(ctx, x + dx + sway, y + dy, 4.4, '#f03e3e'); circle(ctx, x + dx + sway - 1.4, y + dy - 1.4, 1.3, 'rgba(255,255,255,.6)'); ctx.fillStyle = '#2b8a3e'; ctx.fillRect(x + dx + sway - 1, y + dy - 5, 2, 2); });
+    } else if (crop === 'potato') {
+      [[-6, -9], [6, -9], [0, -14], [-2, -6], [3, -5]].forEach(([dx, dy]) => circle(ctx, x + dx + sway * 0.4, y + dy, 5.5, '#40c057'));
+      [[-6, 1], [5, 2], [0, 3]].forEach(([dx, dy]) => { ctx.fillStyle = '#c99a5b'; ctx.beginPath(); ctx.ellipse(x + dx, y + dy, 4.6, 3.4, 0.2, 0, Math.PI * 2); ctx.fill(); circle(ctx, x + dx + 1, y + dy - 0.5, 0.7, '#8b5a2b'); });
+    } else if (crop === 'cucumber') {
+      ctx.strokeStyle = '#2f9e44'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(x - 8, y); ctx.quadraticCurveTo(x, y - 26, x + 8, y - 4); ctx.stroke();
+      [[-7, -14], [7, -16], [0, -22]].forEach(([dx, dy]) => circle(ctx, x + dx + sway * 0.5, y + dy, 5, '#51cf66'));
+      [[-4, -6, -0.3], [5, -9, 0.4]].forEach(([dx, dy, a]) => { ctx.fillStyle = '#2b8a3e'; ctx.beginPath(); ctx.ellipse(x + dx, y + dy, 2.6, 7.5, a, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(x + dx - 0.5, y + dy - 5, 1, 9); });
+    } else if (crop === 'chili') {
+      [[-6, -10], [6, -12], [0, -17], [0, -7]].forEach(([dx, dy]) => circle(ctx, x + dx + sway * 0.4, y + dy, 5, '#37b24d'));
+      [[-6, -8, -0.5], [2, -12, 0.3], [6, -6, 0.6], [-1, -4, -0.2]].forEach(([dx, dy, a]) => { ctx.save(); ctx.translate(x + dx + sway * 0.4, y + dy); ctx.rotate(a); ctx.fillStyle = '#e03131'; ctx.beginPath(); ctx.moveTo(-1.8, -3); ctx.quadraticCurveTo(2.5, 2, 0, 7); ctx.quadraticCurveTo(-2.6, 2, -1.8, -3); ctx.fill(); ctx.fillStyle = '#2b8a3e'; ctx.fillRect(-1.6, -4.5, 2.4, 2); ctx.restore(); });
+    } else if (crop === 'cabbage') {
+      circle(ctx, x, y - 8, 10, '#8ce99a');
+      [[-7, -6, -0.6], [7, -6, 0.6], [0, -2, 0]].forEach(([dx, dy, a]) => { ctx.fillStyle = '#51cf66'; ctx.beginPath(); ctx.ellipse(x + dx, y + dy, 7, 4.5, a, 0, Math.PI * 2); ctx.fill(); });
+      circle(ctx, x, y - 10, 6, '#d3f9d8');
+      ctx.strokeStyle = '#69db7c'; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.arc(x, y - 10, 4, 0.4, 3.6); ctx.stroke();
+    } else if (crop === 'grape') {
+      ctx.fillStyle = '#8b5a2b'; ctx.fillRect(x - 1, y - 26, 2.4, 28); ctx.fillRect(x - 10, y - 26, 20, 2.2);
+      [[-6, -22], [6, -23]].forEach(([dx, dy]) => circle(ctx, x + dx, y + dy, 5, '#40c057'));
+      [[-3, -18], [1, -18], [5, -18], [-1, -14], [3, -14], [1, -10], [-5, -14]].forEach(([dx, dy]) => { circle(ctx, x + dx + sway * 0.6, y + dy, 2.6, '#7048e8'); circle(ctx, x + dx + sway * 0.6 - 0.8, y + dy - 0.8, 0.7, 'rgba(255,255,255,.6)'); });
+    } else if (crop === 'banana') {
+      ctx.fillStyle = '#a47148'; ctx.fillRect(x - 2, y - 22, 4, 24);
+      [[-1, -0.9], [1, 0.9], [0, 0]].forEach(([sd, a]) => { ctx.save(); ctx.translate(x + sway, y - 22); ctx.rotate(a * 0.8 + (sd ? 0 : -0.1)); ctx.fillStyle = '#40c057'; ctx.beginPath(); ctx.ellipse(sd * 9, -4, 11, 4, sd * 0.3, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
+      [[-3, -14], [0, -12], [3, -14], [-1, -9], [2, -9]].forEach(([dx, dy]) => { ctx.fillStyle = '#ffd43b'; ctx.beginPath(); ctx.ellipse(x + dx + 2, y + dy, 1.8, 5, 0.3, 0, Math.PI * 2); ctx.fill(); });
+    } else if (crop === 'pineapple') {
+      [[-5, -18, -0.5], [0, -21, 0], [5, -18, 0.5], [-3, -16, -0.2], [3, -16, 0.2]].forEach(([dx, dy, a]) => { ctx.save(); ctx.translate(x + dx + sway * 0.5, y + dy); ctx.rotate(a); ctx.fillStyle = '#2f9e44'; ctx.beginPath(); ctx.moveTo(-2, 4); ctx.lineTo(0, -7); ctx.lineTo(2, 4); ctx.closePath(); ctx.fill(); ctx.restore(); });
+      ctx.fillStyle = '#fcc419'; ctx.beginPath(); ctx.ellipse(x, y - 6, 6.5, 8.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#e67700'; ctx.lineWidth = 0.9;
+      for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(x - 6, y - 6 + k * 3.5 - 4); ctx.lineTo(x + 6, y - 6 + k * 3.5 + 4); ctx.moveTo(x + 6, y - 6 + k * 3.5 - 4); ctx.lineTo(x - 6, y - 6 + k * 3.5 + 4); ctx.stroke(); }
+    } else if (crop === 'watermelon') {
+      ctx.fillStyle = '#2f9e44'; ctx.beginPath(); ctx.ellipse(x - 8, y - 12, 6, 3, -0.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#37b24d'; ctx.beginPath(); ctx.ellipse(x, y - 5, 11, 8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#1b5e20'; ctx.lineWidth = 1.6;
+      [-6, -2, 2, 6].forEach((dx) => { ctx.beginPath(); ctx.moveTo(x + dx, y - 12.5); ctx.quadraticCurveTo(x + dx * 1.3, y - 5, x + dx, y + 2.5); ctx.stroke(); });
+      ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.beginPath(); ctx.ellipse(x - 4, y - 8, 3, 1.6, -0.4, 0, Math.PI * 2); ctx.fill();
+    } else if (crop === 'ginseng') {
+      ctx.strokeStyle = '#2f9e44'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + sway, y - 18); ctx.stroke();
+      [0, 1.25, 2.5, 3.75, 5].forEach((a) => { ctx.fillStyle = '#40c057'; ctx.beginPath(); ctx.ellipse(x + sway + Math.cos(a) * 7, y - 16 + Math.sin(a) * 4, 5, 2.2, a, 0, Math.PI * 2); ctx.fill(); });
+      [[-1.5, -21], [1.5, -21], [0, -23.5], [-2.5, -23], [2.5, -23]].forEach(([dx, dy]) => circle(ctx, x + dx + sway, y + dy, 1.8, '#e03131'));
+      ctx.fillStyle = '#f1d6a6'; ctx.beginPath(); ctx.moveTo(x - 4, y - 2); ctx.quadraticCurveTo(x, y - 6, x + 4, y - 2); ctx.lineTo(x + 6, y + 4); ctx.lineTo(x + 1, y + 1); ctx.lineTo(x - 2, y + 5); ctx.lineTo(x - 5, y + 2); ctx.closePath(); ctx.fill();
     }
   }
 

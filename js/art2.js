@@ -2087,3 +2087,30 @@ Object.assign(ART, (() => {
   }
   return { seedStall };
 })());
+
+/* Ổ rơm cho gà đẻ (thay chuồng gà) */
+Object.assign(ART, (() => {
+  const { rr, shadow, circle, srand } = ART;
+  function henNest(ctx, x, y) {
+    shadow(ctx, x, y, 70, 12);
+    ctx.fillStyle = '#8b5a2b'; rr(ctx, x - 62, y - 34, 124, 34, 6); ctx.fill();
+    ctx.fillStyle = '#a0602e'; ctx.fillRect(x - 62, y - 34, 124, 6);
+    ctx.strokeStyle = 'rgba(70,40,15,.4)'; ctx.lineWidth = 2;
+    [-20, 20].forEach((dx) => { ctx.beginPath(); ctx.moveTo(x + dx, y - 30); ctx.lineTo(x + dx, y); ctx.stroke(); });
+    const r = srand(x + y);
+    for (let i = 0; i < 60; i++) {
+      ctx.strokeStyle = ['#e9c46a', '#d4a373', '#f4d58d'][i % 3]; ctx.lineWidth = 2;
+      const sx = x - 58 + r() * 116, sy = y - 40 + r() * 10;
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + (r() - 0.5) * 14, sy - 4 - r() * 6); ctx.stroke();
+    }
+    [[-34, -44], [-12, -46], [14, -45], [36, -43]].forEach(([dx, dy]) => {
+      ctx.fillStyle = '#fff8e6'; ctx.beginPath(); ctx.ellipse(x + dx, y + dy, 7, 9, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.beginPath(); ctx.ellipse(x + dx + 2, y + dy + 3, 4, 5, 0, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.fillStyle = '#fff3bf'; rr(ctx, x - 26, y - 76, 52, 18, 4); ctx.fill();
+    ctx.strokeStyle = '#8b5a2b'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#5c3010'; ctx.font = '900 10px "Be Vietnam Pro", system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🥚 Ổ GÀ', x, y - 66.5);
+  }
+  return { henNest };
+})());
