@@ -291,6 +291,14 @@ const ART = (() => {
 
     // ---- phía sau: cánh, tóc sau
     if (look.acc === 'wings') wings(ctx, t);
+    if (look.acc === 'starcape') {
+      ctx.save(); ctx.scale(0.86, 0.86);
+      const sw = Math.sin(t * 2) * 2;
+      ctx.fillStyle = '#1c2f6b'; ctx.beginPath(); ctx.moveTo(-13, -37); ctx.lineTo(13, -37); ctx.lineTo(21 + sw, 0); ctx.quadraticCurveTo(0, 5, -21 + sw, 0); ctx.closePath(); ctx.fill(); ol(ctx, 1.2);
+      [[-8, -24], [7, -16], [-3, -8], [12, -4], [-14, -6]].forEach(([sx, sy], k) => star(ctx, sx + sw * 0.5, sy, 2.6, 1.1, `rgba(255,236,120,${0.6 + 0.4 * Math.sin(t * 3 + k)})`));
+      ctx.fillStyle = '#ffd43b'; ctx.fillRect(-13, -38, 26, 3);
+      ctx.restore();
+    }
     if (look.back === 'cape_red') { ctx.save(); ctx.scale(0.86, 0.86); capeBack(ctx, t); ctx.restore(); }
     ctx.save(); headFrame(ctx); hairBack(ctx, look); ctx.restore();
 
@@ -755,6 +763,12 @@ const ART = (() => {
 
   function hat(ctx, h, dir) {
     if (!h || h === 'none') return;
+    if (h === 'halo') {
+      const tt = performance.now() / 1000;
+      ctx.strokeStyle = 'rgba(255,224,102,.45)'; ctx.lineWidth = 7; ctx.beginPath(); ctx.ellipse(0, -86 + Math.sin(tt * 2) * 1.5, 15, 5, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(0, -86 + Math.sin(tt * 2) * 1.5, 15, 5, 0, 0, Math.PI * 2); ctx.stroke();
+      return;
+    }
     if (h === 'snapback') {
       ctx.fillStyle = '#212529'; ctx.beginPath(); ctx.arc(0, -63, 19.5, Math.PI, 0); ctx.fill(); ol(ctx, 1.2);
       ctx.fillStyle = '#343a40'; rr(ctx, -22, -65, 44, 5, 2); ctx.fill(); ol(ctx, 1);

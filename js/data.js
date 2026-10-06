@@ -49,6 +49,7 @@ const DATA = {
     { id: 'beanie_winter', name: 'Mũ len mùa đông', price: 0, set: true },
     { id: 'catears', name: 'Bờm tai mèo', price: 0, set: true },
     { id: 'laurel', name: 'Vòng nguyệt quế', price: 0, set: true },
+    { id: 'halo', name: 'Vầng hào quang', price: 600, sky: true },
   ],
   ACCS: [
     { id: 'none', name: 'Không đeo', price: 0 },
@@ -60,6 +61,7 @@ const DATA = {
     { id: 'wings', name: 'Cánh thiên thần', price: 400, lvl: 3 },
     { id: 'chain', name: 'Dây xích vàng', price: 0, set: true },
     { id: 'scarf', name: 'Khăn len đỏ', price: 0, set: true },
+    { id: 'starcape', name: 'Áo choàng sao', price: 900, sky: true },
   ],
   ARCADE: [
     { id: 'pikachu', name: 'Pikachu', icon: '⚡', color: '#fcc419', div: 30 },
@@ -319,6 +321,7 @@ DATA.ZONES = [
   { id: 'fun', name: 'Khu giải trí', icon: '🎡', x: 25, y: 26, desc: 'Nhà Casino, sân khấu, vòng quay' },
   { id: 'park', name: 'Công viên', icon: '🌳', x: 20, y: 72, desc: 'Câu cá, dạo hồ' },
   { id: 'beach', name: 'Bãi biển', icon: '🏖️', x: 90, y: 12, desc: 'Nhặt vỏ sò, tắm nắng' },
+  { id: 'sky', name: 'Đảo Trên Trời', icon: '☁️', x: 52, y: 9, desc: 'Khinh khí cầu lên mây' },
   { id: 'school', name: 'Trường học', icon: '🏫', x: 48, y: 86, desc: 'Đố vui tiếng Anh' },
   { id: 'race', name: 'Khu Đua Xe', icon: '🏎️', x: 8, y: 48, desc: 'Đua xe với mọi người' },
 ];
@@ -328,6 +331,14 @@ DATA.FISH = [
   { id: 'fish_chep', name: 'Cá chép', icon: '🐠', sell: 15, w: 28 },
   { id: 'fish_vang', name: 'Cá vàng hiếm', icon: '🐡', sell: 45, w: 8 },
   { id: 'boot', name: 'Giày cũ', icon: '👢', sell: 1, w: 14 },
+];
+
+/** Câu cá trên mây (Đảo Trên Trời) */
+DATA.SKY_FISH = [
+  { id: 'fish_cloud', name: 'Cá mây', icon: '☁️', sell: 18, w: 45 },
+  { id: 'fish_rainbow', name: 'Cá cầu vồng', icon: '🌈', sell: 40, w: 20 },
+  { id: 'star_fallen', name: 'Ngôi sao rơi', icon: '⭐', sell: 30, w: 18 },
+  { id: 'kite_old', name: 'Con diều lạc', icon: '🪁', sell: 6, w: 17 },
 ];
 
 DATA.SHELLS = [
@@ -404,7 +415,9 @@ DATA.ITEMS = (() => {
     items[id] = { name: c.name, icon: c.icon, sell: c.sell };
   }
   for (const [id, p] of Object.entries(DATA.PRODUCTS)) items[id] = { name: p.name, icon: p.icon, sell: p.sell };
-  for (const f of [...DATA.FISH, ...DATA.SHELLS, ...DATA.RECIPES]) items[f.id] = { name: f.name, icon: f.icon, sell: f.sell };
+  items.sky_fruit = { name: 'Quả Sao Phát Sáng', icon: '✨', sell: 20 };
+  items.star_shard = { name: 'Mảnh Sao Băng', icon: '💫', sell: 300 };
+  for (const f of [...DATA.FISH, ...DATA.SKY_FISH, ...DATA.SHELLS, ...DATA.RECIPES]) items[f.id] = { name: f.name, icon: f.icon, sell: f.sell };
   for (const [id, f] of Object.entries(DATA.FRUITS)) items[id] = { name: f.name, icon: f.icon, sell: f.sell };
   items.fertilizer = { name: 'Phân bón', icon: '🧪', sell: 0 };
   items.pesticide = { name: 'Thuốc trừ sâu', icon: '🧴', sell: 0 };

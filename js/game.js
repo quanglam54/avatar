@@ -1037,8 +1037,9 @@
       UI.toast('Giật sớm quá, cá sợ bơi mất rồi 😅');
       return;
     }
-    let r = Math.random() * DATA.FISH.reduce((a, x) => a + x.w, 0);
-    const fish = DATA.FISH.find((x) => (r -= x.w) < 0) || DATA.FISH[0];
+    const FT = map.fishTable || DATA.FISH;
+    let r = Math.random() * FT.reduce((a, x) => a + x.w, 0);
+    const fish = FT.find((x) => (r -= x.w) < 0) || FT[0];
     addItem(fish.id, 1);
     addXP(fish.id === 'boot' ? 1 : 5);
     if (fish.id !== 'boot') AV.quest('fish');
@@ -1099,6 +1100,7 @@
 
   /** Chọn điểm đến trên bản đồ thành phố: tự đi ra trạm và lên xe */
   AV.travelTo = (id) => {
+    if (id === 'sky') { if (map.id === 'sky') return UI.toast('Bạn đang ở Đảo Trên Trời rồi ☁️'); return SKY.fly(true); }
     if (id === 'farm' && VISIT && map.id === 'farm') return AV.goHomeFarm();
     if (!map.busStop) {
       if (!maps[id] || id === map.id) return;
@@ -2561,6 +2563,10 @@
   }
   let recenterShown = false;
   AV.recenter = () => { camOff.x = 0; camOff.y = 0; };
+  AV.player = player;
+  AV.addItemPublic = (id, n) => addItem(id, n);
+  /** Nhảy lên mây nhún */
+  AV.bounce = () => { player.bounceUntil = Date.now() + 1800; say(player, ['Boing~ ☁️', 'Hú hú! 🤸', 'Bay lên nào!'][Math.floor(Math.random() * 3)]); };
   /** Ảnh vẽ sẵn vừa tải xong → vẽ lại nền bản đồ hiện tại */
   AV.refreshGround = () => { if (map && map.groundImgs) map.groundScale = 0; };
 
@@ -2716,7 +2722,8 @@
       } });
     } else if (!player.hidden) {
       const shake = player.stun && attack && attack.phase === 'bite' ? Math.sin(clock * 60) * 3.5 : 0;
-      charDraw(player.x + shake, player.y, S.look, { ...player, dance: player.dancing > now }, player);
+      const bnc = player.bounceUntil > now ? Math.abs(Math.sin((player.bounceUntil - now) / 1800 * Math.PI * 3)) * 70 : 0;
+      charDraw(player.x + shake, player.y - bnc, S.look, { ...player, dance: player.dancing > now }, player);
       if (S.look.pet && S.look.pet !== 'none') petDraw(myPet, S.look.pet);
     }
     if (map.busStop && bus.state !== 'away' && bus.state !== 'travel') {

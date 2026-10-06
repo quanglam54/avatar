@@ -346,8 +346,8 @@ const UI = (() => {
       p.body.innerHTML = `
         <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
         <div class="tabs">${TABS.map(([k, l]) => `<button class="chip ${tab === k ? 'on' : ''}" data-btab="${k}">${l}</button>`).join('')}</div>
-        <div class="b-grid">${tab === 'hat' ? DATA.HATS.filter((h) => h.id !== 'none' && !h.event && !h.set).map((h) => card('hat', h)).join('')
-          : tab === 'acc' ? DATA.ACCS.filter((a) => a.id !== 'none' && !a.set).map((a) => card('acc', a)).join('')
+        <div class="b-grid">${tab === 'hat' ? DATA.HATS.filter((h) => h.id !== 'none' && !h.event && !h.set && !h.sky).map((h) => card('hat', h)).join('')
+          : tab === 'acc' ? DATA.ACCS.filter((a) => a.id !== 'none' && !a.set && !a.sky).map((a) => card('acc', a)).join('')
             : DATA.SHIRT_STYLES.filter((s) => s.id !== 'plain' && !s.event).map((s) => card('shirt', s)).join('')}</div>
         <p class="muted small-note">Mua xong thay đổi tự do trong 👕 Tủ đồ. Hình xem trước dùng màu áo hiện tại của bạn.</p>`;
       p.body.querySelectorAll('[data-btab]').forEach((b) => b.onclick = () => { tab = b.dataset.btab; render(); });

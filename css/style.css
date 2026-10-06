@@ -768,3 +768,19 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .bk-log { margin-top: 10px; display: grid; gap: 4px; max-height: 150px; overflow: auto; font-size: 13px; }
 .bk-log div { display: grid; grid-template-columns: 1fr auto; background: #f8f9fa; border-radius: 8px; padding: 4px 8px; }
 .bk-log small { grid-column: 1 / -1; color: #868e96; } .bk-log .in { color: #2b8a3e; } .bk-log .out { color: #e03131; }
+
+/* Đảo Trên Trời */
+.wish-btn { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); z-index: 7; display: none; border: 3px solid #fff; border-radius: 16px; padding: 12px 20px; font: inherit; font-weight: 900; font-size: 18px; color: #1c2f6b; background: linear-gradient(#fff9db, #ffd43b); box-shadow: 0 0 0 2px #1b2f48, 0 4px 0 2px #1b2f48, 0 0 24px #ffe066; animation: pop .3s; cursor: pointer; }
+.fly-view { position: fixed; inset: 0; z-index: 45; display: none; overflow: hidden; background: linear-gradient(#5fb4f2, #dff3ff); pointer-events: none; }
+.fly-view.down { background: linear-gradient(#dff3ff, #8ec8f2); }
+.fly-balloon { position: absolute; left: 50%; top: 60%; font-size: 120px; transform: translate(-50%, 0); }
+.fly-view.go .fly-balloon { animation: flyUp 2.4s ease-in forwards; }
+.fly-view.down.go .fly-balloon { animation: flyDown 2.4s ease-out forwards; }
+.fly-clouds { position: absolute; inset: -50% 0; background: radial-gradient(circle at 20% 30%, #fff 0 60px, transparent 61px), radial-gradient(circle at 75% 55%, #fff 0 80px, transparent 81px), radial-gradient(circle at 40% 80%, #fff 0 50px, transparent 51px), radial-gradient(circle at 85% 15%, #fff 0 40px, transparent 41px); }
+.fly-view.go .fly-clouds { animation: cloudsDown 2.4s linear forwards; }
+.fly-view.down.go .fly-clouds { animation: cloudsUp 2.4s linear forwards; }
+.fly-text { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); color: #1b2f48; font-size: 24px; font-weight: 900; text-shadow: 0 2px 0 #fff; white-space: nowrap; }
+@keyframes flyUp { from { top: 60%; } to { top: 18%; } }
+@keyframes flyDown { from { top: 15%; } to { top: 62%; } }
+@keyframes cloudsDown { from { transform: translateY(-20%); } to { transform: translateY(25%); } }
+@keyframes cloudsUp { from { transform: translateY(25%); } to { transform: translateY(-20%); } }

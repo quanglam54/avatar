@@ -523,6 +523,10 @@ const MAPS = (() => {
     col(m, 440, 460, 80, 12);
     inter(m, { x: 430, y: 360, w: 100, h: 112, ax: 480, ay: 500, name: 'Bảng tin', use: () => UI.cityMap(false) });
 
+    /* bến khinh khí cầu lên Đảo Trên Trời */
+    aobj(m, 1530, 470, (c, t) => { c.save(); c.translate(1530, 470); c.scale(0.8, 0.8); SKY.balloon(c, 0, 0, t); c.restore(); }, { l: -85, t: -285, w: 170, h: 295 });
+    col(m, 1500, 438, 60, 34);
+    inter(m, { x: 1470, y: 220, w: 120, h: 255, ax: 1530, ay: 505, name: 'Khinh khí cầu (bay lên Đảo Trên Trời)', use: () => SKY.fly(true), arrow: { x: 1530, y: 210, text: '☁️ Lên Đảo Trên Trời' } });
     npc(m, 'Bé Na', { skin: '#ffe0c4', hair: 'pigtails', hairColor: '#6b3e26', shirt: '#e64980', shirtStyle: 'heart', pants: '#dee2e6', hat: 'bow' }, plazaArea, 440, 690, 'bunny');
     npc(m, 'Anh Tú', { skin: '#e3a979', hair: 'spiky', hairColor: '#2b2b33', shirt: '#4c6ef5', shirtStyle: 'stripes', pants: '#343a40', hat: 'cap' }, plazaArea, 800, 690, 'dog');
     npc(m, 'Cô Mai', { skin: '#f8c9a2', hair: 'long', hairColor: '#2b2b33', shirt: '#fcc419', shirtStyle: 'plain', pants: '#8b5a2b', hat: 'nonla' }, plazaArea, 1160, 690);
@@ -831,6 +835,51 @@ const MAPS = (() => {
     inter(m, { x: 940, y: 1000, w: 120, h: 70, ax: 1000, ay: 1030, name: 'Ra Khu giải trí', use: () => AV.leaveArena(), arrow: { x: 1000, y: 1005, text: 'Ra ngoài' } });
     m.spawn = { x: 1000, y: 1000 };
     m.bounds = { l: 56, t: 392, r: m.w - 56, b: 1040 };
+    return m;
+  }
+
+  /* ---------- ☁️ Đảo Trên Trời ---------- */
+  function sky() {
+    const m = base('sky', 'Đảo Trên Trời', SKY.W, SKY.H);
+    m.hz = 0;
+    m.fishTable = DATA.SKY_FISH;
+    ground(m, (g) => SKY.paintGround(g));
+    obj(m, 5, (ctx, t) => SKY.skyFx(ctx, t), [0, 0, SKY.W, 1000]);
+    m.labels.push({ text: '☁️ Bến Mây', x: 1270, y: 440 }, { text: '🍭 Vườn Mây Kẹo Bông', x: 2450, y: 400 }, { text: '🔭 Đài Thiên Văn', x: 520, y: 400 }, { text: '🎣 Câu Cá Trên Mây', x: 680, y: 840 });
+    // khinh khí cầu về Quảng trường
+    aobj(m, 1500, 620, (c, t) => SKY.balloon(c, 1500, 620, t), { l: -100, t: -340, w: 200, h: 350 });
+    col(m, 1462, 580, 76, 40);
+    inter(m, { x: 1430, y: 300, w: 140, h: 320, ax: 1500, ay: 660, name: 'Khinh khí cầu (bay về Quảng trường)', use: () => SKY.fly(false), arrow: { x: 1500, y: 170, text: 'Về thành phố' } });
+    sobj(m, 1270, 620, (c) => SKY.board(c, 1270, 620), { l: -80, t: -160, w: 160, h: 166 });
+    col(m, 1222, 610, 96, 12);
+    npc(m, 'Tiên Mây', { skin: '#ffe0c4', hair: 'long', hairColor: '#e9ecef', shirt: '#f8f9fa', shirtStyle: 'princess', pants: '#dee2e6', hat: 'halo', acc: 'wings' }, { l: 1200, t: 660, r: 1420, b: 740 }, 1320, 700, 'none');
+    // tiệm đồ trời mây
+    sobj(m, 1760, 640, (c) => SKY.shop(c, 1760, 640), { l: -130, t: -220, w: 260, h: 230 });
+    col(m, 1665, 600, 190, 40);
+    inter(m, { x: 1665, y: 450, w: 190, h: 190, ax: 1760, ay: 680, name: 'Tiệm Đồ Trời Mây (cánh, hào quang, áo choàng sao)', use: () => SKY.shopPanel(), arrow: { x: 1760, y: 430, text: 'Mua đồ' } });
+    // Đài Thiên Văn
+    sobj(m, 520, 660, (c) => SKY.observatory(c, 520, 660), { l: -140, t: -310, w: 280, h: 320 });
+    col(m, 420, 600, 200, 60);
+    inter(m, { x: 420, y: 380, w: 200, h: 280, ax: 520, ay: 700, name: 'Đài Thiên Văn (ước khi có sao băng)', use: () => SKY.wish(), arrow: { x: 520, y: 340, text: 'Ngắm sao' } });
+    // câu cá trên mây
+    m.lake = { x: SKY.LAKE.x, y: SKY.LAKE.y, rx: SKY.LAKE.rx, ry: SKY.LAKE.ry };
+    col(m, SKY.LAKE.x - SKY.LAKE.rx + 30, SKY.LAKE.y - SKY.LAKE.ry + 20, SKY.LAKE.rx * 2 - 60, SKY.LAKE.ry * 2 - 40);
+    // Vườn Mây Kẹo Bông: cây quả sao + mây nhún
+    SKY.TREES.forEach(([x, y], i) => {
+      aobj(m, x, y, (c, t) => SKY.glowTree(c, x, y, t, SKY.treeState(i).ripe), { l: -90, t: -180, w: 180, h: 190 });
+      col(m, x - 12, y - 8, 24, 10);
+      inter(m, { x: x - 70, y: y - 170, w: 140, h: 172, ax: x, ay: y + 26, name: 'Cây Quả Sao (hái quả phát sáng)', use: () => SKY.pickTree(i) });
+    });
+    [[1250, 960], [1500, 1000], [1760, 960], [2400, 980]].forEach(([x, y]) => {
+      aobj(m, x, y, (c, t) => SKY.bounceCloud(c, x, y, t), { l: -80, t: -80, w: 160, h: 96 });
+      inter(m, { x: x - 70, y: y - 70, w: 140, h: 80, ax: x, ay: y + 20, name: 'Mây nhún (nhảy lên)', use: () => AV.bounce() });
+    });
+    // thác nước chảy ngược
+    aobj(m, SKY.FALLS.x, SKY.FALLS.bottom, (c, t) => SKY.waterfall(c, t), { l: -130, t: -(SKY.FALLS.bottom - SKY.FALLS.top) - 110, w: 260, h: SKY.FALLS.bottom - SKY.FALLS.top + 180 });
+    col(m, SKY.FALLS.x - 55, SKY.FALLS.top, 110, SKY.FALLS.bottom - SKY.FALLS.top - 30);
+    inter(m, { x: SKY.FALLS.x - 120, y: SKY.FALLS.bottom - 60, w: 240, h: 100, ax: SKY.FALLS.x, ay: SKY.FALLS.bottom + 34, name: 'Thác chảy ngược (ngồi phao trôi lên)', use: () => SKY.rideFalls(), arrow: { x: SKY.FALLS.x, y: SKY.FALLS.bottom - 80, text: 'Ngồi phao' } });
+    m.spawn = { x: 1500, y: 700 };
+    m.bounds = { l: 190, t: 420, r: SKY.W - 190, b: 1080 };
     return m;
   }
 
@@ -1273,7 +1322,7 @@ const MAPS = (() => {
     return m;
   };
 
-  const all = { farm, town, mall, fun, casino, arena, horse, club, park, beach, school, classroom, home, race };
+  const all = { farm, town, mall, fun, casino, arena, horse, club, sky, park, beach, school, classroom, home, race };
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
   return all;
 })();
