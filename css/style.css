@@ -634,3 +634,19 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .bc-custom { display: flex; gap: 6px; align-items: center; justify-content: center; margin: 4px 0 8px; font-weight: 700; font-size: 13px; }
 .bc-custom .field { width: 130px; }
 .chip.poor { opacity: .45; }
+
+/* Oẳn tù tì */
+.rps-arena { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; margin: 10px 0; }
+.rps-side { display: grid; justify-items: center; gap: 6px; background: #fff; border: 2px solid #c9b48a; border-radius: 16px; padding: 10px; }
+.rps-hand { font-size: 64px; line-height: 1; display: inline-block; }
+.rps-hand.shake { animation: rpsShake .32s ease-in-out infinite; }
+@keyframes rpsShake { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-18px) rotate(-12deg); } }
+.rps-vs { font-weight: 900; font-size: 22px; color: #e03131; }
+.rps-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.rps-btn { display: grid; justify-items: center; gap: 4px; padding: 10px; border-radius: 16px; border: 3px solid #1b2f48; background: #fff8e6; font-weight: 800; font-family: inherit; cursor: pointer; box-shadow: 0 4px 0 #1b2f48; }
+.rps-btn span { font-size: 40px; }
+.rps-btn.on { background: #fff3bf; border-color: #fab005; }
+.rps-btn:disabled:not(.on) { opacity: .5; }
+.rps-word { text-align: center; font-size: 32px; font-weight: 900; color: #e8590c; margin: 6px 0; }
+.rps-result { text-align: center; font-size: 22px; font-weight: 900; margin: 6px 0; }
+.rps-result.win { color: #2b8a3e; } .rps-result.lose { color: #c92a2a; } .rps-result.draw { color: #1c7ed6; }

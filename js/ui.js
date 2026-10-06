@@ -705,11 +705,14 @@ const UI = (() => {
       <div class="menu-head"><canvas class="menu-av"></canvas><div><b>${esc(r.name)}</b><small>Cấp ${r.level || 1}${r.user ? ' · @' + esc(r.user) : ' · chơi không tài khoản'}</small></div></div>
       <div class="row-end">
         <button class="btn ghost" data-wave>👋 Vẫy tay</button>
+        ${r.id && r.kind === 'remote' ? '<button class="btn" data-rps>✊ Oẳn tù tì</button>' : ''}
         ${r.user ? '<button class="btn" data-visit>🏡 Thăm nông trại</button>' : ''}
       </div>
       ${r.user ? '' : '<p class="muted small-note">Người này chưa có tài khoản nên chưa thăm nông trại được.</p>'}`);
     drawAvatar(p.body.querySelector('.menu-av'), r.look || AV.S.look, { scale: 0.9 });
     p.body.querySelector('[data-wave]').onclick = () => { p.close(); AV.say(`👋 Chào ${r.name}!`); };
+    const rp = p.body.querySelector('[data-rps]');
+    if (rp) rp.onclick = () => { p.close(); RPS.challenge(r); };
     const v = p.body.querySelector('[data-visit]');
     if (v) v.onclick = () => { p.close(); AV.visitFarm(r.user); };
   }

@@ -123,6 +123,10 @@ const NET = (() => {
     send('vc', p);
   }
 
+  function sendRps(p) {
+    send('rps', p);
+  }
+
   function sendBite(ks, fine) {
     send('bite', { ks, fine });
   }
@@ -195,6 +199,8 @@ const NET = (() => {
       BIL.onNet(m);
     } else if (m.t === 'quiz') {
       AV.onQuizWin(num(m.round, -1), clean(m.name, 16));
+    } else if (m.t === 'rps') {
+      if (typeof RPS !== 'undefined') RPS.onNet(m);
     } else if (m.t === 'vc') {
       if (typeof VOICE !== 'undefined') VOICE.onNet(m);
     } else if (m.t === 'bite') {
@@ -343,7 +349,7 @@ const NET = (() => {
   }
 
   return {
-    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing, sendFirework, sendBite, sendVoice,
+    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing, sendFirework, sendBite, sendVoice, sendRps,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],

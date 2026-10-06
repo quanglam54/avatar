@@ -2968,14 +2968,14 @@
   };
 
   /** Mã quà tặng (mỗi mã dùng 1 lần cho mỗi nhân vật) */
-  const GIFTS = { 'XINLOI3500': { coins: 3500, msg: 'Quà xin lỗi vì lỗi mất đồ' }, 'QUANGLAM100K': { coins: 100000, msg: 'Voucher quà tặng 100K' }, 'QUANGLAM10TR': { coins: 10000000, msg: 'Voucher 10 triệu xu' } };
+  const GIFTS = { 'XINLOI3500': { coins: 3500, msg: 'Quà xin lỗi vì lỗi mất đồ' }, 'QUANGLAM100K': { coins: 100000, msg: 'Voucher quà tặng 100K' }, 'QUANGLAM10TR': { coins: 10000000, msg: 'Voucher 10 triệu xu', unlimited: true } };
   AV.redeem = (code) => {
     const c = String(code || '').trim().toUpperCase().replace(/\s+/g, '');
     const g = GIFTS[c];
     if (!g) return UI.toast('Mã quà không đúng 🤔');
     S.redeemed = S.redeemed || [];
-    if (S.redeemed.includes(c)) return UI.toast('Bạn đã dùng mã này rồi');
-    S.redeemed.push(c);
+    if (!g.unlimited && S.redeemed.includes(c)) return UI.toast('Bạn đã dùng mã này rồi');
+    if (!S.redeemed.includes(c)) S.redeemed.push(c);
     S.coins += g.coins;
     float(`+${g.coins} 💰`, player.x, player.y - 120, '#ffd43b');
     UI.toast(`🎁 ${g.msg}: +${g.coins.toLocaleString('vi-VN')} xu!`, 5000);
