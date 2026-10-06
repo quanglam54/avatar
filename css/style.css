@@ -747,3 +747,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hr-silk { width: 24px; height: 24px; border-radius: 50%; color: #fff; font-weight: 900; display: grid; place-items: center; font-size: 13px; }
 
 .arena-bar.horse-bar { top: auto; bottom: 80px; left: 12px; transform: none; }
+
+/* Thanh nút trái: 4 nút hàng ngang, còn lại xếp dọc xuống */
+.hud-left { flex-direction: column; align-items: flex-start; max-width: none !important; flex-wrap: nowrap !important; }
+.hud-left .hud-row { display: flex; gap: inherit; }
+.hud-left .hud-more { display: flex; flex-direction: column; flex-wrap: wrap; gap: inherit; align-content: flex-start; max-height: calc(100vh - 170px); }
