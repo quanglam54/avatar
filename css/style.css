@@ -629,3 +629,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .yt-mini.video { border-radius: 12px; width: 212px; }
 .yt-mini.video .yt-frame { position: static; }
 .yt-title { max-width: 150px; }
+
+/* Bầu cua: ô nhập mức cược + mức cược vượt quá số xu */
+.bc-custom { display: flex; gap: 6px; align-items: center; justify-content: center; margin: 4px 0 8px; font-weight: 700; font-size: 13px; }
+.bc-custom .field { width: 130px; }
+.chip.poor { opacity: .45; }

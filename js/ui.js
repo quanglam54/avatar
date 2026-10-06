@@ -460,26 +460,46 @@ const UI = (() => {
   function bauCua() {
     const S = AV.S;
     const p = panel('🎲 Bầu Cua Tôm Cá', '', { wide: true });
-    let chip = 10, bets = {}, lastBets = {}, rolling = false, dice = ['❔', '❔', '❔'], msg = 'Chọn mức cược rồi bấm vào ô để đặt. Ra mấy mặt ăn bấy nhiêu lần!';
+    const BC_CHIPS = [10, 50, 100, 500, 1000, 5000, 10000];
+    let chip = 100, bets = {}, lastBets = {}, rolling = false, dice = ['❔', '❔', '❔'], msg = 'Chọn mức cược rồi bấm vào ô để đặt. Ra mấy mặt ăn bấy nhiêu lần!';
     const total = () => Object.values(bets).reduce((a, b) => a + b, 0);
+    /** Không đủ xu: báo rõ trên bàn + thông báo nhỏ */
+    const enough = (need) => {
+      if (S.coins >= need) return true;
+      msg = `⚠️ Không đủ xu! Cần <b>${need.toLocaleString('vi-VN')} xu</b> nhưng bạn chỉ còn <b>${S.coins.toLocaleString('vi-VN')} xu</b> — chọn mức cược nhỏ hơn nhé`;
+      toast(`Không đủ xu 😢 Cần ${need.toLocaleString('vi-VN')} xu, bạn còn ${S.coins.toLocaleString('vi-VN')} xu`, 3500);
+      render();
+      return false;
+    };
     const render = () => {
       p.body.innerHTML = `
-        <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Đang cược: ${total()} xu</div>
+        <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Đang cược: ${total().toLocaleString('vi-VN')} xu</div>
         <div class="dice">${dice.map((d) => `<span class="die ${rolling ? 'roll' : ''}">${d}</span>`).join('')}</div>
         <p class="game-msg">${msg}</p>
-        <div class="chips center">${[5, 10, 50, 100].map((c) => `<button class="chip ${c === chip ? 'on' : ''}" data-chip="${c}">🪙 ${c}</button>`).join('')}</div>
+        <div class="chips center">${BC_CHIPS.map((c) => `<button class="chip ${c === chip ? 'on' : ''} ${c > S.coins ? 'poor' : ''}" data-chip="${c}">🪙 ${c.toLocaleString('vi-VN')}</button>`).join('')}</div>
+        <form class="bc-custom" data-custom><span>Mức cược khác:</span><input class="field" name="v" type="number" inputmode="numeric" min="1" placeholder="Nhập số xu" value="${BC_CHIPS.includes(chip) ? '' : chip}"><button class="btn small">Dùng</button></form>
         <div class="bc-board">${DATA.BAUCUA.map((s) => `
           <button class="bc-cell" data-bet="${s.id}" ${rolling ? 'disabled' : ''}>
-            <span class="ic">${s.icon}</span><b>${s.name}</b>${bets[s.id] ? `<em>${bets[s.id]}</em>` : ''}
+            <span class="ic">${s.icon}</span><b>${s.name}</b>${bets[s.id] ? `<em>${bets[s.id].toLocaleString('vi-VN')}</em>` : ''}
           </button>`).join('')}</div>
         <div class="row-end">
           <button class="btn ghost" data-clear ${rolling || !total() ? 'disabled' : ''}>Huỷ cược</button>
           <button class="btn ghost" data-again ${rolling || total() || !Object.keys(lastBets).length ? 'disabled' : ''}>Cược lại</button>
           <button class="btn" data-roll ${rolling || !total() ? 'disabled' : ''}>🎲 Lắc!</button>
         </div>`;
-      p.body.querySelectorAll('[data-chip]').forEach((b) => b.onclick = () => { chip = +b.dataset.chip; render(); });
+      p.body.querySelectorAll('[data-chip]').forEach((b) => b.onclick = () => { chip = +b.dataset.chip; if (chip > S.coins) enough(chip); else render(); });
+      const cf = p.body.querySelector('[data-custom]');
+      cf.onsubmit = (e) => {
+        e.preventDefault();
+        const v = Math.floor(+cf.v.value);
+        if (!v || v < 1) { msg = '⚠️ Nhập số xu muốn cược (từ 1 xu trở lên)'; return render(); }
+        chip = v;
+        if (!enough(v)) return;
+        msg = `Mức cược: <b>${v.toLocaleString('vi-VN')} xu</b> mỗi lần bấm — chọn ô để đặt`;
+        render();
+      };
       p.body.querySelectorAll('[data-bet]').forEach((b) => b.onclick = () => {
-        if (rolling || !AV.spend(chip)) return;
+        if (rolling || !enough(chip) || !AV.spend(chip)) return;
         bets[b.dataset.bet] = (bets[b.dataset.bet] || 0) + chip;
         render();
       });
@@ -487,7 +507,7 @@ const UI = (() => {
       clear.onclick = () => { S.coins += total(); bets = {}; AV.saveNow(); updateHud(); render(); };
       p.body.querySelector('[data-again]').onclick = () => {
         const need = Object.values(lastBets).reduce((a, b) => a + b, 0);
-        if (!AV.spend(need)) return;
+        if (!enough(need) || !AV.spend(need)) return;
         bets = { ...lastBets };
         render();
       };
