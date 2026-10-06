@@ -1828,6 +1828,7 @@
   /** Thứ đang rơi: tuyết / cánh hoa đào / lá vàng (theo cài đặt, hoặc theo mùa) */
   function fallKind() {
     const mode = (S.settings && S.settings.weather) || 'auto';
+    if (map && map.forceFall && !map.indoor) return map.forceFall;
     if (mode === 'snow' || mode === 'petals' || mode === 'leaves') return mode;
     if (mode !== 'season') return null;
     const mo = new Date().getMonth() + 1;
@@ -2242,7 +2243,7 @@
   }
   AV.belly = () => belly().v;
   AV.eat = (shopId, itemId) => {
-    const shop = [...DATA.EATERIES, ...(DATA.STREET_FOOD || []), ...(DATA.CLUB_MENU || [])].find((e) => e.id === shopId), it = shop && shop.menu.find((x) => x.id === itemId);
+    const shop = [...DATA.EATERIES, ...(DATA.STREET_FOOD || []), ...(DATA.CLUB_MENU || []), ...(DATA.CAMP_MENU || [])].find((e) => e.id === shopId), it = shop && shop.menu.find((x) => x.id === itemId);
     if (!it) return false;
     const b = belly();
     if (b.v >= DATA.BELLY.max) { UI.toast(`😵 No căng bụng rồi! Đợi khoảng ${DATA.BELLY.digestMin} phút cho tiêu bớt nhé`, 3500); say(player, '🥴 No quá…'); return false; }
@@ -2578,6 +2579,7 @@
   let recenterShown = false;
   AV.recenter = () => { camOff.x = 0; camOff.y = 0; };
   AV.player = player;
+  AV.startPose = startPose;
   /** Toạ độ thế giới → toạ độ màn hình (để đặt video lên màn LED) */
   AV.toScreen = (x, y) => ({ x: W / 2 + (x - cam.x) * ZOOM, y: H / 2 + (y - cam.y) * ZOOM });
   /** Tính lại đường đi khi vật cản thay đổi (vd mua vé VIP) */
@@ -2714,7 +2716,18 @@
     map.pickups.forEach((p) => inView(p.x, p.y) && list.push({ y: p.y, draw: () => out((c) => ART.pickup(c, p.x, p.y, p.item.icon, clock), p.x, p.y, BOX_PICK, p, 120) }));
     const petDraw = (p, kind) => list.push({ y: p.y, draw: () => out((c) => ART.pet(c, p.x, p.y, kind, p.dir, p.t, p.moving), p.x, p.y, FX.BOX.pet, p) });
     // sprite pixel đã có viền sẵn → vẽ thẳng, không thêm viền mềm
-    const charDraw = (x, y, look, o, key) => list.push({ y, draw: () => (PX.ready || ART.isPainted(look) ? ART.character(g, x, y, look, o) : out((c) => ART.character(c, x, y, look, o), x, y, FX.BOX.character, key)) });
+    const drawChar = (x, y, look, o, key) => (PX.ready || ART.isPainted(look) ? ART.character(g, x, y, look, o) : out((c) => ART.character(c, x, y, look, o), x, y, FX.BOX.character, key));
+    const charDraw = (x, y, look, o, key) => list.push({ y, draw: () => {
+      const boat = o && o.boat, swim = !boat && map.id === 'cherry' && CAMP.inPool(x, y);
+      if (!boat && !swim) return drawChar(x, y, look, o, key);
+      if (boat) CAMP.boat(g, x, y, clock);
+      const sink = boat ? 18 : 30;
+      g.save(); g.beginPath(); g.rect(x - 100, y - 400, 200, 400 - (boat ? 10 : 6)); g.clip();
+      drawChar(x, y + sink, look, { ...o, moving: false }, key);
+      g.restore();
+      if (boat) CAMP.boatFront(g, x, y, clock);
+      else { g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 2.5; g.beginPath(); g.ellipse(x, y - 6, 26 + Math.sin(clock * 4) * 3, 7, 0, 0, Math.PI * 2); g.stroke(); }
+    } });
     map.npcs.forEach((n) => {
       if ((n.hw && !AV.hw()) || !inView(n.x, n.y)) return;
       charDraw(n.x, n.y, n.look, n, n);
@@ -2872,7 +2885,7 @@
   AV.applyGfx = () => { resize(); FX.setSlow(saver() ? 1.8 : 1); };
 
   function resize() {
-    DPR = Math.min(saver() ? 1.3 : 2, window.devicePixelRatio || 1);
+    DPR = Math.min(saver() ? 2 : 2.5, window.devicePixelRatio || 1);
     W = window.innerWidth;
     H = window.innerHeight;
     canvas.width = Math.round(W * DPR);
@@ -2883,9 +2896,10 @@
   }
 
   function applyZoom() {
-    const baseZoom = Math.max(0.62, Math.min(1.15, Math.min(W / 1050, H / 720)));
+    const portrait = H > W * 1.15;
+    const baseZoom = portrait ? Math.max(0.62, Math.min(1.15, H / 1000)) : Math.max(0.62, Math.min(1.15, Math.min(W / 1050, H / 720)));
     ZOOM = baseZoom * (typeof zoomMul === 'number' ? zoomMul : 1) * ((map && map.zoom) || 1);
-    FX.setScale(Math.min(saver() ? 1.5 : 3, DPR * ZOOM));
+    FX.setScale(Math.min(saver() ? 2 : 3, DPR * ZOOM));
   }
 
   function toWorld(cx, cy) {

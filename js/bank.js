@@ -2,6 +2,8 @@
    Xu trong tài khoản an toàn: không bị trộm, không bị phạt, không dùng nhầm khi mua đồ. */
 const BANK = (() => {
   const MAX_FAILS = 5, LOCK_MIN = 10;
+  /** Lãi 1%/ngày tính theo giờ, tối đa 20.000 xu lãi mỗi ngày */
+  const RATE = 0.01, MAX_DAY = 20000;
   const fmt = (n) => Math.floor(n).toLocaleString('vi-VN');
 
   /** Băm mật khẩu kèm số tài khoản (không lưu mật khẩu thật trong bản lưu) */
@@ -21,13 +23,25 @@ const BANK = (() => {
     const b = acc();
     b.log = [{ type, amt, at: Date.now(), bal: b.bal }, ...(b.log || [])].slice(0, 12);
   }
+  /** Cộng lãi từ lần tính trước (gọi khi mở ngân hàng / ATM) */
+  function accrue() {
+    const b = acc(); if (!b) return 0;
+    const now = Date.now();
+    if (!b.lastInt) { b.lastInt = now; return 0; }
+    const days = (now - b.lastInt) / 86400000;
+    if (days < 1 / 24) return 0;
+    const gain = Math.floor(Math.min(b.bal * RATE * days, MAX_DAY * days));
+    b.lastInt = now;
+    if (gain > 0) { b.bal += gain; log('int', gain); save(); }
+    return gain;
+  }
   const locked = () => { const b = acc(); return b && b.lockUntil && b.lockUntil > Date.now(); };
 
   async function openAccount(acct, pin) {
     if (acc()) return 'Bạn đã có tài khoản rồi';
     if (!/^\d{6,12}$/.test(acct)) return 'Số tài khoản gồm 6–12 chữ số';
     if (!/^\d{6}$/.test(pin)) return 'Mật khẩu gồm đúng 6 chữ số';
-    AV.S.bank = { acct, pin: await hash(acct, pin), bal: 0, fails: 0, lockUntil: 0, opened: Date.now(), log: [] };
+    AV.S.bank = { acct, pin: await hash(acct, pin), bal: 0, fails: 0, lockUntil: 0, opened: Date.now(), lastInt: Date.now(), log: [] };
     log('open', 0); save();
     return null;
   }
@@ -66,13 +80,15 @@ const BANK = (() => {
     const atm = where === 'atm';
     const p = UI.panel(atm ? '🏧 ATM QuangLamBank' : '🏦 QuangLamBank · Quầy giao dịch', '', { wide: false });
     let unlocked = false, msg = '', ok = false;
+    const got = accrue();
+    if (got > 0) setTimeout(() => UI.toast(`💹 Tiền lãi về tài khoản: +${fmt(got)} xu`, 4000), 300);
     const say = (m, good) => { msg = m || ''; ok = !!good; };
     const val = (sel) => (p.body.querySelector(sel) || {}).value || '';
     const render = () => {
       const b = acc();
       const note = msg ? `<p class="bk-msg ${ok ? 'ok' : ''}">${msg}</p>` : '';
       if (!b) {
-        p.body.innerHTML = `<div class="bk-card"><div class="bk-logo">QL</div><div><b>QuangLamBank</b><small>Cất xu an toàn — không lo bị trộm, bị phạt</small></div></div>
+        p.body.innerHTML = `<div class="bk-card"><div class="bk-logo">QL</div><div><b>QuangLamBank</b><small>Cất xu an toàn · lãi 1%/ngày</small></div></div>
           <p class="muted">Bạn chưa có tài khoản. Tạo số tài khoản và mật khẩu 6 số để bắt đầu gửi xu.</p>
           <label class="muted">Số tài khoản (6–12 chữ số)</label>
           <div class="bk-row"><input class="field" data-acct inputmode="numeric" maxlength="12" placeholder="vd: 0912345678"><button class="btn small ghost" data-rand>🎲 Số ngẫu nhiên</button></div>
@@ -104,13 +120,13 @@ const BANK = (() => {
           ${atm ? '' : '<div class="row-end"><button class="btn small ghost" data-forgot>Quên mật khẩu?</button></div>'}`;
       } else {
         p.body.innerHTML = `${head}
-          <div class="bk-bal"><small>Số dư tài khoản</small><b>${fmt(b.bal)} xu</b><small>💰 Trong túi: ${fmt(S.coins)} xu</small></div>
+          <div class="bk-bal"><small>Số dư tài khoản · 💹 lãi 1%/ngày</small><b>${fmt(b.bal)} xu</b><small>💰 Trong túi: ${fmt(S.coins)} xu</small></div>
           <label class="muted">Gửi xu vào tài khoản</label>
           <div class="bk-row"><input class="field" data-in type="number" min="1" placeholder="Số xu"><button class="btn small ghost" data-inall>Tất cả</button><button class="btn small" data-dep>Gửi</button></div>
           <label class="muted">Rút xu về túi</label>
           <div class="bk-row"><input class="field" data-out type="number" min="1" placeholder="Số xu"><button class="btn small ghost" data-outall>Tất cả</button><button class="btn small" data-wd>Rút</button></div>
           ${note}
-          ${(b.log || []).length ? `<div class="bk-log">${b.log.map((l) => `<div><span>${l.type === 'in' ? '⬇️ Gửi' : l.type === 'out' ? '⬆️ Rút' : l.type === 'pin' ? '🔑 Đổi mật khẩu' : '🏦 Mở tài khoản'}</span><b class="${l.type}">${l.type === 'in' ? '+' : l.type === 'out' ? '−' : ''}${l.amt ? fmt(l.amt) : ''}</b><small>${new Date(l.at).toLocaleString('vi-VN')}</small></div>`).join('')}</div>` : ''}
+          ${(b.log || []).length ? `<div class="bk-log">${b.log.map((l) => `<div><span>${l.type === 'in' ? '⬇️ Gửi' : l.type === 'out' ? '⬆️ Rút' : l.type === 'int' ? '💹 Tiền lãi' : l.type === 'pin' ? '🔑 Đổi mật khẩu' : '🏦 Mở tài khoản'}</span><b class="${l.type === 'int' ? 'in' : l.type}">${l.type === 'in' || l.type === 'int' ? '+' : l.type === 'out' ? '−' : ''}${l.amt ? fmt(l.amt) : ''}</b><small>${new Date(l.at).toLocaleString('vi-VN')}</small></div>`).join('')}</div>` : ''}
           <div class="row-end"><button class="btn small ghost" data-chpin>🔑 Đổi mật khẩu</button><button class="btn small ghost" data-lock>🔒 Thoát</button></div>`;
         p.body.querySelector('[data-out]') && (p.body.querySelector('[data-outall]').onclick = () => { p.body.querySelector('[data-out]').value = b.bal; });
         p.body.querySelector('[data-wd]').onclick = () => {

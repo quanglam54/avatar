@@ -881,6 +881,72 @@ const MAPS = (() => {
     return m;
   }
 
+  /* ---------- 🌸 Vườn Anh Đào: cắm trại, ăn uống, tạp hoá, WC, bể bơi, hồ chèo thuyền ---------- */
+  function cherry() {
+    const m = base('cherry', 'Vườn Anh Đào', 3400, 1070);
+    m.forceFall = 'petals';
+    ground(m, (g) => {
+      paintGrass(g, m.w, m.h, 88);
+      g.fillStyle = 'rgba(255,192,214,.18)'; g.fillRect(0, 380, m.w, 470);
+      // lối đi đá
+      g.fillStyle = '#e9dccb'; g.beginPath(); g.roundRect(100, 800, 3200, 46, 22); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.4)'; for (let x = 120; x < 3280; x += 60) { g.beginPath(); g.roundRect(x, 808, 40, 30, 8); g.fill(); }
+      for (let i = 0; i < 300; i++) { g.fillStyle = ['#ffc9de', '#ffb3cf', '#fff0f6'][i % 3]; g.beginPath(); g.ellipse(80 + ((i * 337) % 3240), 400 + ((i * 131) % 420), 4, 2.5, i, 0, Math.PI * 2); g.fill(); }
+      paintStreet(g, m.w, 870, 1000);
+    });
+    const L = (text, x) => m.labels.push({ text, x, y: 400 });
+    L('⛺ Khu Cắm Trại', 420); L('🍢 Khu Ăn Uống', 1000); L('🛒 Tạp Hoá · WC', 1520); L('🏊 Bể Bơi', 2050); L('🚣 Hồ Chèo Thuyền', 2960);
+    // hàng cây anh đào phía sau + rải rác
+    [[150, 470], [700, 450], [1290, 470], [1740, 460], [2340, 470], [700, 760], [1290, 770]].forEach(([x, y], i) => {
+      sobj(m, x, y, (c) => CAMP.sakura(c, x, y, 1, i), { l: -95, t: -190, w: 190, h: 200 });
+      col(m, x - 10, y - 6, 20, 10);
+    });
+    // khu cắm trại: 3 lều + lửa trại
+    [[260, 600, '#ff8787'], [430, 570, '#74c0fc'], [600, 600, '#ffd43b']].forEach(([x, y, c2]) => {
+      sobj(m, x, y, (c) => CAMP.tent(c, x, y, c2), { l: -90, t: -140, w: 180, h: 150 });
+      col(m, x - 72, y - 30, 144, 26);
+      inter(m, { x: x - 70, y: y - 110, w: 140, h: 110, ax: x, ay: y + 30, name: 'Lều cắm trại (vào ngủ)', use: () => CAMP.sleep(x, y, c2), arrow: { x, y: y - 140, text: 'Ngủ' } });
+    });
+    aobj(m, 430, 730, (c, t) => CAMP.campfire(c, 430, 730, t), { l: -130, t: -90, w: 260, h: 120 });
+    col(m, 405, 715, 50, 18);
+    m.lights = [[430, 700, 90]];
+    [[330, 742], [530, 742]].forEach(([x, y]) => inter(m, { x: x - 40, y: y - 20, w: 80, h: 36, ax: x, ay: y + 30, name: 'Khúc gỗ (ngồi sưởi lửa)', use: () => AV.sitSeat(x - 10, x + 10, y + 24, '🔥 Ngồi sưởi lửa trại', () => {}) }));
+    // khu ăn uống: quầy BBQ + 3 thảm picnic
+    const bbq = DATA.CAMP_MENU[0], shop = DATA.CAMP_MENU[1];
+    sobj(m, 1000, 560, (c) => ART.foodShop(c, 1000, 560, bbq), { l: -125, t: -165, w: 260, h: 172 });
+    col(m, 895, 514, 210, 44);
+    inter(m, { x: 895, y: 400, w: 210, h: 160, ax: 960, ay: 590, name: 'BBQ Anh Đào (đồ nướng +XP)', use: () => UI.eateryPanel('camp_bbq'), arrow: { x: 1000, y: 390, text: 'Đồ nướng' } });
+    [[820, 760, 0], [1000, 760, 1], [1180, 760, 2]].forEach(([x, y, k]) => {
+      obj(m, y - 60, (c) => CAMP.picnic(c, x, y, k), [x - 95, y - 55, x + 95, y + 40]);
+      inter(m, { x: x - 90, y: y - 50, w: 180, h: 90, ax: x, ay: y + 10, name: 'Thảm picnic (ngồi ăn)', use: () => AV.sitSeat(x - 40, x + 40, y + 18, '🧺 Ngồi picnic dưới tán anh đào', () => {}) });
+    });
+    // tạp hoá + WC
+    sobj(m, 1440, 560, (c) => ART.foodShop(c, 1440, 560, shop), { l: -125, t: -165, w: 260, h: 172 });
+    col(m, 1335, 514, 210, 44);
+    inter(m, { x: 1335, y: 400, w: 210, h: 160, ax: 1400, ay: 590, name: 'Tạp Hoá Cắm Trại (đồ uống, đồ ăn vặt)', use: () => UI.eateryPanel('camp_shop'), arrow: { x: 1440, y: 390, text: 'Mua đồ' } });
+    sobj(m, 1650, 590, (c) => CAMP.wc(c, 1650, 590), { l: -100, t: -180, w: 200, h: 190 });
+    col(m, 1575, 550, 150, 40);
+    inter(m, { x: 1575, y: 440, w: 150, h: 150, ax: 1650, ay: 620, name: 'Nhà vệ sinh', use: () => CAMP.toilet(), arrow: { x: 1650, y: 410, text: 'WC' } });
+    // bể bơi + ô dù
+    const P = CAMP.POOL;
+    obj(m, P.y - 30, (c, t) => CAMP.pool(c, t), [P.x - 30, P.y - 30, P.x + P.w + 30, P.y + P.h + 30]);
+    inter(m, { x: P.x, y: P.y, w: P.w, h: P.h, ax: P.x + P.w / 2, ay: P.y + P.h / 2, name: 'Bể bơi (đi xuống nước để bơi)', use: () => UI.toast('🏊 Cứ đi thẳng xuống nước là bơi nhé!') });
+    [[P.x - 40, P.y + P.h + 70, '#ff6b6b'], [P.x + P.w / 2, P.y + P.h + 74, '#4dabf7'], [P.x + P.w + 40, P.y + P.h + 70, '#ffd43b']].forEach(([x, y, c2]) => {
+      sobj(m, x, y, (c) => CAMP.umbrella(c, x, y, c2), { l: -70, t: -140, w: 140, h: 150 });
+      col(m, x - 48, y - 18, 96, 18);
+    });
+    // hồ + cầu tàu chèo thuyền
+    const K = CAMP.LAKE, Dk = CAMP.DOCK;
+    obj(m, K.y - K.ry - 30, (c, t) => CAMP.lake(c, t), [K.x - K.rx - 30, K.y - K.ry - 30, K.x + K.rx + 30, K.y + K.ry + 30]);
+    col(m, K.x - K.rx + 40, K.y - K.ry + 20, K.rx * 2 - 80, K.ry * 2 - 40);
+    inter(m, { x: Dk.x - 45, y: Dk.y - 110, w: 90, h: 120, ax: Dk.x, ay: Dk.y + 34, name: 'Cầu tàu (thuê thuyền chèo quanh hồ · 20 xu)', use: () => CAMP.row(), arrow: { x: Dk.x, y: Dk.y - 130, text: 'Chèo thuyền' } });
+    npc(m, 'Chị Hoa', { skin: '#ffe0c4', hair: 'long', hairColor: '#2b2b33', shirt: '#f783ac', shirtStyle: 'dress_flower', pants: '#fff', hat: 'flower' }, { l: 700, t: 640, r: 1300, b: 700 }, 900, 680, 'cat');
+    street(m);
+    m.spawn = { x: 1050, y: 875 };
+    m.bounds = { l: 20, t: 400, r: m.w - 20, b: m.h - 40 };
+    return m;
+  }
+
   /* ---------- ☁️ Đảo Trên Trời ---------- */
   function sky() {
     const m = base('sky', 'Đảo Trên Trời', SKY.W, SKY.H);
@@ -1430,7 +1496,7 @@ const MAPS = (() => {
     return m;
   };
 
-  const all = { farm, town, mall, fun, casino, arena, horse, club, sky, concert, park, beach, school, classroom, home, race };
+  const all = { farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, park, beach, school, classroom, home, race };
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
   return all;
 })();

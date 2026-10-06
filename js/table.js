@@ -195,17 +195,20 @@ const TABLE = (() => {
   }
 
   /* ================= MỌI NGƯỜI ================= */
+  const paidAmt = {};
   function payStart(round, bet) {
     if (!seated() || paidStart.has(round)) return;
     paidStart.add(round);
     const n = Math.min(bet, AV.S.coins);
+    paidAmt[round] = n;
     AV.spendSilent(n);
+    if (n < bet) UI.toast(`⚠️ Bạn chỉ còn ${n.toLocaleString('vi-VN')} xu — đã cược hết số đó`);
   }
 
   function refund(round, reason) {
     if (!paidStart.has(round) || refunded.has(round) || paidEnd.has(round)) return;
     refunded.add(round);
-    AV.earn(Math.min(st.bet, 99999));
+    AV.earn(paidAmt[round] ?? st.bet);
     UI.toast(`Ván bài bị huỷ${reason ? ' (' + reason + ')' : ''} — đã trả lại tiền cược`);
   }
 
@@ -425,7 +428,7 @@ const TABLE = (() => {
     const end = g && g.end ? `<div class="endbox">🏆 <b>${esc(seatName(g.end.winner))}</b> thắng! <small>${esc(g.end.reason)}</small></div>` : '';
     return `<div class="lobby">
       ${end}
-      <div class="lrow">Mức cược: ${host ? [10, 20, 50, 100].map((b) => `<button class="chip ${b === st.bet ? 'on' : ''}" data-bet="${b}">🪙 ${b}</button>`).join('') : `<b>🪙 ${st.bet} xu</b>`}</div>
+      <div class="lrow">Mức cược: ${host ? [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000].map((b) => `<button class="chip ${b === st.bet ? 'on' : ''}" data-bet="${b}">🪙 ${b.toLocaleString('vi-VN')}</button>`).join('') + '<input class="field bet-in" type="number" min="1" placeholder="Tự nhập" data-betin><button class="chip" data-betset>Đặt</button>' : `<b>🪙 ${st.bet.toLocaleString('vi-VN')} xu</b>`}</div>
       ${host ? `<label class="lrow toggle-in"><input type="checkbox" data-bots ${st.bots ? 'checked' : ''}> Máy chơi cùng khi thiếu người</label>` : ''}
       ${seated() ? (host ? `<button class="btn big" data-start>▶ ${g && g.end ? 'Ván mới' : 'Bắt đầu'}</button>` : '<div class="muted">⏳ Chờ chủ bàn bắt đầu…</div>') : '<div class="muted">Chọn một ghế trống để ngồi chơi</div>'}
       ${seated() && nearby.length ? `<div class="invite"><b>Mời người chơi:</b>${nearby.map((r) => `<button class="chip" data-invite="${r.id}">✉️ ${esc(r.name)}</button>`).join('')}</div>` : ''}
@@ -461,7 +464,7 @@ const TABLE = (() => {
     }).join('');
     $('#tableView').innerHTML = `
       <div class="tv">
-        <div class="tv-head"><b>🃏 Tiến lên miền Nam</b><span>Cược ${st.bet} xu</span><button class="tv-x" data-close>${seated() ? '▾ Thu nhỏ' : '✕'}</button></div>
+        <div class="tv-head"><b>🃏 Tiến lên miền Nam</b><span>Cược ${st.bet.toLocaleString('vi-VN')} xu</span><button class="tv-x" data-close>${seated() ? '▾ Thu nhỏ' : '✕'}</button></div>
         <div class="felt">${seatsHtml}${centerHtml()}</div>
         ${myHandHtml()}
       </div>`;
@@ -469,6 +472,13 @@ const TABLE = (() => {
     root.querySelectorAll('[data-card]').forEach((b) => b.onclick = () => { const c = +b.dataset.card; selected.has(c) ? selected.delete(c) : selected.add(c); render(); });
     root.querySelectorAll('[data-sit]').forEach((b) => b.onclick = () => sit(+b.dataset.sit));
     root.querySelectorAll('[data-bet]').forEach((b) => b.onclick = () => { st.bet = +b.dataset.bet; broadcast(); });
+    const bs = root.querySelector('[data-betset]');
+    if (bs) bs.onclick = () => {
+      const v = Math.floor(+root.querySelector('[data-betin]').value || 0);
+      if (v < 1) return UI.toast('Nhập số xu muốn cược');
+      st.bet = Math.min(v, 100000000);
+      broadcast();
+    };
     root.querySelectorAll('[data-invite]').forEach((b) => b.onclick = () => { send({ a: 'invite', to: b.dataset.invite, name: AV.S.name }); UI.toast('Đã gửi lời mời ✉️'); b.disabled = true; });
     const q = (s) => root.querySelector(s);
     if (q('[data-bots]')) q('[data-bots]').onchange = (e) => { st.bots = e.target.checked; broadcast(); };

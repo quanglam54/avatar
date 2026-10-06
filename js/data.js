@@ -240,6 +240,14 @@ DATA.PAINT_HAIRS = {
   girl: [{ id: '', name: 'Tóc dài xoăn (gốc)' }],
 };
 
+/** Vườn Anh Đào: quầy BBQ + tạp hoá cắm trại */
+DATA.CAMP_MENU = [
+  { id: 'camp_bbq', name: 'BBQ Anh Đào', logo: '🍢', wall: '#fff0f6', trim: '#e64980', awn: ['#f783ac', '#fff'], signBg: '#e64980', signFg: '#fff', items: ['🍢', '🌽', '🥩'], deco: 'stools',
+    menu: [{ id: 'bbq_xien', name: 'Xiên nướng thập cẩm', icon: '🍢', price: 25, xp: 11 }, { id: 'bbq_bo', name: 'Bò nướng lá lốt', icon: '🥩', price: 40, xp: 17 }, { id: 'bbq_ngo', name: 'Ngô nướng mỡ hành', icon: '🌽', price: 12, xp: 5 }, { id: 'bbq_khoai', name: 'Khoai lang nướng', icon: '🍠', price: 10, xp: 4 }] },
+  { id: 'camp_shop', name: 'Tạp Hoá Cắm Trại', logo: '🏕️', wall: '#e6fcf5', trim: '#0ca678', awn: ['#20c997', '#fff'], signBg: '#0ca678', signFg: '#fff', items: ['🥤', '🍦', '🍫'], deco: 'cafe',
+    menu: [{ id: 'cs_dua', name: 'Nước dừa tươi', icon: '🥥', price: 15, xp: 6 }, { id: 'cs_kem', name: 'Kem ốc quế', icon: '🍦', price: 12, xp: 5 }, { id: 'cs_banh', name: 'Bánh mì kẹp', icon: '🥪', price: 20, xp: 8 }, { id: 'cs_snack', name: 'Snack khoai tây', icon: '🍟', price: 10, xp: 4 }, { id: 'cs_sakura', name: 'Trà sữa hoa anh đào', icon: '🌸', price: 28, xp: 12 }] },
+];
+
 /** Xe máy tự lái trên đường phố (mua 1 lần dùng mãi). max = tốc độ tối đa (÷10 ra km/h) */
 DATA.BIKES = [
   { id: 'klara', name: 'Xe điện Klara', kind: 'electric', body: '#1c7ed6', helmet: '#fff', price: 2000, max: 430, accel: 280, desc: 'Êm, không xăng, chạy phố vừa đủ' },
@@ -321,6 +329,7 @@ DATA.ZONES = [
   { id: 'fun', name: 'Khu giải trí', icon: '🎡', x: 25, y: 26, desc: 'Nhà Casino, sân khấu, vòng quay' },
   { id: 'park', name: 'Công viên', icon: '🌳', x: 20, y: 72, desc: 'Câu cá, dạo hồ' },
   { id: 'beach', name: 'Bãi biển', icon: '🏖️', x: 90, y: 12, desc: 'Nhặt vỏ sò, tắm nắng' },
+  { id: 'cherry', name: 'Vườn Anh Đào', icon: '🌸', x: 70, y: 64, desc: 'Cắm trại, bể bơi, chèo thuyền' },
   { id: 'sky', name: 'Đảo Trên Trời', icon: '☁️', x: 52, y: 9, desc: 'Khinh khí cầu lên mây' },
   { id: 'school', name: 'Trường học', icon: '🏫', x: 48, y: 86, desc: 'Đố vui tiếng Anh' },
   { id: 'race', name: 'Khu Đua Xe', icon: '🏎️', x: 8, y: 48, desc: 'Đua xe với mọi người' },
