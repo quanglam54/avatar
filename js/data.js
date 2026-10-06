@@ -216,6 +216,12 @@ DATA.OUTFITS = [
   { id: 'o_dragon', name: 'Rồng Vàng', rarity: 'legend', price: 8000, lvl: 6, look: { top: 'armor', bottom: 'knight', shoes: 'armor', hat: 'laurel', back: 'cape_red' }, desc: '👑 Giáp vàng, áo choàng đỏ, hào quang + đốm lửa vàng bay lên' },
 ];
 
+/** Quầy bar H-Club (gọi ở quầy hoặc ở bàn) */
+DATA.CLUB_MENU = [
+  { id: 'hclub', name: 'Quầy Bar H-Club', logo: '🍸', items: ['🍷', '🍸'],
+    menu: [{ id: 'hc_beer', name: 'Bia tươi', icon: '🍺', price: 20, xp: 8 }, { id: 'hc_wine', name: 'Rượu vang đỏ', icon: '🍷', price: 60, xp: 20 }, { id: 'hc_cocktail', name: 'Cocktail nhiệt đới', icon: '🍹', price: 45, xp: 16 }, { id: 'hc_champagne', name: 'Sâm panh mừng tiệc', icon: '🍾', price: 120, xp: 40 }, { id: 'hc_soda', name: 'Nước ngọt có ga', icon: '🥤', price: 10, xp: 3 }] },
+];
+
 /** Xe máy tự lái trên đường phố (mua 1 lần dùng mãi). max = tốc độ tối đa (÷10 ra km/h) */
 DATA.BIKES = [
   { id: 'klara', name: 'Xe điện Klara', kind: 'electric', body: '#1c7ed6', helmet: '#fff', price: 2000, max: 430, accel: 280, desc: 'Êm, không xăng, chạy phố vừa đủ' },

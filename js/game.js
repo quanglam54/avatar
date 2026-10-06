@@ -168,6 +168,8 @@
     joinRoom();
     TABLE.onMapChange();
     BIL.onMapChange();
+    // khu có nhạc riêng (H-Club): vào mới nghe, ra thì trả lại nhạc của bạn
+    if (typeof MUSIC !== 'undefined' && MUSIC.zone) MUSIC.zone(map.music || null);
   }
 
   /** Phòng online của khu hiện tại: nông trại và nhà là riêng từng người */
@@ -2150,6 +2152,8 @@
   AV.leaveClass = () => AV.teleport('school', false, 420, 590, '🌳 Ra sân trường…');
   AV.enterCasino = () => AV.teleport('casino', false, 1000, 880, '🎰 Vào Nhà Casino…');
   AV.enterArena = () => AV.teleport('arena', false, 1000, 990, '⚔️ Vào Đấu Trường MMA…');
+  AV.enterClub = () => AV.teleport('club', false, 1000, 1000, '🪩 Vào H-Club…');
+  AV.leaveClub = () => AV.teleport('fun', false, 2820, 830, '🎡 Ra Khu giải trí…');
   AV.enterHorse = () => AV.teleport('horse', false, 1000, 1060, '🏇 Vào Trường Đua Ngựa…');
   AV.leaveHorse = () => AV.teleport('fun', false, 790, 800, '🎡 Ra Khu giải trí…');
   AV.leaveArena = () => AV.teleport('fun', false, 360, 805, '🎡 Ra Khu giải trí…');
@@ -2224,7 +2228,7 @@
   }
   AV.belly = () => belly().v;
   AV.eat = (shopId, itemId) => {
-    const shop = [...DATA.EATERIES, ...(DATA.STREET_FOOD || [])].find((e) => e.id === shopId), it = shop && shop.menu.find((x) => x.id === itemId);
+    const shop = [...DATA.EATERIES, ...(DATA.STREET_FOOD || []), ...(DATA.CLUB_MENU || [])].find((e) => e.id === shopId), it = shop && shop.menu.find((x) => x.id === itemId);
     if (!it) return false;
     const b = belly();
     if (b.v >= DATA.BELLY.max) { UI.toast(`😵 No căng bụng rồi! Đợi khoảng ${DATA.BELLY.digestMin} phút cho tiêu bớt nhé`, 3500); say(player, '🥴 No quá…'); return false; }

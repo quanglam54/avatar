@@ -99,7 +99,7 @@ const MUSIC = (() => {
   function init(settings) {
     on = settings.music !== false;
     vol = typeof settings.musicVol === 'number' ? settings.musicVol : 0.5;
-    setSource(settings.musicUrl ?? DEFAULT, true);
+    setSource(zoneUrl || (settings.musicUrl ?? DEFAULT), true);
     // trình duyệt chỉ cho phát tiếng sau khi người chơi chạm / bấm lần đầu
     // chỉ tự phát 1 lần ở lần chạm đầu tiên — sau đó bấm/tưới cây không được tự bật lại nhạc người chơi đã tắt
     const kick = () => {
@@ -314,9 +314,20 @@ const MUSIC = (() => {
   /** Sau khi đăng nhập (cài đặt có thể khác bản trên máy) */
   function refresh(settings) {
     if (typeof settings.musicVol === 'number') setVolume(settings.musicVol);
-    setSource(settings.musicUrl ?? DEFAULT, true);
+    setSource(zoneUrl || (settings.musicUrl ?? DEFAULT), true);
+  }
+  /** Nhạc riêng của một khu (vd H-Club). url = null → trả lại nhạc người chơi chọn */
+  let zoneUrl = null;
+  function zone(url) {
+    url = url || null;
+    if (url === zoneUrl) return;
+    zoneUrl = url;
+    const S = typeof AV !== 'undefined' && AV.S;
+    const mine = (S && S.settings && S.settings.musicUrl) ?? DEFAULT;
+    setSource(url || mine, true);
+    if (url && typeof UI !== 'undefined') UI.toast(on ? '🪩 Nhạc của H-Club đang phát — quẩy lên nào!' : '🔇 Bạn đang tắt nhạc — bấm 🎵 để nghe nhạc H-Club', 3500);
   }
 
-  const api = { init, setOn, setVolume, setSource, parseSource, refresh, get source() { return src; }, get defaultUrl() { return DEFAULT; }, boom, whistle, melody, clack, bark, rain, get on() { return on; }, get volume() { return vol; }, onToggle: null };
+  const api = { zone, init, setOn, setVolume, setSource, parseSource, refresh, get source() { return src; }, get defaultUrl() { return DEFAULT; }, boom, whistle, melody, clack, bark, rain, get on() { return on; }, get volume() { return vol; }, onToggle: null };
   return api;
 })();

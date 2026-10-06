@@ -514,10 +514,10 @@ const MAPS = (() => {
 
   /* ---------- Khu giải trí ---------- */
   function fun() {
-    const m = base('fun', 'Khu giải trí', 2700, 1070);
+    const m = base('fun', 'Khu giải trí', 3300, 1070);
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 53);
-      paintPaved(g, 120, 370, 2460, 460, '#f6e3d0');
+      paintPaved(g, 120, 370, 3060, 460, '#f6e3d0');
       g.fillStyle = 'rgba(112,72,232,.12)'; g.beginPath(); g.roundRect(1960, 420, 600, 340, 30); g.fill();
       paintStreet(g, m.w, 870, 1000);
     });
@@ -555,6 +555,12 @@ const MAPS = (() => {
     col(m, CX - 90, CY - 70, 180, 30);
     inter(m, { x: CX - 80, y: CY - 160, w: 160, h: 170, ax: CX, ay: CY + 46, name: 'Nhà Casino (Bầu Cua, Tiến lên, máy game)', use: () => AV.enterCasino(), arrow: { x: CX, y: CY - 180, text: 'Vào Casino' } });
     addLamp(m, 1940, 790); addLamp(m, 2580, 790);
+    /* ----- H-Club: quán bar, DJ, sàn nhảy (nhạc riêng chỉ nghe trong quán) ----- */
+    const QX = 2820, QY = 770;
+    aobj(m, QX, QY, (c, t) => CLUB.building(c, QX, QY, t), { l: -235, t: -270, w: 470, h: 305 });
+    col(m, QX - 210, QY - 60, 150, 56); col(m, QX + 60, QY - 60, 150, 56); col(m, QX - 60, QY - 60, 120, 26);
+    inter(m, { x: QX - 54, y: QY - 120, w: 108, h: 122, ax: QX, ay: QY + 40, name: 'H-Club (DJ, nhảy, quầy bar)', use: () => AV.enterClub(), arrow: { x: QX, y: QY - 130, text: 'Vào H-Club' } });
+    m.lights = (m.lights || []).concat([[QX - 140, QY - 200, 70], [QX + 140, QY - 200, 70]]);
     addPot(m, CX - 130, CY + 40, 'mai'); addPot(m, CX + 130, CY + 40, 'dao');
 
     npc(m, 'Bé Bin', { skin: '#ffe0c4', hair: 'spiky', hairColor: '#c68642', shirt: '#fd7e14', shirtStyle: 'star', pants: '#364fc7', hat: 'beanie' }, { l: 200, t: 700, r: 1800, b: 830 }, 1000, 760, 'chick');
@@ -744,6 +750,59 @@ const MAPS = (() => {
     inter(m, { x: 940, y: 1000, w: 120, h: 70, ax: 1000, ay: 1030, name: 'Ra Khu giải trí', use: () => AV.leaveArena(), arrow: { x: 1000, y: 1005, text: 'Ra ngoài' } });
     m.spawn = { x: 1000, y: 1000 };
     m.bounds = { l: 56, t: 392, r: m.w - 56, b: 1040 };
+    return m;
+  }
+
+  /* ---------- H-Club (trong quán, dùng chung) ---------- */
+  function club() {
+    const m = base('club', 'H-Club', 2000, 1100);
+    m.indoor = true;
+    m.hz = 0;
+    m.music = CLUB.MUSIC_URL;
+    ground(m, (g) => {
+      g.fillStyle = '#0d0a14'; g.fillRect(0, 0, m.w, m.h);
+      g.fillStyle = '#1e1630'; g.fillRect(40, 20, 1920, 340);
+      // dải đèn neon trên tường
+      [[60, '#ff3ea5'], [110, '#20e3ff'], [330, '#9d4dff']].forEach(([y, c]) => { g.fillStyle = c; g.globalAlpha = 0.7; g.fillRect(40, y, 1920, 4); g.globalAlpha = 1; });
+      g.font = '900 64px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.shadowColor = '#ff3ea5'; g.shadowBlur = 24; g.fillStyle = '#ffe3f3';
+      [320, 1680].forEach((x) => g.fillText('H-CLUB', x, 200));
+      g.shadowBlur = 0;
+      // sàn đen bóng
+      g.fillStyle = '#18121f'; g.fillRect(40, 360, 1920, 700);
+      g.fillStyle = 'rgba(255,255,255,.03)'; for (let x = 40; x < 1960; x += 80) for (let y = 360; y < 1060; y += 80) if ((x + y) % 160 === 0) g.fillRect(x, y, 80, 80);
+      g.fillStyle = '#0d0a14'; g.fillRect(0, 1060, m.w, 40); g.fillRect(0, 0, 40, m.h); g.fillRect(1960, 0, 40, m.h);
+    });
+    const F = CLUB.FLOOR;
+    obj(m, F.y - 20, (ctx, t) => CLUB.floor(ctx, t), [F.x - 10, F.y - 10, F.x + F.cols * F.s + 10, F.y + F.rows * F.s * 0.6 + 10]);
+    obj(m, 380, (ctx, t) => CLUB.djBooth(ctx, 1000, 470, t), [700, 220, 1300, 480]);
+    obj(m, 472, (ctx, t) => CLUB.djDesk(ctx, 1000, 500, t), [850, 420, 1150, 510]);
+    col(m, 700, 400, 600, 110);
+    npc(m, 'DJ Hoàng', { skin: '#f1c27d', hair: 'spiky', hairColor: '#20e3ff', shirt: '#212529', shirtStyle: 'plain', pants: '#212529', hat: 'none', acc: 'sunglasses' }, { l: 1000, t: 470, r: 1001, b: 471 }, 1000, 470, 'none');
+    m.npcs[m.npcs.length - 1].dance = true;
+    inter(m, { x: F.x, y: F.y, w: F.cols * F.s, h: F.rows * F.s * 0.6, ax: F.x + F.cols * F.s / 2, ay: F.y + 120, name: 'Sàn nhảy (nhảy theo nhạc)', use: () => AV.useStage() });
+    // khách đang nhảy trên sàn
+    [['Linh', '#ff8fb1', 'long', '#2b2b33', 'dress'], ['Tùng', '#4c6ef5', 'spiky', '#c68642', 'stripes'], ['Vy', '#fcc419', 'pigtails', '#6b3e26', 'dress_flower'], ['Khoa', '#212529', 'emo', '#2b2b33', 'plain'], ['Mai', '#b197fc', 'bob', '#e86a92', 'princess'], ['Nam', '#40c057', 'short', '#2b2b33', 'star']].forEach(([name, shirt, hair, hc, st], i) => {
+      const x = F.x + 90 + (i % 3) * 270 + (i > 2 ? 120 : 0), y = F.y + 70 + Math.floor(i / 3) * 110;
+      npc(m, name, { skin: ['#ffe0c4', '#f8c9a2', '#e3a979'][i % 3], hair, hairColor: hc, shirt, shirtStyle: st, pants: '#343a40', hat: 'none' }, { l: x, t: y, r: x + 1, b: y + 1 }, x, y, 'none');
+      m.npcs[m.npcs.length - 1].dance = true;
+    });
+    // quầy bar + bartender
+    sobj(m, 1650, 470, (c) => CLUB.bar(c, 1650, 470), { l: -190, t: -180, w: 380, h: 190 });
+    col(m, 1470, 410, 360, 62);
+    npc(m, 'Bartender Ken', { skin: '#f8c9a2', hair: 'short', hairColor: '#2b2b33', shirt: '#f8f9fa', shirtStyle: 'plain', pants: '#212529', hat: 'none' }, { l: 1580, t: 400, r: 1720, b: 402 }, 1650, 400, 'none');
+    inter(m, { x: 1470, y: 300, w: 360, h: 172, ax: 1650, ay: 500, name: 'Quầy bar (gọi đồ uống)', use: () => UI.eateryPanel('hclub'), arrow: { x: 1650, y: 280, text: 'Gọi đồ uống' } });
+    // bàn rượu
+    [[300, 640, 0], [300, 900, 1], [1680, 720, 2], [1680, 960, 3], [600, 1000, 4]].forEach(([x, y, k]) => {
+      sobj(m, x, y, (c) => CLUB.table(c, x, y, k), { l: -70, t: -95, w: 140, h: 140 });
+      col(m, x - 44, y - 44, 88, 30);
+      inter(m, { x: x - 50, y: y - 90, w: 100, h: 96, ax: x, ay: y + 50, name: 'Bàn rượu (gọi đồ uống)', use: () => UI.eateryPanel('hclub') });
+    });
+    obj(m, 5000, (ctx, t) => CLUB.lights(ctx, t), [0, 0, m.w, m.h]);
+    sobj(m, 1000, 1062, (c) => ART.homeDoor(c, 1000, 1062), { l: -50, t: -22, w: 100, h: 28 });
+    inter(m, { x: 940, y: 1000, w: 120, h: 70, ax: 1000, ay: 1030, name: 'Ra Khu giải trí', use: () => AV.leaveClub(), arrow: { x: 1000, y: 1005, text: 'Ra ngoài' } });
+    m.spawn = { x: 1000, y: 1000 };
+    m.bounds = { l: 56, t: 400, r: m.w - 56, b: 1040 };
     return m;
   }
 
@@ -1133,7 +1192,7 @@ const MAPS = (() => {
     return m;
   };
 
-  const all = { farm, town, mall, fun, casino, arena, horse, park, beach, school, classroom, home, race };
+  const all = { farm, town, mall, fun, casino, arena, horse, club, park, beach, school, classroom, home, race };
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
   return all;
 })();
