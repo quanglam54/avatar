@@ -709,10 +709,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .set-card { position: relative; border: 3px solid var(--rar) !important; box-shadow: 0 0 0 2px rgba(0,0,0,.06), inset 0 0 18px color-mix(in srgb, var(--rar) 25%, transparent); }
 .set-card .rar { position: absolute; top: 6px; left: 6px; background: var(--rar); color: #1b2f48; font-size: 11px; font-weight: 900; padding: 1px 7px; border-radius: 99px; }
 .set-card small { color: #495057; font-size: 11px; text-align: center; line-height: 1.3; }
-.b-card canvas, .preview, .menu-av, #hudAvatar { image-rendering: pixelated; }
 
 /* Đấu Trường */
-.arena-bar { position: fixed; bottom: 78px; left: 50%; transform: translateX(-50%); z-index: 6; display: none; align-items: stretch; gap: 8px; background: rgba(43,29,20,.92); border: 3px solid #ffd43b; border-radius: 16px; padding: 6px 10px; color: #fff; box-shadow: 0 4px 0 rgba(0,0,0,.3); max-width: calc(100% - 20px); }
+.arena-bar { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 6; display: none; align-items: stretch; gap: 8px; background: rgba(43,29,20,.92); border: 3px solid #ffd43b; border-radius: 16px; padding: 6px 10px; color: #fff; box-shadow: 0 4px 0 rgba(0,0,0,.3); max-width: calc(100% - 20px); }
 .arena-bar .ab-side { display: grid; justify-items: center; min-width: 96px; padding: 2px 6px; border-radius: 10px; }
 .arena-bar .ab-side.win { background: rgba(255,212,59,.25); }
 .arena-bar .ab-ic { font-size: 24px; line-height: 1; }
@@ -733,3 +732,16 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .ar-log { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .ar-log span { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: #f1f3f5; }
 .ar-log .w { background: #d3f9d8; } .ar-log .l { background: #ffe3e3; }
+
+/* Trường Đua Ngựa */
+.horse-bar .ab-mid { min-width: 240px; }
+.hb-rank { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; font-size: 12px; }
+.hb-rank b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; color: #fff; margin-right: 3px; font-size: 11px; }
+.hr-list { display: grid; gap: 6px; margin: 6px 0 10px; }
+.hr-row { display: flex; align-items: center; gap: 8px; border: 2px solid #dee2e6; border-radius: 12px; padding: 4px 8px; background: #f8fff5; }
+.hr-row.mine { border-color: #40c057; background: #ebfbee; }
+.hr-row canvas { width: 76px; height: 50px; }
+.hr-row .info { flex: 1; display: grid; }
+.hr-row .info small { color: #e67700; }
+.hr-row .ar-odds { font-size: 18px; min-width: 52px; text-align: right; }
+.hr-silk { width: 24px; height: 24px; border-radius: 50%; color: #fff; font-weight: 900; display: grid; place-items: center; font-size: 13px; }

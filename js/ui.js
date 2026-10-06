@@ -464,7 +464,7 @@ const UI = (() => {
       const st = ARENA.state(), my = S.arenaBet && S.arenaBet.r === st.r ? S.arenaBet : null;
       const key = [st.r, st.phase, my && my.amt, S.coins].join('|');
       const tEl = p.body.querySelector('[data-time]');
-      if (tEl) tEl.textContent = st.phase === 'bet' ? `🔔 Còn ${Math.ceil(st.left)} giây để đặt cược` : st.phase === 'fight' ? `⚔️ Đang đấu — trận sau mở cược sau ${Math.ceil(st.left + 9)}s` : `🏆 ${st.fs[st.sim.win].name} thắng! Trận mới sau ${Math.ceil(st.left)}s`;
+      if (tEl) tEl.textContent = st.phase === 'bet' ? `🔔 Còn ${Math.ceil(st.left)} giây để đặt cược` : st.phase === 'fight' ? `🥊 Đang đấu hiệp ${st.ri + 1}/3 · tỉ số ${st.score[0]}-${st.score[1]}` : `🏆 ${st.fs[st.sim.win].name} thắng! Trận mới sau ${Math.ceil(st.left)}s`;
       if (!force && key === lastKey) return;
       lastKey = key;
       const card = (f, k) => `<div class="ar-card ${my && my.side === k ? 'mine' : ''}">
@@ -481,7 +481,7 @@ const UI = (() => {
         <div class="chips">${[100, 500, 1000, 5000, 10000, 50000, 100000].map((v) => `<button class="chip ${amt === v ? 'on' : ''}" data-amt="${v}">${v.toLocaleString('vi-VN')}</button>`).join('')}<button class="chip" data-all>🔥 Tất tay</button></div>
         <input class="field" type="number" min="1" data-amtin value="${amt}" style="margin-top:8px">
         ${my ? `<p class="ar-mine">✅ Bạn đã cược <b>${my.amt.toLocaleString('vi-VN')} xu</b> cho ${st.fs[my.side].icon} ${st.fs[my.side].name} — thắng nhận <b>${Math.floor(my.amt * my.odds).toLocaleString('vi-VN')} xu</b>. Có thể cược thêm cùng bên.</p>` : ''}
-        <p class="muted small-note">Mỗi trận: 20 giây đặt cược → 24 giây đấu → công bố kết quả. Thắng nhận xu × tỉ lệ, thua mất xu cược. Ra khỏi đấu trường vẫn được trả thưởng khi trận kết thúc.</p>
+        <p class="muted small-note">Mỗi trận Bo3: 20 giây đặt cược → tối đa 3 hiệp, thắng 2 hiệp là thắng trận → công bố kết quả. Thắng nhận xu × tỉ lệ, thua mất xu cược. Ra khỏi đấu trường vẫn được trả thưởng khi trận kết thúc.</p>
         ${(S.arenaLog || []).length ? `<div class="ar-log">${S.arenaLog.slice().reverse().map((l) => `<span class="${l.pay ? 'w' : 'l'}">${l.pay ? '🏆 +' + l.pay.toLocaleString('vi-VN') : '❌ −' + l.amt.toLocaleString('vi-VN')} · ${esc(l.f)}</span>`).join('')}</div>` : ''}`;
       st.fs.forEach((f, k) => {
         const cv = p.body.querySelector(`[data-fpv="${k}"]`), g = cv.getContext('2d'), d = Math.min(2, devicePixelRatio || 1);
@@ -1227,7 +1227,7 @@ const UI = (() => {
     const S = AV.S;
     S.settings = { ...(S.settings || {}), music: v };
     MUSIC.setOn(v);
-    AV.saveNow();
+    AV.markChanged();
     updateMusicBtn();
     toast(v ? '🎵 Đã bật nhạc nền' : '🔇 Đã tắt nhạc nền');
   }
@@ -1433,7 +1433,7 @@ const UI = (() => {
     const p = panel('⚙️ Cài đặt', `${account}
       <label class="toggle">🎃 Halloween <select data-hw><option value="auto">Tự động (tháng 10)</option><option value="on">Luôn bật</option><option value="off">Tắt</option></select></label>
       <label class="toggle">🌙 Ngày / đêm <select data-time><option value="real">Theo giờ thật</option><option value="day">Luôn ban ngày</option><option value="night">Luôn ban đêm</option></select></label>
-      <label class="toggle">🌧️ Thời tiết <select data-weather><option value="auto">Tự nhiên (thỉnh thoảng mưa)</option><option value="off">Không mưa</option><option value="rain">Luôn mưa</option></select></label>
+      <label class="toggle">🌧️ Thời tiết <select data-weather><option value="auto">☀️ Nắng, thỉnh thoảng mưa (mặc định)</option><option value="season">🍂 Theo mùa (xuân hoa đào, thu lá vàng, đông tuyết)</option><option value="rain">🌧️ Luôn mưa</option><option value="snow">❄️ Tuyết rơi</option><option value="petals">🌸 Hoa đào rơi</option><option value="leaves">🍁 Lá vàng rơi</option><option value="off">🌤️ Trời quang (không mưa)</option></select></label>
       <label class="toggle">📱 Đồ hoạ <select data-gfx><option value="auto">Tự động (điện thoại: tiết kiệm pin)</option><option value="saver">Tiết kiệm pin — mát máy</option><option value="high">Đẹp nhất — nét, mượt hơn</option></select></label>
       <label class="toggle"><input type="checkbox" data-music ${MUSIC.on ? 'checked' : ''}> 🎵 Nhạc nền <input type="range" data-vol min="0" max="100" value="${Math.round(MUSIC.volume * 100)}" style="flex:1;min-width:90px"></label>
       <div class="music-src">
@@ -1448,19 +1448,19 @@ const UI = (() => {
       <div class="row-end"><button class="btn danger" data-reset>🗑 Chơi lại từ đầu</button></div>`);
     const hs = p.body.querySelector('[data-hw]');
     hs.value = (S.settings && S.settings.halloween) || 'auto';
-    hs.onchange = () => { S.settings = { ...(S.settings || {}), halloween: hs.value }; AV.saveNow(); updateEventBtn(); };
+    hs.onchange = () => { S.settings = { ...(S.settings || {}), halloween: hs.value }; AV.markChanged(); updateEventBtn(); };
     const ts = p.body.querySelector('[data-time]');
     ts.value = (S.settings && S.settings.time) || 'real';
-    ts.onchange = () => { S.settings = { ...(S.settings || {}), time: ts.value }; AV.saveNow(); };
+    ts.onchange = () => { S.settings = { ...(S.settings || {}), time: ts.value }; AV.markChanged(); };
     p.body.querySelector('[data-music]').onchange = (e) => setMusic(e.target.checked);
-    p.body.querySelector('[data-vol]').oninput = (e) => { const v = e.target.value / 100; MUSIC.setVolume(v); S.settings = { ...(S.settings || {}), musicVol: v }; AV.saveNow(); };
+    p.body.querySelector('[data-vol]').oninput = (e) => { const v = e.target.value / 100; MUSIC.setVolume(v); S.settings = { ...(S.settings || {}), musicVol: v }; AV.markChanged(); };
     const setUrl = (v, label) => {
       if (v !== undefined && !MUSIC.setSource(v)) return toast('Link chưa đúng — dán link YouTube (youtu.be/… hoặc youtube.com/watch?v=…) hoặc link file .mp3', 4500);
       if (v === undefined) MUSIC.setSource(MUSIC.defaultUrl);
       const st = { ...(S.settings || {}) };
       if (v === undefined) delete st.musicUrl; else st.musicUrl = v;
       S.settings = st;
-      if (!MUSIC.on) setMusic(true); else AV.saveNow();
+      if (!MUSIC.on) setMusic(true); else AV.markChanged();
       toast(label, 3000);
       p.close(); settings();
     };
@@ -1470,10 +1470,10 @@ const UI = (() => {
     p.body.querySelector('[data-chill]').onclick = () => setUrl('chill', '🎶 Dùng nhạc chill tự tạo');
     const wx = p.body.querySelector('[data-weather]');
     wx.value = (S.settings && S.settings.weather) || 'auto';
-    wx.onchange = () => { S.settings = { ...(S.settings || {}), weather: wx.value }; AV.saveNow(); };
+    wx.onchange = () => { S.settings = { ...(S.settings || {}), weather: wx.value }; AV.markChanged(); toast('✅ Đã lưu thời tiết: ' + wx.options[wx.selectedIndex].text); };
     const gx = p.body.querySelector('[data-gfx]');
     gx.value = (S.settings && S.settings.gfx) || 'auto';
-    gx.onchange = () => { S.settings = { ...(S.settings || {}), gfx: gx.value }; AV.saveNow(); AV.applyGfx(); toast(AV.saverOn() ? '🔋 Đang tiết kiệm pin' : '✨ Đồ hoạ đẹp nhất'); };
+    gx.onchange = () => { S.settings = { ...(S.settings || {}), gfx: gx.value }; AV.markChanged(); AV.applyGfx(); toast(AV.saverOn() ? '🔋 Đang tiết kiệm pin' : '✨ Đồ hoạ đẹp nhất'); };
     const q = (sel) => p.body.querySelector(sel);
     if (q('[data-cloudsave]')) q('[data-cloudsave]').onclick = () => AV.cloudSaveNow();
     if (q('[data-logout]')) q('[data-logout]').onclick = () => { p.close(); confirm('Đăng xuất khỏi tài khoản? Tiến trình đã được lưu lên mạng.', 'Đăng xuất', () => AV.logout()); };
@@ -1538,7 +1538,7 @@ const UI = (() => {
     $('#btnDaily').onclick = () => dailyPanel();
     updateDailyDot();
     $('#btnMusic').onclick = () => setMusic(!MUSIC.on);
-    MUSIC.onToggle = (v) => { AV.S.settings = { ...(AV.S.settings || {}), music: v }; AV.saveNow(); updateMusicBtn(); };
+    MUSIC.onToggle = (v) => { AV.S.settings = { ...(AV.S.settings || {}), music: v }; AV.markChanged(); updateMusicBtn(); };
     updateWheelDot();
     $('#btnMap').onclick = () => cityMap(false);
     $('#btnChat').onclick = () => { $('#chatLog').classList.add('active'); $('#chatInput').focus(); };

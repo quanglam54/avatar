@@ -107,7 +107,111 @@ const ART = (() => {
   const headFrame = (ctx) => { ctx.translate(0, -52); ctx.scale(1.24, 1.24); ctx.translate(0, 55); };
   const GIRLY = { long: 1, pigtails: 1, bun: 1, bob: 1 };
 
+  /* ---------- Bộ trang phục (áo / quần / giày / áo choàng) ---------- */
+  const TOPS = {
+    tee_star: { style: 'star' },
+    hoodie: { shirt: '#b8c0cc', style: 'hoodie', jacket: 1 },
+    school: { shirt: '#ffffff', style: 'school' },
+    varsity: { shirt: '#e03131', style: 'varsity', jacket: 1, sleeve: '#f8f9fa' },
+    couple_l: { shirt: '#ffffff', style: 'coupleL' },
+    couple_r: { shirt: '#ffffff', style: 'coupleR' },
+    puffer: { shirt: '#20c4b8', style: 'puffer', jacket: 1 },
+    cute: { shirt: '#ff8fb1', dress: 'dress', style: 'cute' },
+    leather: { shirt: '#262a33', style: 'leather', jacket: 1 },
+    thunder: { shirt: '#3b82f6', style: 'thunder', jacket: 1 },
+    armor: { shirt: '#f5c542', style: 'armor', jacket: 1 },
+  };
+  const BOTTOMS = {
+    jeans: {}, baggy: { pants: '#d9b98a' }, school_pants: { pants: '#2c3e75' }, school_skirt: { pants: '#2c3e75', skirt: 1 },
+    baggy_denim: { pants: '#8fb0ee' }, shorts: { pants: '#5b7fd6', shorts: 1 }, warm: { pants: '#3d4452' },
+    ripped: { pants: '#262a33', ripped: 1 }, track: { pants: '#1d4ed8', stripe: '#ffffff' }, knight: { pants: '#9e1c1c', stripe: '#f5c542' },
+  };
+  const SHOES = {
+    sneaker: ['#f4f5f7', '#e03131'], chunky: ['#ffffff', '#adb5bd'], school: ['#212529', '#495057'], hightop: ['#e03131', '#ffffff'], slipon: ['#212529', '#ffffff'],
+    boots: ['#8a5a3c', '#eceff3'], maryjane: ['#e03131', '#ffd43b'], combat: ['#1f232b', '#868e96'], thunder: ['#3b82f6', '#ffd43b'], armor: ['#f5c542', '#e03131'],
+  };
+  /** Ghép bộ đồ vào look: đổi màu áo / quần, kiểu váy… */
+  function outfit(look) {
+    const tp = TOPS[look.top], bt = BOTTOMS[look.bottom];
+    const L = { ...look };
+    if (tp) { if (tp.shirt) L.shirt = tp.shirt; L.shirtStyle = tp.dress || (tp.style === 'star' ? 'star' : 'plain'); }
+    if (bt && bt.pants) L.pants = bt.pants;
+    const dress = !!DRESSES[L.shirtStyle] || L.shirtStyle === 'witchdress';
+    return { L, top: tp || null, bot: bt || null, shoes: SHOES[look.shoes] || (dress ? SHOES.maryjane : null), dress };
+  }
+
+  /** Chi tiết trên thân áo của từng bộ (vẽ trong khung thân áo) */
+  function topDetail(ctx, st, L) {
+    if (st === 'hoodie') {
+      ctx.fillStyle = shade(L.shirt, -0.18); rr(ctx, -8, -25, 16, 9, 3); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-3, -37); ctx.lineTo(-3, -30); ctx.moveTo(3, -37); ctx.lineTo(3, -30); ctx.stroke();
+      ctx.fillStyle = shade(L.shirt, -0.3); ctx.beginPath(); ctx.ellipse(0, -38, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
+    } else if (st === 'school') {
+      ctx.fillStyle = '#e9ecef'; ctx.beginPath(); ctx.moveTo(-8, -38); ctx.lineTo(-1, -33); ctx.lineTo(-4, -38); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(8, -38); ctx.lineTo(1, -33); ctx.lineTo(4, -38); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#e03131'; ctx.beginPath(); ctx.moveTo(-5, -38); ctx.lineTo(5, -38); ctx.lineTo(0, -33); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-1, -34); ctx.lineTo(-4, -26); ctx.lineTo(-1, -27); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(1, -34); ctx.lineTo(4, -25); ctx.lineTo(1, -26); ctx.closePath(); ctx.fill();
+      [-22, -18].forEach((yy) => circle(ctx, 0, yy, 0.9, '#adb5bd'));
+    } else if (st === 'varsity') {
+      ctx.fillStyle = '#f8f9fa'; ctx.fillRect(-2.5, -38, 5, 24);
+      ctx.fillStyle = '#9e1c1c'; ctx.fillRect(-12, -16.5, 24, 2.5);
+      ctx.fillStyle = '#ffd43b'; ctx.font = '900 8px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('A', -7, -29);
+    } else if (st === 'coupleL' || st === 'coupleR') {
+      const sx = st === 'coupleL' ? 1 : -1;
+      ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.moveTo(sx * 12, -24); ctx.bezierCurveTo(sx * 12, -30, sx * 6, -32, sx * 4, -28); ctx.bezierCurveTo(sx * 2, -24, sx * 8, -20, sx * 12, -18); ctx.closePath(); ctx.fill();
+    } else if (st === 'puffer') {
+      ctx.strokeStyle = shade(L.shirt, -0.3); ctx.lineWidth = 1.3;
+      [-31, -25, -19].forEach((yy) => { ctx.beginPath(); ctx.moveTo(-12, yy); ctx.lineTo(12, yy); ctx.stroke(); });
+      ctx.strokeStyle = '#eceff3'; ctx.beginPath(); ctx.moveTo(0, -38); ctx.lineTo(0, -14); ctx.stroke();
+      [-9, -4.5, 0, 4.5, 9].forEach((xx) => circle(ctx, xx, -37.5, 3.2, '#f1f3f5'));
+    } else if (st === 'cute') {
+      ctx.fillStyle = '#e03131';
+      ctx.beginPath(); ctx.moveTo(0, -31); ctx.lineTo(-6, -35); ctx.lineTo(-6, -27); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0, -31); ctx.lineTo(6, -35); ctx.lineTo(6, -27); ctx.closePath(); ctx.fill();
+      circle(ctx, 0, -31, 1.8, '#a61e1e');
+    } else if (st === 'leather') {
+      ctx.fillStyle = '#e03131'; ctx.fillRect(-4, -38, 8, 24);
+      ctx.strokeStyle = '#ced4da'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(4, -38); ctx.lineTo(2, -14); ctx.stroke();
+      ctx.fillStyle = '#495057'; ctx.fillRect(-12, -38, 6, 4); ctx.fillRect(6, -38, 6, 4);
+    } else if (st === 'thunder') {
+      ctx.fillStyle = '#ffd43b'; ctx.beginPath(); ctx.moveTo(3, -36); ctx.lineTo(-3, -27); ctx.lineTo(1, -27); ctx.lineTo(-3, -17); ctx.lineTo(6, -29); ctx.lineTo(2, -29); ctx.lineTo(6, -36); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillRect(-12, -38, 2.5, 24); ctx.fillRect(9.5, -38, 2.5, 24);
+    } else if (st === 'armor') {
+      ctx.fillStyle = shade(L.shirt, -0.25); ctx.beginPath(); ctx.moveTo(-9, -36); ctx.lineTo(9, -36); ctx.lineTo(7, -20); ctx.lineTo(0, -16); ctx.lineTo(-7, -20); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = L.shirt; ctx.beginPath(); ctx.moveTo(-7, -34); ctx.lineTo(7, -34); ctx.lineTo(5.5, -21); ctx.lineTo(0, -18); ctx.lineTo(-5.5, -21); ctx.closePath(); ctx.fill();
+      circle(ctx, 0, -28, 3, '#e03131'); circle(ctx, -0.8, -28.8, 1, '#ffc9c9');
+      ctx.fillStyle = '#9e1c1c'; ctx.fillRect(-12, -16, 24, 2);
+    }
+  }
+
+  /** Áo choàng đỏ sau lưng (bộ Rồng Vàng) */
+  function capeBack(ctx, t) {
+    const sw = Math.sin(t * 2) * 2;
+    ctx.fillStyle = '#c92a2a';
+    ctx.beginPath(); ctx.moveTo(-13, -37); ctx.lineTo(13, -37); ctx.lineTo(19 + sw, -2); ctx.quadraticCurveTo(0, 3, -19 + sw, -2); ctx.closePath(); ctx.fill(); ol(ctx, 1.2);
+    ctx.fillStyle = '#ffd43b'; ctx.fillRect(-13, -38, 26, 3);
+  }
+
+  /** Hiệu ứng bộ đồ hiếm: tia sét (Thần Sấm), đốm vàng bay lên (Rồng Vàng) */
+  function setFx(ctx, style, t) {
+    if (style === 'thunder') {
+      for (let i = 0; i < 4; i++) {
+        if (Math.sin(t * 9 + i * 2.1) < 0.35) continue;
+        const sx = (i % 2 ? 1 : -1) * (22 + (i > 1 ? 6 : 0)), sy = -60 + i * 12;
+        ctx.strokeStyle = i % 2 ? '#fff59a' : '#67e8f9'; ctx.lineWidth = 2.2; ctx.lineJoin = 'round';
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + 4, sy + 5); ctx.lineTo(sx - 2, sy + 8); ctx.lineTo(sx + 3, sy + 14); ctx.stroke();
+      }
+    } else if (style === 'armor') {
+      for (let i = 0; i < 6; i++) {
+        const ph = (t * 0.55 + i / 6) % 1;
+        const sx = Math.sin(i * 2.4 + t * 0.7) * 26, sy = -6 - ph * 95;
+        star(ctx, sx, sy, 3.2 * (1 - ph * 0.5), 1.3, `rgba(255,212,59,${1 - ph})`);
+      }
+    }
+  }
+
   function characterBase(ctx, x, y, look, o) {
+    const OF = outfit(look);
+    look = OF.L;
     const t = o.t || 0;
     const dir = o.dance ? (Math.sin(t * 4) > 0 ? 1 : -1) : (o.dir || 1);
     const swing = o.dance ? Math.sin(t * 14) * 8 : o.moving ? Math.sin(t * 12) * 4 : 0;
@@ -118,6 +222,7 @@ const ART = (() => {
 
     // ---- phía sau: cánh, tóc sau
     if (look.acc === 'wings') wings(ctx, t);
+    if (look.back === 'cape_red') { ctx.save(); ctx.scale(0.86, 0.86); capeBack(ctx, t); ctx.restore(); }
     ctx.save(); headFrame(ctx); hairBack(ctx, look); ctx.restore();
 
     // ---- thân người nhỏ kiểu chibi
@@ -127,10 +232,19 @@ const ART = (() => {
     const lLift = Math.max(0, swing) * 0.6, rLift = Math.max(0, -swing) * 0.6;
     const dress = !!DRESSES[look.shirtStyle] || look.shirtStyle === 'witchdress';
     // chân + giày
+    const B = OF.bot || {};
     [[-9, lLift], [1, rLift]].forEach(([lx, lift]) => {
-      ctx.fillStyle = look.pants; rr(ctx, lx, -18 - lift, 8, 14, 3); ctx.fill(); ol(ctx, 1.1);
-      ctx.fillStyle = '#4a2f22'; ctx.beginPath(); ctx.ellipse(lx + 4, -3.5 - lift, 6, 3.4, 0, 0, Math.PI * 2); ctx.fill(); ol(ctx, 1.1);
-      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(lx + 1, -5.5 - lift, 4, 1.3);
+      if (B.shorts || B.skirt) {
+        ctx.fillStyle = look.skin; rr(ctx, lx, -18 - lift, 8, 14, 3); ctx.fill(); ol(ctx, 1.1);
+        if (B.shorts) { ctx.fillStyle = look.pants; rr(ctx, lx, -18 - lift, 8, 7, 2); ctx.fill(); ol(ctx, 1.1); }
+      } else {
+        ctx.fillStyle = look.pants; rr(ctx, lx, -18 - lift, 8, 14, 3); ctx.fill(); ol(ctx, 1.1);
+        if (B.stripe) { ctx.fillStyle = B.stripe; ctx.fillRect(lx === -9 ? lx + 0.5 : lx + 6, -17 - lift, 1.6, 12); }
+        if (B.ripped) { ctx.fillStyle = look.skin; ctx.fillRect(lx + 2, -11 - lift, 4, 2); }
+      }
+      const sh = OF.shoes;
+      ctx.fillStyle = sh ? sh[0] : '#4a2f22'; ctx.beginPath(); ctx.ellipse(lx + 4, -3.5 - lift, 6, 3.4, 0, 0, Math.PI * 2); ctx.fill(); ol(ctx, 1.1);
+      ctx.fillStyle = sh ? sh[1] : 'rgba(255,255,255,.35)'; ctx.fillRect(lx + 1, -5.5 - lift, 4, 1.3);
     });
     // thân áo
     const light = shade(look.shirt, 0.25), dark = shade(look.shirt, -0.22);
@@ -143,8 +257,9 @@ const ART = (() => {
     if (!dress) { ctx.fillStyle = dark; ctx.fillRect(-12, -18, 24, 4); }
     shirtStyle(ctx, look.shirtStyle);
     bodice(ctx, look);
+    if (OF.top) topDetail(ctx, OF.top.style, look);
     // cổ áo
-    if (!dress && look.shirtStyle !== 'overall') {
+    if (!dress && look.shirtStyle !== 'overall' && !(OF.top && (OF.top.jacket || OF.top.style === 'school' || OF.top.style === 'armor'))) {
       ctx.fillStyle = light;
       ctx.beginPath(); ctx.moveTo(-7, -38); ctx.lineTo(0, -32); ctx.lineTo(7, -38); ctx.closePath(); ctx.fill();
       ctx.fillStyle = shade(look.skin, -0.08);
@@ -153,17 +268,23 @@ const ART = (() => {
     ctx.restore();
     rr(ctx, -12, -38, 24, 24, 8); ol(ctx, 1.2);
     skirt(ctx, look, swing);
+    if (B.skirt) {
+      ctx.fillStyle = look.pants; ctx.beginPath(); ctx.moveTo(-12, -18); ctx.lineTo(12, -18); ctx.lineTo(16 + swing * 0.3, -9); ctx.lineTo(-16 + swing * 0.3, -9); ctx.closePath(); ctx.fill(); ol(ctx, 1.1);
+      ctx.strokeStyle = shade(look.pants, -0.3); ctx.lineWidth = 1; for (let k = -8; k <= 8; k += 4) { ctx.beginPath(); ctx.moveTo(k * 0.8, -17); ctx.lineTo(k * 1.15, -10); ctx.stroke(); }
+    }
     // thắt lưng
-    if (!dress) {
+    if (!dress && !(OF.top && OF.top.jacket)) {
       ctx.fillStyle = '#3b2a1a'; ctx.fillRect(-11.5, -17.5, 23, 3);
       ctx.fillStyle = '#fcc419'; ctx.fillRect(-2, -18, 4, 4);
     }
     // tay
     [[-17.5, swing * 0.4], [10.5, -swing * 0.4]].forEach(([ax, sw]) => {
-      ctx.fillStyle = look.shirt; rr(ctx, ax, -36 + sw, 7, 12, 3.5); ctx.fill(); ol(ctx, 1.1);
+      ctx.fillStyle = (OF.top && OF.top.sleeve) || look.shirt; rr(ctx, ax, -36 + sw, 7, 12, 3.5); ctx.fill(); ol(ctx, 1.1);
       ctx.fillStyle = light; ctx.fillRect(ax + 1, -26 + sw, 5, 2);
       ctx.fillStyle = look.skin; ctx.beginPath(); ctx.arc(ax + 3.5, -21 + sw, 3.8, 0, Math.PI * 2); ctx.fill(); ol(ctx, 1);
     });
+    if (OF.top && OF.top.style === 'armor') [-14, 14].forEach((sx) => { ctx.fillStyle = '#f5c542'; ctx.beginPath(); ctx.ellipse(sx, -35, 7, 4.5, 0, 0, Math.PI * 2); ctx.fill(); ol(ctx, 1.1); });
+    if (OF.top) setFx(ctx, OF.top.style, t);
     ctx.restore();
 
     // ---- đầu to
@@ -388,6 +509,18 @@ const ART = (() => {
   /** Trang sức: bông tai, dây chuyền, ngọc trai, kính */
   function accessory(ctx, acc, ex, skin) {
     if (!acc || acc === 'none') return;
+    if (acc === 'chain') {
+      ctx.strokeStyle = '#fcc419'; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.arc(0, -40, 9, 0.3, Math.PI - 0.3); ctx.stroke();
+      circle(ctx, 0, -30.5, 3.4, '#fcc419'); circle(ctx, 0, -30.5, 1.6, '#e8590c');
+      return;
+    }
+    if (acc === 'scarf') {
+      ctx.fillStyle = '#e03131'; rr(ctx, -12, -40, 24, 6, 3); ctx.fill(); ol(ctx, 1);
+      rr(ctx, 4, -36, 5, 11, 2); ctx.fill(); ol(ctx, 1);
+      ctx.fillStyle = '#fff'; ctx.fillRect(4, -27, 5, 1.5); ctx.fillRect(-8, -38, 2, 2); ctx.fillRect(0, -38, 2, 2);
+      return;
+    }
     if (acc === 'earrings') {
       [-18, 18].forEach((dx) => { circle(ctx, dx, -48, 2.4, '#fcc419'); circle(ctx, dx, -44, 1.6, '#e64980'); });
     } else if (acc === 'necklace' || acc === 'pearl') {
@@ -553,6 +686,36 @@ const ART = (() => {
 
   function hat(ctx, h, dir) {
     if (!h || h === 'none') return;
+    if (h === 'snapback') {
+      ctx.fillStyle = '#212529'; ctx.beginPath(); ctx.arc(0, -63, 19.5, Math.PI, 0); ctx.fill(); ol(ctx, 1.2);
+      ctx.fillStyle = '#343a40'; rr(ctx, -22, -65, 44, 5, 2); ctx.fill(); ol(ctx, 1);
+      ctx.fillStyle = '#fcc419'; rr(ctx, -5, -78, 10, 7, 2); ctx.fill();
+      return;
+    }
+    if (h === 'beanie_winter') {
+      ctx.fillStyle = '#e03131'; ctx.beginPath(); ctx.arc(0, -62, 19.5, Math.PI, 0); ctx.fill(); ol(ctx, 1.2);
+      ctx.fillStyle = '#fff'; rr(ctx, -20, -66, 40, 8, 4); ctx.fill(); ol(ctx, 1);
+      [-10, 0, 10].forEach((xx) => star(ctx, xx, -73, 2.6, 1.1, '#fff'));
+      circle(ctx, 0, -84, 6, '#fff'); ctx.beginPath(); ctx.arc(0, -84, 6, 0, Math.PI * 2); ol(ctx, 1);
+      return;
+    }
+    if (h === 'catears') {
+      [-1, 1].forEach((sd) => {
+        ctx.fillStyle = '#212529'; ctx.beginPath(); ctx.moveTo(sd * 8, -74); ctx.lineTo(sd * 17, -90); ctx.lineTo(sd * 19, -70); ctx.closePath(); ctx.fill(); ol(ctx, 1.1);
+        ctx.fillStyle = '#ff8fb1'; ctx.beginPath(); ctx.moveTo(sd * 11, -74); ctx.lineTo(sd * 16, -84); ctx.lineTo(sd * 17, -73); ctx.closePath(); ctx.fill();
+      });
+      ctx.strokeStyle = '#212529'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, -57, 20, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+      return;
+    }
+    if (h === 'laurel') {
+      for (let i = 0; i < 6; i++) [-1, 1].forEach((sd) => {
+        const a = Math.PI * (1.12 + i * 0.07);
+        const lx = sd * Math.abs(Math.cos(a) * 20), ly = -58 + Math.sin(a) * 18;
+        ctx.fillStyle = i % 2 ? '#fcc419' : '#f59f00'; ctx.beginPath(); ctx.ellipse(lx, ly, 4.5, 2.2, sd * (0.6 - i * 0.15), 0, Math.PI * 2); ctx.fill();
+      });
+      circle(ctx, 0, -77, 3, '#e03131');
+      return;
+    }
     if (h === 'cap') {
       ctx.fillStyle = '#e03131';
       ctx.beginPath(); ctx.arc(0, -63, 19, Math.PI, 0); ctx.fill();

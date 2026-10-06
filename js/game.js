@@ -3,7 +3,7 @@
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const SAVE_KEY = 'avatar_farm_save_v1';
-  const SPEED = 175;
+  const SPEED = 210;
   const BUS_Y = 985;
   let W = 0, H = 0, DPR = 1, ZOOM = 1;
 
@@ -1788,8 +1788,9 @@
   /** Độ mưa 0..1: mỗi 15 phút có khoảng 1/4 khả năng mưa, mưa nặng hạt dần rồi tạnh */
   function rainLevel() {
     const mode = (S.settings && S.settings.weather) || 'auto';
-    if (mode === 'off') return 0;
     if (mode === 'rain') return 1;
+    if (mode !== 'auto' && mode !== 'season') return 0;
+    if (mode === 'season' && fallKind()) return 0;
     const t = Date.now(), slot = Math.floor(t / RAIN_SLOT);
     const r = (Math.imul(slot ^ 0x5bd1e995, 2654435761) >>> 0) % 1000 / 1000;
     if (r > 0.24) return 0;
@@ -1797,6 +1798,61 @@
     return Math.max(0, Math.min(1, into / 0.08, (1 - into) / 0.08)) * (0.6 + r * 1.6);
   }
   AV.rainLevel = rainLevel;
+
+  /** Thứ đang rơi: tuyết / cánh hoa đào / lá vàng (theo cài đặt, hoặc theo mùa) */
+  function fallKind() {
+    const mode = (S.settings && S.settings.weather) || 'auto';
+    if (mode === 'snow' || mode === 'petals' || mode === 'leaves') return mode;
+    if (mode !== 'season') return null;
+    const mo = new Date().getMonth() + 1;
+    return mo === 12 || mo === 1 ? 'snow' : mo >= 2 && mo <= 4 ? 'petals' : mo >= 9 && mo <= 11 ? 'leaves' : null;
+  }
+  AV.fallKind = fallKind;
+  const flakes = [];
+  let fallNow = 0, fallShown = null;
+  const LEAF_COLS = ['#fcc419', '#f59f00', '#e8590c', '#d9480f', '#ffd43b', '#b5651d'];
+  const PETAL_COLS = ['#ffc9de', '#ffb3cf', '#ffd6e5', '#ff9ec2'];
+  function updateFall(dt) {
+    const kind = map.indoor ? null : fallKind();
+    fallNow += ((kind ? 1 : 0) - fallNow) * Math.min(1, dt * 2);
+    if (kind && fallShown !== kind && !map.indoor) { fallShown = kind; UI.toast({ snow: '❄️ Tuyết rơi rồi! Lạnh quá…', petals: '🌸 Hoa đào bay khắp trời', leaves: '🍂 Mùa thu lá vàng rơi' }[kind], 3000); }
+    if (!kind) fallShown = null;
+    const vw = W / ZOOM, vh = H / ZOOM;
+    const want = kind ? Math.round(fallNow * (saver() ? 70 : 160) * (kind === 'snow' ? 1.6 : 1)) : 0;
+    const spawn = (top) => ({ x: cam.x - vw / 2 - 100 + Math.random() * (vw + 200), y: top ? cam.y - vh / 2 - 20 - Math.random() * 80 : cam.y - vh / 2 + Math.random() * vh, ph: Math.random() * 6.28, sp: kind === 'snow' ? 35 + Math.random() * 45 : 45 + Math.random() * 55, sz: kind === 'snow' ? 1.8 + Math.random() * 2.8 : 5.5 + Math.random() * 4, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 4, col: kind === 'leaves' ? LEAF_COLS[Math.floor(Math.random() * LEAF_COLS.length)] : PETAL_COLS[Math.floor(Math.random() * PETAL_COLS.length)], kind });
+    while (flakes.length < want) flakes.push(spawn(false));
+    if (flakes.length > want) flakes.length = want;
+    for (let i = 0; i < flakes.length; i++) {
+      const f = flakes[i];
+      if (f.kind !== kind) { flakes[i] = spawn(true); continue; }
+      f.ph += dt * (f.kind === 'snow' ? 1.2 : 2);
+      f.y += f.sp * dt;
+      f.x += Math.sin(f.ph) * (f.kind === 'snow' ? 18 : 40) * dt - (f.kind === 'snow' ? 6 : 22) * dt;
+      f.rot += f.vr * dt;
+      if (f.y > cam.y + vh / 2 + 20 || f.x < cam.x - vw / 2 - 120 || f.x > cam.x + vw / 2 + 120) flakes[i] = spawn(true);
+    }
+  }
+  function drawFall(g) {
+    if (!flakes.length) return;
+    const vw = W / ZOOM, vh = H / ZOOM;
+    if (flakes[0].kind === 'snow') { g.fillStyle = `rgba(225,236,255,${0.12 * fallNow})`; g.fillRect(cam.x - vw / 2 - 10, cam.y - vh / 2 - 10, vw + 20, vh + 20); }
+    for (const f of flakes) {
+      if (f.kind === 'snow') {
+        g.fillStyle = 'rgba(255,255,255,.92)'; g.beginPath(); g.arc(f.x, f.y, f.sz, 0, Math.PI * 2); g.fill();
+        continue;
+      }
+      g.save(); g.translate(f.x, f.y); g.rotate(f.rot); g.scale(1, 0.55 + Math.abs(Math.sin(f.ph)) * 0.45);
+      g.fillStyle = f.col;
+      if (f.kind === 'petals') {
+        g.beginPath(); g.moveTo(0, -f.sz); g.quadraticCurveTo(f.sz, -f.sz * 0.2, 0, f.sz); g.quadraticCurveTo(-f.sz, -f.sz * 0.2, 0, -f.sz); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.ellipse(-f.sz * 0.2, -f.sz * 0.3, f.sz * 0.2, f.sz * 0.4, 0, 0, Math.PI * 2); g.fill();
+      } else {
+        g.beginPath(); g.moveTo(0, -f.sz * 1.3); g.quadraticCurveTo(f.sz, 0, 0, f.sz * 1.3); g.quadraticCurveTo(-f.sz, 0, 0, -f.sz * 1.3); g.fill();
+        g.strokeStyle = 'rgba(120,60,10,.55)'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(0, -f.sz * 1.2); g.lineTo(0, f.sz * 1.4); g.stroke();
+      }
+      g.restore();
+    }
+  }
   const drops = [], splashes = [];
   let rainNow = 0, wasRaining = false;
   function updateRain(dt) {
@@ -2084,6 +2140,8 @@
   AV.leaveClass = () => AV.teleport('school', false, 420, 590, '🌳 Ra sân trường…');
   AV.enterCasino = () => AV.teleport('casino', false, 1000, 880, '🎰 Vào Nhà Casino…');
   AV.enterArena = () => AV.teleport('arena', false, 1000, 990, '⚔️ Vào Đấu Trường MMA…');
+  AV.enterHorse = () => AV.teleport('horse', false, 1000, 1060, '🏇 Vào Trường Đua Ngựa…');
+  AV.leaveHorse = () => AV.teleport('fun', false, 790, 800, '🎡 Ra Khu giải trí…');
   AV.leaveArena = () => AV.teleport('fun', false, 360, 805, '🎡 Ra Khu giải trí…');
   AV.leaveCasino = () => AV.teleport('fun', false, 2260, 815, '🎡 Ra Khu giải trí…');
   AV.leaveHome = () => AV.teleport('farm', false, 2650, 762, '🌾 Ra nông trại…');
@@ -2129,6 +2187,14 @@
     let x = (L + R) / 2;
     for (const dx of [0, -40, 40, -70, 70]) { if (!used.some((u) => Math.abs(u - ((L + R) / 2 + dx)) < 30)) { x = (L + R) / 2 + dx; break; } }
     startPose('bench', '🪑 Ngồi đợi xe buýt — bấm 🗺️ hoặc cột biển trạm để chọn nơi đến', { x, y: y - 22, dir: 1, sortY: y - 21, clipY: y - 34, front: (g) => ART.benchFront(g, L + 14, R - 14, y), back: [x, y + 12] });
+  };
+  /** Ngồi một chỗ trống trên ghế dài (khán đài) */
+  AV.sitSeat = (L, R, y, msg) => {
+    const used = NET.players().filter((r) => Math.abs(r.ry - (y - 22)) < 8).map((r) => r.rx);
+    const slots = []; for (let x = L; x <= R; x += 42) slots.push(x);
+    slots.sort((a, b) => Math.abs(a - player.x) - Math.abs(b - player.x));
+    const x = slots.find((sx) => !used.some((u) => Math.abs(u - sx) < 30)) ?? slots[0];
+    startPose('bench', msg, { x, y: y - 22, dir: 1, sortY: y - 21, clipY: y - 34, front: (g) => ART.benchFront(g, L - 14, R + 14, y), back: [x, y + 14] });
   };
   AV.sleep = () => { startPose('bed', '🛏️ Đang nằm ngủ'); homeActivity('lastSleep', 120, 30, '😴 Ngủ một giấc thật ngon! +30 XP', '😴 Zzz…', 'Bạn chưa buồn ngủ'); };
   AV.bathe = () => { startPose('bath', '🛁 Đang ngâm mình trong bồn'); homeActivity('lastBath', 60, 15, '🛁 Tắm xong thơm tho quá! +15 XP', '🛁 La la la~', 'Vừa tắm xong mà'); };
@@ -2439,6 +2505,7 @@
     if (player.dancing && player.dancing < now) { player.dancing = 0; NET.sendState(); }
     if (map.id === 'farm') { updateGuards(dt); updateFireworks(dt); }
     updateRain(dt);
+    updateFall(dt);
     spawnPickups(dt);
     updateFishing();
     updateActionButton();
@@ -2666,6 +2733,7 @@
     }
 
     drawRain(g);
+    drawFall(g);
     if (map.id === 'farm') drawFireworks(g);
     if (px) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -3052,12 +3120,13 @@
   };
 
   /** Mã quà tặng (mỗi mã dùng 1 lần cho mỗi nhân vật) */
-  const GIFTS = { 'XINLOI3500': { coins: 3500, msg: 'Quà xin lỗi vì lỗi mất đồ' }, 'QUANGLAM100K': { coins: 100000, msg: 'Voucher quà tặng 100K' }, 'QUANGLAM10TR': { coins: 10000000, msg: 'Voucher 10 triệu xu', unlimited: true } };
+  const GIFTS = { 'XINLOI3500': { coins: 3500, msg: 'Quà xin lỗi vì lỗi mất đồ' }, 'QUANGLAM100K': { coins: 100000, msg: 'Voucher quà tặng 100K' }, 'QUANGLAM10TR': { coins: 10000000, msg: 'Voucher 10 triệu xu', expired: true } };
   AV.redeem = (code) => {
     const c = String(code || '').trim().toUpperCase().replace(/\s+/g, '');
     const g = GIFTS[c];
     if (!g) return UI.toast('Mã quà không đúng 🤔');
     S.redeemed = S.redeemed || [];
+    if (g.expired) return UI.toast('⛔ Mã này đã bị khoá / hết hạn');
     if (!g.unlimited && S.redeemed.includes(c)) return UI.toast('Bạn đã dùng mã này rồi');
     if (!S.redeemed.includes(c)) S.redeemed.push(c);
     S.coins += g.coins;

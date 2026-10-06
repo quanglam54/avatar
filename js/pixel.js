@@ -9,6 +9,8 @@ const PX = (() => {
   const BASE_SCALE = 1.85;
 
   function load() {
+    // người chơi thích nhân vật vẽ mắt long lanh hơn → tạm tắt sprite pixel (bật lại: bỏ dòng return)
+    return;
     fetch('sprites/atlas.json').then((r) => r.json()).then((m) => {
       meta = m;
       const img = new Image();

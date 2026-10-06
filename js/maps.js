@@ -523,10 +523,10 @@ const MAPS = (() => {
     });
 
     /* Đấu Trường MMA: vào trong xem 2 chiến binh đánh nhau, đặt cược ăn xu */
-    const AX = 360, AY = 745;
-    sobj(m, AX, AY, (c) => ARENA.building(c, AX, AY), { l: -290, t: -360, w: 580, h: 395 });
-    col(m, AX - 262, AY - 70, 200, 66); col(m, AX + 62, AY - 70, 200, 66); col(m, AX - 62, AY - 70, 124, 30);
-    inter(m, { x: AX - 60, y: AY - 150, w: 120, h: 152, ax: AX, ay: AY + 40, name: 'Đấu Trường MMA (xem đấu, đặt cược ăn xu)', use: () => AV.enterArena(), arrow: { x: AX, y: AY - 170, text: 'Vào Đấu Trường MMA' } });
+    const AX = 370, AY = 735;
+    sobj(m, AX, AY, (c) => { c.save(); c.translate(AX, AY); c.scale(0.82, 0.82); ARENA.building(c, 0, 0); c.restore(); }, { l: -245, t: -300, w: 490, h: 330 });
+    col(m, AX - 215, AY - 58, 165, 54); col(m, AX + 50, AY - 58, 165, 54); col(m, AX - 50, AY - 58, 100, 25);
+    inter(m, { x: AX - 60, y: AY - 150, w: 120, h: 152, ax: AX, ay: AY + 40, name: 'Đấu Trường MMA (xem đấu, đặt cược ăn xu)', use: () => AV.enterArena(), arrow: { x: AX, y: AY - 112, text: 'Vào Đấu Trường MMA' } });
 
     aobj(m, 1160, 570, (c, t) => ART.stage(c, 1160, 570, t), { l: -185, t: -265, w: 370, h: 275 });
     col(m, 990, 524, 340, 50);
@@ -541,7 +541,11 @@ const MAPS = (() => {
     inter(m, { x: 1210, y: 650, w: 100, h: 145, ax: 1260, ay: 825, name: 'Xe kem (5 xu)', use: () => AV.buyIceCream() });
 
     [[1820, 420]].forEach(([x, y]) => addLamp(m, x, y));
-    [[720, 790, 'mai'], [900, 790, 'dao']].forEach(([x, y, k]) => addPot(m, x, y, k));
+    /* Trường Đua Ngựa cạnh Đấu Trường MMA */
+    const HX = 790, HY = 735;
+    sobj(m, HX, HY, (c) => { c.save(); c.translate(HX, HY); c.scale(0.9, 0.9); HORSE.building(c, 0, 0); c.restore(); }, { l: -180, t: -245, w: 360, h: 265 });
+    col(m, HX - 160, HY - 50, 105, 46); col(m, HX + 55, HY - 50, 105, 46); col(m, HX - 55, HY - 50, 110, 22);
+    inter(m, { x: HX - 50, y: HY - 110, w: 100, h: 112, ax: HX, ay: HY + 36, name: 'Trường Đua Ngựa (cược ngựa về nhất)', use: () => AV.enterHorse(), arrow: { x: HX, y: HY - 230, text: 'Vào Trường Đua' } });
     m.labels.push({ text: '🎡 Khu Giải Trí', x: 700, y: 318 });
     /* ----- Nhà Casino: vào trong mới có Bầu Cua, Tiến lên, máy game ----- */
     const CX = 2260, CY = 760;
@@ -695,23 +699,28 @@ const MAPS = (() => {
     ground(m, (g) => {
       g.fillStyle = '#2b1d14'; g.fillRect(0, 0, m.w, m.h);
       // tường đá + cờ
-      g.fillStyle = '#6b5440'; g.fillRect(40, 20, 1920, 170);
-      g.fillStyle = 'rgba(0,0,0,.15)';
-      for (let y = 20; y < 190; y += 28) for (let x = 40 + ((y / 28) % 2) * 30; x < 1960; x += 60) g.fillRect(x, y, 56, 24);
+      g.fillStyle = '#f2c230'; g.fillRect(40, 20, 1920, 170);
+      g.fillStyle = '#2b2b30'; g.fillRect(40, 150, 1920, 40);
+      g.font = '900 26px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#ff922b';
+      [360, 1640].forEach((x) => g.fillText('MIXED MARTIAL ARTS', x, 170));
       [[200, '#e03131'], [520, '#1c7ed6'], [1480, '#e03131'], [1800, '#1c7ed6']].forEach(([x, c]) => { g.fillStyle = c; g.beginPath(); g.moveTo(x - 34, 30); g.lineTo(x + 34, 30); g.lineTo(x + 34, 140); g.lineTo(x, 116); g.lineTo(x - 34, 140); g.closePath(); g.fill(); g.fillStyle = '#ffd43b'; g.font = '900 30px system-ui'; g.textAlign = 'center'; g.fillText('⚔️', x, 80); });
       // khán đài bậc đá
-      for (let r = 0; r < 5; r++) { g.fillStyle = r % 2 ? '#a68a64' : '#b89c74'; g.fillRect(40, 190 + r * 34, 1920, 34); g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(40, 190 + r * 34 + 30, 1920, 4); }
+      for (let r = 0; r < 5; r++) { g.fillStyle = r % 2 ? '#3a3b42' : '#45464e'; g.fillRect(40, 190 + r * 34, 1920, 34); g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(40, 190 + r * 34 + 30, 1920, 4); }
       g.fillStyle = '#5c3d1e'; g.fillRect(40, 360, 1920, 16);
       // nền cát
-      g.fillStyle = '#d9bf86'; g.fillRect(40, 376, 1920, 684);
-      for (let i = 0; i < 900; i++) { g.fillStyle = i % 2 ? 'rgba(160,120,60,.18)' : 'rgba(255,255,255,.18)'; g.fillRect(40 + ((i * 197) % 1920), 380 + ((i * 89) % 676), 3, 3); }
+      g.fillStyle = '#4a4c53'; g.fillRect(40, 376, 1920, 684);
+      g.strokeStyle = 'rgba(0,0,0,.18)'; g.lineWidth = 2;
+      for (let x = 40; x < 1960; x += 120) { g.beginPath(); g.moveTo(x, 376); g.lineTo(x, 1060); g.stroke(); }
+      for (let y = 376; y < 1060; y += 120) { g.beginPath(); g.moveTo(40, y); g.lineTo(1960, y); g.stroke(); }
       ARENA.floor(g);
       g.fillStyle = '#2b1d14'; g.fillRect(0, 1060, m.w, 40); g.fillRect(0, 0, 40, m.h); g.fillRect(1960, 0, 40, m.h);
     });
     obj(m, 150, (ctx) => ARENA.drawBoard(ctx, 1000, 106), [640, 20, 1360, 190]);
     obj(m, 360, (ctx, t) => ARENA.drawCrowd(ctx, t), [40, 180, 1960, 370]);
     const R = ARENA.RING;
-    obj(m, R.y + 40, (ctx, t) => ARENA.drawRing(ctx, t), [R.x - R.rx - 120, R.y - R.ry - 320, R.x + R.rx + 120, R.y + R.ry + 60]);
+    obj(m, R.y - R.ry - 1, (ctx) => ARENA.cageBack(ctx), [R.x - R.rx - 20, R.y - R.ry - 140, R.x + R.rx + 20, R.y + 10]);
+    obj(m, R.y + 40, (ctx, t) => ARENA.drawRing(ctx, t), [R.x - R.rx - 120, R.y - R.ry - 360, R.x + R.rx + 120, R.y + R.ry + 60]);
+    obj(m, R.y + R.ry + 2, (ctx) => ARENA.cageFront(ctx), [R.x - R.rx - 20, R.y - 140, R.x + R.rx + 20, R.y + R.ry + 10]);
     col(m, R.x - R.rx + 40, R.y - R.ry + 20, (R.rx - 40) * 2, (R.ry - 20) * 2);
     col(m, R.x - R.rx * 0.75, R.y - R.ry - 6, R.rx * 1.5, 30);
     inter(m, { x: R.x - 300, y: R.y - 200, w: 600, h: 400, ax: R.x, ay: R.y + R.ry + 40, name: 'Sàn đấu (đặt cược)', use: () => UI.arenaPanel() });
@@ -735,6 +744,71 @@ const MAPS = (() => {
     inter(m, { x: 940, y: 1000, w: 120, h: 70, ax: 1000, ay: 1030, name: 'Ra Khu giải trí', use: () => AV.leaveArena(), arrow: { x: 1000, y: 1005, text: 'Ra ngoài' } });
     m.spawn = { x: 1000, y: 1000 };
     m.bounds = { l: 56, t: 392, r: m.w - 56, b: 1040 };
+    return m;
+  }
+
+  /* ---------- Trường Đua Ngựa (dùng chung) ---------- */
+  function horse() {
+    const m = base('horse', 'Trường Đua Ngựa', 2000, 1150);
+    m.indoor = true;
+    m.hz = 0;
+    ground(m, (g) => {
+      paintGrass(g, m.w, m.h, 77);
+      // khán đài có mái
+      g.fillStyle = '#2f9e44'; g.fillRect(40, 20, 1920, 50);
+      g.fillStyle = '#e9ecef'; g.fillRect(40, 70, 1920, 150);
+      for (let r = 0; r < 4; r++) { g.fillStyle = r % 2 ? '#c92a2a' : '#e03131'; g.fillRect(40, 220 + r * 34, 1920, 34); }
+      g.fillStyle = '#fff'; g.fillRect(40, 356, 1920, 8);
+      HORSE.ground(g);
+      // lối đi cho khán giả phía dưới
+      g.fillStyle = '#d6cfc4'; g.fillRect(40, 950, 1920, 160);
+      g.fillStyle = 'rgba(0,0,0,.06)'; for (let x = 40; x < 1960; x += 60) g.fillRect(x, 950, 2, 160);
+      g.fillStyle = '#fff'; for (let x = 60; x < 1950; x += 40) g.fillRect(x, 942, 6, 22); g.fillRect(40, 946, 1920, 5);
+      g.fillStyle = '#1b2f1f'; g.fillRect(0, 1110, m.w, 40); g.fillRect(0, 0, 40, m.h); g.fillRect(1960, 0, 40, m.h);
+    });
+    obj(m, 150, (ctx) => HORSE.board(ctx, 1000, 140), [620, 60, 1380, 220]);
+    obj(m, 360, (ctx, t) => ARENA.drawCrowd(ctx, t), [40, 180, 1960, 370]);
+    obj(m, 935, (ctx, t) => HORSE.drawRace(ctx, t), [300, 300, 1700, 950]);
+    inter(m, { x: 520, y: 420, w: 960, h: 480, ax: 1000, ay: 985, name: 'Đường đua (đặt cược)', use: () => HORSE.panel() });
+    // 4 khán đài A B C D: bấm vào để ngồi xem ngựa đua
+    [['A', 470], ['B', 790], ['C', 1210], ['D', 1530]].forEach(([k, cx]) => {
+      const L = cx - 130, R = cx + 130, y = 1040;
+      sobj(m, cx, y - 60, (c) => {
+        // bậc sau cao hơn + lưng tựa
+        c.fillStyle = '#6b4226'; c.fillRect(L + 6, y - 92, 6, 60); c.fillRect(R - 12, y - 92, 6, 60);
+        c.fillStyle = '#8a5a3c'; c.beginPath(); c.roundRect(L, y - 96, R - L, 12, 4); c.fill();
+        c.fillStyle = '#a0703c'; c.beginPath(); c.roundRect(L, y - 72, R - L, 10, 3); c.fill();
+        c.fillStyle = '#7a4a26'; c.fillRect(L + 4, y - 62, R - L - 8, 26);
+        // biển tên khán đài
+        c.fillStyle = '#495057'; c.fillRect(cx - 3, y - 150, 6, 56);
+        c.fillStyle = '#c92a2a'; c.beginPath(); c.roundRect(cx - 62, y - 178, 124, 36, 8); c.fill();
+        c.strokeStyle = '#fff'; c.lineWidth = 3; c.stroke();
+        c.font = '900 19px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff';
+        c.fillText(`KHÁN ĐÀI ${k}`, cx, y - 160);
+      }, { l: -140, t: -125, w: 280, h: 130 }, y - 60);
+      obj(m, y - 21.5, (ctx) => ART.benchFront(ctx, L + 6, R - 6, y), [L, y - 40, R, y]);
+      col(m, L + 4, y - 66, R - L - 8, 30);
+      inter(m, { x: L, y: y - 110, w: R - L, h: 110, ax: cx, ay: y + 14, name: `Khán đài ${k} (ngồi xem đua ngựa)`, use: () => AV.sitSeat(L + 20, R - 20, y, `🏟️ Ngồi Khán đài ${k} xem đua ngựa — bấm nơi khác để đứng dậy`), arrow: { x: cx, y: y - 196, text: 'Ngồi xem' } });
+    });
+    [175, 1825].forEach((x) => {
+      const y = 1010;
+      sobj(m, x, y, (c) => {
+        c.fillStyle = '#1b3d2a'; c.beginPath(); c.roundRect(x - 110, y - 60, 220, 60, 10); c.fill();
+        c.fillStyle = '#2f9e44'; c.fillRect(x - 110, y - 64, 220, 12);
+        c.fillStyle = '#495057'; c.fillRect(x - 96, y - 150, 8, 90); c.fillRect(x + 88, y - 150, 8, 90);
+        c.fillStyle = '#ffd43b'; c.beginPath(); c.roundRect(x - 112, y - 186, 224, 46, 10); c.fill();
+        c.strokeStyle = '#1b3d2a'; c.lineWidth = 3; c.stroke();
+        c.font = '900 22px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#1b3d2a'; c.fillText('🏇 QUẦY CƯỢC', x, y - 162);
+        c.font = '22px system-ui'; c.fillText('🎟️🎟️💵', x, y - 80);
+      }, { l: -120, t: -195, w: 240, h: 200 });
+      col(m, x - 110, y - 50, 220, 48);
+      inter(m, { x: x - 110, y: y - 190, w: 220, h: 190, ax: x, ay: y + 30, name: 'Quầy cược ngựa', use: () => HORSE.panel(), arrow: { x, y: y - 205, text: 'Đặt cược' } });
+    });
+    npc(m, 'Ông Bầu Ngựa', { skin: '#f1c27d', hair: 'short', hairColor: '#6b3e26', shirt: '#2f9e44', shirtStyle: 'plain', pants: '#8b5a2b', hat: 'cowboy' }, { l: 80, t: 1050, r: 320, b: 1090 }, 200, 1070, 'none');
+    sobj(m, 1000, 1112, (c) => ART.homeDoor(c, 1000, 1112), { l: -50, t: -22, w: 100, h: 28 });
+    inter(m, { x: 940, y: 1050, w: 120, h: 70, ax: 1000, ay: 1080, name: 'Ra Khu giải trí', use: () => AV.leaveHorse(), arrow: { x: 1000, y: 1055, text: 'Ra ngoài' } });
+    m.spawn = { x: 1000, y: 1060 };
+    m.bounds = { l: 56, t: 965, r: m.w - 56, b: 1095 };
     return m;
   }
 
@@ -1059,7 +1133,7 @@ const MAPS = (() => {
     return m;
   };
 
-  const all = { farm, town, mall, fun, casino, arena, park, beach, school, classroom, home, race };
+  const all = { farm, town, mall, fun, casino, arena, horse, park, beach, school, classroom, home, race };
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
   return all;
 })();

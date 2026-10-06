@@ -128,6 +128,10 @@ const NET = (() => {
     send('ride', p);
   }
 
+  function sendHorse(p) {
+    send('horse', p);
+  }
+
   function sendArena(p) {
     send('arena', p);
   }
@@ -210,6 +214,8 @@ const NET = (() => {
       AV.onQuizWin(num(m.round, -1), clean(m.name, 16));
     } else if (m.t === 'ride') {
       if (typeof RIDE !== 'undefined') RIDE.onNet(m);
+    } else if (m.t === 'horse') {
+      if (typeof HORSE !== 'undefined') HORSE.onNet(m);
     } else if (m.t === 'arena') {
       if (typeof ARENA !== 'undefined') ARENA.onNet(m);
     } else if (m.t === 'rps') {
@@ -255,7 +261,7 @@ const NET = (() => {
 
   function announce() {
     lobbyBeat = 0;
-    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId === 'casino' || mapId === 'arena' ? 'fun' : mapId === 'classroom' ? 'school' : mapId.split('-')[0], at: mapId.split('-')[0], user: (typeof CLOUD !== 'undefined' && CLOUD.username) || '' });
+    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId === 'casino' || mapId === 'arena' || mapId === 'horse' ? 'fun' : mapId === 'classroom' ? 'school' : mapId.split('-')[0], at: mapId.split('-')[0], user: (typeof CLOUD !== 'undefined' && CLOUD.username) || '' });
   }
 
   /** Báo ngắn cho mọi người: nông trại của uid vừa thay đổi / vừa bị tưới giúp, hái trộm */
@@ -371,7 +377,7 @@ const NET = (() => {
   }
 
   return {
-    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing, sendFirework, sendBite, sendVoice, sendRps, sendRide, sendArena,
+    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing, sendFirework, sendBite, sendVoice, sendRps, sendRide, sendArena, sendHorse,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],
