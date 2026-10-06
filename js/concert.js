@@ -68,12 +68,20 @@ const CONCERT = (() => {
   }
   /** Khói, pháo giấy, laser (vẽ trên cùng) */
   function fx(c, t) {
+    c.fillStyle = 'rgba(4,2,12,.62)'; c.fillRect(0, 640, 2000, 610); c.fillRect(0, 0, 380, 640); c.fillRect(1620, 0, 380, 640);
+    c.fillStyle = 'rgba(4,2,12,.3)'; c.fillRect(380, 0, 1240, 640);
+    // đèn sân khấu chiếu xuống các anh trai
+    c.save(); c.globalCompositeOperation = 'lighter';
+    BROS.forEach((b, i) => { const x = 640 + i * 180, g = c.createRadialGradient(x, 560, 10, x, 600, 120); g.addColorStop(0, 'rgba(255,240,200,.28)'); g.addColorStop(1, 'rgba(255,240,200,0)'); c.fillStyle = g; c.fillRect(x - 130, 470, 260, 200); });
+    c.restore();
+    crowd(c, t, true);
+    glowSticks(c, t);
     // laser từ đỉnh sân khấu
     c.save(); c.globalCompositeOperation = 'lighter';
     const cols = ['#ff3b3b', '#22e3ff', '#ffe14d', '#b46bff', '#3dff8b'];
     for (let k = 0; k < 8; k++) {
       const ox = 420 + k * 165, a = Math.PI / 2 + Math.sin(t * (0.9 + k * 0.13) + k) * 0.85;
-      c.fillStyle = cols[k % 5]; c.globalAlpha = 0.12;
+      c.fillStyle = cols[k % 5]; c.globalAlpha = 0.2;
       c.beginPath(); c.moveTo(ox, 20); c.lineTo(ox + Math.cos(a - 0.03) * 1300, 20 + Math.sin(a - 0.03) * 1300); c.lineTo(ox + Math.cos(a + 0.03) * 1300, 20 + Math.sin(a + 0.03) * 1300); c.closePath(); c.fill();
     }
     c.restore();
@@ -94,17 +102,20 @@ const CONCERT = (() => {
     if (cyc < 1.2) [[470, 640], [1530, 640]].forEach(([x, y]) => { for (let k = 0; k < 12; k++) { const h = cyc * 400; c.fillStyle = `rgba(255,230,140,${1 - cyc / 1.2})`; c.fillRect(x - 3 + Math.sin(k) * 14, y - h - k * 8, 4, 10); } });
   }
   /** Khán đài hai bên sân khấu: fan vẫy lightstick */
-  function crowd(c, t) {
+  function crowd(c, t, sticksOnly) {
     [[60, 340], [1660, 1940]].forEach(([x0, x1]) => {
       for (let row = 0; row < 7; row++) for (let x = x0 + (row % 2) * 18; x < x1; x += 38) {
         const y = 150 + row * 62, seed = (x * 7 + row * 13) % 17, bob = Math.max(0, Math.sin(t * 6 + seed)) * 5;
-        c.fillStyle = ['#ff8787', '#74c0fc', '#ffd43b', '#b197fc', '#63e6be'][seed % 5]; c.fillRect(x - 10, y - bob, 20, 18);
-        c.fillStyle = ['#ffd8b5', '#e3a979', '#f8c9a2'][seed % 3]; c.fillRect(x - 7, y - 14 - bob, 14, 14);
-        c.fillStyle = '#2b2b33'; c.fillRect(x - 7, y - 16 - bob, 14, 5);
+        if (!sticksOnly) {
+          c.fillStyle = ['#ff8787', '#74c0fc', '#ffd43b', '#b197fc', '#63e6be'][seed % 5]; c.fillRect(x - 10, y - bob, 20, 18);
+          c.fillStyle = ['#ffd8b5', '#e3a979', '#f8c9a2'][seed % 3]; c.fillRect(x - 7, y - 14 - bob, 14, 14);
+          c.fillStyle = '#2b2b33'; c.fillRect(x - 7, y - 16 - bob, 14, 5);
+        }
         const sw = Math.sin(t * 5 + seed) * 0.5, col = STICKS[seed % 5].col;
         c.save(); c.translate(x + 9, y - 6 - bob); c.rotate(sw);
         c.fillStyle = '#222'; c.fillRect(-2, 0, 4, 8);
-        c.shadowColor = col; c.shadowBlur = 10; c.fillStyle = col; c.fillRect(-3, -18, 6, 18); c.restore();
+        if (sticksOnly) { c.globalAlpha = 0.35; c.fillStyle = col; c.fillRect(-7, -22, 14, 26); c.globalAlpha = 1; }
+        c.fillStyle = col; c.fillRect(-3, -18, 6, 18); c.restore();
       }
     });
   }
@@ -127,6 +138,22 @@ const CONCERT = (() => {
     c.fillStyle = '#222'; c.fillRect(-2.5, 0, 5, 12);
     c.shadowColor = col; c.shadowBlur = 14; c.fillStyle = col; c.beginPath(); c.roundRect(-4, -26, 8, 28, 4); c.fill();
     c.restore();
+  }
+
+  function glowSticks(c, t) {
+    const list = [];
+    const m = AV.debugMap && AV.debugMap();
+    if (m) m.npcs.forEach((n) => { if (n.look.stick) list.push([n.x, n.y, n.look.stick, n.t || t, true]); });
+    if (AV.S.look.stick && AV.player && !AV.player.hidden) list.push([AV.player.x, AV.player.y, AV.S.look.stick, t, false]);
+    NET.players().forEach((r) => { if (r.look && r.look.stick && !r.hidden) list.push([r.rx, r.ry, r.look.stick, r.t || t, false]); });
+    for (const [x, y, id, tt, dance] of list) {
+      const col = stickCol(id); if (!col) continue;
+      const bob = dance ? Math.abs(Math.sin(tt * 7)) * 9 : 0;
+      c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.45;
+      const g = c.createRadialGradient(x + 16, y - 66 - bob, 2, x + 16, y - 66 - bob, 34); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = g; c.fillRect(x - 20, y - 102 - bob, 72, 72); c.restore();
+      heldStick(c, x, y - bob, id, tt + x * 0.01, 1);
+    }
   }
 
   /* ---------- Màn LED: video YouTube thật đặt đè lên đúng vị trí màn trong thế giới game ---------- */

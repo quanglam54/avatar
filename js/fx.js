@@ -4,7 +4,7 @@ var ART_CAPTURE = null;
 const FX = (() => {
   const OUTLINE = '#2b1a10';
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = Math.max(1, w); c.height = Math.max(1, h); return c; };
-  const A = mk(256, 256), B = mk(256, 256);
+  const SA = mk(256, 256), SB = mk(256, 256);
   const ensure = (c, w, h) => { if (c.width < w || c.height < h) { c.width = Math.max(c.width, w); c.height = Math.max(c.height, h); } };
   let SCALE = 1;
   let gen = 0;
@@ -22,15 +22,20 @@ const FX = (() => {
     return [[-o, 0], [o, 0], [0, -o], [0, o], [-d, -d], [d, -d], [-d, d], [d, d]];
   }
 
-  /** Vẽ drawFn (toạ độ thế giới quanh x,y) vào bộ đệm rồi thêm viền. Kết quả nằm trong canvas B. */
+  /** Vẽ drawFn (toạ độ thế giới quanh x,y) vào bộ đệm rồi thêm viền. Kết quả nằm trong r.cv.
+   *  Bộ đệm dùng chung chỉ tối đa ~1024px; hình quá to (tường, hàng rào dài) dùng bộ đệm riêng 1 lần rồi bỏ
+   *  → không còn canvas khổng lồ bị xoá / chép lại mỗi khung hình (nguyên nhân lag khi chơi lâu) */
+  const SHARED_MAX = 1024;
   function render(drawFn, x, y, box) {
     const s = SCALE, pad = 4;
     const w = Math.ceil(box.w) + pad * 2, h = Math.ceil(box.h) + pad * 2;
     const W = Math.ceil(w * s), H = Math.ceil(h * s);
-    ensure(A, W + 4, H + 4); ensure(B, W + 4, H + 4);
+    const big = W + 4 > SHARED_MAX || H + 4 > SHARED_MAX;
+    const A = big ? mk(W + 4, H + 4) : SA, B = big ? mk(W + 4, H + 4) : SB;
+    if (!big) { ensure(A, W + 4, H + 4); ensure(B, W + 4, H + 4); }
     const a = A.getContext('2d');
     a.setTransform(1, 0, 0, 1, 0, 0);
-    a.clearRect(0, 0, A.width, A.height);
+    a.clearRect(0, 0, W + 4, H + 4);
     const tx = (pad - (x + box.l)) * s, ty = (pad - (y + box.t)) * s;
     a.setTransform(s, 0, 0, s, tx, ty);
     const shadows = [];
@@ -39,7 +44,7 @@ const FX = (() => {
     for (const sh of shadows) { sh[0] = (sh[0] - tx) / s; sh[1] = (sh[1] - ty) / s; sh[2] /= s; sh[3] /= s; }
     const b = B.getContext('2d');
     b.setTransform(1, 0, 0, 1, 0, 0);
-    b.clearRect(0, 0, B.width, B.height);
+    b.clearRect(0, 0, W + 4, H + 4);
     b.imageSmoothingEnabled = false;
     for (const [dx, dy] of offsets()) b.drawImage(A, 0, 0, W, H, dx, dy, W, H);
     b.globalCompositeOperation = 'source-in';
@@ -48,7 +53,7 @@ const FX = (() => {
     b.globalCompositeOperation = 'source-over';
     b.imageSmoothingEnabled = true;
     b.drawImage(A, 0, 0, W, H, 0, 0, W, H);
-    return { W, H, w: W / s, h: H / s, ox: x + box.l - pad, oy: y + box.t - pad, shadows };
+    return { W, H, w: W / s, h: H / s, ox: x + box.l - pad, oy: y + box.t - pad, shadows, cv: B };
   }
 
   function drawShadows(ctx, shadows, dx = 0, dy = 0) {
@@ -60,7 +65,7 @@ const FX = (() => {
 
   function snapshot(r) {
     const c = mk(r.W, r.H);
-    c.getContext('2d').drawImage(B, 0, 0, r.W, r.H, 0, 0, r.W, r.H);
+    c.getContext('2d').drawImage(r.cv, 0, 0, r.W, r.H, 0, 0, r.W, r.H);
     return c;
   }
 
@@ -68,7 +73,7 @@ const FX = (() => {
   function drawOutlined(ctx, drawFn, x, y, box) {
     const r = render(drawFn, x, y, box);
     drawShadows(ctx, r.shadows);
-    ctx.drawImage(B, 0, 0, r.W, r.H, r.ox, r.oy, r.w, r.h);
+    ctx.drawImage(r.cv, 0, 0, r.W, r.H, r.ox, r.oy, r.w, r.h);
   }
 
   /** Vẽ có viền nhưng chỉ vẽ lại sau mỗi interval ms; giữa các lần đó dùng lại hình cũ ở vị trí mới */
@@ -82,7 +87,7 @@ const FX = (() => {
       if (e.c.width < r.W || e.c.height < r.H) { e.c.width = Math.max(e.c.width, r.W); e.c.height = Math.max(e.c.height, r.H); }
       const cc = e.c.getContext('2d');
       cc.clearRect(0, 0, e.c.width, e.c.height);
-      cc.drawImage(B, 0, 0, r.W, r.H, 0, 0, r.W, r.H);
+      cc.drawImage(r.cv, 0, 0, r.W, r.H, 0, 0, r.W, r.H);
       Object.assign(e, { W: r.W, H: r.H, w: r.w, h: r.h, rx: r.ox - x, ry: r.oy - y, t: now, gen });
       e.sh = r.shadows.map((s) => [s[0] - x, s[1] - y, s[2], s[3], s[4]]);
     }

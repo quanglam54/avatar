@@ -3039,9 +3039,14 @@
     const dt = Math.min(0.05, (t - (last || t)) / 1000);
     last = t;
     if (RIDE.active) { RIDE.frame(dt); return; }
+    const P = AV.perf;
+    if (P) { const t0 = performance.now(); update(dt); const t1 = performance.now(); draw(); const t2 = performance.now(); P.n++; P.upd += t1 - t0; P.drw += t2 - t1; P.max = Math.max(P.max, t2 - t0); return; }
     update(dt);
     draw();
   }
+  /** Đo hiệu năng (chỉ bật khi kiểm tra): AV.perf = { n: 0, upd: 0, drw: 0, max: 0 } */
+  AV.perf = null;
+  AV.debugMap = () => map;
 
   AV.applyGfx();
   window.addEventListener('resize', resize);
