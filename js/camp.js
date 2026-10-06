@@ -50,9 +50,9 @@ const CAMP = (() => {
     const col = ['#e03131', '#1c7ed6', '#2f9e44'][k % 3];
     c.save(); c.translate(x, y);
     for (let i = 0; i < 6; i++) for (let j = 0; j < 4; j++) { c.fillStyle = (i + j) % 2 ? '#fff' : col; c.fillRect(-90 + i * 30, -50 + j * 22, 30, 22); }
-    c.fillStyle = '#c8874a'; c.beginPath(); c.roundRect(-30, -40, 60, 28, 6); c.fill();
+    c.fillStyle = '#c8874a'; c.beginPath(); c.roundRect(-82, -42, 60, 28, 6); c.fill();
     c.font = '20px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText(['🍉', '🍙', '🧃'][k % 3], -14, -28); c.fillText(['🍗', '🍓', '🥪'][k % 3], 14, -28);
+    c.fillText(['🍉', '🍙', '🧃'][k % 3], -66, -30); c.fillText(['🍗', '🍓', '🥪'][k % 3], -38, -30);
     c.restore();
   }
   function wc(c, x, y) {
@@ -114,6 +114,93 @@ const CAMP = (() => {
     c.beginPath(); c.moveTo(x + 20, y - 30); c.lineTo(x + 70 + Math.cos(a) * 10, y + 4 + Math.sin(a) * 10); c.stroke();
   }
 
+  /* ---------- Bàn BBQ có bếp nướng than ở giữa ---------- */
+  function stool(c, x, y) {
+    c.fillStyle = '#8a5a3c'; c.fillRect(x - 3, y - 18, 6, 18);
+    c.fillStyle = '#c92a2a'; c.beginPath(); c.ellipse(x, y - 20, 16, 7, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.25)'; c.beginPath(); c.ellipse(x - 4, y - 22, 6, 2, 0, 0, Math.PI * 2); c.fill();
+  }
+  function bbqTable(c, x, y, t) {
+    [-45, 45].forEach((dx) => stool(c, x + dx, y - 44));
+    c.fillStyle = 'rgba(0,0,0,.16)'; c.beginPath(); c.ellipse(x, y + 4, 92, 16, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#6b4226'; c.fillRect(x - 70, y - 26, 10, 30); c.fillRect(x + 60, y - 26, 10, 30);
+    c.fillStyle = '#a0703c'; c.beginPath(); c.roundRect(x - 84, y - 60, 168, 40, 8); c.fill();
+    c.fillStyle = '#7a4a26'; c.fillRect(x - 84, y - 24, 168, 8);
+    c.fillStyle = 'rgba(255,255,255,.12)'; for (let k = 0; k < 4; k++) c.fillRect(x - 80, y - 56 + k * 9, 160, 2);
+    // bếp than tròn giữa bàn
+    c.fillStyle = '#343a40'; c.beginPath(); c.ellipse(x, y - 42, 30, 13, 0, 0, Math.PI * 2); c.fill();
+    const glow = 0.6 + 0.4 * Math.sin(t * 5);
+    c.fillStyle = `rgba(255,${90 + glow * 60},40,1)`; c.beginPath(); c.ellipse(x, y - 43, 24, 9, 0, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#adb5bd'; c.lineWidth = 1.6;
+    for (let k = -3; k <= 3; k++) { c.beginPath(); c.moveTo(x + k * 7, y - 51); c.lineTo(x + k * 7, y - 35); c.stroke(); }
+    // thịt, xiên đang nướng
+    [[-12, -45, '#b5651d'], [4, -42, '#c0763b'], [14, -46, '#a0522d']].forEach(([dx, dy, col]) => { c.fillStyle = col; c.beginPath(); c.roundRect(x + dx - 6, y + dy - 3, 12, 6, 2); c.fill(); });
+    c.strokeStyle = '#e9c46a'; c.lineWidth = 2; c.beginPath(); c.moveTo(x - 20, y - 38); c.lineTo(x + 22, y - 50); c.stroke();
+    // đĩa, ly, rau
+    [[-62, '🥬'], [62, '🥤']].forEach(([dx, ic]) => { c.fillStyle = '#fff'; c.beginPath(); c.ellipse(x + dx, y - 42, 13, 6, 0, 0, Math.PI * 2); c.fill(); c.font = '14px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(ic, x + dx, y - 46); });
+    // khói bay lên
+    for (let k = 0; k < 4; k++) { const ph = (t * 0.5 + k / 4) % 1; c.fillStyle = `rgba(230,230,230,${0.45 * (1 - ph)})`; c.beginPath(); c.arc(x + Math.sin(t * 2 + k) * 8, y - 56 - ph * 60, 6 + ph * 10, 0, Math.PI * 2); c.fill(); }
+  }
+  function bbqStoolsFront(c, x, y) { [-45, 45].forEach((dx) => stool(c, x + dx, y + 22)); }
+
+  /* ---------- Trong nhà vệ sinh ---------- */
+  const STALLS = [[200, 'nam'], [340, 'nam'], [480, 'nam'], [920, 'nu'], [1060, 'nu'], [1200, 'nu']];
+  let inStall = -1;
+  function wcFloor(g, W, H) {
+    g.fillStyle = '#e9ecef'; g.fillRect(0, 0, W, H);
+    // tường trên: nam xanh, nữ hồng
+    g.fillStyle = '#d0ebff'; g.fillRect(40, 20, 640, 260); g.fillStyle = '#ffdeeb'; g.fillRect(720, 20, 640, 260);
+    for (let x = 40; x < 1360; x += 40) for (let y = 20; y < 280; y += 40) { g.strokeStyle = 'rgba(255,255,255,.6)'; g.strokeRect(x, y, 40, 40); }
+    // sàn gạch ô vuông
+    for (let x = 40; x < 1360; x += 60) for (let y = 280; y < 860; y += 60) { g.fillStyle = (x / 60 + y / 60) % 2 < 1 ? '#f8f9fa' : '#dee2e6'; g.fillRect(x, y, 60, 60); }
+    // vách ngăn nam / nữ
+    g.fillStyle = '#868e96'; g.fillRect(680, 20, 40, 620);
+    // sảnh rửa tay chung phía dưới
+    g.fillStyle = 'rgba(255,236,153,.25)'; g.fillRect(40, 640, 1320, 220);
+    g.fillStyle = '#343a40'; g.fillRect(0, 860, W, 40); g.fillRect(0, 0, 40, H); g.fillRect(W - 40, 0, 40, H);
+  }
+  function wcSign(c, x, y, nu) {
+    c.fillStyle = nu ? '#e64980' : '#1971c2'; c.beginPath(); c.roundRect(x - 90, y - 30, 180, 60, 14); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 4; c.stroke();
+    c.font = '900 26px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff';
+    c.fillText(nu ? '🚺 NỮ' : '🚹 NAM', x, y + 1);
+  }
+  function wcStall(c, x, i) {
+    const nu = STALLS[i][1] === 'nu', busy = inStall === i;
+    c.fillStyle = '#ced4da'; c.fillRect(x - 64, 120, 8, 260); c.fillRect(x + 56, 120, 8, 260);
+    c.fillStyle = nu ? '#f783ac' : '#4dabf7'; c.beginPath(); c.roundRect(x - 54, 130, 108, 245, 6); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(x - 46, 140, 20, 225);
+    c.fillStyle = '#adb5bd'; c.beginPath(); c.arc(x + 38, 260, 6, 0, Math.PI * 2); c.fill();
+    c.fillStyle = busy ? '#e03131' : '#2f9e44'; c.beginPath(); c.roundRect(x + 24, 230, 28, 12, 4); c.fill();
+    c.font = '800 12px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff';
+    c.fillText(busy ? 'CÓ NGƯỜI' : 'TRỐNG', x, 160);
+    c.font = '900 22px system-ui'; c.fillText(nu ? '🚺' : '🚹', x, 200);
+  }
+  function wcSink(c, x, y) {
+    c.fillStyle = '#adb5bd'; c.fillRect(x - 4, y - 50, 8, 50);
+    c.fillStyle = '#f8f9fa'; c.beginPath(); c.roundRect(x - 50, y - 74, 100, 30, 10); c.fill(); c.strokeStyle = '#ced4da'; c.lineWidth = 2; c.stroke();
+    c.fillStyle = '#74c0fc'; c.beginPath(); c.ellipse(x, y - 62, 32, 8, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#868e96'; c.fillRect(x - 3, y - 92, 6, 20); c.fillRect(x - 3, y - 92, 16, 5);
+    // gương
+    c.fillStyle = '#ced4da'; c.beginPath(); c.roundRect(x - 40, y - 190, 80, 90, 10); c.fill();
+    const g = c.createLinearGradient(x - 34, y - 184, x + 34, y - 106); g.addColorStop(0, '#e7f5ff'); g.addColorStop(1, '#a5d8ff');
+    c.fillStyle = g; c.beginPath(); c.roundRect(x - 34, y - 184, 68, 78, 8); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.7)'; c.beginPath(); c.moveTo(x - 24, y - 178); c.lineTo(x - 10, y - 178); c.lineTo(x - 30, y - 140); c.lineTo(x - 30, y - 160); c.closePath(); c.fill();
+  }
+  /** Vào buồng: nhân vật khuất sau cửa vài giây */
+  function useStall(i) {
+    const P = AV.player;
+    if (inStall >= 0 || !P) return;
+    inStall = i;
+    P.x = STALLS[i][0]; P.y = 400; P.hidden = true; P.target = null; P.path = [];
+    UI.toast('🚽 Đang đi vệ sinh…', 2500);
+    setTimeout(() => { inStall = -1; P.hidden = false; P.y = 420; toilet(); }, 3000);
+  }
+  function washHands() {
+    UI.toast('🧼 Rửa tay sạch sẽ! ✨', 2500);
+    if (AV.player) AV.showBubble && AV.showBubble(AV.player, '🫧 Thơm tay rồi~');
+  }
+
   /* ---------- Hoạt động ---------- */
   /** Ngủ trong lều (mỗi 30 phút được +25 XP) */
   function sleep(x, y, col) {
@@ -151,5 +238,5 @@ const CAMP = (() => {
   }
   const inPool = (x, y) => x > POOL.x + 6 && x < POOL.x + POOL.w - 6 && y > POOL.y + 14 && y < POOL.y + POOL.h;
 
-  return { POOL, LAKE, DOCK, sakura, tent, campfire, picnic, wc, pool, umbrella, lake, boat, boatFront, sleep, toilet, row, inPool, get rowing() { return rowing; } };
+  return { POOL, LAKE, DOCK, bbqTable, bbqStoolsFront, wcFloor, wcStall, wcSink, wcSign, useStall, washHands, STALLS, sakura, tent, campfire, picnic, wc, pool, umbrella, lake, boat, boatFront, sleep, toilet, row, inPool, get rowing() { return rowing; } };
 })();

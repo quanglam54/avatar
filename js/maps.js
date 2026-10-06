@@ -362,10 +362,12 @@ const MAPS = (() => {
     inter(m, { x: 220, y: 860, w: 240, h: 190, ax: 360, ay: 1272, name: 'Chuồng bò (cho ăn / vắt sữa)', arrow: { x: 340, y: 935 }, group: 'cow', approaches: [[360, 1272], [360, 862]], use: () => AV.usePen('cow') });
 
     /* ----- Ao cá + sân gà thả rông cạnh ao ----- */
-    m.lake = { x: 1300, y: 1060, rx: 180, ry: 110 };
-    pic(m, 'img/farm/' + 'pond.png', 1300, 1196, 430, { h: 340, sortY: 950, fallback: (c, t) => ART.lake(c, 1300, 1060, 180, 110, t) });
-    col(m, 1140, 970, 320, 180);
-    m.labels.push({ text: '🎣 Ao Cá', x: 1300, y: 900 }, { text: '🐔 Sân Gà', x: 1865, y: 900 });
+    // vùng nước theo ảnh ao mới (ảnh to hơn ao cũ)
+    m.lake = { x: 1290, y: 1045, rx: 175, ry: 105 };
+    pic(m, 'img/farm/' + 'pond.png', 1300, 1196, 430, { h: 340, sortY: 880, fallback: (c, t) => ART.lake(c, 1300, 1060, 180, 110, t) });
+    // chặn cả mặt nước + bờ đá + cầu gỗ (không đi lên ao được)
+    col(m, 1100, 900, 400, 270);
+    m.labels.push({ text: '🎣 Ao Cá', x: 1300, y: 850 }, { text: '🐔 Sân Gà', x: 1865, y: 900 });
     addBench(m, 1180, 1255);
     // bảng tin: ai đến trộm, có bị cắn / phạt không, ai tưới giúp
     pic(m, 'img/farm/' + 'board.png', 1400, 1262, 140, { h: 170, sortY: 1250, fallback: (c) => ART.noticeBoard(c, 1400, 1250) });
@@ -883,7 +885,7 @@ const MAPS = (() => {
 
   /* ---------- 🌸 Vườn Anh Đào: cắm trại, ăn uống, tạp hoá, WC, bể bơi, hồ chèo thuyền ---------- */
   function cherry() {
-    const m = base('cherry', 'Vườn Anh Đào', 3400, 1070);
+    const m = base('cherry', 'Vườn Anh Đào', 4100, 1070);
     m.forceFall = 'petals';
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 88);
@@ -895,9 +897,9 @@ const MAPS = (() => {
       paintStreet(g, m.w, 870, 1000);
     });
     const L = (text, x) => m.labels.push({ text, x, y: 400 });
-    L('⛺ Khu Cắm Trại', 420); L('🍢 Khu Ăn Uống', 1000); L('🛒 Tạp Hoá · WC', 1520); L('🏊 Bể Bơi', 2050); L('🚣 Hồ Chèo Thuyền', 2960);
+    L('⛺ Khu Cắm Trại', 420); L('🍢 Khu Ăn Uống', 1000); L('🛒 Tạp Hoá · WC', 1520); L('🏊 Bể Bơi', 2050); L('🚣 Hồ Chèo Thuyền', 2960); L('🧺 Bãi Cỏ Picnic', 3730);
     // hàng cây anh đào phía sau + rải rác
-    [[150, 470], [700, 450], [1290, 470], [1740, 460], [2340, 470], [700, 760], [1290, 770]].forEach(([x, y], i) => {
+    [[150, 470], [700, 450], [1290, 470], [1740, 460], [2340, 470], [700, 760]].forEach(([x, y], i) => {
       sobj(m, x, y, (c) => CAMP.sakura(c, x, y, 1, i), { l: -95, t: -190, w: 190, h: 200 });
       col(m, x - 10, y - 6, 20, 10);
     });
@@ -916,9 +918,12 @@ const MAPS = (() => {
     sobj(m, 1000, 560, (c) => ART.foodShop(c, 1000, 560, bbq), { l: -125, t: -165, w: 260, h: 172 });
     col(m, 895, 514, 210, 44);
     inter(m, { x: 895, y: 400, w: 210, h: 160, ax: 960, ay: 590, name: 'BBQ Anh Đào (đồ nướng +XP)', use: () => UI.eateryPanel('camp_bbq'), arrow: { x: 1000, y: 390, text: 'Đồ nướng' } });
-    [[820, 760, 0], [1000, 760, 1], [1180, 760, 2]].forEach(([x, y, k]) => {
-      obj(m, y - 60, (c) => CAMP.picnic(c, x, y, k), [x - 95, y - 55, x + 95, y + 40]);
-      inter(m, { x: x - 90, y: y - 50, w: 180, h: 90, ax: x, ay: y + 10, name: 'Thảm picnic (ngồi ăn)', use: () => AV.sitSeat(x - 40, x + 40, y + 18, '🧺 Ngồi picnic dưới tán anh đào', () => {}) });
+    // 3 bàn BBQ có bếp than nướng giữa bàn
+    [[800, 720], [1000, 720], [1200, 720]].forEach(([x, y]) => {
+      aobj(m, x, y, (c, t) => CAMP.bbqTable(c, x, y, t), { l: -100, t: -130, w: 200, h: 140 });
+      col(m, x - 86, y - 44, 172, 40);
+      inter(m, { x: x - 90, y: y - 80, w: 180, h: 84, ax: x, ay: y + 40, name: 'Bàn BBQ (ngồi nướng, gọi đồ)', arrow: { x, y: y - 120, text: 'Ngồi nướng' },
+        use: () => { AV.sitSeat(x - 45, x + 45, y + 42, '🔥 Ngồi bàn nướng BBQ — gọi đồ để nướng nhé', (g) => CAMP.bbqStoolsFront(g, x, y)); setTimeout(() => UI.eateryPanel('camp_bbq'), 400); } });
     });
     // tạp hoá + WC
     sobj(m, 1440, 560, (c) => ART.foodShop(c, 1440, 560, shop), { l: -125, t: -165, w: 260, h: 172 });
@@ -926,7 +931,7 @@ const MAPS = (() => {
     inter(m, { x: 1335, y: 400, w: 210, h: 160, ax: 1400, ay: 590, name: 'Tạp Hoá Cắm Trại (đồ uống, đồ ăn vặt)', use: () => UI.eateryPanel('camp_shop'), arrow: { x: 1440, y: 390, text: 'Mua đồ' } });
     sobj(m, 1650, 590, (c) => CAMP.wc(c, 1650, 590), { l: -100, t: -180, w: 200, h: 190 });
     col(m, 1575, 550, 150, 40);
-    inter(m, { x: 1575, y: 440, w: 150, h: 150, ax: 1650, ay: 620, name: 'Nhà vệ sinh', use: () => CAMP.toilet(), arrow: { x: 1650, y: 410, text: 'WC' } });
+    inter(m, { x: 1575, y: 440, w: 150, h: 150, ax: 1650, ay: 620, name: 'Nhà vệ sinh (vào trong)', use: () => AV.teleport('wc', false, 700, 800, '🚻 Vào nhà vệ sinh…'), arrow: { x: 1650, y: 410, text: 'WC' } });
     // bể bơi + ô dù
     const P = CAMP.POOL;
     obj(m, P.y - 30, (c, t) => CAMP.pool(c, t), [P.x - 30, P.y - 30, P.x + P.w + 30, P.y + P.h + 30]);
@@ -940,10 +945,47 @@ const MAPS = (() => {
     obj(m, K.y - K.ry - 30, (c, t) => CAMP.lake(c, t), [K.x - K.rx - 30, K.y - K.ry - 30, K.x + K.rx + 30, K.y + K.ry + 30]);
     col(m, K.x - K.rx + 40, K.y - K.ry + 20, K.rx * 2 - 80, K.ry * 2 - 40);
     inter(m, { x: Dk.x - 45, y: Dk.y - 110, w: 90, h: 120, ax: Dk.x, ay: Dk.y + 34, name: 'Cầu tàu (thuê thuyền chèo quanh hồ · 20 xu)', use: () => CAMP.row(), arrow: { x: Dk.x, y: Dk.y - 130, text: 'Chèo thuyền' } });
+    /* bãi cỏ picnic rộng rãi: 4 thảm, bấm là ngồi hẳn xuống thảm */
+    [[3420, 470, 2], [4020, 470, 5], [3730, 470, 7]].forEach(([x, y, k]) => { sobj(m, x, y, (c) => CAMP.sakura(c, x, y, 1, k), { l: -95, t: -190, w: 190, h: 200 }); col(m, x - 10, y - 6, 20, 10); });
+    [[3560, 590, 0], [3900, 590, 1], [3560, 740, 2], [3900, 740, 0]].forEach(([x, y, k]) => {
+      obj(m, y - 60, (c) => CAMP.picnic(c, x, y, k), [x - 95, y - 55, x + 95, y + 40]);
+      inter(m, { x: x - 90, y: y - 50, w: 180, h: 90, ax: x, ay: y + 30, name: 'Thảm picnic (ngồi xuống)', arrow: { x, y: y - 70, text: 'Ngồi' },
+        use: () => AV.sitSeat(x + 10, x + 52, y + 34, '🧺 Ngồi picnic dưới tán anh đào', () => {}) });
+    });
     npc(m, 'Chị Hoa', { skin: '#ffe0c4', hair: 'long', hairColor: '#2b2b33', shirt: '#f783ac', shirtStyle: 'dress_flower', pants: '#fff', hat: 'flower' }, { l: 700, t: 640, r: 1300, b: 700 }, 900, 680, 'cat');
-    street(m);
+    street(m, 1450, 2460);
     m.spawn = { x: 1050, y: 875 };
     m.bounds = { l: 20, t: 400, r: m.w - 20, b: m.h - 40 };
+    return m;
+  }
+
+  /* ---------- 🚻 Nhà vệ sinh Vườn Anh Đào (trong nhà, chia khu Nam / Nữ) ---------- */
+  function wc() {
+    const m = base('wc', 'Nhà vệ sinh', 1400, 900);
+    m.indoor = true;
+    m.camTop = 0;
+    m.zoom = 0.78;
+    m.hz = 0;
+    ground(m, (g) => CAMP.wcFloor(g, m.w, m.h));
+    sobj(m, 360, 425, (c) => CAMP.wcSign(c, 360, 425, false), { l: -100, t: -40, w: 200, h: 80 });
+    sobj(m, 1040, 425, (c) => CAMP.wcSign(c, 1040, 425, true), { l: -100, t: -40, w: 200, h: 80 });
+    col(m, 680, 0, 40, 640);
+    CAMP.STALLS.forEach(([x, k], i) => {
+      obj(m, 380, (c) => CAMP.wcStall(c, x, i), [x - 70, 110, x + 70, 390]);
+      col(m, x - 64, 100, 128, 280);
+      inter(m, { x: x - 54, y: 130, w: 108, h: 245, ax: x, ay: 420, name: `Buồng vệ sinh ${k === 'nu' ? 'Nữ' : 'Nam'}`, use: () => CAMP.useStall(i), arrow: { x, y: 115, text: 'Vào' } });
+    });
+    // bồn rửa tay + gương mỗi bên
+    [[160, 660], [520, 660], [880, 660], [1240, 660]].forEach(([x, y]) => {
+      sobj(m, x, y, (c) => CAMP.wcSink(c, x, y), { l: -55, t: -200, w: 110, h: 205 });
+      col(m, x - 50, y - 60, 100, 30);
+      inter(m, { x: x - 50, y: y - 190, w: 100, h: 190, ax: x, ay: y + 30, name: 'Bồn rửa tay', use: () => CAMP.washHands() });
+    });
+    [[60, 820], [1340, 820]].forEach(([x, y]) => addPot(m, x, y, 'mai'));
+    sobj(m, 700, 862, (c) => ART.homeDoor(c, 700, 862), { l: -50, t: -22, w: 100, h: 28 });
+    inter(m, { x: 640, y: 800, w: 120, h: 70, ax: 700, ay: 830, name: 'Ra Vườn Anh Đào', use: () => AV.teleport('cherry', false, 1650, 640, '🌸 Ra Vườn Anh Đào…'), arrow: { x: 700, y: 805, text: 'Ra ngoài' } });
+    m.spawn = { x: 700, y: 800 };
+    m.bounds = { l: 56, t: 400, r: m.w - 56, b: 845 };
     return m;
   }
 
@@ -1496,7 +1538,7 @@ const MAPS = (() => {
     return m;
   };
 
-  const all = { farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, park, beach, school, classroom, home, race };
+  const all = { farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, park, beach, school, classroom, home, race };
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
   return all;
 })();
