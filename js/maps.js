@@ -221,7 +221,7 @@ const MAPS = (() => {
     const WL = 140, WR = 5260, WT = 420, WB = 1300, GATE = 1600;
     const BL = {
       field: [180, 450, 2080, 385], home: [2300, 450, 780, 330],
-      pasture: [180, 860, 840, 400], pond: [1100, 860, 760, 400], garden: [1940, 860, 660, 400], nook: [2680, 860, 400, 400],
+      pasture: [180, 860, 840, 400], pond: [1100, 860, 400, 400], coop: [1700, 860, 330, 400], garden: [2090, 860, 660, 400], nook: [2810, 860, 270, 400],
       play: [3120, 450, 600, 810],
       orchard: [3800, 450, 1380, 330], yard: [3800, 860, 1380, 400],
     };
@@ -324,32 +324,32 @@ const MAPS = (() => {
     m.lake = { x: 1300, y: 1060, rx: 180, ry: 110 };
     obj(m, 950, (ctx, t) => ART.lake(ctx, 1300, 1060, 180, 110, t));
     col(m, 1140, 970, 320, 180);
-    m.labels.push({ text: '🎣 Ao Cá', x: 1300, y: 900 }, { text: '🐔 Sân Gà', x: 1690, y: 900 });
+    m.labels.push({ text: '🎣 Ao Cá', x: 1300, y: 900 }, { text: '🐔 Sân Gà', x: 1865, y: 900 });
     addBench(m, 1180, 1255);
     // bảng tin: ai đến trộm, có bị cắn / phạt không, ai tưới giúp
     sobj(m, 1400, 1250, (c) => ART.noticeBoard(c, 1400, 1250), { l: -72, t: -172, w: 144, h: 178 });
     col(m, 1350, 1240, 100, 12);
     inter(m, { x: 1334, y: 1084, w: 132, h: 170, ax: 1400, ay: 1282, name: 'Bảng tin nông trại (ai đến trộm, ai tưới giúp)', use: () => AV.useNoticeBoard(), indicator: () => AV.noticeIndicator(), ix: 1400, iy: 1072 });
-    sobj(m, 1690, 1060, (c) => ART.henNest(c, 1690, 1060), { l: -80, t: -78, w: 160, h: 88 });
-    col(m, 1630, 1042, 120, 20);
-    sobj(m, 1810, 980, (c) => ART.hayBale(c, 1810, 980));
-    sobj(m, 1600, 1215, (c) => ART.hayStack(c, 1600, 1215));
-    for (let i = 0; i < 5; i++) animal(m, 'chicken', { l: 1520, t: 930, r: 1840, b: 1240 }, i);
+    sobj(m, 1865, 1060, (c) => ART.henNest(c, 1865, 1060), { l: -80, t: -78, w: 160, h: 88 });
+    col(m, 1805, 1042, 120, 20);
+    sobj(m, 1975, 980, (c) => ART.hayBale(c, 1975, 980));
+    sobj(m, 1760, 1215, (c) => ART.hayStack(c, 1760, 1215));
+    for (let i = 0; i < 5; i++) animal(m, 'chicken', { l: 1720, t: 930, r: 2010, b: 1240 }, i);
     for (let i = 5; i < 9; i++) animal(m, 'chicken', { l: 240, t: 834, r: 2280, b: 860 }, i);
     inter(m, {
-      x: 1615, y: 980, w: 150, h: 90, ax: 1690, ay: 1092, name: 'Ổ rơm (cho gà ăn / nhặt trứng)', arrow: { x: 1690, y: 976 }, group: 'coop',
-      use: () => AV.useCoop(), indicator: () => AV.coopIndicator(), ix: 1690, iy: 965,
+      x: 1790, y: 980, w: 150, h: 90, ax: 1865, ay: 1092, name: 'Ổ rơm (cho gà ăn / nhặt trứng)', arrow: { x: 1865, y: 976 }, group: 'coop',
+      use: () => AV.useCoop(), indicator: () => AV.coopIndicator(), ix: 1865, iy: 965,
     });
 
     /* ----- Vườn hoa ngay dưới ruộng (2 × 2 luống hoa) ----- */
-    m.labels.push({ text: '🌸 Vườn Hoa', x: 2270, y: 900 });
-    const GX = 1940 + (660 - (BD.w * 2 + 40)) / 2, GY = 945;
+    m.labels.push({ text: '🌸 Vườn Hoa', x: 2420, y: 900 });
+    const GX = 2090 + (660 - (BD.w * 2 + 40)) / 2, GY = 945;
     for (let k = 0; k < DATA.FLOWER_BEDS; k++) addBed(DATA.FIELD_BEDS + k, GX + (k % 2) * (BD.w + 40), GY + Math.floor(k / 2) * FSTEP, 'Ô trồng hoa');
 
     /* ----- Góc nhỏ: bù nhìn, ghế, bụi hoa ----- */
-    sobj(m, 2880, 1040, (c) => ART.scarecrow(c, 2880, 1040), { l: -45, t: -100, w: 90, h: 106 });
-    addBench(m, 2880, 1200);
-    addBush(m, 2740, 960, '#ff8fab'); addBush(m, 3020, 960, '#ffd43b'); addPot(m, 2740, 1230, 'mai'); addPot(m, 3020, 1230, 'dao');
+    sobj(m, 2945, 1040, (c) => ART.scarecrow(c, 2945, 1040), { l: -45, t: -100, w: 90, h: 106 });
+    addBench(m, 2945, 1200);
+    addBush(m, 2860, 960, '#ff8fab'); addBush(m, 3035, 960, '#ffd43b'); addPot(m, 2860, 1230, 'mai'); addPot(m, 3035, 1230, 'dao');
 
     /* ----- Vườn cây ăn quả (khu bên phải, 2 hàng) ----- */
     AV._treePos = [];
@@ -410,7 +410,7 @@ const MAPS = (() => {
     inter(m, { x: 3580, y: 820, w: 120, h: 82, ax: 3640, ay: 935, name: 'Bệ bắn pháo hoa', use: () => UI.fireworksPanel(), arrow: { x: 3640, y: 800, text: 'Bắn pháo hoa' } });
 
     /* ----- Đèn đường dọc lối đi (sáng về đêm) ----- */
-    [[2300, 830], [1520, 1280], [1680, 1280], [1060, 1270], [2380, 1270]].forEach(([x, y]) => {
+    [[2300, 830], [1520, 1280], [1680, 1280], [1060, 1270], [2060, 1270]].forEach(([x, y]) => {
       addLamp(m, x, y);
       m.lights.push([x - 24, y - 112, 58], [x + 24, y - 112, 58]);
     });

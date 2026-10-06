@@ -1619,7 +1619,8 @@
     const v = VISIT;
     if (!v || v.busy) return;
     if (v.stolen[o.key] !== undefined) return UI.toast('Chỗ này bạn vừa trộm rồi 😅');
-    if (Object.keys(v.stolen).length >= DATA.STEAL.perFarm) return UI.toast(`Hôm nay bạn đã trộm ${DATA.STEAL.perFarm} lần ở nông trại này rồi, đừng tham quá 😅`, 3500);
+    const sd = S.stealDay && S.stealDay.day === todayKey() ? S.stealDay : (S.stealDay = { day: todayKey(), n: {} });
+    if (Math.max(Object.keys(v.stolen).length, sd.n[v.uid] || 0) >= DATA.STEAL.perFarm) return UI.toast(`Hôm nay bạn đã trộm ${DATA.STEAL.perFarm} lần ở nông trại này rồi, đừng tham quá 😅`, 3500);
     const team = v.data.guard || [], name = v.data.name;
     const biters = team.map((id, k) => ({ k, g: guardDef(id) })).filter((x) => Math.random() < x.g.bite);
     const bitten = biters.length > 0;
@@ -1630,6 +1631,7 @@
     catch (e) { return UI.toast('⚠️ ' + e.message, 4500); }
     finally { v.busy = false; }
     v.stolen[o.key] = bitten ? -1 : o.mark;
+    sd.n[v.uid] = (sd.n[v.uid] || 0) + 1;
     NET.farmPing('farmhit', v.uid);
     if (bitten) {
       S.coins -= fine;
@@ -1692,10 +1694,12 @@
   };
 
   /** Chủ nông trại: xử lý các lần bị hái trộm (mất cây chín / nhận tiền phạt kẻ bị cắn) */
+  let receivingSteals = false;
   async function receiveSteals() {
-    if (!CLOUD.user || VISIT || !cloudReady) return;
+    if (!CLOUD.user || VISIT || !cloudReady || receivingSteals) return;
     let rows = [];
-    try { rows = await CLOUD.pullSteals(); } catch (e) { return; }
+    receivingSteals = true;
+    try { rows = await CLOUD.pullSteals(); } catch (e) { return; } finally { receivingSteals = false; }
     if (!rows.length) return;
     let lost = 0, fines = 0;
     const thieves = new Set(), bitten = new Set();
@@ -1741,11 +1745,17 @@
   }
   function logFarm(e) {
     S.farmLog = S.farmLog || [];
+    if (e.at && S.farmLog.some((x) => x.at === e.at && x.type === e.type && x.who === e.who && x.place === e.place && x.item === e.item)) return;
     S.farmLog.unshift({ at: Date.now(), ...e });
     S.farmLog.sort((a, b) => b.at - a.at);
     if (S.farmLog.length > 60) S.farmLog.length = 60;
   }
-  AV.farmLog = () => S.farmLog || [];
+  /** Bảng tin (bỏ luôn các dòng trùng cũ do lỗi nhận tin 2 lần) */
+  AV.farmLog = () => {
+    const seen = new Set();
+    S.farmLog = (S.farmLog || []).filter((x) => { const k = [x.at, x.type, x.who, x.place, x.item].join('|'); if (seen.has(k)) return false; seen.add(k); return true; });
+    return S.farmLog;
+  };
   AV.farmLogUnseen = () => (S.farmLog || []).filter((e) => e.at > (S.farmLogSeen || 0)).length;
   AV.seeFarmLog = () => { S.farmLogSeen = Date.now(); AV.saveNow(); };
   AV.useNoticeBoard = () => {
@@ -2535,7 +2545,9 @@
     const vw = W / ZOOM, vh = H / ZOOM;
     if (!drag.active && (player.moving || player.seated || player.hidden)) { camOff.x *= 0.9; camOff.y *= 0.9; }
     const clampX = (v) => (vw >= map.w ? map.w / 2 : Math.max(vw / 2, Math.min(map.w - vw / 2, v)));
-    const clampY = (v) => (vh >= map.h ? map.h / 2 : Math.max(vh / 2, Math.min(map.h - vh / 2, v)));
+    // chừa thêm khoảng bằng ô chat ở đáy màn hình → cửa ra / đồ vật sát mép dưới không bị ô chat che
+    const padB = 96 / ZOOM;
+    const clampY = (v) => (vh >= map.h + padB ? (map.h + padB) / 2 : Math.max(vh / 2, Math.min(map.h + padB - vh / 2, v)));
     const bx = player.x, by = player.y - 150;
     cam.x = clampX(bx + camOff.x); cam.y = clampY(by + camOff.y);
     // không cho độ lệch vượt quá mép bản đồ (để kéo ngược lại có tác dụng ngay)
@@ -2623,13 +2635,13 @@
       if (wbuf.width !== bw || wbuf.height !== bh) { wbuf.width = bw; wbuf.height = bh; }
       g = wctx;
       g.setTransform(1, 0, 0, 1, 0, 0);
-      g.fillStyle = '#72c844';
+      g.fillStyle = map.indoor ? '#1b1410' : '#72c844';
       g.fillRect(0, 0, bw, bh);
       worldTransform(g, ZOOM / px, (W / 2 - cam.x * ZOOM) / px, (H / 2 - cam.y * ZOOM) / px);
     } else {
       g = ctx;
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-      ctx.fillStyle = '#72c844';
+      ctx.fillStyle = map.indoor ? '#1b1410' : '#72c844';
       ctx.fillRect(0, 0, W, H);
       worldTransform(ctx, DPR * ZOOM, DPR * (W / 2 - cam.x * ZOOM), DPR * (H / 2 - cam.y * ZOOM));
     }

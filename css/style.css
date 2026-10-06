@@ -745,3 +745,5 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hr-row .info small { color: #e67700; }
 .hr-row .ar-odds { font-size: 18px; min-width: 52px; text-align: right; }
 .hr-silk { width: 24px; height: 24px; border-radius: 50%; color: #fff; font-weight: 900; display: grid; place-items: center; font-size: 13px; }
+
+.arena-bar.horse-bar { top: auto; bottom: 80px; left: 12px; transform: none; }

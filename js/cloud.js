@@ -102,8 +102,11 @@ const CLOUD = (() => {
   async function pullHelps() {
     const { data, error } = await client.from('farm_helps').select('id, helper_name').eq('owner', user.id).eq('done', false);
     if (error) throw new Error(viError(error));
-    if (data && data.length) await client.from('farm_helps').update({ done: true }).in('id', data.map((r) => r.id));
-    return data || [];
+    if (!data || !data.length) return [];
+    // chỉ nhận những dòng chưa ai nhận (tránh 2 lần kiểm tra cùng lúc → ghi trùng)
+    const { data: got } = await client.from('farm_helps').update({ done: true }).in('id', data.map((r) => r.id)).eq('done', false).select('id');
+    const ok = new Set((got || []).map((r) => r.id));
+    return data.filter((r) => ok.has(r.id));
   }
 
   /** Báo đã hái trộm 1 ô ruộng (chủ nông trại tự xử lý khi online) */
@@ -121,8 +124,10 @@ const CLOUD = (() => {
   async function pullSteals() {
     const { data, error } = await client.from('farm_steals').select('id, thief_name, tile, crop, qty, bitten, coins, created_at').eq('owner', user.id).eq('done', false);
     if (error) throw new Error(viError(error));
-    if (data && data.length) await client.from('farm_steals').update({ done: true }).in('id', data.map((r) => r.id));
-    return data || [];
+    if (!data || !data.length) return [];
+    const { data: got } = await client.from('farm_steals').update({ done: true }).in('id', data.map((r) => r.id)).eq('done', false).select('id');
+    const ok = new Set((got || []).map((r) => r.id));
+    return data.filter((r) => ok.has(r.id));
   }
 
   /** Các bản lưu cũ trên máy chủ (cần chạy supabase/03-lich-su-ban-luu.sql) */
