@@ -3903,7 +3903,7 @@
   /** Mã quà tặng (mỗi mã dùng 1 lần cho mỗi nhân vật) */
   const GIFTS = { 'XINLOI3500': { coins: 3500, msg: 'Quà xin lỗi vì lỗi mất đồ' }, 'QUANGLAM100K': { coins: 100000, msg: 'Voucher quà tặng 100K' }, 'QUANGLAM10TR': { coins: 10000000, msg: 'Voucher 10 triệu xu', expired: true } };
   /** Mã dùng chung cả server: chỉ 1 người nhận được (ai nhanh tay). Chỉ lưu bản băm của mã, không lộ mã trong code */
-  const GLOBAL_GIFTS = { '83fb97087d6471ebf6ec252ad41511f9f28f5a624a69265ac539fcd4f8c81a37': { coins: 15000000, msg: 'Voucher 15 triệu xu' }, '74e5c0d7d6215472540a7def2a0f1b3124e0b6b8ba2bb93525b43662ac9ae08a': { coins: 100000000000, msg: 'Voucher 100 tỉ xu' }, 'd89c3f9dee512c45334ac863c71d16a2288edc347d238903e6df550f99fd8bce': { coins: 1000000000000, msg: 'Voucher 1000 tỉ xu' } };
+  const GLOBAL_GIFTS = { '83fb97087d6471ebf6ec252ad41511f9f28f5a624a69265ac539fcd4f8c81a37': { coins: 15000000, msg: 'Voucher 15 triệu xu' }, '74e5c0d7d6215472540a7def2a0f1b3124e0b6b8ba2bb93525b43662ac9ae08a': { coins: 100000000000, msg: 'Voucher 100 tỉ xu' }, 'd89c3f9dee512c45334ac863c71d16a2288edc347d238903e6df550f99fd8bce': { coins: 1000000000000, msg: 'Voucher 1000 tỉ xu', unlimited: true } };
   async function redeemGlobal(c) {
     let h = '';
     try {
@@ -3913,6 +3913,7 @@
     const g = GLOBAL_GIFTS[h];
     if (!g) return UI.toast('Mã quà không đúng 🤔');
     if (!CLOUD.user) return UI.toast('🔐 Đăng nhập tài khoản mới nhận được mã này');
+    if (g.unlimited) { S.coins += g.coins; float(`+${g.coins.toLocaleString('vi-VN')} 💰`, player.x, player.y - 120, '#ffd43b'); UI.toast(`🎁 ${g.msg}: +${g.coins.toLocaleString('vi-VN')} xu!`, 5000); changed(); saveNow(); return; }
     try { await CLOUD.claimGift(h, S.name); } catch (e) { return UI.toast('⚠️ ' + e.message, 5000); }
     S.coins += g.coins;
     float(`+${g.coins.toLocaleString('vi-VN')} 💰`, player.x, player.y - 120, '#ffd43b');
