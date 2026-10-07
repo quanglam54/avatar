@@ -981,7 +981,8 @@ const UI = (() => {
         <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
         <p class="muted">Nuôi tối đa <b>${DATA.GUARD_MAX} con</b> cùng canh nông trại (mua trùng loại cũng được). Bạn bè sang <b>hái trộm</b> ô đã chín có thể bị <b>nhiều con cắn cùng lúc</b> — tiền phạt cộng dồn và về túi bạn!</p>
         <h4>🛡️ Đội canh nhà của bạn (${team.length}/${DATA.GUARD_MAX})</h4>
-        ${team.length ? `<div class="guard-team">${team.map((id, k) => { const g = DATA.GUARDS.find((x) => x.id === id); return `<div class="g-slot"><canvas data-team="${id}"></canvas><b>${g.name}</b><button class="btn small ghost" data-sell="${k}">Bán · ${Math.floor(g.price / 2).toLocaleString('vi-VN')}💰</button></div>`; }).join('')}</div>
+        ${team.length ? `<div class="guard-team">${team.map((id, k) => { const g = DATA.GUARDS.find((x) => x.id === id); const H = AV.guardHurtList(), hv = H[k], hurt = AV.hurtOf(H, k), healing = hurt && typeof hv === 'number' && hv > 1;
+          return `<div class="g-slot ${hurt ? 'hurt' : ''}"><canvas data-team="${id}"></canvas><b>${g.name}</b>${hurt ? (`<small class="hurt-tag">🤕 Bị thương — không canh nhà${healing ? ` · tự khỏi sau ${Math.ceil((hv - Date.now()) / 60000)} phút` : ''}</small><div class="row-end"><button class="btn small" data-med="${k}">💊 Thuốc (${S.inv.pet_med || 0})</button><button class="btn small ghost" data-food="${k}">🦴 Cho ăn (${S.inv.pet_food || 0})</button></div>`) : ''}<button class="btn small ghost" data-sell="${k}">Bán · ${Math.floor(g.price / 2).toLocaleString('vi-VN')}💰</button></div>`; }).join('')}</div>
           <p class="muted small-note">Kẻ trộm có <b>${Math.min(99, Math.round((1 - safe) * 100))}%</b> bị cắn, bị phạt tới <b>${maxFine} xu</b> mỗi lần.</p>`
           : '<p class="muted">Chưa có con nào canh nhà — bạn bè hái trộm thoải mái đó 😅</p>'}
         <h4>🛒 Mua thêm</h4>
@@ -993,12 +994,72 @@ const UI = (() => {
       p.body.querySelectorAll('[data-guard]').forEach((c) => paint(c, c.dataset.guard));
       p.body.querySelectorAll('[data-team]').forEach((c) => paint(c, c.dataset.team));
       p.body.querySelectorAll('[data-buy]').forEach((bt) => bt.onclick = () => { AV.buyGuard(bt.dataset.buy); render(); });
+      p.body.querySelectorAll('[data-med]').forEach((bt) => bt.onclick = () => { AV.healGuard(+bt.dataset.med, 'med'); render(); });
+      p.body.querySelectorAll('[data-food]').forEach((bt) => bt.onclick = () => { AV.healGuard(+bt.dataset.food, 'food'); render(); });
       p.body.querySelectorAll('[data-sell]').forEach((bt) => bt.onclick = () => {
         const g = DATA.GUARDS.find((x) => x.id === team[+bt.dataset.sell]);
         confirm(`Bán ${g.icon} ${g.name} và nhận lại <b>${Math.floor(g.price / 2).toLocaleString('vi-VN')} xu</b>?`, 'Bán', () => { AV.sellGuard(+bt.dataset.sell); render(); });
       });
     };
     render();
+  }
+
+  /* ---------- Trộm: gọi thú nhà mình tới đánh thú giữ nhà ---------- */
+  function petFightPick(defIds, mine) {
+    return new Promise((resolve) => {
+      let done = false;
+      const fin = (v) => { if (done) return; done = true; resolve(v); };
+      const G = (id) => DATA.GUARDS.find((g) => g.id === id);
+      const p = panel('🐾 Nhà này có thú canh!', `
+        <p>Đang canh: <b>${defIds.map((id) => G(id).icon + ' ' + G(id).name).join(', ')}</b></p>
+        <p class="muted">Gọi thú nhà bạn tới đánh nhau — <b>thắng</b> thì trộm thoải mái và thú nhà kia bị thương; <b>thua</b> thì thú bạn bị thương và bạn bị cắn phạt xu.</p>
+        <div class="pf-pick">${mine.map((x) => `<button class="btn" data-pk="${x.k}">${G(x.id).icon} Gọi ${G(x.id).name}</button>`).join('')}</div>
+        <div class="row-end"><button class="btn ghost" data-solo>🥷 Trộm liều (không gọi)</button><button class="btn ghost" data-no>Thôi</button></div>`);
+      p.onClose = () => fin('cancel');
+      p.body.querySelectorAll('[data-pk]').forEach((b) => b.onclick = () => { fin(+b.dataset.pk); p.close(); });
+      p.body.querySelector('[data-solo]').onclick = () => { fin('steal'); p.close(); };
+      p.body.querySelector('[data-no]').onclick = () => { fin('cancel'); p.close(); };
+    });
+  }
+  function petFight(attId, defId, win, owner) {
+    return new Promise((resolve) => {
+      const G = (id) => DATA.GUARDS.find((g) => g.id === id);
+      const p = panel('⚔️ Thú đánh nhau!', `<canvas class="pf-cv"></canvas><p class="pf-res"></p>`, { locked: true });
+      const cv = p.body.querySelector('canvas'), ctx = cv.getContext('2d'), d = Math.min(2, devicePixelRatio || 1);
+      const Wc = cv.clientWidth || 360, Hc = 220; cv.width = Wc * d; cv.height = Hc * d;
+      const sc = (id) => ({ dog: 1.4, shepherd: 1.25, tiger: 1.05, lion: 1, trex: 0.85, dragon: 0.8 }[id] || 1);
+      const t0 = performance.now(), DUR = 3600;
+      let hpA = 1, hpD = 1;
+      const step = () => {
+        const e = performance.now() - t0, t = e / 1000, u = Math.min(1, e / DUR);
+        // máu giảm dần, bên thua về 0
+        hpA = Math.max(win ? 0.35 : 0, 1 - u * (win ? 0.65 : 1) * (0.9 + 0.1 * Math.sin(t * 9)));
+        hpD = Math.max(win ? 0 : 0.3, 1 - u * (win ? 1 : 0.7) * (0.9 + 0.1 * Math.cos(t * 8)));
+        ctx.setTransform(d, 0, 0, d, 0, 0);
+        const bg = ctx.createLinearGradient(0, 0, 0, Hc); bg.addColorStop(0, '#d0ebff'); bg.addColorStop(1, '#8ce99a');
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, Wc, Hc);
+        const lunge = Math.max(0, Math.sin(t * 7)) * 30;
+        [[Wc * 0.25 + lunge, attId, 1, hpA], [Wc * 0.75 - Math.max(0, Math.sin(t * 7 + 1.6)) * 30, defId, -1, hpD]].forEach(([x, id, dir, hp], i) => {
+          const lost = u >= 1 && ((i === 0 && !win) || (i === 1 && win));
+          ctx.save(); ctx.translate(x, 185); if (lost) ctx.rotate(dir * 0.9); ctx.scale(sc(id), sc(id));
+          ART.guard(ctx, 0, 0, id, dir, t * 2, !lost, !lost);
+          ctx.restore();
+          ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(x - 50, 18, 100, 12);
+          ctx.fillStyle = hp > 0.5 ? '#51cf66' : hp > 0.25 ? '#fcc419' : '#ff6b6b'; ctx.fillRect(x - 49, 19, 98 * hp, 10);
+          ctx.fillStyle = '#1b2f48'; ctx.font = '800 13px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.fillText(`${i ? '🏠 ' : '🐾 '}${G(id).name}`, x, 46);
+        });
+        if (u < 1 && Math.sin(t * 7) > 0.85) { ctx.font = '30px system-ui'; ctx.fillText('💥', Wc / 2, 120); }
+        if (u < 1 && !ended) requestAnimationFrame(step);
+      };
+      // kết thúc theo đồng hồ (kể cả khi tab bị ẩn, khung hình không vẽ) → không bao giờ kẹt
+      let ended = false;
+      setTimeout(() => {
+        ended = true;
+        p.body.querySelector('.pf-res').innerHTML = win ? `🏆 <b>${G(attId).name}</b> thắng! Thú nhà ${esc(owner)} bị thương — trộm thôi! 🥷` : `😵 <b>${G(attId).name}</b> thua rồi, bị thương 🤕 — bạn bị cắn!`;
+        setTimeout(() => { p.close(); resolve(); }, 1600);
+      }, DUR + 50);
+      requestAnimationFrame(step);
+    });
   }
 
   /* ---------- Vòng quay may mắn ---------- */
@@ -1061,9 +1122,9 @@ const UI = (() => {
     const tabs = [['seed', 'Giống'], ['item', 'Vật Phẩm'], ['store', '💰 Bán đồ'], ['seeds', 'Kho Giống']];
     const entries = () => {
       if (tab === 'seed') return Object.entries(DATA.CROPS).map(([id, c]) => ({ id, icon: c.icon, kind: 'seed', c, locked: S.level < (c.lvl || 1) }));
-      if (tab === 'item') return [{ id: 'fertilizer', icon: DATA.FERT.icon, kind: 'item' }, { id: 'pesticide', icon: DATA.PEST.icon, kind: 'item' }];
+      if (tab === 'item') return [DATA.FERT, DATA.PEST, DATA.PETMED, DATA.PETFOOD].map((P) => ({ id: P.id || (P === DATA.FERT ? 'fertilizer' : 'pesticide'), icon: P.icon, kind: 'item' }));
       if (tab === 'store') return Object.entries(S.inv).filter(([id, n]) => n > 0 && DATA.ITEMS[id] && DATA.ITEMS[id].sell > 0 && !id.startsWith('seed_')).map(([id, n]) => ({ id, icon: DATA.ITEMS[id].icon, kind: 'sell', n }));
-      return Object.entries(S.inv).filter(([id, n]) => n > 0 && (id.startsWith('seed_') || id === 'fertilizer' || id === 'pesticide')).map(([id, n]) => ({ id, icon: id.startsWith('seed_') ? DATA.CROPS[id.slice(5)].icon : DATA.ITEMS[id].icon, kind: 'own', n }));
+      return Object.entries(S.inv).filter(([id, n]) => n > 0 && (id.startsWith('seed_') || id === 'fertilizer' || id === 'pesticide' || id === 'pet_med' || id === 'pet_food')).map(([id, n]) => ({ id, icon: id.startsWith('seed_') ? DATA.CROPS[id.slice(5)].icon : DATA.ITEMS[id].icon, kind: 'own', n }));
     };
     const detail = (e) => {
       if (!e) return tab === 'store' ? '<p class="muted">Chọn món muốn bán — hoặc bấm <b>Bán tất cả</b> bên dưới. Thu mua mọi thứ: nông sản, trái cây, trứng, sữa, len, thịt, cá, vỏ sò, món nấu.</p>' : '<p class="muted">Chọn một ô để xem thông tin.</p>';
@@ -1073,7 +1134,8 @@ const UI = (() => {
           <span>Sản lượng: ${c.yield} ${c.name.toLowerCase()} / ô (có bón phân) · ${low} nếu không bón</span><span>Bán: ${c.sell} xu · ${c.kind === 'flower' ? 'trồng ở luống hoa' : c.kind === 'both' ? 'trồng được cả 2 loại luống' : 'trồng ở luống ruộng'}</span>`;
       }
       if (e.kind === 'item') {
-        const P = e.id === 'fertilizer' ? DATA.FERT : DATA.PEST;
+        const P = ({ fertilizer: DATA.FERT, pesticide: DATA.PEST, pet_med: DATA.PETMED, pet_food: DATA.PETFOOD })[e.id];
+        if (P.desc) return `<b>${P.icon} ${P.name}</b><span>Giá: ${P.price} xu</span><span>${P.desc} (dùng ở 🐕 Chuồng Thú Giữ Nhà)</span><span>Đang có: ${S.inv[e.id] || 0}</span>`;
         return `<b>${P.icon} ${P.name}</b><span>Giá: ${P.price} xu</span><span>${e.id === 'fertilizer' ? `1 gói / ô · cây nhanh hơn ${Math.round(DATA.FERT.cut * 100)}% và <b>thu đủ sản lượng</b> (không bón chỉ được ${Math.round(DATA.FERT.noFertYield * 100)}%)` : '1 chai / luống · cây bị 🐛 sâu cắn sẽ đứng không lớn — xịt thuốc để cây lớn tiếp (xịt sớm để phòng sâu)'}</span><span>Đang có: ${S.inv[e.id] || 0}</span>`;
       }
       const it = DATA.ITEMS[e.id];
@@ -1084,7 +1146,7 @@ const UI = (() => {
       if (sel && !list.find((e) => e.id === sel)) sel = null;
       const e = list.find((x) => x.id === sel);
       const canAct = e && (e.kind === 'seed' ? !e.locked : e.kind === 'item' || e.kind === 'sell');
-      const price = e ? (e.kind === 'seed' ? e.c.seed : e.kind === 'item' ? (e.id === 'fertilizer' ? DATA.FERT.price : DATA.PEST.price) : e.kind === 'sell' ? DATA.ITEMS[e.id].sell : 0) : 0;
+      const price = e ? (e.kind === 'seed' ? e.c.seed : e.kind === 'item' ? ({ fertilizer: DATA.FERT.price, pesticide: DATA.PEST.price, pet_med: DATA.PETMED.price, pet_food: DATA.PETFOOD.price })[e.id] : e.kind === 'sell' ? DATA.ITEMS[e.id].sell : 0) : 0;
       const max = e && e.kind === 'sell' ? e.n : 99;
       qty = Math.max(1, Math.min(qty, max));
       p.body.innerHTML = `<div class="ss-tabs">${tabs.map(([k, l]) => `<button class="${k === tab ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
@@ -1583,5 +1645,5 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel };
+  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
 })();

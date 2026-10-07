@@ -429,10 +429,12 @@ const MAPS = (() => {
     sobj(m, 4300, 1010, (c) => ART.signBoard(c, 4300, 1010, 'CẨN THẬN\nCÓ THÚ DỮ 🦷\nCấm hái trộm!'));
     col(m, 4262, 1000, 80, 12);
     sobj(m, 4180, 1092, (c) => ART.dogBowl(c, 4180, 1092), { l: -22, t: -14, w: 44, h: 20 });
-    pic(m, 'img/farm/' + 'hay.png', 4560, 970, 72, { h: 64, fallback: (c) => ART.hayBale(c, 4560, 960) });
-    [[4760, 1000, 'green'], [5080, 960, 'fruit'], [4980, 1230, 'pink'], [3880, 1230, 'green']].forEach(([x, y, v]) => addTree(m, x, y, v));
+    // đất mở rộng thêm: 4 mảnh (luống 22–25), bấm biển "Mua đất" để mở
+    m.labels.push({ text: '🌾 Đất Mở Rộng', x: 4740, y: 865 });
+    [22, 23, 24, 25].forEach((bedIdx, k) => addBed(bedIdx, 4400 + (k % 2) * (BD.w + 40), 885 + Math.floor(k / 2) * FSTEP, 'Ô ruộng'));
+    [[5140, 1050, 'pink'], [3880, 1230, 'green']].forEach(([x, y, v]) => addTree(m, x, y, v));
     addBush(m, 4420, 1245, '#ff8fab'); addBush(m, 4660, 1250, '#ffd43b');
-    addBench(m, 4820, 1180);
+    addBench(m, 5120, 1190);
     [[3760, 830], [4500, 830], [5100, 830]].forEach(([x, y]) => { addLamp(m, x, y); m.lights.push([x - 24, y - 112, 58], [x + 24, y - 112, 58]); });
 
     /* ----- Sân Chơi: xích đu, vọng lâu, cối xay gió ----- */

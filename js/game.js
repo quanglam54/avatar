@@ -50,6 +50,8 @@
     const out = { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned }, settings: { ...d.settings, ...s.settings } };
     out.guard = normTeam(s.guard, s.owned && s.owned.guards);
     out.pen = normPen(s.pen);
+    // thú bị thương kiểu cũ (không hạn) → tự khỏi sau 2 giờ kể từ lúc vào game
+    if (Array.isArray(out.guardHurt)) out.guardHurt = out.guardHurt.map((v) => (v === 1 || v === true ? Date.now() + 2 * 3600000 : v));
     if (!out.pestFix1) {
       out.pestFix1 = true;
       const now = Date.now();
@@ -559,7 +561,7 @@
     changed();
   };
   AV.buyItem = (id, n) => {
-    const price = id === 'pesticide' ? DATA.PEST.price : id === 'fertilizer' ? DATA.FERT.price : 0;
+    const price = ({ pesticide: DATA.PEST.price, fertilizer: DATA.FERT.price, pet_med: DATA.PETMED.price, pet_food: DATA.PETFOOD.price })[id] || 0;
     if (!price || n < 1) return false;
     if (!AV.spend(price * n)) return false;
     addItem(id, n);
@@ -1306,6 +1308,7 @@
       trees: pad(f.trees, d.trees.length, () => ({ at: 0 })),
       coop: f.coop || { fedAt: 0 }, pen: normPen(f.pen),
       guard: normTeam(f.guard),
+      guardHurt: Array.isArray(f.guardHurt) ? f.guardHurt : [],
     };
   }
 
@@ -1420,6 +1423,24 @@
   const guardDef = (id) => DATA.GUARDS.find((g) => g.id === id) || DATA.GUARDS[0];
   /** Đội thú đang canh của nông trại đang xem (mảng id) */
   AV.guardTeam = () => (map.id === 'farm' ? FD().guard || [] : []);
+  /** Thú thứ k có đang bị thương không (1 = bị thương; số lớn = đang hồi phục đến thời điểm đó) */
+  /** Thú bị thương tự khỏi sau 2 giờ (chữa bằng thuốc / thức ăn thì nhanh hơn) */
+  const HURT_MS = 2 * 3600000;
+  const hurtOf = (arr, k) => { const v = arr && arr[k]; return v === 1 || v === true || (typeof v === 'number' && v > Date.now()); };
+  AV.hurtOf = hurtOf;
+  AV.guardHurtList = () => (S.guardHurt = Array.isArray(S.guardHurt) ? S.guardHurt : []);
+  /** Chữa thú bị thương: 💊 thuốc (khỏi ngay) hoặc 🦴 cho ăn (khoẻ sau 10 phút) */
+  AV.healGuard = (k, how) => {
+    const H = AV.guardHurtList();
+    if (!hurtOf(H, k)) return UI.toast('Bé này đang khoẻ mạnh mà 💪');
+    const item = how === 'med' ? 'pet_med' : 'pet_food';
+    if ((S.inv[item] || 0) < 1) return UI.toast(`Hết ${DATA.ITEMS[item].icon} ${DATA.ITEMS[item].name} — mua ở 🌱 Cửa hàng nông trại (tab Vật phẩm)`, 4000);
+    S.inv[item]--;
+    const g = guardDef((S.guard || [])[k]);
+    if (how === 'med') { H[k] = 0; UI.toast(`💊 ${g.icon} ${g.name} đã khỏi hẳn, lại ra canh nhà!`); }
+    else { H[k] = Math.min(H[k] === 1 ? Infinity : H[k], Date.now() + 10 * 60000); UI.toast(`🦴 ${g.icon} ${g.name} ăn ngon lành — khoẻ lại sau 10 phút`); }
+    changed();
+  };
   const teamIcons = (team) => team.map((id) => guardDef(id).icon).join('');
   /** Mỗi con có một thực thể đi tuần riêng */
   const guards = [];
@@ -1437,8 +1458,16 @@
       gd.id = team[k];
       gd.t += dt;
       if (gd.chase) return chaseStep(gd, dt);
-      gd.hop = 0;
-      const tx = gd.tx, ty = gd.ty, speed = 70;
+      gd.hurt = hurtOf(FD().guardHurt, k);
+      if (gd.hurt) { gd.hop = 0; gd.moving = false; return; }
+      const dragon = gd.id === 'dragon';
+      gd.hop = dragon ? 55 + Math.sin(gd.t * 1.6) * 18 : 0;
+      if (dragon) {
+        const nowMs = Date.now();
+        if (!gd.nextFire) gd.nextFire = nowMs + 2000 + Math.random() * 4000;
+        if (nowMs > gd.nextFire) { gd.angry = nowMs + 1600; gd.nextFire = nowMs + 6000 + Math.random() * 6000; }
+      }
+      const tx = gd.tx, ty = gd.ty, speed = dragon ? 120 : 70;
       const dx = tx - gd.x, dy = ty - gd.y, d = Math.hypot(dx, dy);
       if (gd.wait > 0) { gd.wait -= dt; gd.moving = false; return; }
       if (d < 4) {
@@ -1638,12 +1667,38 @@
     const sd = S.stealDay && S.stealDay.day === todayKey() ? S.stealDay : (S.stealDay = { day: todayKey(), n: {} });
     if (Math.max(Object.keys(v.stolen).length, sd.n[v.uid] || 0) >= DATA.STEAL.perFarm) return UI.toast(`Hôm nay bạn đã trộm ${DATA.STEAL.perFarm} lần ở nông trại này rồi, đừng tham quá 😅`, 3500);
     const team = v.data.guard || [], name = v.data.name;
-    const biters = team.map((id, k) => ({ k, g: guardDef(id) })).filter((x) => Math.random() < x.g.bite);
+    const ownerOk = team.map((id, k) => ({ id, k })).filter((x) => !hurtOf(v.data.guardHurt, x.k));
+    const mine = (S.guard || []).map((id, k) => ({ id, k })).filter((x) => !hurtOf(AV.guardHurtList(), x.k));
+    let fight = null;
+    if (ownerOk.length && mine.length) {
+      v.busy = true;
+      const pick = await UI.petFightPick(ownerOk.map((x) => x.id), mine);
+      v.busy = false;
+      if (pick === 'cancel') return;
+      if (typeof pick === 'number') {
+        const att = mine.find((x) => x.k === pick);
+        const def = ownerOk.slice().sort((a, b) => guardDef(b.id).fine - guardDef(a.id).fine)[0];
+        const fa = guardDef(att.id).fine, fd = guardDef(def.id).fine;
+        const pWin = Math.max(0.25, Math.min(0.75, 0.5 + (fa - fd) / (fa + fd) * 0.5));
+        fight = { att, def, win: Math.random() < pWin };
+        v.busy = true;
+        await UI.petFight(att.id, def.id, fight.win, name);
+        v.busy = false;
+      }
+    }
+    const others = team.map((id, k) => ({ k, g: guardDef(id) })).filter((x) => !hurtOf(v.data.guardHurt, x.k) && (!fight || x.k !== fight.def.k) && Math.random() < x.g.bite);
+    const biters = fight && !fight.win ? [{ k: fight.def.k, g: guardDef(fight.def.id) }, ...others] : others;
+    if (fight) {
+      if (fight.win) { v.data.guardHurt = v.data.guardHurt || []; v.data.guardHurt[fight.def.k] = Date.now() + HURT_MS; }
+      else { AV.guardHurtList()[fight.att.k] = Date.now() + HURT_MS; UI.toast(`🤕 ${guardDef(fight.att.id).icon} ${guardDef(fight.att.id).name} nhà bạn bị thương — mua 💊 thuốc hoặc 🦴 thức ăn ở cửa hàng nông trại để chữa`, 5000); }
+    }
     const bitten = biters.length > 0;
     const qty = bitten ? 0 : Object.values(o.give).reduce((x, n) => x + n, 0);
     const fine = bitten ? Math.min(biters.reduce((x, y) => x + y.g.fine, 0), S.coins, 1000) : 0;
     v.busy = true;
-    try { await CLOUD.sendSteal({ owner: v.uid, thief_name: S.name, tile: o.key, crop: o.crop, qty, bitten, coins: fine }); }
+    const row = { owner: v.uid, thief_name: S.name, tile: o.key, crop: o.crop, qty, bitten, coins: fine };
+    if (fight) row.fight = `${fight.win ? 'w' : 'l'}:${fight.def.k}:${fight.att.id}`;
+    try { await CLOUD.sendSteal(row); }
     catch (e) { return UI.toast('⚠️ ' + e.message, 4500); }
     finally { v.busy = false; }
     v.stolen[o.key] = bitten ? -1 : o.mark;
@@ -1664,7 +1719,8 @@
       const got = Object.entries(o.give).map(([id, n]) => `+${n} ${DATA.ITEMS[id].icon}`).join('  ');
       float(`🥷 ${got}`, player.x, player.y - 110);
       guards.forEach((gd) => { gd.bubble = { text: '💤', until: Date.now() + 2500 }; });
-      UI.toast(`🥷 Trộm được ${got} ${o.label}${team.length ? ` — ${team.length > 1 ? 'đàn thú' : guardDef(team[0]).name} không để ý 😏` : ''}`, 3500);
+      const why = fight ? ` — ${guardDef(fight.att.id).icon} ${guardDef(fight.att.id).name} đã hạ gục ${guardDef(fight.def.id).name} 🐾` : team.length ? ` — ${team.length > 1 ? 'đàn thú' : guardDef(team[0]).name} không để ý 😏` : '';
+      UI.toast(`🥷 Trộm được ${got} ${o.label}${why}`, 3500);
       NET.sendSys(`🥷 ${S.name} vừa trộm ${got} ở nông trại ${name}!`);
     }
     changed();
@@ -1719,8 +1775,14 @@
     if (!rows.length) return;
     let lost = 0, fines = 0;
     const thieves = new Set(), bitten = new Set();
+    const fightMsgs = [];
     rows.forEach((r) => {
       const who = r.thief_name || 'Ai đó';
+      if (r.fight) {
+        const [res, dk, attId] = String(r.fight).split(':'), k = +dk, myG = guardDef((S.guard || [])[k]), their = guardDef(attId);
+        if (res === 'w' && (S.guard || [])[k]) { AV.guardHurtList()[k] = Date.now() + HURT_MS; fightMsgs.push(`🐾 ${who} gọi ${their.icon} ${their.name} tới đánh — ${myG.icon} ${myG.name} nhà bạn bị thương 🤕! Mua 💊 thuốc hoặc 🦴 thức ăn ở cửa hàng nông trại để chữa`); }
+        else if (res === 'l') fightMsgs.push(`🏆 ${myG.icon} ${myG.name} nhà bạn đánh thắng ${their.icon} ${their.name} của ${who}!`);
+      }
       const at = r.created_at ? new Date(r.created_at).getTime() : Date.now();
       logFarm({ type: r.bitten ? 'bite' : 'steal', who, at, place: placeName(r.tile | 0), item: r.crop, qty: r.qty | 0, fine: r.bitten ? Math.max(0, r.coins | 0) : 0 });
       if (r.bitten) { fines += Math.max(0, r.coins | 0); bitten.add(who); return; }
@@ -1746,6 +1808,7 @@
     const msgs = [];
     if (thieves.size) msgs.push(`🥷 ${[...thieves].join(', ')} đã trộm bớt ${lost} lần ở nông trại của bạn — phần còn lại vẫn là của bạn, thu hoạch nhanh kẻo trộm tiếp!${team.length ? '' : ' Mua thú giữ nhà ở Chuồng Thú (góc phải nông trại) nhé 🐕'}`);
     if (bitten.size) msgs.push(`${teamIcons(team) || '🐕'} Thú giữ nhà đã cắn ${[...bitten].join(', ')} khi hái trộm — bạn nhận ${fines} xu tiền phạt!`);
+    msgs.push(...fightMsgs);
     msgs.push('📋 Xem chi tiết ở Bảng tin nông trại (cạnh cổng)');
     msgs.forEach((m, k) => { setTimeout(() => UI.toast(m, 6000), k * 600); UI.chatLog('', m, false, true); });
     changed();
@@ -1796,6 +1859,7 @@
     if (!id) return;
     const g = guardDef(id), back = Math.floor(g.price / 2);
     S.guard.splice(k, 1);
+    AV.guardHurtList().splice(k, 1);
     S.coins += back;
     UI.toast(`Đã bán ${g.icon} ${g.name}, nhận lại ${back.toLocaleString('vi-VN')} xu`);
     changed();
@@ -2711,7 +2775,11 @@
       if (!gd.id || !inView(gd.x, gd.y)) return;
       const ang = gd.angry > now;
       const hy = gd.y - (gd.hop || 0);
-      list.push({ y: gd.y, draw: () => out((c) => ART.guard(c, gd.x, hy, gd.id, gd.dir, gd.t, gd.moving, ang), gd.x, hy, { l: -115, t: -105, w: 230, h: 111 }, gd, ang ? 30 : 55) });
+      list.push({ y: gd.y, draw: () => {
+        if (gd.hop > 10) { g.fillStyle = 'rgba(0,0,0,.16)'; g.beginPath(); g.ellipse(gd.x, gd.y, 58 - gd.hop * 0.2, 11, 0, 0, Math.PI * 2); g.fill(); }
+        out((c) => ART.guard(c, gd.x, hy, gd.id, gd.dir, gd.t, gd.moving, ang), gd.x, hy, { l: -115, t: -105, w: 230, h: 111 }, gd, ang ? 30 : 55);
+        if (gd.hurt) ART.iconBubble(g, '🤕', gd.x, hy - 95, clock);
+      } });
     });
     map.pickups.forEach((p) => inView(p.x, p.y) && list.push({ y: p.y, draw: () => out((c) => ART.pickup(c, p.x, p.y, p.item.icon, clock), p.x, p.y, BOX_PICK, p, 120) }));
     const petDraw = (p, kind) => list.push({ y: p.y, draw: () => out((c) => ART.pet(c, p.x, p.y, kind, p.dir, p.t, p.moving), p.x, p.y, FX.BOX.pet, p) });

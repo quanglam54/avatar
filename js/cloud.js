@@ -125,7 +125,9 @@ const CLOUD = (() => {
 
   /** Báo đã hái trộm 1 ô ruộng (chủ nông trại tự xử lý khi online) */
   async function sendSteal(row) {
-    const { error } = await client.from('farm_steals').insert({ ...row, thief: user.id });
+    let { error } = await client.from('farm_steals').insert({ ...row, thief: user.id });
+    // chưa chạy SQL 07 (chưa có cột fight) → gửi lại không kèm kết quả đánh nhau
+    if (error && row.fight && /fight/i.test(error.message || '')) { const r2 = { ...row }; delete r2.fight; ({ error } = await client.from('farm_steals').insert({ ...r2, thief: user.id })); }
     if (!error) return;
     const m = String(error.message || '');
     if (/steal_limit/.test(m)) throw new Error('Hôm nay bạn đã hái trộm nông trại này 3 lần rồi, mai quay lại nhé 😅');
@@ -136,7 +138,7 @@ const CLOUD = (() => {
 
   /** Lấy các lần bị hái trộm chưa xử lý rồi đánh dấu đã xử lý */
   async function pullSteals() {
-    const { data, error } = await client.from('farm_steals').select('id, thief_name, tile, crop, qty, bitten, coins, created_at').eq('owner', user.id).eq('done', false);
+    const { data, error } = await client.from('farm_steals').select('*').eq('owner', user.id).eq('done', false);
     if (error) throw new Error(viError(error));
     if (!data || !data.length) return [];
     const { data: got } = await client.from('farm_steals').update({ done: true }).in('id', data.map((r) => r.id)).eq('done', false).select('id');

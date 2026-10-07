@@ -105,10 +105,10 @@ const DATA = {
     pig: { name: 'Chuồng heo', icon: '🐖', time: 2400, feed: 2, out: { pork: 3 }, xp: 10, fedMsg: 'Đã đổ cám cho heo! 🐖', waitMsg: 'Heo đang ăn no ngủ kỹ…' },
   },
   PLOT_PRICES: [0, 0, 0, 0, 0, 0, 40, 80, 120, 200],
-  BED_PRICES: [0, 150, 400, 900, 1500, 2200, 3000, 4000, 0, 300, 800, 1500, 4500, 5000, 5500, 6000, 7000, 8000, 9000, 10000, 11000, 12000],
+  BED_PRICES: [0, 150, 400, 900, 1500, 2200, 3000, 4000, 0, 300, 800, 1500, 4500, 5000, 5500, 6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000],
   /** Luống 12–19: khu đất mở rộng (trồng rau củ) */
   EXTRA_BEDS: 8,
-  BED_COUNT: 22,
+  BED_COUNT: 26,
   FIELD_BEDS: 8,
   FLOWER_BEDS: 4,
   TILES_PER_BED: 12,
@@ -143,13 +143,16 @@ DATA.PETS = [
 /** Thú giữ nhà: canh nông trại, kẻ hái trộm có thể bị cắn và bị phạt xu (xu phạt về túi chủ nhà) */
 DATA.GUARDS = [
   { id: 'none', name: 'Không nuôi', icon: '🚫', price: 0, bite: 0, fine: 0 },
-  { id: 'dog', name: 'Chó cỏ', icon: '🐕', price: 500, bite: 0.35, fine: 40 },
-  { id: 'shepherd', name: 'Chó béc-giê', icon: '🐺', price: 1500, bite: 0.5, fine: 80 },
-  { id: 'tiger', name: 'Hổ vằn', icon: '🐯', price: 4000, bite: 0.65, fine: 150 },
-  { id: 'lion', name: 'Sư tử', icon: '🦁', price: 8000, bite: 0.8, fine: 250 },
+  { id: 'dog', name: 'Chó cỏ', icon: '🐕', price: 500, bite: 0.45, fine: 40 },
+  { id: 'shepherd', name: 'Chó béc-giê', icon: '🐺', price: 1500, bite: 0.6, fine: 80 },
+  { id: 'tiger', name: 'Hổ vằn', icon: '🐯', price: 4000, bite: 0.72, fine: 150 },
+  { id: 'lion', name: 'Sư tử', icon: '🦁', price: 8000, bite: 0.82, fine: 250 },
   { id: 'trex', name: 'Khủng long bạo chúa', icon: '🦖', price: 12000, bite: 0.85, fine: 350 },
   { id: 'dragon', name: 'Rồng lửa', icon: '🐉', price: 20000, bite: 0.9, fine: 500 },
 ];
+/** Thuốc / thức ăn chữa thú giữ nhà bị thương (bán ở cửa hàng nông trại) */
+DATA.PETMED = { id: 'pet_med', name: 'Thuốc thú y', icon: '💊', price: 60, desc: 'Chữa khỏi ngay 1 con thú giữ nhà bị thương' };
+DATA.PETFOOD = { id: 'pet_food', name: 'Thức ăn thú cưng', icon: '🦴', price: 25, desc: 'Cho thú bị thương ăn — khoẻ lại sau 10 phút' };
 /** Pháo hoa ở Sân Chơi nông trại */
 DATA.FIREWORKS = [
   { id: 'basic', icon: '🎆', name: 'Pháo hoa thường', desc: 'Bắn 5 quả nổ tung nhiều màu', price: 20 },
@@ -431,6 +434,8 @@ DATA.ITEMS = (() => {
   items.fertilizer = { name: 'Phân bón', icon: '🧪', sell: 0 };
   items.pesticide = { name: 'Thuốc trừ sâu', icon: '🧴', sell: 0 };
   items.ticket = { name: 'Vé sự kiện', icon: '🎟️', sell: 0 };
+  items.pet_med = { name: 'Thuốc thú y', icon: '💊', sell: 0 };
+  items.pet_food = { name: 'Thức ăn thú cưng', icon: '🦴', sell: 0 };
   items.candy = { name: 'Kẹo Halloween', icon: '🍬', sell: 0 };
   return items;
 })();
