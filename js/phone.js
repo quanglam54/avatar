@@ -450,6 +450,15 @@ const PHONE = (() => {
       lookup(num).then((who) => {
         if (!who) { later(1800, () => { stopRing(); say('Số máy quý khách vừa gọi không tồn tại. Xin vui lòng kiểm tra lại.'); later(3200, () => go('home')); }); return; }
         if (!f) { callInfo.name = who.name || callInfo.num; render(); }
+        if (typeof CALL !== 'undefined') {
+          stopRing(); close();
+          if (c && !c.uid) c.uid = who.user_id;
+          CALL.start({ uid: who.user_id, name: callInfo.name, num, username: who.username || '' }, () => {
+            CLOUD.client.from('messages').insert({ to_user: who.user_id, from_name: S().name, from_username: CLOUD.username, kind: 'chat', body: { text: `📞 Cuộc gọi nhỡ từ ${S().name} (${pretty(myNum())})` } }).then(() => {}, () => {});
+            UI.toast(`📵 ${callInfo.name} không nghe máy — đã gửi thông báo cuộc gọi nhỡ`, 4000);
+          });
+          return;
+        }
         later(3800, () => {
           stopRing();
           say(`${callInfo.name} không nghe máy — đã gửi thông báo cuộc gọi nhỡ`);

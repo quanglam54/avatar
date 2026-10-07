@@ -1155,3 +1155,20 @@ html, body, button, .btn, .panel, .panel-back, a, input, select, textarea, label
 .vl-ball.big.done { animation: stkPop .45s; }
 .vl-live { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; padding: 18px 0; }
 .vl-jp { color: #c8102e; }
+
+/* 📞 cuộc gọi thoại */
+.call-ov { position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,.45); display: grid; place-items: center; animation: phIn .25s ease-out; }
+.call-box { width: min(320px, 88vw); height: min(600px, 84vh); border-radius: 42px; padding: 40px 22px 34px; display: flex; flex-direction: column; justify-content: space-between;
+  background: linear-gradient(170deg, #3b4a6b, #10151f 70%); color: #fff; box-shadow: 0 0 0 10px #111, 0 20px 50px rgba(0,0,0,.6); font-family: "Be Vietnam Pro", system-ui; }
+.call-top { display: grid; justify-items: center; gap: 6px; text-align: center; }
+.call-top small { opacity: .75; }
+.call-av { width: 104px; height: 104px; border-radius: 50%; background: linear-gradient(#adb5bd, #6c757d); display: grid; place-items: center; font-size: 48px; font-weight: 900; margin: 18px 0 6px; }
+.call-top b { font-size: 26px; }
+.call-st { margin: 6px 0 0; opacity: .85; min-height: 22px; }
+.call-st.on { font-variant-numeric: tabular-nums; color: #8ce99a; font-weight: 800; font-size: 18px; }
+.call-btns { display: flex; justify-content: space-around; }
+.call-btns.two { justify-content: space-between; padding: 0 12px; }
+.call-b { width: 70px; height: 70px; border-radius: 50%; border: 0; background: rgba(255,255,255,.18); color: #fff; font-size: 26px; display: grid; place-items: center; cursor: pointer; position: relative; }
+.call-b small { position: absolute; bottom: -22px; font-size: 11px; white-space: nowrap; }
+.call-b.on { background: #fff; }
+.call-b.red { background: #ff3b30; } .call-b.green { background: #34c759; animation: evPulse 1s infinite; }

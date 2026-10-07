@@ -298,6 +298,21 @@ const CROPS_ART = (() => {
     };
   });
 
+  /* cây mới: bụi lá + quả vẽ bằng biểu tượng (rõ ràng, nhẹ máy) */
+  const NEW = { garlic: ['#8ce99a', 'tall'], eggplant: ['#2f9e44', 'bush'], peanut: ['#51cf66', 'low'], sweetpotato: ['#5c940d', 'vine'], broccoli: ['#2b8a3e', 'low'], mushroom: ['#8a5a32', 'none'], lemon: ['#37b24d', 'bush'], avocado: ['#2b8a3e', 'bush'] };
+  Object.entries(NEW).forEach(([id, [col, shape]]) => {
+    D[id] = (c) => {
+      soil(c, 12);
+      if (shape === 'tall') [[-3, -0.25], [0, 0], [3, 0.25], [-1, -0.1], [1.5, 0.12]].forEach(([x, a]) => leaf(c, x, 0, 20, 1.6, a, col, '#2b8a3e'));
+      else if (shape === 'bush') [[-6, -6, -1], [6, -6, 1], [-3, -12, -0.5], [3, -13, 0.5], [0, -16, 0]].forEach(([x, y, a]) => leaf(c, x, y + 6, 11, 4.2, a, col, '#1b5e20'));
+      else if (shape === 'low') [[-7, -1.1], [7, 1.1], [-3, -0.4], [3, 0.4]].forEach(([x, a]) => leaf(c, x * 0.5, 0, 10, 4.5, a, col, '#1b5e20'));
+      else if (shape === 'vine') { [[-8, -1.3], [8, 1.3], [-4, -0.6], [4, 0.6], [0, 0]].forEach(([x, a]) => leaf(c, x * 0.4, 0, 9, 4.6, a, col, '#2b5d0a')); }
+      c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#000'; c.globalAlpha = 1;
+      const icon = DATA.CROPS[id].icon;
+      const spots = shape === 'none' ? [[-5, -6, 11], [5, -5, 10], [0, -12, 12]] : shape === 'low' || shape === 'vine' ? [[-6, -4, 11], [6, -3, 11]] : shape === 'tall' ? [[0, -2, 11]] : [[-6, -12, 9], [6, -14, 9], [0, -20, 9]];
+      spots.forEach(([x, y, s]) => { c.font = s + 'px system-ui, "Segoe UI Emoji", sans-serif'; c.fillText(icon, x, y); });
+    };
+  });
   function sprite(crop) {
     if (crop in cache) return cache[crop];
     const fn = D[crop];

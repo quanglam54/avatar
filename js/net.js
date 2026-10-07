@@ -265,6 +265,7 @@ const NET = (() => {
       if (!m || m.id === pid) return;
       if (m.t === 'where') where.set(m.id, { map: String(m.map), at: String(m.at || m.map), user: String(m.user || ''), seen: Date.now() });
       else if (m.t === 'bye') where.delete(m.id);
+      else if (m.t === 'call' && typeof CALL !== 'undefined') CALL.onSignal(m);
       else if (m.t === 'news' && m.text) { if (typeof TREASURE !== 'undefined') TREASURE.onNews(String(m.text).slice(0, 160)); }
       else if ((m.t === 'farmrev' || m.t === 'farmhit' || m.t === 'saverev' || m.t === 'dm') && m.u) AV.onFarmPing(m.t, String(m.u));
     });
@@ -280,6 +281,10 @@ const NET = (() => {
   /** tin cho cả server (mọi khu) */
   function sendNews(text) {
     if (lobby) lobby.send({ t: 'news', id: pid, text: String(text).slice(0, 160) });
+  }
+  /** báo hiệu gọi thoại 1-1 (chỉ máy có user id = to xử lý) */
+  function sendCall(p) {
+    if (lobby) lobby.send({ t: 'call', id: pid, ...p });
   }
   function farmPing(t, uid) {
     if (lobby && uid) lobby.send({ t, id: pid, u: uid });
@@ -393,7 +398,7 @@ const NET = (() => {
   }
 
   return {
-    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing, sendNews, sendFirework, sendBite, sendVoice, sendRps, sendBox, sendRide, sendArena, sendHorse,
+    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing, sendNews, sendCall, sendFirework, sendBite, sendVoice, sendRps, sendBox, sendRide, sendArena, sendHorse,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],

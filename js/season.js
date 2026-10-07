@@ -12,6 +12,7 @@ const SEASON = (() => {
     wheat: [0, 2], carrot: [0, 2, 3], rose: [0, 1, 3], strawberry: [0], corn: [1, 2], pumpkin: [2], tomato: [1], potato: [0, 3],
     cucumber: [1], chili: [1, 2], cabbage: [0, 2, 3], grape: [2], banana: [1], pineapple: [1], watermelon: [1], ginseng: [2, 3],
     daisy: [0, 2], tulip: [0, 3], sunflower: [1, 2], hibiscus: [1],
+    garlic: [2, 3], eggplant: [1], peanut: [1, 2], sweetpotato: [2, 3], broccoli: [0, 3], mushroom: [2, 3], lemon: [0, 1], avocado: [1, 2],
   };
   function now() {
     const d = new Date(), days = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5) + 1;

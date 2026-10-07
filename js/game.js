@@ -3117,10 +3117,28 @@
     }
   }
 
+  /** 🧑‍🌾 cô giúp việc: lần lượt đi tới ruộng / chuồng / cây, làm việc vài giây rồi đi chỗ khác */
+  const HELP_SAY = { bed: ['💧 Tưới tưới…', '🌾 Thu hoạch nè!', '🐛 Bắt sâu~', '🧪 Bón phân', '🌱 Gieo hạt'], coop: ['🐔 Gà ơi ăn đi!', '🥚 Nhặt trứng~'], cow: ['🐄 Vắt sữa nào', '🌾 Cho bò ăn'], sheep: ['🐑 Cắt len~', '🌾 Cho cừu ăn'], pig: ['🐖 Đổ cám cho heo'], tree: ['🍊 Hái quả chín', '🍎 Quả to ghê!'] };
+  function helperPatrol(e) {
+    const spots = map.inter.filter((o) => o.ax && (o.group === 'coop' || o.group === 'cow' || o.group === 'sheep' || o.group === 'pig' || /^Ô ruộng|^Ô hoa|^Luống|^Cây (cam|táo|xoài|đào)/.test(o.name || '')));
+    if (!spots.length) return false;
+    let o = spots[Math.floor(Math.random() * spots.length)];
+    if (e.lastSpot === o && spots.length > 1) o = spots[(spots.indexOf(o) + 1) % spots.length];
+    e.lastSpot = o;
+    const kind = o.group || (/^Cây/.test(o.name) ? 'tree' : 'bed');
+    e.tx = o.ax + (Math.random() - 0.5) * 40; e.ty = o.ay - 6;
+    e.onArrive = () => { const l = HELP_SAY[kind] || HELP_SAY.bed; say(e, l[Math.floor(Math.random() * l.length)]); };
+    return true;
+  }
   function wander(e, dt, speed, useCollision) {
     e.t += dt;
     if (e.wait > 0) { e.wait -= dt; e.moving = false; return; }
     const dx = e.tx - e.x, dy = e.ty - e.y, d = Math.hypot(dx, dy);
+    if (d < 3 && e.helper) {
+      const done = e.onArrive;
+      if (done) { e.onArrive = null; done(); e.wait = 3 + Math.random() * 3; e.moving = false; return; }
+      if (helperPatrol(e)) { e.wait = 0.3; e.moving = false; return; }
+    }
     if (d < 3) {
       e.wait = 1 + Math.random() * 4;
       e.peck = e.kind === 'chicken' && Math.random() < 0.6;
@@ -3148,6 +3166,7 @@
     updatePlayer(dt);
     map.animals.forEach((a) => wander(a, dt, ANIMAL_SPEED[a.kind], false));
     map.npcs.forEach((n) => {
+      if (n.helper) { if (n.show && !n.show()) return; wander(n, dt, 110, false); return; }
       wander(n, dt, 60, true);
       n.nextTalk -= dt;
       if (n.nextTalk <= 0) {
