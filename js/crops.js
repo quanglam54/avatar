@@ -310,7 +310,7 @@ const CROPS_ART = (() => {
     return (cache[crop] = cv);
   }
   /** cây cao thu nhỏ lại cho khỏi đè sang ô phía trên */
-  const FIT = { corn: 0.8, sunflower: 0.76, banana: 0.8, grape: 0.84, cucumber: 0.86, tomato: 0.9, rose: 0.9, chili: 0.95 };
+  const FIT = { wheat: 0.85, corn: 0.8, sunflower: 0.76, banana: 0.8, grape: 0.84, cucumber: 0.86, tomato: 0.9, rose: 0.9, chili: 0.95 };
   /** Vẽ cây chín (có đung đưa nhẹ). Trả về false nếu loại cây này chưa có hình mới. */
   function draw(ctx, x, y, crop, t) {
     const cv = sprite(crop);

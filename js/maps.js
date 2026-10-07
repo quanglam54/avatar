@@ -261,9 +261,9 @@ const MAPS = (() => {
     m.lights = [];
     const WL = 140, WR = 5260, WT = 420, WB = 1300, GATE = 1600;
     const BL = {
-      field: [180, 450, 2080, 385], home: [2300, 450, 780, 330],
-      pasture: [180, 860, 840, 400], pond: [1100, 860, 400, 400], coop: [1700, 860, 330, 400], garden: [2090, 860, 660, 400], nook: [2810, 860, 270, 400],
-      play: [3120, 450, 600, 810],
+      field: [180, 442, 2080, 420], home: [2300, 450, 780, 330],
+      pasture: [180, 882, 840, 378], pond: [1100, 882, 400, 378], coop: [1700, 882, 330, 378], garden: [2045, 882, 1380, 378],
+      play: [3120, 450, 600, 390], play2: [3465, 882, 255, 378],
       orchard: [3800, 450, 1380, 330], yard: [3800, 860, 1380, 400],
     };
     ground(m, (g) => {
@@ -315,7 +315,7 @@ const MAPS = (() => {
         });
       }
     };
-    const FX0 = 180 + (2080 - (BD.w * 6 + 40 * 5)) / 2, FY0 = 466, FSTEP = BD.h + 12;
+    const FX0 = 180 + (2080 - (BD.w * 6 + 40 * 5)) / 2, FY0 = 458, FSTEP = BD.h + 34; // chừa lối giữa các hàng luống cho dễ bấm
     // thứ tự luống giữ nguyên số luống cũ (0–7 ruộng chính, 12–19 đất mở rộng, 20–21 đất mới) để không mất cây đang trồng
     [0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].forEach((bedIdx, slot) => addBed(bedIdx, FX0 + (slot % 6) * (BD.w + 40), FY0 + Math.floor(slot / 6) * FSTEP, 'Ô ruộng'));
 
@@ -353,9 +353,9 @@ const MAPS = (() => {
       ['sheep', 3, { l: 565, t: 1000, r: 740, b: 1222 }], ['sheep', 9, { l: 565, t: 1000, r: 740, b: 1222 }], ['sheep', 15, { l: 565, t: 1000, r: 740, b: 1222 }],
       ['pig', 5, { l: 805, t: 1075, r: 980, b: 1222 }], ['pig', 11, { l: 805, t: 1075, r: 980, b: 1222 }], ['pig', 17, { l: 805, t: 1075, r: 980, b: 1222 }],
     ]) animal(m, k, area, seed);
-    m.labels.push({ text: '🐄 Chuồng Bò', x: 360, y: 852 }, { text: '🐑 Chuồng Cừu', x: 650, y: 852 }, { text: '🐖 Chuồng Heo', x: 890, y: 852 });
+    m.labels.push({ text: '🐄 Chuồng Bò', x: 360, y: 868 }, { text: '🐑 Chuồng Cừu', x: 650, y: 868 }, { text: '🐖 Chuồng Heo', x: 890, y: 868 });
     // bấm bất kỳ đâu trong từng chuồng = cho ăn / thu hoạch chuồng đó
-    [['cow', 200, 520, 'Chuồng bò (cho ăn / vắt sữa)', 360, 1080], ['sheep', 540, 760, 'Chuồng cừu (cho ăn / cắt len)', 650, 905], ['pig', 780, 1000, 'Chuồng heo (đổ cám / thu thịt)', 890, 830]].forEach(([kind, L, R, name, ix, iy]) => {
+    [['cow', 200, 520, 'Chuồng bò (cho ăn / vắt sữa)', 360, 1080], ['sheep', 540, 760, 'Chuồng cừu (cho ăn / cắt len)', 650, 905], ['pig', 780, 1000, 'Chuồng heo (đổ cám / thu thịt)', 890, 872]].forEach(([kind, L, R, name, ix, iy]) => {
       const cx = (L + R) / 2;
       inter(m, { x: L, y: 884, w: R - L, h: 356, ax: cx, ay: 1272, name, use: () => AV.usePen(kind), group: kind, approaches: [[cx, 1272], [cx, 862]], indicator: () => AV.penIndicator(kind), ix, iy });
     });
@@ -367,7 +367,7 @@ const MAPS = (() => {
     pic(m, 'img/farm/' + 'pond.png', 1300, 1196, 430, { h: 340, sortY: 880, fallback: (c, t) => ART.lake(c, 1300, 1060, 180, 110, t) });
     // chặn cả mặt nước + bờ đá + cầu gỗ (không đi lên ao được)
     col(m, 1100, 900, 400, 270);
-    m.labels.push({ text: '🎣 Ao Cá', x: 1300, y: 850 }, { text: '🐔 Sân Gà', x: 1865, y: 900 });
+    m.labels.push({ text: '🎣 Ao Cá', x: 1300, y: 868 }, { text: '🐔 Sân Gà', x: 1865, y: 900 });
     addBench(m, 1180, 1255);
     // bảng tin: ai đến trộm, có bị cắn / phạt không, ai tưới giúp
     pic(m, 'img/farm/' + 'board.png', 1400, 1262, 140, { h: 170, sortY: 1250, fallback: (c) => ART.noticeBoard(c, 1400, 1250) });
@@ -378,24 +378,24 @@ const MAPS = (() => {
     pic(m, 'img/farm/' + 'hay.png', 1975, 990, 72, { h: 64, fallback: (c) => ART.hayBale(c, 1975, 980) });
     pic(m, 'img/farm/' + 'hay.png', 1760, 1225, 90, { h: 80, fallback: (c) => ART.hayStack(c, 1760, 1215) });
     for (let i = 0; i < 5; i++) animal(m, 'chicken', { l: 1720, t: 930, r: 2010, b: 1240 }, i);
-    for (let i = 5; i < 9; i++) animal(m, 'chicken', { l: 240, t: 834, r: 2280, b: 860 }, i);
+    for (let i = 5; i < 9; i++) animal(m, 'chicken', { l: 240, t: 860, r: 2280, b: 876 }, i);
     inter(m, {
       x: 1790, y: 980, w: 150, h: 90, ax: 1865, ay: 1092, name: 'Ổ rơm (cho gà ăn / nhặt trứng)', arrow: { x: 1865, y: 976 }, group: 'coop',
       use: () => AV.useCoop(), indicator: () => AV.coopIndicator(), ix: 1865, iy: 965,
     });
 
     /* ----- Vườn hoa ngay dưới ruộng (2 × 2 luống hoa) ----- */
-    m.labels.push({ text: '🌸 Vườn Hoa', x: 2420, y: 900 });
-    const GX = 2090 + (660 - (BD.w * 2 + 40)) / 2, GY = 945;
+    const GX = 2060, GY = 945;
+    m.labels.push({ text: '🌸 Vườn Hoa', x: GX + BD.w + 20, y: 900 }, { text: '🌾 Đất Mở Rộng', x: GX + (BD.w + 40) * 2 + BD.w + 20, y: 900 });
     for (let k = 0; k < DATA.FLOWER_BEDS; k++) addBed(DATA.FIELD_BEDS + k, GX + (k % 2) * (BD.w + 40), GY + Math.floor(k / 2) * FSTEP, 'Ô trồng hoa');
+    // đất mở rộng (luống 22–25) nằm ngay cạnh vườn hoa, chung một khu
+    [22, 23, 24, 25].forEach((bedIdx, k) => addBed(bedIdx, GX + (2 + (k % 2)) * (BD.w + 40), GY + Math.floor(k / 2) * FSTEP, 'Ô ruộng'));
 
     /* ----- Góc nhỏ: bù nhìn, ghế, bụi hoa ----- */
-    pic(m, 'img/farm/' + 'scarecrow.png', 2890, 1050, 96, { h: 135, fallback: (c) => ART.scarecrow(c, 2890, 1040) });
+    pic(m, 'img/farm/' + 'scarecrow.png', 4990, 1000, 96, { h: 135, fallback: (c) => ART.scarecrow(c, 4990, 990) });
     // giếng nước
-    pic(m, 'img/farm/' + 'well.png', 3010, 1140, 120, { h: 160 });
-    col(m, 2960, 1100, 100, 40);
-    addBench(m, 2945, 1200);
-    addBush(m, 2860, 960, '#ff8fab'); addBush(m, 3035, 960, '#ffd43b'); addPot(m, 2860, 1230, 'mai'); addPot(m, 3035, 1230, 'dao');
+    pic(m, 'img/farm/' + 'well.png', 4840, 1150, 120, { h: 160 });
+    col(m, 4790, 1110, 100, 40);
 
     /* ----- Vườn cây ăn quả (khu bên phải, 2 hàng) ----- */
     AV._treePos = [];
@@ -430,8 +430,7 @@ const MAPS = (() => {
     col(m, 4262, 1000, 80, 12);
     sobj(m, 4180, 1092, (c) => ART.dogBowl(c, 4180, 1092), { l: -22, t: -14, w: 44, h: 20 });
     // đất mở rộng thêm: 4 mảnh (luống 22–25), bấm biển "Mua đất" để mở
-    m.labels.push({ text: '🌾 Đất Mở Rộng', x: 4740, y: 865 });
-    [22, 23, 24, 25].forEach((bedIdx, k) => addBed(bedIdx, 4400 + (k % 2) * (BD.w + 40), 885 + Math.floor(k / 2) * FSTEP, 'Ô ruộng'));
+    m.labels.push({ text: '🍵 Góc Nghỉ', x: 4700, y: 865 });
     [[5140, 1050, 'pink'], [3880, 1230, 'green']].forEach(([x, y, v]) => addTree(m, x, y, v));
     addBush(m, 4420, 1245, '#ff8fab'); addBush(m, 4660, 1250, '#ffd43b');
     addBench(m, 5120, 1190);
@@ -450,14 +449,15 @@ const MAPS = (() => {
         inter(m, { x: s.px - 30, y: y - 125, w: 60, h: 131, ax: s.px, ay: y + 20, name: 'Xích đu (ngồi chơi)', use: () => AV.useSwing(s.idx) });
       });
     });
-    sobj(m, 3420, 1000, (c) => ART.gazebo(c, 3420, 1000), { l: -125, t: -210, w: 250, h: 222 });
-    col(m, 3320, 975, 200, 34);
-    inter(m, { x: 3320, y: 820, w: 200, h: 180, ax: 3420, ay: 1040, name: 'Vọng lâu (ngồi nghỉ)', use: () => AV.restGazebo() });
+    const ZX = 4580, ZY = 1090;
+    sobj(m, ZX, ZY, (c) => ART.gazebo(c, ZX, ZY), { l: -125, t: -210, w: 250, h: 222 });
+    col(m, ZX - 100, ZY - 25, 200, 34);
+    inter(m, { x: ZX - 100, y: ZY - 180, w: 200, h: 180, ax: ZX, ay: ZY + 40, name: 'Vọng lâu (ngồi nghỉ)', use: () => AV.restGazebo() });
     aobj(m, 3640, 1240, (c, t) => ART.windmill(c, 3640, 1240, t), { l: -100, t: -275, w: 200, h: 282 });
     col(m, 3606, 1225, 68, 18);
-    addBench(m, 3200, 1180);
+    addBench(m, 3480, 1180);
     addTree(m, 3175, 560, 'pink');
-    [[3700, 560, 'mai'], [3180, 900, 'dao']].forEach(([x, y, k]) => addPot(m, x, y, k));
+    [[3700, 560, 'mai'], [3490, 980, 'dao']].forEach(([x, y, k]) => addPot(m, x, y, k));
     addBush(m, 3460, 1240, '#ff8fab');
     addLamp(m, 3420, 760); m.lights.push([3396, 648, 58], [3444, 648, 58]);
     // bệ bắn pháo hoa
