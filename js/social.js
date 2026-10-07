@@ -365,7 +365,8 @@ const SOCIAL = (() => {
       CLOUD.client.from('phone_sims').select('num').eq('user_id', f.uid).maybeSingle().then(({ data }) => {
         if (!data || !data.num || !me.el.isConnected) return;
         const row = me.body.querySelector('[data-g]').parentElement;
-        row.insertAdjacentHTML('afterbegin', `<button class="btn small" data-call>📞 Gọi ${esc(PHONE.pretty(data.num))}</button>`);
+        row.insertAdjacentHTML('afterbegin', `<button class="btn small" data-call>📞 Gọi ${esc(PHONE.pretty(data.num))}</button><button class="btn small" data-vcall>📹 Video</button>`);
+        row.querySelector('[data-vcall]').onclick = () => { if (CALL.busy()) return UI.toast('📞 Bạn đang trong cuộc gọi khác'); PHONE.open(); if (document.querySelector('.ph-wrap')) setTimeout(() => PHONE.dial(data.num, true), 80); };
         row.querySelector('[data-call]').onclick = () => {
           if (CALL.busy()) return UI.toast('📞 Bạn đang trong cuộc gọi khác');
           PHONE.open();

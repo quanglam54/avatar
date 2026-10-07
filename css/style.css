@@ -1262,3 +1262,5 @@ html, body, button, .btn, .panel, .panel-back, a, input, select, textarea, label
 .zg-cf { display: flex; gap: 4px; } .zg-cf[hidden] { display: none; } .zg-cf input { flex: 1; min-width: 0; border: 1px solid #dee2e6; border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 13px; } .zg-cf button { border: 0; background: #1c7ed6; color: #fff; border-radius: 999px; padding: 4px 10px; font: inherit; font-weight: 800; cursor: pointer; }
 .zg-new { display: grid; gap: 8px; padding: 10px; } .zg-new textarea { min-height: 90px; border: 1px solid #dee2e6; border-radius: 12px; padding: 8px; font: inherit; font-size: 14px; resize: vertical; }
 .zg-row { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+
+.ph-vbtn { background: #1c7ed6 !important; }

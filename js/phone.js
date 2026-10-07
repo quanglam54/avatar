@@ -368,7 +368,7 @@ const PHONE = (() => {
     if (app === 'call') {
       box.innerHTML = header('Điện thoại') + `<div class="ph-dial"><div class="ph-num"></div><button class="ph-paste" data-paste>📋 Dán số</button><div class="ph-numname"></div>
         <div class="ph-keys">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map((k) => `<button data-k="${k}">${k}</button>`).join('')}</div>
-        <div class="ph-dial-row"><button class="ph-del" data-del>⌫</button><button class="ph-callbtn" data-call>📞</button><button class="ph-del" data-q>115</button></div>
+        <div class="ph-dial-row"><button class="ph-del" data-del>⌫</button><button class="ph-callbtn" data-call>📞</button><button class="ph-callbtn ph-vbtn" data-vcall title="Gọi video">📹</button><button class="ph-del" data-q>115</button></div>
         <button class="ph-addc" data-addc hidden>➕ Thêm vào danh bạ</button>
         <p class="ph-hint">🚑 115 cấp cứu · 🚓 113 · 🚒 114${myNum() ? '' : '<br>⚠️ Chưa có SIM — chỉ gọi được số khẩn cấp'}</p></div>`;
       back();
@@ -386,6 +386,7 @@ const PHONE = (() => {
       padInput = (t, mode) => { if (mode === 'del') num = num.slice(0, -1); else num = ((mode === 'set' ? '' : num) + t).replace(/\D/g, '').slice(0, 12); show(); };
       box.querySelector('[data-paste]').onclick = pasteBtn;
       box.querySelector('[data-call]').onclick = () => { if (num) dial(num); };
+      box.querySelector('[data-vcall]').onclick = () => { if (num) dial(num, true); };
       show();
     } else if (app === 'contacts') {
       const list = contacts();
@@ -399,11 +400,12 @@ const PHONE = (() => {
       const c = contactSel;
       if (!c) return go('contacts');
       box.innerHTML = header('Liên hệ').replace("data-back>‹ Về", "data-back2>‹ Danh bạ") + `<div class="ph-card1"><div class="ph-av big">${esc((c.name || '?')[0].toUpperCase())}</div><b>${esc(c.name)}</b>
-        <div class="ph-acts"><button data-c="call">📞<small>gọi</small></button><button data-c="sms">💬<small>nhắn tin</small></button><button data-c="del">🗑️<small>xoá</small></button></div>
+        <div class="ph-acts"><button data-c="call">📞<small>gọi</small></button><button data-c="video">📹<small>video</small></button><button data-c="sms">💬<small>nhắn tin</small></button><button data-c="del">🗑️<small>xoá</small></button></div>
         <div class="ph-row2"><small>di động</small><br><b class="ph-simnum">${pretty(c.num)}</b></div></div>`;
       box.querySelector('[data-back2]').onclick = () => go('contacts');
       box.querySelector('[data-c="call"]').onclick = () => { dialPre = c.num; go('call'); };
       box.querySelector('[data-c="sms"]').onclick = () => smsTo(c.num);
+      box.querySelector('[data-c="video"]').onclick = () => dial(c.num, true);
       box.querySelector('[data-c="del"]').onclick = () => { const l = contacts(); l.splice(l.indexOf(c), 1); if (AV.markChanged) AV.markChanged(); go('contacts'); };
     } else if (app === 'pad') {
       const save = padMode === 'save';
@@ -547,7 +549,7 @@ const PHONE = (() => {
       : '<p class="ph-empty">Chưa có tin nhắn nào.<br>Bấm ✏️ để nhắn tới một số điện thoại.</p>';
     el.querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { const t = list[+b.dataset.t]; close(); SOCIAL.openChat({ uid: t.uid, username: t.username, name: t.name }); });
   }
-  function dial(num) {
+  function dial(num, video) {
     num = String(num).replace(/\D/g, '');
     const emergency = ['115', '113', '114'].includes(num);
     if (!emergency && !myNum()) { UI.toast('📶 Chưa có SIM — mua SIM ở CellphoneS / Thế Giới Di Động để gọi điện'); return; }
@@ -580,7 +582,7 @@ const PHONE = (() => {
           CALL.start({ uid: who.user_id, name: callInfo.name, num, username: who.username || '' }, () => {
             CLOUD.client.from('messages').insert({ to_user: who.user_id, from_name: S().name, from_username: CLOUD.username, kind: 'chat', body: { text: `📞 Cuộc gọi nhỡ từ ${S().name} (${pretty(myNum())})` } }).then(() => {}, () => {});
             UI.toast(`📵 ${callInfo.name} không nghe máy — đã gửi thông báo cuộc gọi nhỡ`, 4000);
-          });
+          }, video);
           return;
         }
         later(3800, () => {
