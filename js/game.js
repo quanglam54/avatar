@@ -862,7 +862,7 @@
   AV.useFerris = () => {
     if (!AV.spend(5)) return;
     addXP(6);
-    PLANE.ferris();
+    if (typeof FERRIS3D !== "undefined") FERRIS3D.ride(); else PLANE.ferris();
     say(player, ['Ngắm cả thành phố từ trên cao, đẹp quá! 🎡', 'Woaa, thấy cả bãi biển luôn! 🌊', 'Gió mát ghê~ 🌤️'][Math.floor(Math.random() * 3)]);
     float('-5 💰', player.x, player.y - 100, '#ffd43b');
   };

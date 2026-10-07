@@ -957,3 +957,14 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .mine-hud button { border: 2px solid #fff; border-radius: 10px; padding: 4px 10px; font: inherit; font-weight: 900; font-size: 13px; color: #1b2f48; background: linear-gradient(#fff, #d7eeff); cursor: pointer; }
 .mine-btns { display: none; }
 .mine-msg { top: 74px; }
+/* 🎡 Vòng quay 3D */
+.ferris3d { position: fixed; inset: 0; z-index: 70; display: none; background: #000; }
+.ferris3d canvas { display: block; position: absolute; inset: 0; }
+.fx-cabin { position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  border: 26px solid #d6336c; border-radius: 40px;
+  box-shadow: inset 0 0 0 6px #a61e4d, inset 0 0 60px rgba(0,0,0,.45); }
+.fx-cabin::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 14px; transform: translateX(-50%); background: linear-gradient(90deg, #a61e4d, #f06595, #a61e4d); }
+.fx-cabin::after { content: ''; position: absolute; left: 0; right: 0; bottom: 22%; height: 12px; background: linear-gradient(#f06595, #a61e4d); }
+.ferris3d .fx-title { position: absolute; top: 34px; left: 50%; transform: translateX(-50%); z-index: 2; background: rgba(27,47,72,.85); color: #fff; font-weight: 900; padding: 6px 16px; border-radius: 14px; border: 2px solid #fff; white-space: nowrap; }
+.ferris3d .fx-skip { position: absolute; top: 34px; right: 40px; z-index: 2; border: 2px solid #fff; border-radius: 12px; padding: 6px 12px; font: inherit; font-weight: 900; background: rgba(27,47,72,.85); color: #fff; cursor: pointer; }
+.fx-alt { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); z-index: 2; color: #ffd43b; font-weight: 900; font-size: 18px; text-shadow: 0 2px 4px #000; }
