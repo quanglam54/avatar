@@ -80,7 +80,7 @@ const UI = (() => {
     $('#hudLv').textContent = S.level;
     $('#hudXp').style.width = Math.min(100, (S.xp / DATA.xpNeed(S.level)) * 100) + '%';
     $('#hudXpText').textContent = `${S.xp}/${DATA.xpNeed(S.level)} XP`;
-    $('#hudCoins').textContent = S.coins.toLocaleString('vi-VN');
+    $('#hudCoins').textContent = S.coins >= 1e9 ? (Math.floor(S.coins / 1e7) / 100).toLocaleString('vi-VN') + ' tỉ' : S.coins.toLocaleString('vi-VN');
     drawAvatar($('#hudAvatar'), S.look, { scale: 1, headOnly: true, bg: false });
   }
 
@@ -1647,5 +1647,29 @@ const UI = (() => {
     };
   }
 
-  return { toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
+  /** 🎬 Rạp CGV: dán link YouTube để tự xem phim (chỉ mình bạn thấy) */
+  function moviePicker() {
+    const p = panel('🎬 Chọn phim của bạn', `
+      <p class="muted">Dán link YouTube để màn chiếu phát phim bạn muốn. <b>Chỉ mình bạn thấy</b>, người khác trong rạp vẫn xem phim mặc định. Ra khỏi rạp thì lần sau vào lại sẽ chiếu phim mặc định.</p>
+      <div class="row" style="display:flex;gap:8px"><input class="mv-url" type="url" placeholder="https://youtu.be/..." style="flex:1;min-width:0"><button class="btn mv-go">▶ Chiếu</button></div>
+      <p class="mv-err" style="color:#e03131;font-weight:800;min-height:1.2em"></p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+        <button class="btn ghost" data-c="back">⏪ 10s</button><button class="btn ghost" data-c="toggle">⏯ Dừng / Tiếp</button><button class="btn ghost" data-c="fwd">10s ⏩</button>
+        <button class="btn ghost mv-def">🎞️ Về phim mặc định</button>
+      </div>
+      <p class="muted small-note">Lưu ý: một số phim có bản quyền bị chủ kênh chặn phát ngoài YouTube nên không chiếu được trong game.</p>`);
+    const q = (x) => p.body.querySelector(x), err = q('.mv-err'), inp = q('.mv-url');
+    if (CONCERT.ownVideo()) inp.value = 'https://youtu.be/' + CONCERT.ownVideo();
+    q('.mv-go').onclick = () => {
+      const id = CONCERT.ytId(inp.value);
+      if (!id) { err.textContent = 'Link YouTube không hợp lệ 😅'; return; }
+      CONCERT.playOwn(id, (code) => toast(code === 101 || code === 150 ? '🚫 Video này bị chủ kênh chặn phát ngoài YouTube — đã quay về phim mặc định' : '⚠️ Không phát được video này — đã quay về phim mặc định', 5000));
+      p.close(); toast('🎬 Đang chiếu phim của bạn');
+    };
+    inp.onkeydown = (e) => { if (e.key === 'Enter') q('.mv-go').click(); };
+    p.body.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => CONCERT.control(b.dataset.c));
+    q('.mv-def').onclick = () => { CONCERT.playDefault(); p.close(); toast('🎞️ Đã về phim mặc định'); };
+  }
+
+  return { moviePicker, toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
 })();

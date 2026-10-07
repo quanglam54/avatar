@@ -157,9 +157,9 @@ const CONCERT = (() => {
   }
 
   /* ---------- Màn LED: video YouTube thật đặt đè lên đúng vị trí màn trong thế giới game ---------- */
-  let box = null, yt = null, ready = false, raf = 0, tapBtn = null, started = false, curVid = null, needSync = false;
-  function ensureVideo(vid) {
-    if (box && curVid !== vid) { curVid = vid; needSync = true; if (yt && ready) yt.loadVideoById(vid); }
+  let box = null, yt = null, ready = false, raf = 0, tapBtn = null, started = false, curVid = null, needSync = false, own = null, onOwnFail = null;
+  function ensureVideo(vid, sync = true) {
+    if (box && curVid !== vid) { curVid = vid; needSync = sync; if (yt && ready) yt.loadVideoById(vid); }
     if (box) return;
     curVid = vid;
     box = document.createElement('div');
@@ -192,6 +192,8 @@ const CONCERT = (() => {
             }
             if (e.data === 0) { yt.seekTo(0, true); yt.playVideo(); } // hết video thì chiếu lại
           },
+          // phim tự chọn lỗi (link sai / chủ kênh chặn nhúng) → quay về phim mặc định
+          onError: (e) => { if (own) { const cb = onOwnFail; own = null; onOwnFail = null; const mp = AV.debugMap(); if (mp && mp.screen) ensureVideo(mp.screen.video); if (cb) cb(e.data); } },
         },
       });
     };
@@ -206,6 +208,7 @@ const CONCERT = (() => {
   function onMap(id) {
     const mp = AV.debugMap && AV.debugMap(), SC = mp && mp.screen;
     if (SC) {
+      own = null; // vào lại rạp luôn chiếu phim mặc định
       ensureVideo(SC.video);
       tapBtn.textContent = SC.tap || '▶ Bấm để xem màn LED';
       box.style.display = 'block';
@@ -227,6 +230,32 @@ const CONCERT = (() => {
       if (yt && ready) yt.pauseVideo();
     }
   }
+
+  /** 🎬 Phim tự chọn — chỉ mình người chọn thấy, không đồng bộ với ai */
+  function ytId(text) {
+    const t = String(text || '').trim();
+    if (/^[\w-]{11}$/.test(t)) return t;
+    const m = t.match(/(?:youtu\.be\/|[?&]v=|\/(?:shorts|embed|live|v)\/)([\w-]{11})/);
+    return m ? m[1] : null;
+  }
+  function playOwn(id, onFail) {
+    if (!box) return false;
+    own = id; onOwnFail = onFail;
+    ensureVideo(id, false);
+    if (yt && ready) { yt.unMute(); yt.playVideo(); }
+    return true;
+  }
+  function playDefault() {
+    own = null; onOwnFail = null;
+    const mp = AV.debugMap();
+    if (mp && mp.screen) ensureVideo(mp.screen.video);
+  }
+  function control(cmd) {
+    if (!yt || !ready) return;
+    if (cmd === 'toggle') { if (yt.getPlayerState() === 1) yt.pauseVideo(); else yt.playVideo(); }
+    else { const t = yt.getCurrentTime() + (cmd === 'back' ? -10 : 10); yt.seekTo(Math.max(0, t), true); }
+  }
+  const ownVideo = () => own;
 
   /* ---------- Vé + lightstick ---------- */
   function buyTicket(vip) {
@@ -274,5 +303,5 @@ const CONCERT = (() => {
     if (ticket()) go(); else ticketPanel(go);
   }
 
-  return { LED, BROS, STICKS, building, stage, fx, crowd, seats, seatsFront, heldStick, onMap, enter, ticketPanel, stickPanel, hasVip, stickCol };
+  return { LED, BROS, STICKS, building, stage, fx, crowd, seats, seatsFront, heldStick, onMap, enter, ytId, playOwn, playDefault, control, ownVideo, ticketPanel, stickPanel, hasVip, stickCol };
 })();

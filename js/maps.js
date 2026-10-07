@@ -1213,6 +1213,15 @@ const MAPS = (() => {
     }, { l: -110, t: -100, w: 220, h: 104 });
     col(m, 1680, 1130, 200, 50);
     inter(m, { x: 1680, y: 1090, w: 200, h: 95, ax: 1780, ay: 1080, name: 'Quầy bắp nước', use: () => UI.eateryPanel('cgv_snack'), arrow: { x: 1780, y: 1075, text: 'Bắp nước' } });
+    // máy chọn phim: dán link YouTube tự xem
+    sobj(m, 220, 1185, (c) => {
+      c.fillStyle = '#1c7ed6'; c.beginPath(); c.roundRect(150, 1100, 140, 85, 12); c.fill();
+      c.fillStyle = '#0b1730'; c.beginPath(); c.roundRect(162, 1110, 116, 46, 6); c.fill();
+      c.fillStyle = '#74c0fc'; c.font = '900 15px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('▶ YouTube', 220, 1133);
+      c.fillStyle = '#fff'; c.font = '900 14px "Be Vietnam Pro", system-ui'; c.fillText('🎬 CHỌN PHIM', 220, 1171);
+    }, { l: -80, t: -95, w: 160, h: 100 });
+    col(m, 150, 1130, 140, 50);
+    inter(m, { x: 150, y: 1100, w: 140, h: 85, ax: 220, ay: 1080, name: 'Máy chọn phim (dán link YouTube)', use: () => UI.moviePicker(), arrow: { x: 220, y: 1085, text: 'Chọn phim' } });
     sobj(m, 1000, 1222, (c) => ART.homeDoor(c, 1000, 1222), { l: -50, t: -22, w: 100, h: 28 });
     inter(m, { x: 940, y: 1160, w: 120, h: 70, ax: 1000, ay: 1190, name: 'Ra Khu giải trí', use: () => AV.teleport('fun', false, 4080, 840, '🎡 Ra Khu giải trí…'), arrow: { x: 1000, y: 1165, text: 'Ra ngoài' } });
     m.spawn = { x: 1000, y: 1150 };
