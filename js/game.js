@@ -860,6 +860,7 @@
   AV.sayMine = (text) => say(player, text);
   /* đồ rơi của sự kiện (sao băng, túi tiền, rồng con, mưa tiền): on(p) chạy khi nhặt thay cho cộng đồ */
   AV.pickups = () => map.pickups;
+  AV.worldFx = [];
   AV.dropPickup = (x, y, icon, on, extra = {}) => { const p = { x, y, item: { id: 'ev', icon }, on, ...extra }; map.pickups.push(p); return p; };
   AV.removePickups = (fn) => { for (let k = map.pickups.length - 1; k >= 0; k--) if (fn(map.pickups[k])) map.pickups.splice(k, 1); };
   AV.blocked = (x, y) => blocked(x, y);
@@ -2503,6 +2504,7 @@
   AV.restFull = () => {
     if (Date.now() - (S.lastEnergySleep || 0) < 3 * 3600000) return false;
     S.lastEnergySleep = Date.now(); AV.addEnergy(100);
+    if (S.phone) { S.phone.bat = 100; setTimeout(() => UI.toast('🔌 Điện thoại đã sạc đầy qua đêm', 3000), 3800); }
     setTimeout(() => UI.toast('⚡ Ngủ dậy khoẻ re — năng lượng đầy 100!', 3500), 600);
     return true;
   };
@@ -3336,6 +3338,7 @@
         if (gd.hurt) ART.iconBubble(g, '🤕', gd.x, hy - 95, clock);
       } });
     });
+    (AV.worldFx || []).forEach((f) => list.push({ y: f.y, key: f, ent: true, bb: [f.x - 140, f.y - 130, f.x + 140, f.y + 20], draw: () => f.draw(g, clock) }));
     map.pickups.forEach((p) => { const bx = p.big ? BOX_BIG : BOX_PICK; inView(p.x, p.y) && list.push({ y: p.y, key: p, ent: true, bb: bbOf(p.x, p.y, bx), draw: () => out((c) => ART.pickup(c, p.x, p.y, p.item.icon, clock, p.big ? 40 : 22), p.x, p.y, bx, p, 120) }); });
     const petDraw = (p, kind) => list.push({ y: p.y, key: p, ent: true, bb: bbOf(p.x, p.y, FX.BOX.pet), draw: () => out((c) => ART.pet(c, p.x, p.y, kind, p.dir, p.t, p.moving), p.x, p.y, FX.BOX.pet, p) });
     // sprite pixel đã có viền sẵn → vẽ thẳng, không thêm viền mềm
@@ -3730,6 +3733,7 @@
   // 📱 iPhone: chặn chụm 2 ngón phóng to cả trang (bản đồ đã có zoom riêng)
   ['gesturestart', 'gesturechange'].forEach((ev) => document.addEventListener(ev, (e) => e.preventDefault(), { passive: false }));
   if (typeof LOTTO !== 'undefined') LOTTO.init();
+  if (typeof PHONE !== 'undefined') PHONE.init();
   MUSIC.init(S.settings || {});
   SOCIAL.init();
   VOICE.init();

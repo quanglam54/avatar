@@ -149,10 +149,12 @@ const SOCIAL = (() => {
     const n = requests.length + Object.values(unread).reduce((a, x) => a + x, 0);
     b.dataset.n = n || '';
     b.classList.toggle('has-n', n > 0);
+    const pb = $('#btnChat');
+    if (pb) { pb.dataset.n = n || ''; pb.classList.toggle('has-n', n > 0); }
   }
 
   /* ---------- Hành động ---------- */
-  async function addFriend(username) {
+  async function addFriend(username, extra = {}) {
     if (!ready()) return UI.toast('🔐 Cần đăng nhập tài khoản để kết bạn');
     const u = String(username || '').trim().toLowerCase();
     if (!u) return;
@@ -164,7 +166,7 @@ const SOCIAL = (() => {
       // người kia đã mời mình trước → đồng ý luôn
       const req = requests.find((r) => r.from_username === u);
       if (req) return accept(req);
-      await send(who.uid, 'friend_req');
+      await send(who.uid, 'friend_req', extra);
       UI.toast(`📨 Đã gửi lời mời kết bạn tới ${who.name}`);
     } catch (e) { UI.toast('⚠️ ' + errText(e), 4500); }
   }
@@ -220,7 +222,7 @@ const SOCIAL = (() => {
         <button class="btn small" data-chat="${esc(f.username)}">💬</button><button class="btn small ghost" data-gift="${esc(f.username)}">🎁</button><button class="btn small ghost" data-visit="${esc(f.username)}">🏡</button><button class="btn small ghost" data-rm="${esc(f.username)}" title="Huỷ kết bạn">✕</button></div>`).join('')}</div>`
         : '<p class="muted">Chưa có bạn nào. Bấm vào người chơi khác → <b>➕ Kết bạn</b>, hoặc vào tab <b>Thêm bạn</b> gõ tên đăng nhập.</p>';
     } else if (tab === 'req') {
-      body = requests.length ? `<div class="shop-list">${requests.map((r) => `<div class="shop-row"><span class="ic">📨</span><div class="info"><b>${esc(r.from_name || r.from_username)}</b><small>@${esc(r.from_username)} muốn kết bạn với bạn</small></div>
+      body = requests.length ? `<div class="shop-list">${requests.map((r) => `<div class="shop-row"><span class="ic">📨</span><div class="info"><b>${esc(r.from_name || r.from_username)}</b><small>@${esc(r.from_username)} ${r.body && r.body.phone ? '📱 gửi số ' + esc(String(r.body.phone).slice(0, 12)) + ' · ' : ''}muốn kết bạn với bạn</small></div>
         <button class="btn small ghost" data-no="${r.id}">Từ chối</button><button class="btn small" data-ok="${r.id}">🤝 Đồng ý</button></div>`).join('')}</div>` : '<p class="muted">Không có lời mời nào.</p>';
     } else {
       body = `<p class="muted">Gõ <b>tên đăng nhập</b> của bạn bè để gửi lời mời. Tên đăng nhập của bạn: <b>@${esc(CLOUD.username)}</b></p>

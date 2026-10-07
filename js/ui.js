@@ -1029,7 +1029,7 @@ const UI = (() => {
         <button class="btn ghost" data-wave>👋 Vẫy tay</button>
         ${r.id && r.kind === 'remote' ? '<button class="btn" data-rps>✊ Oẳn tù tì</button>' : ''}
         ${r.id && r.kind === 'remote' && AV.currentMap() === 'boxing' ? '<button class="btn" data-box>🥊 Thách đấu võ đài</button>' : ''}
-        ${r.user && CLOUD.user && r.user !== CLOUD.username ? (SOCIAL.isFriend(r.user) ? '<button class="btn" data-dm>💬 Nhắn tin</button>' : '<button class="btn" data-add>➕ Kết bạn</button>') : ''}
+        ${r.user && CLOUD.user && r.user !== CLOUD.username ? (SOCIAL.isFriend(r.user) ? '<button class="btn" data-dm>💬 Nhắn tin</button>' : '<button class="btn" data-add>➕ Kết bạn</button>' + (typeof PHONE !== 'undefined' ? '<button class="btn ghost" data-phone>📱 Gửi số điện thoại</button>' : '')) : ''}
         ${r.user ? '<button class="btn" data-visit>🏡 Thăm nông trại</button>' : ''}
       </div>
       ${r.user ? '' : '<p class="muted small-note">Người này chưa có tài khoản nên chưa thăm nông trại được.</p>'}`);
@@ -1037,6 +1037,12 @@ const UI = (() => {
     p.body.querySelector('[data-wave]').onclick = () => { p.close(); AV.say(`👋 Chào ${r.name}!`); };
     const ad = p.body.querySelector('[data-add]');
     if (ad) ad.onclick = () => { p.close(); SOCIAL.addFriend(r.user); };
+    const ph = p.body.querySelector('[data-phone]');
+    if (ph) ph.onclick = () => {
+      if (!PHONE.has()) return toast('📱 Bạn chưa có điện thoại — mua ở CellphoneS / Thế Giới Di Động cạnh VinFast');
+      p.close(); SOCIAL.addFriend(r.user, { phone: PHONE.myNum() });
+      toast(`📱 Đã gửi số ${PHONE.pretty(PHONE.myNum())} cho ${r.name} — họ đồng ý là thành bạn bè, nhắn tin được ngay`, 5000);
+    };
     const dm = p.body.querySelector('[data-dm]');
     if (dm) dm.onclick = () => { p.close(); SOCIAL.openChat((AV.S.friends || []).find((f) => f.username === r.user)); };
     const rp = p.body.querySelector('[data-rps]');
@@ -1875,7 +1881,7 @@ const UI = (() => {
     MUSIC.onToggle = (v) => { AV.S.settings = { ...(AV.S.settings || {}), music: v }; AV.markChanged(); updateMusicBtn(); };
     updateWheelDot();
     $('#btnMap').onclick = () => cityMap(false);
-    $('#btnChat').onclick = () => { $('#chatLog').classList.add('active'); $('#chatInput').focus(); };
+    $('#btnChat').onclick = () => (typeof PHONE !== 'undefined' ? PHONE.open() : ($('#chatLog').classList.add('active'), $('#chatInput').focus()));
     const emo = $('#emotes');
     emo.innerHTML = DATA.EMOTES.map((e) => `<button data-e="${e}">${e}</button>`).join('');
     emo.querySelectorAll('[data-e]').forEach((b) => b.onclick = () => AV.say(b.dataset.e));

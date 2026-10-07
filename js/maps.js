@@ -551,11 +551,11 @@ const MAPS = (() => {
     });
 
     /* ----- Bên ngoài cổng ----- */
-    [[4300, 1395, 'green'], [4800, 1400, 'pink'], [5250, 1395, 'fruit']].forEach(([x, y, v]) => addTree(m, x, y, v));
+    [[4560, 1395, 'green'], [4860, 1400, 'pink'], [5250, 1395, 'fruit']].forEach(([x, y, v]) => addTree(m, x, y, v));
     /* ----- Phố ẩm thực trước cổng: cơm, phở, bún bò, mì cay | trà sữa, cà phê ----- */
-    m.labels.push({ text: '🍜 Phố Ẩm Thực', x: 620, y: 1250 }, { text: '☕ Trà Sữa · Cà Phê', x: 3690, y: 1250 });
+    m.labels.push({ text: '🍜 Phố Ẩm Thực', x: 620, y: 1250 }, { text: '☕ Trà Sữa · Cà Phê', x: 4030, y: 1250 });
     DATA.EATERIES.forEach((e, i) => {
-      const x = i < 4 ? 260 + i * 240 : 3330 + (i - 4) * 240, y = 1425;
+      const x = i < 4 ? 260 + i * 240 : 3790 + (i - 4) * 240, y = 1425;
       sobj(m, x, y, (c) => ART.foodShop(c, x, y, e), { l: -125, t: -165, w: 260, h: 172 });
       m.objects[m.objects.length - 1].b3d = { w: 236, h: 160, roof: e.trim, wall: e.wall, stools: e.deco === 'stools' };
       col(m, x - 105, y - 46, 210, 44);
@@ -614,7 +614,15 @@ const MAPS = (() => {
     m.objects[m.objects.length - 1].b3d = { w: 316, h: 198, roof: '#1b2f48', wall: '#495057', depth: 45 };
     col(m, VX - 152, VY - 38, 108, 36); col(m, VX + 44, VY - 38, 108, 36); col(m, VX - 44, VY - 38, 88, 12);
     inter(m, { x: VX - 44, y: VY - 110, w: 88, h: 110, ax: VX, ay: VY + 30, name: 'VinFast Showroom (mua ô tô điện)', use: () => UI.carShop(), arrow: { x: VX, y: VY - 124, text: 'VinFast' } });
-    const CX2 = 3115, CY2 = 1430;
+    /* ----- 📱 CellphoneS + Thế Giới Di Động ngay cạnh VinFast ----- */
+    [['cps', 3040, 'CellphoneS'], ['tgdd', 3290, 'Thế Giới Di Động']].forEach(([k, SX, nm]) => {
+      const SY = 1430;
+      sobj(m, SX, SY, (c) => phoneStore(c, SX, SY, k), { l: -126, t: -206, w: 252, h: 218 });
+      m.objects[m.objects.length - 1].b3d = { w: 226, h: 150, roof: k === 'cps' ? '#d70018' : '#ffd400', wall: '#f8f9fa' };
+      col(m, SX - 113, SY - 34, 80, 32); col(m, SX + 33, SY - 34, 80, 32); col(m, SX - 33, SY - 34, 66, 10);
+      inter(m, { x: SX - 40, y: SY - 130, w: 80, h: 132, ax: SX, ay: SY + 30, name: `${nm} (mua điện thoại iPhone / Android)`, use: () => PHONE.shop(k), arrow: { x: SX, y: SY - 215, text: nm } });
+    });
+    const CX2 = 3545, CY2 = 1430;
     sobj(m, CX2, CY2, (c) => charger(c, CX2, CY2), { l: -80, t: -200, w: 160, h: 215 });
     m.objects[m.objects.length - 1].b3d = { w: 160, h: 196, roof: '#0ca678', wall: '#dee2e6', canopy: 1 };
     col(m, CX2 - 60, CY2 - 34, 120, 32);
@@ -1647,6 +1655,45 @@ const MAPS = (() => {
     c.fillStyle = '#e03131'; c.beginPath(); c.roundRect(x - 110, y - 190, 220, 36, 8); c.fill();
     c.fillStyle = '#fff'; c.font = '900 17px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.fillText('🚑 CẤP CỨU 24/7', x, y - 172);
     c.fillStyle = '#ced4da'; c.fillRect(x - 150, y - 4, 300, 10);
+  }
+  ART.ambulance = (c, x, y) => ambulance(c, x, y);
+  /** 📱 cửa hàng điện thoại: 'cps' = CellphoneS (đỏ), 'tgdd' = Thế Giới Di Động (vàng) */
+  function phoneStore(c, x, y, kind) {
+    const W = 226, L = x - W / 2, cps = kind === 'cps';
+    const main = cps ? '#d70018' : '#ffd400', ink = cps ? '#fff' : '#111';
+    c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(x, y + 4, W / 2 + 10, 12, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = cps ? '#f8f9fa' : '#fffdf0'; c.fillRect(L, y - 150, W, 150);
+    c.fillStyle = main; c.fillRect(L - 6, y - 196, W + 12, 50);
+    c.fillStyle = cps ? '#a50013' : '#e0b800'; c.fillRect(L - 6, y - 150, W + 12, 5);
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    if (cps) {
+      c.fillStyle = '#fff'; c.font = 'italic 900 27px "Be Vietnam Pro", system-ui'; c.fillText('CellphoneS', x, y - 172);
+    } else {
+      c.fillStyle = '#111'; c.beginPath(); c.arc(L + 22, y - 171, 15, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#ffd400'; c.beginPath(); c.arc(L + 22, y - 175, 5, 0, Math.PI * 2); c.fill(); c.beginPath(); c.ellipse(L + 22, y - 163, 9, 5, 0, Math.PI, 0); c.fill();
+      c.fillStyle = '#111'; c.font = '900 15px "Be Vietnam Pro", system-ui'; c.fillText('thegioididong', x + 14, y - 178);
+      c.font = '800 10px "Be Vietnam Pro", system-ui'; c.fillText('.com', x + 70, y - 163);
+    }
+    // tủ kính bày điện thoại
+    const glass = (gx, gw) => {
+      c.fillStyle = '#495057'; c.fillRect(gx - 2, y - 132, gw + 4, 120);
+      const gg = c.createLinearGradient(gx, y - 130, gx + gw, y - 14); gg.addColorStop(0, '#f1f3f5'); gg.addColorStop(1, '#ced4da');
+      c.fillStyle = gg; c.fillRect(gx, y - 130, gw, 116);
+      const cols = ['#212529', '#ff922b', '#a5d8ff', '#e9ecef', '#5f3dc4', '#63e6be'];
+      for (let r = 0; r < 2; r++) for (let k = 0; k < 4; k++) {
+        const px = gx + 8 + k * ((gw - 16) / 4), py = y - 118 + r * 50;
+        c.fillStyle = '#868e96'; c.fillRect(px - 2, py + 34, 18, 3);
+        c.fillStyle = cols[(k + r * 3) % 6]; c.beginPath(); c.roundRect(px, py, 14, 30, 3); c.fill();
+        c.fillStyle = '#74c0fc'; c.fillRect(px + 2, py + 3, 10, 22);
+      }
+      c.fillStyle = 'rgba(255,255,255,.45)'; c.fillRect(gx + 4, y - 128, 7, 110);
+    };
+    glass(L + 10, 70); glass(L + W - 80, 70);
+    // cửa
+    c.fillStyle = '#343a40'; c.fillRect(x - 30, y - 128, 60, 128);
+    c.fillStyle = '#d0ebff'; c.fillRect(x - 27, y - 125, 26, 125); c.fillRect(x + 1, y - 125, 26, 125);
+    c.fillStyle = main; c.beginPath(); c.roundRect(x - 26, y - 92, 52, 16, 4); c.fill();
+    c.fillStyle = ink; c.font = '900 8px "Be Vietnam Pro", system-ui'; c.fillText(cps ? 'GIẢM 3%' : 'TRẢ GÓP 0%', x, y - 84);
   }
   function ambulance(c, x, y) {
     c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(x, y + 2, 110, 12, 0, 0, Math.PI * 2); c.fill();

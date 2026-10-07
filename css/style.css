@@ -1044,3 +1044,72 @@ html, body, button, .btn, .panel, .panel-back, a, input, select, textarea, label
 .ci-full { text-align: center; }
 .ci-full img { max-width: 100%; max-height: 70vh; border-radius: 10px; }
 .img-btn { font-size: 18px; }
+
+/* ===== 📱 Điện thoại ===== */
+#btnChat { position: relative; }
+#btnChat.has-n::after { content: attr(data-n); position: absolute; top: -8px; right: -8px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 99px; background: #e03131; color: #fff; font-size: 12px; font-weight: 900; display: grid; place-items: center; border: 2px solid #fff; }
+#btnChat.ph-low { box-shadow: 0 0 0 3px #fa5252; animation: evPulse 1.2s infinite; }
+.ph-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ph-card { background: #fff; border: 2px solid #e9ecef; border-radius: 14px; padding: 10px; display: grid; gap: 3px; justify-items: center; text-align: center; }
+.ph-card b { font-size: 13px; } .ph-card small { font-size: 11px; color: #868e96; }
+.ph-price { color: #d70018; font-weight: 900; font-size: 15px; } .ph-tradein { color: #2f9e44 !important; font-weight: 800; }
+.ph-mini { width: 34px; height: 62px; border-radius: 9px; background: var(--c); padding: 3px; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+.ph-mini i { display: block; width: 100%; height: 100%; border-radius: 6px; background: linear-gradient(160deg, #74c0fc, #845ef7); }
+.ph-wrap { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.35); display: grid; place-items: center; animation: phIn .25s ease-out; }
+@keyframes phIn { from { transform: translateY(60px); opacity: 0; } }
+.ph { position: relative; width: min(330px, 86vw); height: min(660px, 84vh); background: #111; border-radius: 46px; padding: 12px; box-shadow: 0 0 0 3px var(--c), 0 20px 50px rgba(0,0,0,.5); }
+.ph.android { border-radius: 32px; padding: 9px; }
+.ph-scr { position: relative; width: 100%; height: 100%; border-radius: 36px; overflow: hidden; background: linear-gradient(170deg, #4c6ef5, #ae3ec9 55%, #f76707); display: flex; flex-direction: column; color: #fff; font-family: "Be Vietnam Pro", system-ui; }
+.ph.android .ph-scr { border-radius: 24px; background: radial-gradient(circle at 30% 20%, #1c3d7a, #0b1020 70%); }
+.ph-cut { position: absolute; z-index: 2; left: 50%; top: 20px; transform: translateX(-50%); width: 92px; height: 26px; border-radius: 20px; background: #000; }
+.ph.android .ph-cut { width: 12px; height: 12px; top: 18px; }
+.ph-sb { display: flex; justify-content: space-between; align-items: center; padding: 12px 22px 4px; font-size: 12px; font-weight: 700; min-height: 30px; }
+.ph-sb span { display: flex; align-items: center; gap: 4px; }
+.ph-isl { width: 92px; }
+.ph-bat { display: inline-block; width: 22px; height: 11px; border: 1.5px solid #fff; border-radius: 3px; padding: 1px; position: relative; }
+.ph-bat u { display: block; height: 100%; background: #fff; border-radius: 1px; }
+.ph-bat.low u { background: #ff6b6b; }
+.ph-app { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding: 6px 14px 10px; }
+.ph-widget { text-align: center; margin: 10px 0 14px; } .ph-widget b { display: block; font-size: 46px; font-weight: 300; } .ph-widget small { text-transform: capitalize; }
+.ph-search { background: rgba(255,255,255,.18); border-radius: 22px; padding: 9px 14px; font-size: 13px; margin: 8px 0 16px; }
+.ph-grid-ic { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 6px; align-content: start; flex: 1; }
+.ph-ic { border: 0; background: none; color: #fff; display: grid; justify-items: center; gap: 4px; padding: 0; cursor: pointer; }
+.ph-ic span { position: relative; width: 54px; height: 54px; border-radius: 14px; display: grid; place-items: center; font-size: 28px; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+.ph.android .ph-ic span { border-radius: 50%; }
+.ph-ic small { font-size: 11px; text-shadow: 0 1px 2px rgba(0,0,0,.5); white-space: nowrap; }
+.ph-badge { position: absolute; top: -6px; right: -6px; background: #ff3b30; color: #fff; font-style: normal; font-size: 11px; font-weight: 900; min-width: 20px; height: 20px; border-radius: 10px; display: grid; place-items: center; }
+.ph-dock { display: flex; justify-content: space-around; background: rgba(255,255,255,.25); backdrop-filter: blur(10px); border-radius: 26px; padding: 10px 4px; margin-top: 8px; }
+.ph-dock .ph-ic small { display: none; }
+.ph-nav { display: flex; justify-content: space-around; font-style: normal; opacity: .8; padding-top: 8px; } .ph-nav i { font-style: normal; font-size: 18px; }
+.ph-home { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); width: 120px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.85); cursor: pointer; }
+.ph.android .ph-home { bottom: 14px; }
+.ph-app:not(.home) { background: #f8f9fa; color: #212529; margin: 0; padding: 0 0 18px; }
+.ph-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #e9ecef; background: #fff; position: sticky; top: 0; }
+.ph-back { border: 0; background: none; color: #1c7ed6; font-weight: 800; font-size: 15px; cursor: pointer; }
+.ph-dial { padding: 10px 22px; display: grid; gap: 10px; }
+.ph-num { text-align: center; font-size: 30px; font-weight: 300; min-height: 42px; letter-spacing: 2px; }
+.ph-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; justify-items: center; }
+.ph-keys button { width: 62px; height: 62px; border-radius: 50%; border: 0; background: #e9ecef; font-size: 26px; cursor: pointer; }
+.ph-keys button:active { background: #ced4da; }
+.ph-dial-row { display: flex; justify-content: space-around; align-items: center; }
+.ph-callbtn { width: 66px; height: 66px; border-radius: 50%; border: 0; background: #34c759; font-size: 28px; cursor: pointer; }
+.ph-del { border: 0; background: none; font-size: 18px; font-weight: 800; color: #495057; cursor: pointer; width: 60px; }
+.ph-hint { text-align: center; font-size: 12px; color: #868e96; margin: 0; }
+.ph-me { padding: 12px 14px; background: #fff; display: grid; } .ph-me span { color: #1c7ed6; font-weight: 800; }
+.ph-row { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid #f1f3f5; background: #fff; }
+.ph-row div { flex: 1; display: grid; } .ph-row small { color: #868e96; }
+.ph-row button { border: 0; background: #e7f5ff; border-radius: 50%; width: 34px; height: 34px; cursor: pointer; }
+.ph-av { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(#adb5bd, #868e96); color: #fff; display: grid; place-items: center; font-weight: 900; }
+.ph-av.big { width: 96px; height: 96px; font-size: 44px; margin: 0 auto; }
+.ph-empty { text-align: center; color: #868e96; padding: 30px 16px; font-size: 13px; }
+.ph-calling { flex: 1; display: grid; align-content: center; justify-items: center; gap: 8px; text-align: center; padding: 20px; background: linear-gradient(#1b2f48, #0b1020); color: #fff; min-height: 100%; }
+.ph-app.calling { background: #0b1020; }
+.ph-calling b { font-size: 24px; } .ph-cstate { min-height: 60px; font-size: 14px; opacity: .9; }
+.ph-hang { width: 66px; height: 66px; border-radius: 50%; border: 0; background: #ff3b30; font-size: 28px; cursor: pointer; }
+.ph-wx, .ph-clock { text-align: center; padding: 18px; display: grid; gap: 8px; justify-items: center; }
+.ph-wx-big { font-size: 72px; } .ph-clock > b { font-size: 48px; font-weight: 300; }
+.ph-row2 { background: #fff; border-radius: 12px; padding: 8px 12px; width: 100%; font-size: 13px; }
+.ph-big { border: 0; border-radius: 14px; padding: 12px; width: 100%; font-weight: 900; font-size: 15px; background: #1c7ed6; color: #fff; cursor: pointer; }
+.ph-big.red { background: #e03131; }
+.ph-flash { position: fixed; inset: 0; background: #fff; z-index: 60; pointer-events: none; animation: phFlash .4s ease-out forwards; }
+@keyframes phFlash { to { opacity: 0; } }
