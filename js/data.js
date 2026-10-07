@@ -64,9 +64,7 @@ const DATA = {
     { id: 'starcape', name: 'Áo choàng sao', price: 900, sky: true },
   ],
   ARCADE: [
-    { id: 'pikachu', name: 'Pikachu', icon: '⚡', color: '#fcc419', div: 30 },
     { id: 'flappy', name: 'Flappy Bird', icon: '🐤', color: '#38bdf8', div: 0.5 },
-    { id: 'goldminer', name: 'Đào Vàng', icon: '⛏️', color: '#f59f00', div: 60 },
     { id: 'keobo', name: 'Bắt Bò', icon: '🐄', color: '#e03131', div: 60 },
   ],
   CROPS: {
@@ -370,7 +368,7 @@ DATA.ZONES = [
   { id: 'cherry', name: 'Vườn Anh Đào', icon: '🌸', x: 70, y: 64, desc: 'Cắm trại, bể bơi, chèo thuyền' },
   { id: 'sky', name: 'Đảo Trên Trời', icon: '☁️', x: 52, y: 9, desc: 'Khinh khí cầu lên mây' },
   { id: 'school', name: 'Trường học', icon: '🏫', x: 48, y: 86, desc: 'Đố vui tiếng Anh' },
-  { id: 'race', name: 'Khu Đua Xe', icon: '🏎️', x: 8, y: 48, desc: 'Đua xe với mọi người' },
+  { id: 'race', name: 'Khu Đua Xe', icon: '🏎️', x: 8, y: 48, desc: 'Đua xe 3D hoạt hình, drift ăn xu' },
 ];
 
 DATA.FISH = [

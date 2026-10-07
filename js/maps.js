@@ -2041,12 +2041,12 @@ const MAPS = (() => {
 
     sobj(m, 1320, 830, (c) => ART.startGate(c, 1320, 830), { l: -145, t: -180, w: 290, h: 186 });
     col(m, 1186, 822, 20, 10); col(m, 1434, 822, 20, 10);
-    inter(m, { x: 1180, y: 650, w: 280, h: 185, ax: 1320, ay: 850, name: 'Cổng xuất phát (vào đua)', use: () => RACE.open(), arrow: { x: 1320, y: 705, text: 'Đua xe' } });
+    inter(m, { x: 1180, y: 650, w: 280, h: 185, ax: 1320, ay: 850, name: 'Cổng xuất phát (Đua Xe 3D)', use: () => UI.race3d(), arrow: { x: 1320, y: 705, text: 'Đua xe' } });
 
-    const garage = { w: 240, wall: '#e7f5ff', roof: '#1971c2', awning: '#1864ab', sign: '🔧 GARA XE', icons: ['🏎️', '🔧'], door: '#495057' };
+    const garage = { w: 240, wall: '#fff9db', roof: '#f08c00', awning: '#e67700', sign: '🏆 BẢNG VÀNG', icons: ['🏆', '🏎️'], door: '#495057' };
     sobj(m, 300, 560, (c) => ART.building(c, 300, 560, garage));
     col(m, 180, 480, 240, 82);
-    inter(m, { x: 170, y: 380, w: 260, h: 182, ax: 300, ay: 592, name: 'Gara xe (mua xe)', use: () => UI.garage(), arrow: { x: 300, y: 485 } });
+    inter(m, { x: 170, y: 380, w: 260, h: 182, ax: 300, ay: 592, name: 'Bảng Vàng (thành tích đua xe)', use: () => UI.race3dStats(), arrow: { x: 300, y: 485, text: 'Thành tích' } });
 
     [[1700, 560, '#e03131'], [1700, 700, '#1971c2']].forEach(([x, y, c]) => { sobj(m, x, y, (cx) => ART.raceCar(cx, x, y, c), { l: -70, t: -55, w: 140, h: 70 }); col(m, x - 56, y - 14, 112, 16); });
     addLamp(m, 640, 830); addLamp(m, 1600, 830);

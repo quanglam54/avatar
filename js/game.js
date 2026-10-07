@@ -30,6 +30,8 @@
   /** Ghép bản lưu (trong máy hoặc trên mạng) với dữ liệu mặc định, nâng cấp dữ liệu cũ */
   function mergeSave(s) {
     const d = defaultState();
+    // ô tô VinFast từng lưu nhầm vào S.cars (trùng danh sách xe đua) → tách sang S.evs
+    if (s.cars && !Array.isArray(s.cars) && typeof s.cars === 'object') { s.evs = { ...(s.evs || {}), ...s.cars }; s.cars = ['basic']; }
     if (!s.tiles) {
       // chuyển dữ liệu từ ruộng cũ (10 ô) sang luống mới
       s.tiles = d.tiles;
@@ -1231,10 +1233,10 @@
   AV.buyCar = (id) => {
     const c = (DATA.CARS || []).find((x) => x.id === id);
     if (!c) return false;
-    S.cars = S.cars || {};
-    if (S.cars[id]) { UI.toast('Bạn có xe này rồi 🚗'); return false; }
+    S.evs = S.evs || {};
+    if (S.evs[id]) { UI.toast('Bạn có xe này rồi 🚗'); return false; }
     if (!AV.spend(c.price)) return false;
-    S.cars[id] = { bat: 100, at: Date.now() };
+    S.evs[id] = { bat: 100, at: Date.now() };
     changed();
     UI.updateHud();
     UI.toast(`🚗 Chúc mừng! Bạn đã sở hữu ${c.name} (pin 100%). Chọn khu trên bản đồ → chọn xe để tự lái nhé`, 5000);
@@ -1242,7 +1244,7 @@
   };
   /** 🔌 Sạc pin tới 100% ở trạm V-GREEN */
   AV.chargeCar = (id) => {
-    const st = (S.cars || {})[id], c = (DATA.CARS || []).find((x) => x.id === id);
+    const st = (S.evs || {})[id], c = (DATA.CARS || []).find((x) => x.id === id);
     if (!st || !c) return 0;
     const need = Math.ceil(100 - st.bat);
     if (need <= 0) { UI.toast('🔋 Pin đã đầy rồi'); return 0; }
@@ -2224,6 +2226,20 @@
   window.addEventListener('message', (e) => {
     const m = e.data || {};
     if (m.type === 'arcade-close') return UI.closeArcade();
+    if (m.type === 'race3d-finish') {
+      if (!UI.arcadeOpen()) return;
+      const pos = Math.max(1, Math.min(6, m.pos | 0)), diff = Math.max(0, Math.min(2, m.diff | 0)), laps = [2, 3, 5].includes(m.laps) ? m.laps : 3;
+      const coins = Math.round([100, 70, 50, 35, 25, 15][pos - 1] * [0.5, 1, 1.6][diff] * laps / 3);
+      const xp = 10 + (6 - pos) * 4;
+      S.coins += coins; addXP(xp);
+      if (pos === 1) S.race3dWins = (S.race3dWins || 0) + 1;
+      AV.quest('race');
+      if (m.time > 0 && (!S.race3dBest || m.time < S.race3dBest)) S.race3dBest = +m.time;
+      changed(); UI.updateHud();
+      UI.toast(`🏁 Về thứ ${pos} · ${['Dễ', 'Vừa', 'Khó'][diff]} · ${laps} vòng → +${coins} xu, +${xp} XP`, 5000);
+      if (pos === 1) NET.sendSys(`🏆 ${S.name} về nhất cuộc đua xe 3D (${['dễ', 'vừa', 'khó'][diff]}, ${laps} vòng)!`);
+      return;
+    }
     if (m.type !== 'arcade-score') return;
     const g = DATA.ARCADE.find((x) => x.id === m.game);
     const score = Math.max(0, Math.floor(+m.score || 0));

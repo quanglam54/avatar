@@ -513,14 +513,14 @@ const UI = (() => {
     if (!inf) return AV.travelTo(id);
     const z = DATA.ZONES.find((x) => x.id === id) || { icon: '📍', name: id };
     const bikes = (S.bikes || []).map((b) => DATA.BIKES.find((x) => x.id === b)).filter(Boolean);
-    const cars = Object.keys(S.cars || {}).map((c) => (DATA.CARS || []).find((x) => x.id === c)).filter(Boolean);
+    const cars = Object.keys(S.evs || {}).map((c) => (DATA.CARS || []).find((x) => x.id === c)).filter(Boolean);
     const ap = DATA.airportOf(id);
     const p = panel(`🚦 Đi tới ${z.icon} ${z.name}`, `
       <p class="ride-route">🛣️ ${inf.streets.map(esc).join(' → ')} <b>· ${inf.km}</b></p>
       <div class="ride-opts">
         ${AV.hasBusStop() ? '<button class="ride-opt" data-v="bus"><span>🚌</span><b>Xe buýt</b><small>Miễn phí · tới ngay</small></button>' : ''}
         <button class="ride-opt plane" data-v="plane"><span>✈️</span><b>Máy bay</b><small>100 xu · hạ cánh ${ap.code}</small></button>
-        ${cars.map((c) => { const b = Math.round(S.cars[c.id].bat), need = RIDE.batNeed(c, inf.m); return `<button class="ride-opt bike car ${b < need ? 'lowbat' : ''}" data-v="${c.id}"><canvas data-pv="${c.id}"></canvas><b>${esc(c.name)}</b><small>${b < 20 ? '🪫' : '🔋'} ${b}% · cần ${need}%</small></button>`; }).join('')}
+        ${cars.map((c) => { const b = Math.round(S.evs[c.id].bat), need = RIDE.batNeed(c, inf.m); return `<button class="ride-opt bike car ${b < need ? 'lowbat' : ''}" data-v="${c.id}"><canvas data-pv="${c.id}"></canvas><b>${esc(c.name)}</b><small>${b < 20 ? '🪫' : '🔋'} ${b}% · cần ${need}%</small></button>`; }).join('')}
         <button class="ride-opt taxi" data-v="taxi"><span>🚕</span><b>Taxi Xanh SM</b><small>${inf.fare} xu · ngồi ngắm phố</small></button>
         ${bikes.map((b) => `<button class="ride-opt bike" data-v="${b.id}"><canvas data-pv="${b.id}"></canvas><b>${esc(b.name)}</b><small>Tự lái · miễn phí</small></button>`).join('')}
         <button class="ride-opt shop" data-shop><span>🏍️</span><b>${bikes.length ? 'Mua thêm xe' : 'Mua xe máy'}</b><small>Từ ${Math.min(...DATA.BIKES.map((b) => b.price)).toLocaleString('vi-VN')} xu</small></button>
@@ -533,7 +533,7 @@ const UI = (() => {
       if (v === 'plane') { if (S.coins < 100) { toast('Không đủ xu mua vé máy bay 😢'); return; } p.close(); AV.spend(100); PLANE.fly(id, z.icon + ' ' + z.name); return; }
       const car = (DATA.CARS || []).find((c) => c.id === v);
       if (car) {
-        const b = S.cars[v].bat, need = RIDE.batNeed(car, inf.m);
+        const b = S.evs[v].bat, need = RIDE.batNeed(car, inf.m);
         if (b < need) {
           confirm(`🪫 <b>${esc(car.name)}</b> còn <b>${Math.round(b)}%</b> pin, quãng đường ${inf.km} cần khoảng <b>${need}%</b>.<br>Ra <b>trạm sạc V-GREEN</b> trước cổng nông trại để sạc nhé. Vẫn đi? (hết pin giữa đường sẽ phải gọi cứu hộ 150 xu)`, 'Vẫn đi', () => { p.close(); AV.startRide(id, v); });
           return;
@@ -573,7 +573,7 @@ const UI = (() => {
     const S = AV.S;
     const p = panel('🚗 VinFast Showroom', '', { wide: true });
     const render = () => {
-      const own = S.cars || {};
+      const own = S.evs || {};
       p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
         <div class="bike-grid">${DATA.CARS.map((c) => `<div class="bike-card car-card"><canvas data-pv="${c.id}"></canvas>
           <b>${esc(c.name)}</b><small>${esc(c.desc)}</small><small>⚡ ${Math.round(c.max / 10)} km/h · 🔋 đầy pin đi ~${c.range} km</small>
@@ -624,15 +624,15 @@ const UI = (() => {
     const S = AV.S;
     const p = panel('🔌 Trạm sạc V-GREEN', '');
     const render = (msg) => {
-      const own = Object.keys(S.cars || {}).map((id) => DATA.CARS.find((c) => c.id === id)).filter(Boolean);
+      const own = Object.keys(S.evs || {}).map((id) => DATA.CARS.find((c) => c.id === id)).filter(Boolean);
       p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · ⚡ ${DATA.CHARGE_PRICE} xu / 1% pin</div>
         ${msg ? `<p class="game-msg">${msg}</p>` : ''}
-        ${own.length ? `<div class="shop-list">${own.map((c) => { const b = Math.round(S.cars[c.id].bat); return `<div class="shop-row"><span class="ic">🚗</span><div class="info"><b>${esc(c.name)}</b>
+        ${own.length ? `<div class="shop-list">${own.map((c) => { const b = Math.round(S.evs[c.id].bat); return `<div class="shop-row"><span class="ic">🚗</span><div class="info"><b>${esc(c.name)}</b>
           <div class="bat-bar ${b <= 20 ? 'low' : ''}"><i style="width:${b}%"></i><span>${b}%</span></div></div>
           <button class="btn small" data-ch="${c.id}" ${b >= 100 ? 'disabled' : ''}>🔌 Sạc đầy · ${Math.ceil(100 - b) * DATA.CHARGE_PRICE} xu</button></div>`; }).join('')}</div>`
           : '<p class="muted">Bạn chưa có ô tô điện. Ghé <b>VinFast Showroom</b> bên cạnh để mua xe nhé!</p>'}`;
       p.body.querySelectorAll('[data-ch]').forEach((bt) => bt.onclick = () => {
-        const id = bt.dataset.ch, c = DATA.CARS.find((x) => x.id === id), from = S.cars[id].bat;
+        const id = bt.dataset.ch, c = DATA.CARS.find((x) => x.id === id), from = S.evs[id].bat;
         if (S.coins < Math.ceil(100 - from) * DATA.CHARGE_PRICE) return render('⚠️ Không đủ xu để sạc');
         bt.disabled = true;
         const bar = bt.parentElement.querySelector('.bat-bar i'), lab = bt.parentElement.querySelector('.bat-bar span');
@@ -1004,6 +1004,25 @@ const UI = (() => {
       <iframe src="arcade/games/${id}.html" title="${g.name}"></iframe>`;
     v.classList.add('show');
     v.querySelector('[data-close]').onclick = closeArcade;
+  }
+  /** 🏎️ Đua xe 3D (game Babylon.js nhúng trong khung) */
+  function race3d() {
+    const v = $('#arcadeView');
+    v.innerHTML = `<div class="arc-bar"><b>🏎️ Đua Xe 3D</b><span>Về nhất được nhiều xu nhất · độ khó & số vòng càng cao thưởng càng lớn</span><button class="tv-x" data-close>✕ Thoát</button></div>
+      <iframe src="arcade/games/race3d.html" title="Đua Xe 3D" allow="autoplay; fullscreen"></iframe>`;
+    v.classList.add('show');
+    v.querySelector('[data-close]').onclick = closeArcade;
+    setTimeout(() => { const f = v.querySelector('iframe'); if (f) f.focus(); }, 300);
+  }
+  /** cổng xuất phát: vào thẳng đua 3D */
+  function raceStart() { race3d(); }
+  /** 🏆 Bảng Vàng: thành tích đua 3D */
+  function race3dStats() {
+    const S = AV.S, t = S.race3dBest;
+    const p = panel('🏆 Bảng Vàng Đua Xe', `<div class="bk-bal"><small>Số lần về nhất</small><b>🏆 ${S.race3dWins || 0}</b><small>⏱️ Thời gian về đích nhanh nhất: ${t ? Math.floor(t / 60) + ':' + (t % 60).toFixed(2).padStart(5, '0') : 'chưa có'}</small></div>
+      <p class="muted">Thưởng mỗi ván theo thứ hạng × độ khó × số vòng: về nhất mức Vừa 3 vòng được 100 xu, mức Khó 5 vòng ~270 xu.</p>
+      <div class="row-end"><button class="btn" data-go>🏎️ Vào đua ngay</button></div>`);
+    p.body.querySelector('[data-go]').onclick = () => { p.close(); race3d(); };
   }
   function closeArcade() {
     const v = $('#arcadeView');
@@ -1782,5 +1801,5 @@ const UI = (() => {
     q('.mv-def').onclick = () => { CONCERT.playDefault(); p.close(); toast('🎞️ Đã về phim mặc định'); };
   }
 
-  return { houseUpgrade, elevator, stairsPick, flightDesk, carShop, chargeStation, moviePicker, toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
+  return { race3d, raceStart, race3dStats, houseUpgrade, elevator, stairsPick, flightDesk, carShop, chargeStation, moviePicker, toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
 })();

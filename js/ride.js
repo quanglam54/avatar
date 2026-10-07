@@ -205,7 +205,7 @@ const RIDE = (() => {
 
   /* ---------- Pin ô tô điện ---------- */
   let carDef = null, batWarn = 0, towed = false;
-  const carState = () => { const S = AV.S; S.cars = S.cars || {}; return S.cars[carDef.id] || (S.cars[carDef.id] = { bat: 100 }); };
+  const carState = () => { const S = AV.S; S.evs = S.evs || {}; return S.evs[carDef.id] || (S.evs[carDef.id] = { bat: 100 }); };
   const carBat = () => (carDef ? carState().bat : 100);
   /** % pin cần cho một quãng đường (mét) */
   const batNeed = (car, m) => Math.ceil((m / 1000) / car.range * 100);
