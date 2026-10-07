@@ -1799,7 +1799,13 @@ const UI = (() => {
       b.textContent = name + ': ';
       row.appendChild(b);
     }
-    row.appendChild(document.createTextNode(text));
+    if (typeof CHATIMG !== 'undefined' && CHATIMG.isImg(text)) {
+      const im = document.createElement('img');
+      im.className = 'chat-img'; im.src = CHATIMG.url(text); im.alt = 'ảnh'; im.loading = 'lazy';
+      im.onclick = () => CHATIMG.view(text);
+      im.onload = () => { box.scrollTop = box.scrollHeight; };
+      row.appendChild(im);
+    } else row.appendChild(document.createTextNode(text));
     box.appendChild(row);
     while (box.children.length > 30) box.firstChild.remove();
     box.scrollTop = box.scrollHeight;
@@ -1881,6 +1887,9 @@ const UI = (() => {
       $('#chatInput').value = '';
       $('#chatInput').blur();
     };
+    // 📷 gửi ảnh: nút máy ảnh hoặc dán ảnh (Ctrl+V) vào ô chat
+    if (typeof CHATIMG !== 'undefined') CHATIMG.attach($('#chatInput'), $('#imgBtn'), (u) => AV.sayImage(u), '📷 Gửi ảnh vào chat khu vực');
+    else if ($('#imgBtn')) $('#imgBtn').hidden = true;
   }
 
   /** 🎬 Rạp CGV: dán link YouTube để tự xem phim (chỉ mình bạn thấy) */

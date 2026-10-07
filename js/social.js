@@ -257,9 +257,11 @@ const SOCIAL = (() => {
       const stk = m.kind === 'chat' && g.st && STICK[g.st];
       const big = !stk && m.kind === 'chat' && !g.re && onlyEmoji(raw);
       const re = g.re && typeof g.re === 'object' ? `<div class="dm-quote" data-goto="${+g.re.id || 0}"><b>↩ ${esc(String(g.re.w || '') === S().name ? 'Bạn' : String(g.re.w || ''))}</b>${esc(snip(String(g.re.t || ''), 80))}</div>` : '';
-      return `<div class="dm-msg ${mine ? 'me' : ''} ${big ? 'big' : ''} ${stk ? 'sticker' : ''}" data-id="${m.id}" data-who="${esc(mine ? S().name : chatWith.name)}" data-t="${esc(snip(raw, 80))}">${re}${stk ? `<img class="dm-stk" src="${stickerURL(g.st)}" alt="nhãn dán">` : `<span>${esc(raw)}</span>`}<small>${time}</small><button class="dm-re" title="Trả lời" type="button">↩</button></div>`;
+      const pic = m.kind === 'chat' && typeof CHATIMG !== 'undefined' && g.img && CHATIMG.url(g.img);
+      return `<div class="dm-msg ${mine ? 'me' : ''} ${big ? 'big' : ''} ${stk || pic ? 'sticker' : ''}" data-id="${m.id}" data-who="${esc(mine ? S().name : chatWith.name)}" data-t="${esc(snip(raw, 80))}">${re}${pic ? `<img class="dm-img" src="${pic}" alt="ảnh" loading="lazy">` : stk ? `<img class="dm-stk" src="${stickerURL(g.st)}" alt="nhãn dán">` : `<span>${esc(raw)}</span>`}<small>${time}</small><button class="dm-re" title="Trả lời" type="button">↩</button></div>`;
     }).join('') : '<p class="muted">Chưa có tin nhắn nào. Chào nhau một câu đi 👋</p>';
     if (atBottom) box.scrollTop = box.scrollHeight;
+    box.querySelectorAll('.dm-img').forEach((im) => { im.onclick = () => CHATIMG.view(im.src); im.onload = () => { if (atBottom) box.scrollTop = box.scrollHeight; }; });
     box.querySelectorAll('.dm-re').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const el = b.closest('.dm-msg'); setReply({ id: +el.dataset.id, t: el.dataset.t, w: el.dataset.who }); });
     box.querySelectorAll('.dm-quote').forEach((q) => q.onclick = () => {
       const el = box.querySelector(`.dm-msg[data-id="${q.dataset.goto}"]`);
@@ -289,7 +291,7 @@ const SOCIAL = (() => {
         <div class="dm-emo">${EMOS.map((e) => `<button type="button" data-e="${e}">${e}</button>`).join('')}</div>
         <div class="dm-stks" hidden></div>
       </div>
-      <form class="dm-form" data-dm><button type="button" class="dm-emo-btn" title="Emote">😊</button><input class="field" name="t" maxlength="200" placeholder="Nhắn cho ${esc(f.name)}…" autocomplete="off"><button class="btn">Gửi</button></form>
+      <form class="dm-form" data-dm><button type="button" class="dm-emo-btn" title="Emote">😊</button><button type="button" class="dm-emo-btn dm-img-btn" title="Gửi ảnh (hoặc Ctrl+V dán ảnh)">📷</button><input class="field" name="t" maxlength="200" placeholder="Nhắn cho ${esc(f.name)}…" autocomplete="off"><button class="btn">Gửi</button></form>
       <div class="row-end"><button class="btn small ghost" data-g>🎁 Tặng quà</button></div>`, { onClose: () => { if (chatPanel === me) { chatWith = null; chatPanel = null; } } });
     const me = chatPanel;
     replyTo = null;
@@ -319,6 +321,14 @@ const SOCIAL = (() => {
       const p = a + b.dataset.e.length; i.focus(); i.setSelectionRange(p, p);
     });
     chatPanel.body.querySelector('.dm-reply-x').onclick = () => setReply(null);
+    const imgBtn = chatPanel.body.querySelector('.dm-img-btn');
+    if (typeof CHATIMG !== 'undefined') CHATIMG.attach(form.t, imgBtn, async (u) => {
+      const body = { text: '📷 Ảnh', img: u };
+      if (replyTo) body.re = { id: replyTo.id, t: snip(replyTo.t, 80), w: String(replyTo.w || '').slice(0, 16) };
+      setReply(null);
+      try { await send(f.uid, 'chat', body); await loadChat(); const box = chatPanel && chatPanel.body.querySelector('.dm-log'); if (box) box.scrollTop = box.scrollHeight; } catch (er) { UI.toast('⚠️ ' + errText(er), 4500); }
+    }, `📷 Gửi ảnh cho ${esc(f.name)}`);
+    else imgBtn.hidden = true;
     form.onsubmit = async (e) => {
       e.preventDefault();
       const t = form.t.value.trim();

@@ -239,10 +239,12 @@ const NET = (() => {
       if (text) UI.chatLog('', text, false, true);
     } else if (m.t === 'chat') {
       const r = remotes.get(m.id);
-      const text = clean(m.text, 80);
+      const isImg = typeof CHATIMG !== 'undefined' && CHATIMG.isImg(String(m.text || '').slice(0, 300));
+      const text = isImg ? String(m.text).slice(0, 300) : clean(m.text, 150);
       if (!text) return;
-      if (r) AV.showBubble(r, text);
+      if (r) AV.showBubble(r, isImg ? '📷 Gửi 1 ảnh' : text);
       UI.chatLog(clean(m.name, 16) || 'Ai đó', text, false);
+      if (isImg) { const box = document.getElementById('chatLog'); if (box) { box.classList.add('active'); setTimeout(() => { if (document.activeElement !== document.getElementById('chatInput')) box.classList.remove('active'); }, 6000); } }
     } else if (m.t === 'bye') {
       const r = remotes.get(m.id);
       if (r) { remotes.delete(m.id); renderStatus(); }

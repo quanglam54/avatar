@@ -2828,6 +2828,15 @@
 
   AV.showBubble = (ent, text) => say(ent, text);
 
+  /** gửi ảnh vào chat khu vực (link ảnh đã tải lên) */
+  AV.sayImage = (u) => {
+    if (player.hidden) return;
+    say(player, '📷 Đã gửi 1 ảnh');
+    NET.sendChat('[img]' + u);
+    UI.chatLog(S.name, '[img]' + u, true);
+    const box = document.getElementById('chatLog');
+    if (box) { box.classList.add('active'); clearTimeout(AV._imgT); AV._imgT = setTimeout(() => { if (document.activeElement !== document.getElementById('chatInput')) box.classList.remove('active'); }, 6000); }
+  };
   AV.say = (text) => {
     if (player.hidden) return;
     say(player, text);
