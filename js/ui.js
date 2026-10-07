@@ -113,6 +113,7 @@ const UI = (() => {
     const look = { ...S.look };
     let name = S.name;
     const p = panel(isNew ? '✨ Tạo nhân vật của bạn' : '👕 Tủ đồ', '', { wide: true, locked: isNew });
+    if (!isNew && typeof WARDROBE !== 'undefined') p.el.querySelector('header h3').insertAdjacentHTML('afterend', '<button class="btn small wd-mine-btn" type="button">✨ Đồ của tôi</button>'), p.el.querySelector('.wd-mine-btn').onclick = () => { p.close(); WARDROBE.mine(); };
     let timer;
     /** Chip chọn món pixel đã sở hữu (chỉ hiện khi đã mua ít nhất 1 món loại đó) */
     const pxChips = (key, label, ownKey, names, none) => {
@@ -1631,6 +1632,7 @@ const UI = (() => {
     const items = [
       ['bag', '🎒', 'Túi đồ', inventory],
       ['wear', '👕', 'Tủ đồ', () => characterEditor(false)],
+      ['mywear', '✨', 'Đồ của tôi', () => WARDROBE.mine()],
       ['map', '🗺️', 'Bản đồ', () => cityMap(false)],
       ['quest', '📜', 'Nhiệm vụ', questsPanel],
       ['social', '👥', 'Bạn bè', () => SOCIAL.open()],

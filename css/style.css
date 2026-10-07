@@ -1178,3 +1178,18 @@ html, body, button, .btn, .panel, .panel-back, a, input, select, textarea, label
 .ph-to { text-align: center; color: #868e96; font-weight: 700; }
 .ph-keys span { width: 62px; }
 .ph-card .btn + .btn { margin-top: 4px; }
+
+/* ✨ Đồ của tôi */
+.wd-mine-top { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+.wd-mine-top > div { display: grid; gap: 6px; flex: 1; min-width: 0; }
+.wd-mine-top small { color: #868e96; }
+.wd-me { width: 110px; height: 150px; flex: none; }
+.wd-favs { display: flex; gap: 6px; flex-wrap: wrap; }
+.wd-fav { display: flex; gap: 2px; }
+.wd-mine-btn { margin-left: auto; margin-right: 8px; }
+
+/* 🚜 trang trại mở rộng */
+.gh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.gh-cell { background: #f4fce3; border: 2px solid #c0eb75; border-radius: 12px; padding: 8px; display: grid; gap: 4px; text-align: center; }
+.gh-cell.ripe { border-color: #fab005; background: #fff9db; }
+.gh-cell select { font: inherit; font-size: 12px; border-radius: 8px; padding: 4px; }

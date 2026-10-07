@@ -368,7 +368,7 @@ const MAPS = (() => {
         const tx = bx + BD.padX + (k % 6) * BD.step, ty = by + BD.padY + Math.floor(k / 6) * BD.step;
         inter(m, {
           x: tx - 2, y: ty - 2, w: BD.tile + 4, h: BD.tile + 4, ax: tx + BD.tile / 2, ay: by + BD.h + 8, name: tileName,
-          use: () => AV.useTile(i), indicator: k === 0 ? () => AV.bedIndicator(bedIdx) : null, ix: bx + BD.w / 2, iy: by - 2,
+          use: () => AV.useTile(i), indicator: k === 0 ? () => AV.bedIndicator(bedIdx) : null, ix: bx + BD.w / 2, iy: by - 2, tile: i,
         });
       }
     };
@@ -571,6 +571,17 @@ const MAPS = (() => {
       obj(m, LY + 30, (c) => LOTTO.board(c, LX - 2, LY + 30), [LX - 36, LY - 56, LX + 36, LY + 32]);
       col(m, LX - 52, LY - 14, 104, 14);
       inter(m, { x: LX - 56, y: LY - 110, w: 112, h: 112, ax: LX, ay: LY + 26, name: 'Quầy Vietlott Mega 6/45 (quay mỗi 2 tiếng)', use: () => LOTTO.panel(), arrow: { x: LX, y: LY - 175, text: 'Vietlott' } });
+    }
+    /* ----- 🚜 cổng sang Trang Trại Mở Rộng ----- */
+    {
+      const RX = 4700, RY = 1430;
+      sobj(m, RX, RY, (c) => {
+        c.fillStyle = '#6b4423'; c.fillRect(RX - 70, RY - 120, 12, 120); c.fillRect(RX + 58, RY - 120, 12, 120);
+        c.fillStyle = '#2f9e44'; c.beginPath(); c.roundRect(RX - 90, RY - 168, 180, 56, 10); c.fill(); c.strokeStyle = '#1b5e20'; c.lineWidth = 4; c.stroke();
+        c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '900 15px "Be Vietnam Pro", system-ui'; c.fillText('🚜 TRANG TRẠI', RX, RY - 150); c.font = '900 12px "Be Vietnam Pro", system-ui'; c.fillText('MỞ RỘNG ➜', RX, RY - 128);
+        c.font = '30px system-ui, "Segoe UI Emoji"'; c.fillText('🦆🐝🐐🌾', RX, RY - 70);
+      }, { l: -100, t: -178, w: 200, h: 185 });
+      inter(m, { x: RX - 90, y: RY - 170, w: 180, h: 172, ax: RX, ay: RY + 28, name: 'Sang Trang Trại Mở Rộng (vịt, ong, dê, xưởng, lúa nước…)', use: () => AV.teleport('ranch', false, 220, 1300, '🚜 Sang trang trại mở rộng…'), arrow: { x: RX, y: RY - 190, text: 'Trang trại' } });
     }
     /* ----- 🧑‍🌾 biển thuê giúp việc cạnh cổng, gần bến xe buýt ----- */
     const HX2 = 1470, HY2 = 1432;
@@ -2575,7 +2586,8 @@ const MAPS = (() => {
   };
 
   Object.defineProperty(floorN, 'hidden', { value: true });
-  const all = { apt_han: () => airport('han'), apt_hph: () => airport('hph'), apt_vdo: () => airport('vdo'), apt_sgn: () => airport('sgn'), apt_pqc: () => airport('pqc'), apt_dad: () => airport('dad'), mine, hospital, clinic, home2: () => floorMap(2), home3: () => floorMap(3), home4: () => floorMap(4), farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
+  const ranch = () => RANCH.buildMap({ base, ground, obj, sobj, col, inter, paintGrass, addTree, edges });
+  const all = { apt_han: () => airport('han'), apt_hph: () => airport('hph'), apt_vdo: () => airport('vdo'), apt_sgn: () => airport('sgn'), apt_pqc: () => airport('pqc'), apt_dad: () => airport('dad'), ranch, mine, hospital, clinic, home2: () => floorMap(2), home3: () => floorMap(3), home4: () => floorMap(4), farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
   Object.defineProperty(all, 'moveGroup', { value: moveGroup, enumerable: false });
   Object.defineProperty(all, 'floorN', { value: (n) => { const m = floorN(n); halloween(m); return m; }, enumerable: false });
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });

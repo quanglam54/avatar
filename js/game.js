@@ -619,6 +619,7 @@
     if (!keys.length) return false;
     keys.forEach((k) => addItem(k, got[k]));
     AV.quest('harvest', keys.reduce((a, k) => a + got[k], 0));
+    if (typeof RANCH !== 'undefined') RANCH.onHarvest(keys);
     addXP(xp);
     float(keys.map((k) => `+${got[k]} ${DATA.CROPS[k].icon}`).join('  '), player.x, player.y - 110);
     changed();
@@ -867,6 +868,14 @@
   AV.sayMine = (text) => say(player, text);
   /* đồ rơi của sự kiện (sao băng, túi tiền, rồng con, mưa tiền): on(p) chạy khi nhặt thay cho cộng đồ */
   AV.pickups = () => map.pickups;
+  /** 🚜 máy cày: luống chín ở gần (x, y) thì gặt luôn (không tốn năng lượng) */
+  AV.tractorHarvest = (x, y) => {
+    if (VISIT || map.id !== 'farm') return;
+    const o = map.inter.find((q) => q.tile != null && Math.abs(q.ax - x) < 70 && Math.abs(q.ay - 20 - y) < 60);
+    if (!o) return;
+    const bed = bedOf(o.tile);
+    if (S.beds[bed] && bedTiles(bed).some((t) => tileState(t).stage === 2)) harvestBed(bed);
+  };
   AV.worldFx = [];
   AV.dropPickup = (x, y, icon, on, extra = {}) => { const p = { x, y, item: { id: 'ev', icon }, on, ...extra }; map.pickups.push(p); return p; };
   AV.removePickups = (fn) => { for (let k = map.pickups.length - 1; k >= 0; k--) if (fn(map.pickups[k])) map.pickups.splice(k, 1); };
@@ -3074,7 +3083,7 @@
     const ky = (keys.has('down') ? 1 : 0) - (keys.has('up') ? 1 : 0);
     if (!UI.isBlocking() && (kx || ky)) {
       const l = Math.hypot(kx, ky);
-      const spd = SPEED * (AV.isSick && AV.isSick() ? 0.55 : 1);
+      const spd = SPEED * (AV.isSick && AV.isSick() ? 0.55 : 1) * (AV.mountMul ? AV.mountMul() : 1);
       vx = kx / l * spd; vy = ky / l * spd;
       player.target = null; player.pending = null; marker = null;
     } else if (player.target) {
@@ -3084,7 +3093,7 @@
         else { player.target = null; marker = null; }
       }
       else {
-        const sp = Math.min(SPEED * (AV.isSick && AV.isSick() ? 0.55 : 1), d / dt);
+        const sp = Math.min(SPEED * (AV.isSick && AV.isSick() ? 0.55 : 1) * (AV.mountMul ? AV.mountMul() : 1), d / dt);
         vx = dx / d * sp; vy = dy / d * sp;
       }
     }
@@ -3783,6 +3792,7 @@
   ['gesturestart', 'gesturechange'].forEach((ev) => document.addEventListener(ev, (e) => e.preventDefault(), { passive: false }));
   if (typeof LOTTO !== 'undefined') LOTTO.init();
   if (typeof PHONE !== 'undefined') PHONE.init();
+  if (typeof RANCH !== 'undefined') RANCH.init();
   MUSIC.init(S.settings || {});
   SOCIAL.init();
   VOICE.init();

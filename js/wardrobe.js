@@ -560,5 +560,34 @@ const WARDROBE = (() => {
   function wearIt(id) { const S = AV.S; S.look.wear = withItem(S.look.wear, id); if (S.look.avatar === 'custom') S.look.avatar = isGirl(S.look) ? 'girl' : 'boy'; changedLook(); AV.sayMine && AV.sayMine('✨ Đồ mới nè!'); }
   function changedLook() { if (AV.markChanged) AV.markChanged(); if (AV.refreshLook) AV.refreshLook(); if (typeof NET !== 'undefined' && NET.sendState) NET.sendState(); }
 
-  return { ITEMS, parse, sanitize, active, dress, shop, isGirl, withItem };
+  /** ✨ Đồ của tôi: chỉ hiện đồ đã mua, mặc / cởi ở bất cứ đâu + 3 bộ yêu thích */
+  function mine() {
+    const S = AV.S;
+    S.owned.wear = S.owned.wear || [];
+    const p = UI.panel('✨ Đồ của tôi', '', { wide: true });
+    let cat = 'all';
+    const render = () => {
+      const cur = parse(S.look.wear), favs = S.wearFav || (S.wearFav = ['', '', '']);
+      const own = ITEMS.filter((it) => S.owned.wear.includes(it.id) && (cat === 'all' || it.slot === cat));
+      const baseLook = { ...S.look, avatar: S.look.avatar === 'custom' ? (isGirl(S.look) ? 'girl' : 'boy') : S.look.avatar };
+      const CATS = [['all', 'Tất cả'], ['full', '👗 Váy & bộ'], ['top', '👕 Áo'], ['bottom', '👖 Quần'], ['shoes', '👟 Giày']];
+      p.body.innerHTML = `<div class="wd-mine-top"><canvas class="wd-me"></canvas><div>
+          <b>Đang mặc</b><small>${[cur.full, cur.top, cur.bottom, cur.shoes].filter(Boolean).map((id) => BY[id].name).join(' · ') || 'Đồ gốc'}</small>
+          <div class="wd-favs">${favs.map((f, i) => `<div class="wd-fav"><button class="btn small ${f ? '' : 'ghost'}" data-fload="${i}" ${f ? '' : 'disabled'}>⭐ Bộ ${i + 1}</button><button class="btn small ghost" data-fsave="${i}" title="Lưu bộ đang mặc">💾</button></div>`).join('')}</div>
+          <button class="btn small ghost" data-nude>Cởi hết (về đồ gốc)</button></div></div>
+        <div class="tabs">${CATS.map(([k, l]) => `<button class="chip ${cat === k ? 'on' : ''}" data-mc="${k}">${l}</button>`).join('')}</div>
+        ${own.length ? `<div class="b-grid sets">${own.map((it) => { const on = cur[it.slot] === it.id; return `<div class="b-card set-card ${on ? 'wd-on' : ''}"><canvas data-mpv="${it.id}"></canvas><b>${it.name}</b>${on ? `<button class="btn small ghost" data-moff="${it.id}">Cởi ra</button>` : `<button class="btn small" data-mon="${it.id}">Mặc</button>`}</div>`; }).join('')}</div>`
+          : `<p class="muted">Chưa có món nào ${cat === 'all' ? '' : 'loại này '}— mua ở 👗 Tiệm Thời Trang (Khu mua sắm) → tab ✨ Thời trang 4 mùa.</p>`}`;
+      UI.drawAvatar(p.body.querySelector('.wd-me'), baseLook, { scale: 1.3 });
+      p.body.querySelectorAll('[data-mpv]').forEach((c) => UI.drawAvatar(c, { ...baseLook, wear: withItem(S.look.wear, c.dataset.mpv) }, { scale: 1.15 }));
+      p.body.querySelectorAll('[data-mc]').forEach((b) => b.onclick = () => { cat = b.dataset.mc; render(); });
+      p.body.querySelectorAll('[data-mon]').forEach((b) => b.onclick = () => { wearIt(b.dataset.mon); render(); });
+      p.body.querySelectorAll('[data-moff]').forEach((b) => b.onclick = () => { S.look.wear = without(S.look.wear, b.dataset.moff); changedLook(); render(); });
+      p.body.querySelectorAll('[data-fsave]').forEach((b) => b.onclick = () => { favs[+b.dataset.fsave] = sanitize(S.look.wear); changedLook(); UI.toast(`⭐ Đã lưu Bộ ${+b.dataset.fsave + 1}`); render(); });
+      p.body.querySelectorAll('[data-fload]').forEach((b) => b.onclick = () => { S.look.wear = sanitize(favs[+b.dataset.fload]); if (S.look.avatar === 'custom') S.look.avatar = isGirl(S.look) ? 'girl' : 'boy'; changedLook(); AV.sayMine('✨ Thay đồ!'); render(); });
+      p.body.querySelector('[data-nude]').onclick = () => { S.look.wear = ''; changedLook(); render(); };
+    };
+    render();
+  }
+  return { ITEMS, parse, sanitize, active, dress, shop, isGirl, withItem, mine, give: (id) => { const S = AV.S; S.owned.wear = S.owned.wear || []; if (BY[id] && !S.owned.wear.includes(id)) { S.owned.wear.push(id); return true; } return false; } };
 })();
