@@ -22,7 +22,7 @@ const CALL = (() => {
 .cn-voice { background: #4dabf7 !important; }
 `; document.head.appendChild(st); }
   let cur = null; // { cid, peer:{uid,name,num,username}, dir:'out'|'in', state, pc, stream, audio, timer, startAt, muted, speaker, ice:[] }
-  const send = (op, extra = {}) => { if (cur) NET.sendCall({ op, cid: cur.cid, to: cur.peer.uid, from: me(), ...extra }); };
+  const send = (op, extra = {}) => { if (cur && !cur.fake) NET.sendCall({ op, cid: cur.cid, to: cur.peer.uid, from: me(), ...extra }); };
 
   /* ---------- âm thanh: tút chờ, nhạc chuông ---------- */
   let ac = null, toneT = null;
@@ -138,6 +138,15 @@ const CALL = (() => {
   const dur = () => { const s = Math.max(0, Math.floor((Date.now() - (cur.startAt || Date.now())) / 1000)); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
   function act(a) {
     if (!cur) return;
+    if (cur.fake && (a === 'accept' || a === 'acceptv')) {
+      // cuộc gọi từ shipper / tài xế: nghe xong nói 1 câu rồi tự cúp
+      stopTone(); cur.state = 'talking'; cur.startAt = Date.now(); show();
+      const f = cur.fake; if (f.onAnswer) f.onAnswer();
+      UI.toast(`📞 ${cur.peer.name}: "${f.line}"`, 6000); AV.sayMine('📞 Dạ vâng!');
+      setTimeout(() => { if (cur && cur.fake === f) end('Đã kết thúc', true); }, 4000);
+      return;
+    }
+    if (cur.fake && a === 'reject') { const f = cur.fake; end('Đã từ chối', true); if (f.onReject) f.onReject(); return; }
     if (a === 'accept') return accept(false);
     if (a === 'acceptv') return accept(true);
     if (a === 'cam') {
@@ -309,5 +318,15 @@ const CALL = (() => {
   setInterval(() => { if (cur && cur.state === 'talking' && ov) { const s = ov.querySelector('.call-st'); if (s) s.textContent = dur(); } }, 1000);
   window.addEventListener('pagehide', () => { if (cur) send('end'); });
 
-  return { start, onSignal, busy: () => !!cur };
+  /** cuộc gọi đến giả (shipper, tài xế): peer = { name, num }, opt = { line, onAnswer, onReject, onMissed } */
+  function fakeIncoming(peer, opt) {
+    if (cur) return false;
+    const ph = AV.S.phone;
+    if (!ph || !ph.sim || ph.bat <= 0 || ph.locked) return false;
+    cur = { cid: 'fake' + Date.now(), peer: { uid: '', ...peer }, dir: 'in', state: 'incoming', ice: [], speaker: true, fake: opt };
+    show(); tone('ring');
+    cur.timer = setTimeout(() => { if (cur && cur.fake === opt && cur.state === 'incoming') { end('Cuộc gọi nhỡ', true); if (opt.onMissed) opt.onMissed(); } }, 25000);
+    return true;
+  }
+  return { start, onSignal, fakeIncoming, busy: () => !!cur };
 })();

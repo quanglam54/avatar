@@ -65,50 +65,73 @@ const ZAPPS = (() => {
     g.restore();
   }
   let busy = false;
-  /** kind: 'food' | 'bike' | 'taxi' | 'vip'. onArrive() khi giao / đón xong. pickUp = chở người */
+  /** Xe chạy dọc làn đường tới đoạn đường trước chỗ người chơi → gọi điện báo → người chơi đi ra xe.
+   *  kind: 'food' | 'bike' | 'taxi' | 'vip'. onArrive(): giao đồ / đón khách xong. pickUp = chở người đi. */
   function vehicle(kind, label, onArrive, pickUp) {
     if (busy) { UI.toast('🛵 Đang có xe trên đường tới rồi, đợi chút nhé'); return false; }
+    const P = AV.player, roadY = AV.roadY ? AV.roadY() : null;
+    const caller = { name: pickUp ? `Tài xế ${label.replace(/^\S+\s/, '')}` : 'Shipper ZenoFood', num: pickUp ? '19006868' : '19001234' };
+    const line = pickUp ? 'Xe tới rồi, bạn ra đường lên xe nhé!' : 'Đồ ăn tới rồi, bạn ra ngoài đường lấy giúp mình nhé!';
     busy = true;
-    const P = AV.player;
-    if (AV.mapIndoor()) {
-      UI.toast(`${label} đang tới cửa…`, 3500);
-      setTimeout(() => { busy = false; onArrive(); }, 4500);
+    // khu không có đường (trong nhà, khu kín…): gọi điện rồi giao tận cửa
+    if (roadY == null) {
+      UI.toast(`${label} đang tới…`, 3500);
+      setTimeout(() => {
+        const done = () => { busy = false; onArrive(); };
+        if (!(typeof CALL !== 'undefined' && CALL.fakeIncoming(caller, { line: pickUp ? 'Xe đợi ở cửa rồi nha!' : 'Mình để đồ ở cửa rồi nha!', onAnswer: () => setTimeout(done, 1500), onReject: done, onMissed: done }))) done();
+      }, 6000);
       return true;
     }
+    const mapId = AV.currentMap(), W = AV.mapW ? AV.mapW() : 3000;
     const car = kind === 'taxi' || kind === 'vip', K = car ? 1.25 : 1.45;
     const opt = { driver: car ? DRIVER.car : kind === 'food' ? DRIVER.food : DRIVER.bike, box: kind === 'food', color: kind === 'food' ? '#ff6b00' : kind === 'bike' ? '#00b14f' : kind === 'vip' ? '#212529' : '#0fb9b1', sign: kind === 'taxi' ? 'TAXI' : kind === 'vip' ? 'VIP' : '', moving: true, passenger: null };
-    const fx = { x: P.x - 1000, y: P.y + 26, w: 220, ph: 'come', t: 0 };
+    const stopX = Math.max(160, Math.min(W - 160, P.x)), fromLeft = P.x > 400 || W - P.x < 400 ? Math.random() < 0.5 || stopX > W - 400 : true;
+    const fx = { x: fromLeft ? -200 : W + 200, y: roadY, w: 240, dir: fromLeft ? 1 : -1, ph: 'come', t: 0, waitT: 0 };
+    let marker = null;
     fx.draw = (g, t) => {
-      g.save(); g.translate(fx.x, fx.y); g.scale(K, K);
+      if (AV.currentMap() !== mapId) return;
+      g.save(); g.translate(fx.x, fx.y); g.scale(K * fx.dir, K);
       (car ? drawCar : drawBike)(g, t, opt);
       g.restore();
-      if (fx.ph === 'stop') { const m = pickUp ? 'Lên xe đi bạn ơi!' : 'Đồ ăn tới rồi nè!'; g.font = '800 15px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.strokeStyle = '#2b1a10'; g.lineWidth = 4; g.strokeText(m, fx.x, fx.y - 170 * K); g.fillText(m, fx.x, fx.y - 170 * K); }
+      if (fx.ph === 'wait') { const m = pickUp ? '🚕 Xe của bạn — lại đây lên xe!' : '📦 Đồ ăn của bạn — lại lấy nhé!'; g.font = '800 15px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.strokeStyle = '#2b1a10'; g.lineWidth = 4; g.strokeText(m, fx.x, fx.y - 175 * K); g.fillText(m, fx.x, fx.y - 175 * K); }
     };
     AV.worldFx.push(fx);
-    UI.toast(`${label} đang chạy tới chỗ bạn!`, 3500);
+    UI.toast(`${label} đang chạy tới đường gần chỗ bạn — để ý điện thoại nhé!`, 4000);
+    const end = () => { const i = AV.worldFx.indexOf(fx); if (i >= 0) AV.worldFx.splice(i, 1); busy = false; if (marker) AV.removePickups((p) => p === marker); };
+    const handOver = () => {
+      if (fx.ph !== 'wait') return;
+      fx.ph = 'go'; fx.t = 0; opt.moving = true;
+      if (marker) AV.removePickups((p) => p === marker);
+      if (pickUp) { P.hidden = true; P.target = null; opt.passenger = AV.S.look; AV.sayMine('🚕 Đi thôi!'); }
+      else { onArrive(); AV.sayMine('📦 Cảm ơn anh shipper!'); }
+    };
     let last = performance.now();
-    const end = () => { const i = AV.worldFx.indexOf(fx); if (i >= 0) AV.worldFx.splice(i, 1); busy = false; };
     const step = (now) => {
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
       fx.t += dt;
       if (fx.ph === 'come') {
-        const tx = P.x - (car ? 40 : 70);
-        fx.x += Math.min(460 * dt, tx - fx.x); fx.y += (P.y + 26 - fx.y) * Math.min(1, dt * 3);
-        if (tx - fx.x < 2) { fx.ph = 'stop'; fx.t = 0; opt.moving = false; if (typeof MUSIC !== 'undefined' && MUSIC.clack) MUSIC.clack(); }
-      } else if (fx.ph === 'stop') {
-        if (fx.t > 1.3) {
-          if (pickUp) { P.hidden = true; opt.passenger = AV.S.look; } else onArrive();
-          fx.ph = 'go'; fx.t = 0; opt.moving = true;
+        const d = stopX - fx.x;
+        fx.x += Math.sign(d) * Math.min(Math.abs(d), (Math.abs(d) < 160 ? 140 : Math.abs(d) > 900 ? 900 : 460) * dt);
+        if (Math.abs(stopX - fx.x) < 2) {
+          fx.ph = 'wait'; fx.t = 0; opt.moving = false;
+          if (typeof MUSIC !== 'undefined' && MUSIC.clack) MUSIC.clack();
+          // gọi điện cho người đặt; dù nghe hay không xe vẫn đợi 3 phút
+          if (typeof CALL !== 'undefined') CALL.fakeIncoming(caller, { line });
+          if (AV.currentMap() === mapId) marker = AV.dropPickup(fx.x, fx.y + 6, pickUp ? '👋' : '📦', handOver, { big: 1 });
         }
+      } else if (fx.ph === 'wait') {
+        // người chơi đi tới gần xe (đứng trên vỉa hè / lòng đường cạnh xe) cũng tính
+        if (AV.currentMap() === mapId && !P.hidden && Math.abs(P.x - fx.x) < 110 && Math.abs(P.y - fx.y) < 90) handOver();
+        if (marker && AV.currentMap() === mapId && !AV.pickups().includes(marker)) marker = AV.dropPickup(fx.x, fx.y + 6, pickUp ? '👋' : '📦', handOver, { big: 1 });
+        if (fx.t > 180) { fx.ph = 'go'; fx.t = 0; opt.moving = true; UI.toast(pickUp ? '🚕 Đợi lâu quá, tài xế đã đi mất' : '🛵 Đợi lâu quá, shipper đã đi mất', 5000); fx.abandon = true; }
       } else {
-        fx.x += Math.min(520, 60 + fx.t * 420) * dt;
-        if (pickUp) { P.x = fx.x; P.target = null; }
-        if (fx.t > (pickUp ? 1.8 : 3)) { end(); if (pickUp) onArrive(); return; }
+        fx.x += fx.dir * Math.min(520, 80 + fx.t * 420) * dt;
+        if (pickUp && !fx.abandon) { P.x = Math.max(40, Math.min(W - 40, fx.x)); P.y = fx.y; P.target = null; }
+        if (fx.x < -260 || fx.x > W + 260 || fx.t > 6) { end(); if (pickUp && !fx.abandon) onArrive(); return; }
       }
       requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
-    setTimeout(() => { if (busy && AV.worldFx.includes(fx)) { end(); P.hidden = false; onArrive(); } }, 25000);
     return true;
   }
 

@@ -870,6 +870,9 @@
   AV.sayMine = (text) => say(player, text);
   /* đồ rơi của sự kiện (sao băng, túi tiền, rồng con, mưa tiền): on(p) chạy khi nhặt thay cho cộng đồ */
   AV.pickups = () => map.pickups;
+  /** làn đường cho xe chạy (khu có đường phố + trạm xe buýt), không có thì null */
+  AV.roadY = () => (map.busStop && !map.indoor ? (map.busY || BUS_Y) - 38 : null);
+  AV.mapW = () => map.w;
   /** 🚜 máy cày: luống chín ở gần (x, y) thì gặt luôn (không tốn năng lượng) */
   AV.tractorHarvest = (x, y) => {
     if (VISIT || map.id !== 'farm') return;
