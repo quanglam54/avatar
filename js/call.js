@@ -240,8 +240,11 @@ const CALL = (() => {
     if (c.stream) c.stream.getTracks().forEach((t) => t.stop());
     if (c.audio) { c.audio.srcObject = null; }
     if (ov) ov.querySelectorAll('video').forEach((v) => { v.srcObject = null; });
-    c.video = false;
     const talked = c.startAt ? dur() : '';
+    if (typeof PHONE !== 'undefined' && PHONE.logCall && !c.logged) {
+      c.logged = true;
+      PHONE.logCall({ num: c.peer.num, name: c.peer.name, video: c.video, dur: talked, dir: c.dir === 'out' ? 'out' : c.startAt ? 'in' : 'missed' });
+    }
     c.state = 'ended'; c.endMsg = msg + (talked ? ` · ${talked}` : '');
     show();
     beep(480, 0.25, 0.05); beep(480, 0.25, 0.05, 0.35);

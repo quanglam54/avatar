@@ -1050,12 +1050,12 @@ const RIDE = (() => {
     wheel(c, x - L * 0.3, y - 12, 13); wheel(c, x + L * 0.3, y - 12, 13);
   }
   function drawPlayerVeh(c, x, y, v, look, t, d, name, mine) {
-    const car = (DATA.CARS || []).find((q) => q.id === v);
-    if (car) {
+    const evCar = (DATA.CARS || []).find((q) => q.id === v);
+    if (evCar) {
       c.save();
-      c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(x, y - 1, car.len * 0.5, 6, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(x, y - 1, evCar.len * 0.5, 6, 0, 0, Math.PI * 2); c.fill();
       c.translate(x, 0); c.scale(d, 1); c.translate(-x, 0);
-      vfCar(c, x, y, car, look, t);
+      vfCar(c, x, y, evCar, look, t);
       c.restore();
       const top = y - 86;
       c.font = '800 13px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';

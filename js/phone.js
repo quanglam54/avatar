@@ -354,6 +354,8 @@ const PHONE = (() => {
         + `<div class="ph-grid-ic">${APPS.filter((a) => m.os === 'android' || !DOCK.includes(a.id)).map(icon).join('')}</div>`
         + (m.os === 'ios' ? `<div class="ph-dock">${DOCK.map((id) => icon(APPS.find((a) => a.id === id))).join('')}</div>` : '<div class="ph-nav"><i>|||</i><i>◯</i><i>‹</i></div>');
       if (unread) box.querySelectorAll('[data-app="msg"] span').forEach((s) => s.insertAdjacentHTML('beforeend', `<em class="ph-badge">${unread}</em>`));
+      const missed = S().phone.missedNew || 0;
+      if (missed) box.querySelectorAll('[data-app="call"] span').forEach((s) => s.insertAdjacentHTML('beforeend', `<em class="ph-badge">${missed}</em>`));
       box.querySelectorAll('[data-app]').forEach((b) => b.onclick = () => openApp(b.dataset.app));
       return;
     }
@@ -365,13 +367,30 @@ const PHONE = (() => {
       if (app === 'food') return ZAPPS.food(box, header);
       if (app === 'car') return ZAPPS.ride(box, header);
     }
+    const tabsBar = (on) => `<div class="ph-tabs"><button class="${on === 'recent' ? 'on' : ''}" data-tab="recent">🕘<small>Gần đây</small></button><button class="${on === 'contacts' ? 'on' : ''}" data-tab="contacts">👤<small>Danh bạ</small></button><button class="${on === 'call' ? 'on' : ''}" data-tab="call">⌨️<small>Bàn phím</small></button></div>`;
+    const bindTabs = () => box.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => go(b.dataset.tab));
+    if (app === 'recent') {
+      const L = callLog();
+      const when = (t) => { const d = new Date(t), n = new Date(); return d.toDateString() === n.toDateString() ? d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }); };
+      const ICON = { out: '↗️', in: '↙️', missed: '↙️' };
+      box.innerHTML = header('Gần đây').replace('<span></span>', L.length ? '<button class="ph-back" data-clear>Xoá</button>' : '<span></span>') + `<div class="ph-list ph-recents">${L.length ? L.map((e, i) => {
+        const c = contactOf(e.num), nm = c ? c.name : e.name || (e.num.length === 10 ? pretty(e.num) : e.num);
+        return `<div class="ph-row ph-rc ${e.dir === 'missed' ? 'missed' : ''}" data-rc="${i}"><span class="ph-rc-ic">${e.video ? '📹' : ICON[e.dir]}</span><div><b>${esc(nm)}${e.n > 1 ? ` (${e.n})` : ''}</b><small>${e.dir === 'missed' ? 'Cuộc gọi nhỡ' : e.dir === 'in' ? 'Cuộc gọi đến' : 'Cuộc gọi đi'}${e.dur ? ' · ' + e.dur : ''}${e.video ? ' · video' : ''}</small></div><small class="ph-rc-t">${when(e.at)}</small><button data-rcv="${i}" title="Gọi video">📹</button></div>`;
+      }).join('') : '<p class="ph-empty">Chưa có cuộc gọi nào.</p>'}</div>` + tabsBar('recent');
+      back(); bindTabs();
+      const cl = box.querySelector('[data-clear]'); if (cl) cl.onclick = () => { S().phone.log = []; render(); };
+      box.querySelectorAll('[data-rc]').forEach((r) => r.onclick = (e) => { if (e.target.closest('[data-rcv]')) return; const x = L[+r.dataset.rc]; dial(x.num, false); });
+      box.querySelectorAll('[data-rcv]').forEach((b) => b.onclick = () => dial(L[+b.dataset.rcv].num, true));
+      if (S().phone.missedNew) { S().phone.missedNew = 0; updateBtn(); }
+      return;
+    }
     if (app === 'call') {
       box.innerHTML = header('Điện thoại') + `<div class="ph-dial"><div class="ph-num"></div><button class="ph-paste" data-paste>📋 Dán số</button><div class="ph-numname"></div>
         <div class="ph-keys">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map((k) => `<button data-k="${k}">${k}</button>`).join('')}</div>
         <div class="ph-dial-row"><button class="ph-del" data-del>⌫</button><button class="ph-callbtn" data-call>📞</button><button class="ph-callbtn ph-vbtn" data-vcall title="Gọi video">📹</button><button class="ph-del" data-q>115</button></div>
         <button class="ph-addc" data-addc hidden>➕ Thêm vào danh bạ</button>
-        <p class="ph-hint">🚑 115 cấp cứu · 🚓 113 · 🚒 114${myNum() ? '' : '<br>⚠️ Chưa có SIM — chỉ gọi được số khẩn cấp'}</p></div>`;
-      back();
+        <p class="ph-hint">🚑 115 cấp cứu · 🚓 113 · 🚒 114${myNum() ? '' : '<br>⚠️ Chưa có SIM — chỉ gọi được số khẩn cấp'}</p></div>` + tabsBar('call');
+      back(); bindTabs();
       let num = dialPre || ''; dialPre = '';
       const show = () => {
         box.querySelector('.ph-num').textContent = num.length === 10 ? pretty(num) : num || ' ';
@@ -392,8 +411,8 @@ const PHONE = (() => {
       const list = contacts();
       box.innerHTML = header('Danh bạ').replace('<span></span>', '<button class="ph-back" data-new>＋</button>') + `<div class="ph-me"><b>${esc(S().name)}</b><span>${myNum() ? 'Số của tôi: ' + pretty(myNum()) : 'Chưa có SIM — mua ở CellphoneS / Thế Giới Di Động'}</span></div>
         <div class="ph-list">${list.length ? list.map((c, i) => `<div class="ph-row" data-open="${i}"><span class="ph-av">${esc((c.name || '?')[0].toUpperCase())}</span><div><b>${esc(c.name)}</b></div><span class="ph-chev">›</span></div>`).join('')
-        : '<p class="ph-empty">Danh bạ trống.<br>Bấm <b>＋</b> để lưu số, hoặc gặp người chơi khác → bấm vào họ → <b>📱 Gửi số điện thoại</b>.</p>'}</div>`;
-      back();
+        : '<p class="ph-empty">Danh bạ trống.<br>Bấm <b>＋</b> để lưu số, hoặc gặp người chơi khác → bấm vào họ → <b>📱 Gửi số điện thoại</b>.</p>'}</div>` + tabsBar('contacts');
+      back(); bindTabs();
       box.querySelector('[data-new]').onclick = () => newContact('');
       box.querySelectorAll('[data-open]').forEach((b) => b.onclick = () => { contactSel = list[+b.dataset.open]; go('contact'); });
     } else if (app === 'contact') {
@@ -470,7 +489,21 @@ const PHONE = (() => {
   }
 
   let pendingImg = '';
+  /* 🕘 lịch sử cuộc gọi (lưu trong máy, tối đa 50; gọi liên tiếp cùng số gộp lại) */
+  const callLog = () => { const ph = S().phone; if (!ph) return []; return (ph.log = ph.log || []); };
+  function logCall(e) {
+    if (!S().phone) return;
+    const L = callLog(), top = L[0];
+    e = { num: String(e.num || ''), name: e.name || '', dir: e.dir, video: !!e.video, dur: e.dur || '', at: Date.now(), n: 1 };
+    if (top && top.num === e.num && top.dir === e.dir && top.video === e.video && Date.now() - top.at < 3600e3 && !e.dur && !top.dur) { top.n = (top.n || 1) + 1; top.at = e.at; }
+    else L.unshift(e);
+    L.length = Math.min(L.length, 50);
+    if (e.dir === 'missed') { S().phone.missedNew = (S().phone.missedNew || 0) + 1; updateBtn(); }
+    if (AV.markChanged) AV.markChanged();
+    if (app === 'recent' && wrap) render();
+  }
   function openApp(id, img) {
+    if (id === 'call') return go('recent');
     if (id === 'gram' && img) { pendingImg = img; return go('gramNew'); }
     if ((id === 'food' || id === 'car') && !myNum()) return UI.toast('📶 Cần SIM có 4G để dùng ứng dụng này — mua SIM ở cửa hàng điện thoại');
 
@@ -558,6 +591,7 @@ const PHONE = (() => {
     callInfo = { num: num.length === 10 ? pretty(num) : num, name: num === '115' ? 'Cấp cứu 115' : num === '113' ? 'Công an 113' : num === '114' ? 'Cứu hoả 114' : f ? (f.name || f.username) : num === myNum() ? 'Chính bạn' : 'Số lạ', icon: num === '115' ? '🚑' : num === '113' ? '🚓' : num === '114' ? '🚒' : f ? (f.name || '?')[0].toUpperCase() : '📞', state: 'Đang gọi…', cancel: false };
     go('calling');
     S().phone.bat = Math.max(0, S().phone.bat - 1);
+    if (emergency || num === myNum()) logCall({ num, name: callInfo.name, dir: 'out', video });
     ring();
     const later = (ms, fn) => setTimeout(() => { if (!callInfo.cancel && wrap) fn(); }, ms);
     const say = (t) => { callInfo.state = t; render(); };
@@ -574,7 +608,7 @@ const PHONE = (() => {
       later(1200, () => { stopRing(); say('Máy bận — bạn đang gọi chính mình 😅'); later(2500, () => go('home')); });
     } else {
       lookup(num).then((who) => {
-        if (!who) { later(1800, () => { stopRing(); say('Số máy quý khách vừa gọi không tồn tại. Xin vui lòng kiểm tra lại.'); later(3200, () => go('home')); }); return; }
+        if (!who) { logCall({ num, name: '', dir: 'out', video }); later(1800, () => { stopRing(); say('Số máy quý khách vừa gọi không tồn tại. Xin vui lòng kiểm tra lại.'); later(3200, () => go('home')); }); return; }
         if (!f) { callInfo.name = who.name || callInfo.num; render(); }
         if (typeof CALL !== 'undefined') {
           stopRing(); close();
@@ -685,5 +719,5 @@ const PHONE = (() => {
     beep(1568, 0.12, 0.08); setTimeout(() => beep(1318, 0.12, 0.08), 140); setTimeout(() => beep(1046, 0.22, 0.08), 280);
     if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
   }
-  return { openApp, init, open, close, shop, smsTone, charge, myNum, pretty, addContact, has: () => !!model(), hasSim: () => !!myNum(), dial, ambulance };
+  return { logCall, openApp, init, open, close, shop, smsTone, charge, myNum, pretty, addContact, has: () => !!model(), hasSim: () => !!myNum(), dial, ambulance };
 })();

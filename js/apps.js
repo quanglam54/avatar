@@ -11,36 +11,99 @@ const ZAPPS = (() => {
   const NOT_READY = 'Chủ game chưa bật ZenoGram (chạy file supabase/16-zenogram.sql)';
   const missing = (e) => /zeno_|does not exist|Could not find/i.test(String((e && e.message) || ''));
 
-  /* ================= 🚗 xe chạy tới chỗ người chơi (dùng chung cho shipper & taxi) ================= */
+  /* ================= 🚗 xe có tài xế chạy tới chỗ người chơi (dùng chung cho shipper & gọi xe) ================= */
+  const DRIVER = {
+    bike: { skin: '#f1c27d', hair: 'short', hairColor: '#2b2b33', shirt: '#00b14f', shirtStyle: 'plain', pants: '#343a40', hat: 'cap', acc: 'none', pet: 'none', npc: true },
+    food: { skin: '#e3a979', hair: 'short', hairColor: '#1a1a1a', shirt: '#ff6b00', shirtStyle: 'plain', pants: '#212529', hat: 'cap', acc: 'none', pet: 'none', npc: true },
+    car: { skin: '#f8c9a2', hair: 'short', hairColor: '#2b2b33', shirt: '#0fb9b1', shirtStyle: 'plain', pants: '#212529', hat: 'none', acc: 'sunglasses', pet: 'none', npc: true },
+  };
+  const wheel = (g, x, y, r) => { g.fillStyle = '#1f1f24'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.fillStyle = '#adb5bd'; g.beginPath(); g.arc(x, y, r * 0.55, 0, 7); g.fill(); g.fillStyle = '#495057'; g.beginPath(); g.arc(x, y, r * 0.2, 0, 7); g.fill(); };
+  const person = (g, x, y, look, sc) => { try { ART.character(g, x, y, look, { scale: sc, dir: 1 }); } catch (e) { /* bỏ qua */ } };
+  /** 🛵 xe máy: tài xế lái, (passenger) ngồi sau, (box) thùng giao đồ ăn */
+  function drawBike(g, t, opt) {
+    const bob = Math.sin(t * 22) * (opt.moving ? 1.2 : 0);
+    g.fillStyle = 'rgba(0,0,0,.22)'; g.beginPath(); g.ellipse(0, 2, 70, 9, 0, 0, 7); g.fill();
+    g.save(); g.translate(0, bob);
+    wheel(g, -44, -18, 19);
+    if (opt.box) {
+      g.fillStyle = '#ff6b00'; g.beginPath(); g.roundRect(-80, -104, 50, 46, 6); g.fill(); g.strokeStyle = '#a63c00'; g.lineWidth = 2.5; g.stroke();
+      g.fillStyle = '#fff'; g.font = '900 11px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('ZENO', -55, -88); g.fillText('FOOD', -55, -74);
+    }
+    if (opt.passenger) person(g, -30, -24, opt.passenger, 0.82);
+    person(g, 4, -26, opt.driver, 0.85);
+    // thân xe phủ chân người
+    g.fillStyle = opt.color || '#e03131';
+    g.beginPath(); g.moveTo(-62, -40); g.quadraticCurveTo(-60, -60, -30, -58); g.lineTo(26, -58); g.quadraticCurveTo(46, -58, 50, -40); g.lineTo(40, -28); g.lineTo(-52, -28); g.closePath(); g.fill();
+    g.fillStyle = '#212529'; g.beginPath(); g.roundRect(-48, -66, 64, 10, 5); g.fill();
+    g.strokeStyle = '#495057'; g.lineWidth = 6; g.lineCap = 'round'; g.beginPath(); g.moveTo(40, -46); g.lineTo(52, -18); g.stroke();
+    g.strokeStyle = '#212529'; g.lineWidth = 4; g.beginPath(); g.moveTo(34, -82); g.lineTo(42, -50); g.stroke();
+    g.beginPath(); g.moveTo(26, -84); g.lineTo(42, -84); g.stroke();
+    g.fillStyle = '#fff3bf'; g.beginPath(); g.arc(50, -52, 6, 0, 7); g.fill();
+    g.fillStyle = '#868e96'; g.fillRect(-62, -34, 26, 6);
+    wheel(g, 52, -18, 19);
+    g.restore();
+  }
+  /** 🚕 ô tô: tài xế ghế trước, khách ghế sau, nhìn qua cửa kính */
+  function drawCar(g, t, opt) {
+    const bob = Math.sin(t * 18) * (opt.moving ? 1 : 0), col = opt.color || '#0fb9b1';
+    g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(0, 2, 128, 12, 0, 0, 7); g.fill();
+    g.save(); g.translate(0, bob);
+    if (opt.passenger) person(g, -34, -30, opt.passenger, 0.72);
+    person(g, 34, -30, opt.driver, 0.72);
+    // khung cabin + kính
+    g.fillStyle = 'rgba(190,230,255,.35)'; g.beginPath(); g.moveTo(-70, -78); g.lineTo(-52, -122); g.lineTo(58, -122); g.lineTo(86, -78); g.closePath(); g.fill();
+    g.strokeStyle = col; g.lineWidth = 9; g.lineJoin = 'round'; g.stroke();
+    g.beginPath(); g.moveTo(2, -122); g.lineTo(2, -78); g.stroke();
+    // thân dưới (che chân)
+    g.fillStyle = col; g.beginPath(); g.roundRect(-120, -80, 240, 54, 16); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(-112, -74, 224, 6);
+    g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 2; g.beginPath(); g.moveTo(2, -78); g.lineTo(2, -32); g.stroke();
+    g.fillStyle = '#fff3bf'; g.beginPath(); g.roundRect(108, -66, 12, 12, 3); g.fill();
+    g.fillStyle = '#ff6b6b'; g.beginPath(); g.roundRect(-120, -66, 10, 12, 3); g.fill();
+    if (opt.sign) { g.fillStyle = '#fff'; g.beginPath(); g.roundRect(-30, -142, 60, 18, 5); g.fill(); g.fillStyle = col; g.font = '900 11px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(opt.sign, 0, -133); }
+    wheel(g, -72, -24, 22); wheel(g, 72, -24, 22);
+    g.restore();
+  }
   let busy = false;
-  /** icon xe, onArrive() khi tới nơi, pickUp = đón người (ẩn nhân vật rồi chạy đi) */
-  function vehicle(icon, label, onArrive, pickUp) {
+  /** kind: 'food' | 'bike' | 'taxi' | 'vip'. onArrive() khi giao / đón xong. pickUp = chở người */
+  function vehicle(kind, label, onArrive, pickUp) {
     if (busy) { UI.toast('🛵 Đang có xe trên đường tới rồi, đợi chút nhé'); return false; }
     busy = true;
     const P = AV.player;
     if (AV.mapIndoor()) {
-      UI.toast(`${icon} ${label} đang tới cửa…`, 3500);
+      UI.toast(`${label} đang tới cửa…`, 3500);
       setTimeout(() => { busy = false; onArrive(); }, 4500);
       return true;
     }
-    const fx = { x: P.x - 1000, y: P.y + 28, ph: 'come', t: 0 };
-    fx.draw = (g, t) => { g.save(); g.translate(fx.x, fx.y + Math.sin(t * 20) * 1.2); g.scale(-1, 1); g.font = '64px system-ui, "Segoe UI Emoji"'; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillStyle = '#000'; g.fillText(icon, 0, 0); g.restore(); if (fx.ph === 'stop') { g.font = '800 14px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.strokeStyle = '#2b1a10'; g.lineWidth = 4; const m = pickUp ? 'Lên xe đi bạn ơi!' : 'Đồ ăn tới rồi nè!'; g.strokeText(m, fx.x, fx.y - 74); g.fillText(m, fx.x, fx.y - 74); } };
+    const car = kind === 'taxi' || kind === 'vip', K = car ? 1.25 : 1.45;
+    const opt = { driver: car ? DRIVER.car : kind === 'food' ? DRIVER.food : DRIVER.bike, box: kind === 'food', color: kind === 'food' ? '#ff6b00' : kind === 'bike' ? '#00b14f' : kind === 'vip' ? '#212529' : '#0fb9b1', sign: kind === 'taxi' ? 'TAXI' : kind === 'vip' ? 'VIP' : '', moving: true, passenger: null };
+    const fx = { x: P.x - 1000, y: P.y + 26, w: 220, ph: 'come', t: 0 };
+    fx.draw = (g, t) => {
+      g.save(); g.translate(fx.x, fx.y); g.scale(K, K);
+      (car ? drawCar : drawBike)(g, t, opt);
+      g.restore();
+      if (fx.ph === 'stop') { const m = pickUp ? 'Lên xe đi bạn ơi!' : 'Đồ ăn tới rồi nè!'; g.font = '800 15px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.strokeStyle = '#2b1a10'; g.lineWidth = 4; g.strokeText(m, fx.x, fx.y - 170 * K); g.fillText(m, fx.x, fx.y - 170 * K); }
+    };
     AV.worldFx.push(fx);
-    UI.toast(`${icon} ${label} đang chạy tới chỗ bạn!`, 3500);
+    UI.toast(`${label} đang chạy tới chỗ bạn!`, 3500);
     let last = performance.now();
     const end = () => { const i = AV.worldFx.indexOf(fx); if (i >= 0) AV.worldFx.splice(i, 1); busy = false; };
     const step = (now) => {
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      fx.t += dt;
       if (fx.ph === 'come') {
-        const tx = P.x - 80;
-        fx.x += Math.min(480 * dt, tx - fx.x); fx.y += (P.y + 28 - fx.y) * Math.min(1, dt * 3);
-        if (tx - fx.x < 2) { fx.ph = 'stop'; fx.t = 0; if (typeof MUSIC !== 'undefined' && MUSIC.clack) MUSIC.clack(); }
+        const tx = P.x - (car ? 40 : 70);
+        fx.x += Math.min(460 * dt, tx - fx.x); fx.y += (P.y + 26 - fx.y) * Math.min(1, dt * 3);
+        if (tx - fx.x < 2) { fx.ph = 'stop'; fx.t = 0; opt.moving = false; if (typeof MUSIC !== 'undefined' && MUSIC.clack) MUSIC.clack(); }
       } else if (fx.ph === 'stop') {
-        fx.t += dt;
-        if (fx.t > 1.4) { if (pickUp) P.hidden = true; else onArrive(); fx.ph = 'go'; }
+        if (fx.t > 1.3) {
+          if (pickUp) { P.hidden = true; opt.passenger = AV.S.look; } else onArrive();
+          fx.ph = 'go'; fx.t = 0; opt.moving = true;
+        }
       } else {
-        fx.x += 560 * dt;
-        if (fx.x > P.x + 1000) { end(); if (pickUp) onArrive(); return; }
+        fx.x += Math.min(520, 60 + fx.t * 420) * dt;
+        if (pickUp) { P.x = fx.x; P.target = null; }
+        if (fx.t > (pickUp ? 1.8 : 3)) { end(); if (pickUp) onArrive(); return; }
       }
       requestAnimationFrame(step);
     };
@@ -61,7 +124,7 @@ const ZAPPS = (() => {
       if (S().coins < it.price + SHIP) return UI.toast('Không đủ xu 😢');
       if (!AV.spend(SHIP)) return;
       PHONE.close();
-      vehicle('🛵', `Shipper ${shop.name}`, () => { AV.eat(sid, iid); UI.toast(`🛵 Đã nhận ${it.icon} ${it.name} — ăn ngon miệng nhé!`, 3500); }, false) || AV.earn(SHIP);
+      vehicle('food', `🛵 Shipper ${shop.name}`, () => { AV.eat(sid, iid); UI.toast(`🛵 Đã nhận ${it.icon} ${it.name} — ăn ngon miệng nhé!`, 3500); }, false) || AV.earn(SHIP);
     });
   }
 
@@ -78,7 +141,12 @@ const ZAPPS = (() => {
       const r = RIDES.find((x) => x.id === rideKind), z = zones.find((x) => x.id === b.dataset.z);
       if (!AV.spend(r.price)) return;
       PHONE.close();
-      vehicle(r.icon, r.name, () => { AV.player.hidden = false; AV.teleport(z.id, false, undefined, undefined, `${r.icon} ${r.name} chở bạn tới ${z.name}…`); }, true) || AV.earn(r.price);
+      const goRide = () => {
+        // chạy trên đường phố Hà Nội thật (chế độ taxi tự lái); khu chưa nối đường thì đưa thẳng tới nơi
+        if (typeof RIDE !== 'undefined' && RIDE.canRide(AV.currentMap(), z.id) && AV.startRide && AV.startRide(z.id, 'taxi')) return;
+        AV.player.hidden = false; AV.teleport(z.id, false, undefined, undefined, `${r.icon} ${r.name} chở bạn tới ${z.name}…`);
+      };
+      vehicle(r.id === 'bike' ? 'bike' : r.id, `${r.icon} ${r.name}`, goRide, true) || AV.earn(r.price);
     });
   }
 

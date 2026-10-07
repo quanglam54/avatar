@@ -3394,7 +3394,7 @@
         if (gd.hurt) ART.iconBubble(g, '🤕', gd.x, hy - 95, clock);
       } });
     });
-    (AV.worldFx || []).forEach((f) => list.push({ y: f.y, key: f, ent: true, bb: [f.x - 140, f.y - 130, f.x + 140, f.y + 20], draw: () => f.draw(g, clock) }));
+    (AV.worldFx || []).forEach((f) => list.push({ y: f.y, key: f, ent: true, bb: [f.x - (f.w || 140), f.y - (f.w ? 260 : 130), f.x + (f.w || 140), f.y + 20], draw: () => f.draw(g, clock) }));
     map.pickups.forEach((p) => { const bx = p.big ? BOX_BIG : BOX_PICK; inView(p.x, p.y) && list.push({ y: p.y, key: p, ent: true, bb: bbOf(p.x, p.y, bx), draw: () => out((c) => ART.pickup(c, p.x, p.y, p.item.icon, clock, p.big ? 40 : 22), p.x, p.y, bx, p, 120) }); });
     const petDraw = (p, kind) => list.push({ y: p.y, key: p, ent: true, bb: bbOf(p.x, p.y, FX.BOX.pet), draw: () => out((c) => ART.pet(c, p.x, p.y, kind, p.dir, p.t, p.moving), p.x, p.y, FX.BOX.pet, p) });
     // sprite pixel đã có viền sẵn → vẽ thẳng, không thêm viền mềm
