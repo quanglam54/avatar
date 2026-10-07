@@ -183,6 +183,7 @@
     if (typeof MUSIC !== 'undefined' && MUSIC.zone) MUSIC.zone(map.music || null);
     if (typeof CONCERT !== 'undefined') CONCERT.onMap(id);
     if (typeof BOX !== 'undefined') BOX.onMap(id);
+    if (AV.onLayoutMap) AV.onLayoutMap();
     applyZoom();
   }
 
@@ -2316,6 +2317,14 @@
     if (!custom && map.id !== 'home') return;
     if (swingRide) AV.leaveSwing();
     pose = custom ? { id, ...custom } : { id, ...POSES[id] };
+    if (!custom) {
+      const g = (map.movables || []).find((q) => q.key === { bed: '200_900', bath: '1170_720', seatL: '1180_520', seatR: '1180_520' }[id]);
+      if (g && (g.dx || g.dy)) {
+        const f0 = pose.front;
+        Object.assign(pose, { x: pose.x + g.dx, y: pose.y + g.dy, sortY: pose.sortY + g.dy, clipY: pose.clipY + g.dy, back: [pose.back[0] + g.dx, pose.back[1] + g.dy] });
+        if (f0) pose.front = (gg, t) => { gg.save(); gg.translate(g.dx, g.dy); f0(gg, t); gg.restore(); };
+      }
+    }
     AV.setSeatPos(pose.x, pose.y, pose.dir);
     UI.toast(`${msg} — bấm vào màn hình để đứng dậy`, 3200);
   }
@@ -2346,7 +2355,8 @@
   AV.sleep = () => { startPose('bed', '🛏️ Đang nằm ngủ'); homeActivity('lastSleep', 120, 30, '😴 Ngủ một giấc thật ngon! +30 XP', '😴 Zzz…', 'Bạn chưa buồn ngủ'); };
   AV.bathe = () => { startPose('bath', '🛁 Đang ngâm mình trong bồn'); homeActivity('lastBath', 60, 15, '🛁 Tắm xong thơm tho quá! +15 XP', '🛁 La la la~', 'Vừa tắm xong mà'); };
   AV.sitTable = () => {
-    startPose(player.x > 1180 ? 'seatR' : 'seatL', '🍽️ Ngồi vào bàn ăn');
+    const tg = (map.movables || []).find((q) => q.key === '1180_520');
+    startPose(player.x > 1180 + (tg ? tg.dx : 0) ? 'seatR' : 'seatL', '🍽️ Ngồi vào bàn ăn');
     homeActivity('lastMeal', 30, 10, '🍽️ Bữa cơm ngon miệng! +10 XP', '😋 Ngon quá!', 'Vừa ăn xong, no rồi');
   };
 
@@ -2445,6 +2455,115 @@
   AV.hugTeddy = () => homeActivity('lastHug', 20, 4, '🧸 Ôm gấu thật êm! +4 XP', '🧸💕', 'Gấu đang được giặt');
   AV.lookClock = () => { const d = new Date(); UI.toast(`🕰️ Bây giờ là ${d.getHours()} giờ ${String(d.getMinutes()).padStart(2, '0')} phút`); say(player, '⏰ Tích tắc~'); };
   AV.playConsole = () => UI.arcade(DATA.ARCADE[Math.floor(Math.random() * DATA.ARCADE.length)].id);
+  /* ---------- 🛋️ Tự sắp xếp đồ trong nhà (kéo thả) ---------- */
+  const EDIT = { on: false, sel: null, drag: null };
+  const arrangeBtn = document.createElement('button');
+  arrangeBtn.className = 'arrange-btn'; arrangeBtn.textContent = '🛋️ Sắp xếp đồ'; arrangeBtn.style.display = 'none';
+  arrangeBtn.onclick = () => AV.editLayout(!EDIT.on);
+  document.body.appendChild(arrangeBtn);
+  const editBar = document.createElement('div');
+  editBar.className = 'edit-bar';
+  editBar.innerHTML = '<span>🛋️ Bấm giữ & kéo món đồ để dời chỗ</span><button data-r>↩ Về chỗ cũ</button><button data-all>🔄 Đặt lại tất cả</button><button data-ok>✅ Xong</button>';
+  document.body.appendChild(editBar);
+  AV.onLayoutMap = () => {
+    if (map.movables) applyLayout(map);
+    if (EDIT.on) AV.editLayout(false);
+    arrangeBtn.style.display = map.movables && !VISIT ? 'block' : 'none';
+  };
+  setTimeout(() => { if (map) AV.onLayoutMap(); }, 0);
+  function layoutOf(id) { S.layout = S.layout || {}; return (S.layout[id] = S.layout[id] || {}); }
+  function applyLayout(m) {
+    const L = (S.layout || {})[m.id] || {};
+    m.movables.forEach((g) => { const o = L[g.key]; MAPS.moveGroup(g, o ? o[0] : 0, o ? o[1] : 0); });
+    AV.resetNav(m.id);
+  }
+  const visibleGroups = () => (map.movables || []).filter((g) => !g.when || g.when());
+  const gbb = (g) => [g.bb0[0] + g.dx, g.bb0[1] + g.dy, g.bb0[2] + g.dx, g.bb0[3] + g.dy];
+  function pickGroup(w) {
+    let best = null, area = Infinity;
+    for (const g of visibleGroups()) {
+      const b = gbb(g);
+      if (w.x >= b[0] && w.x <= b[2] && w.y >= b[1] && w.y <= b[3]) { const a = (b[2] - b[0]) * (b[3] - b[1]); if (a < area) { area = a; best = g; } }
+    }
+    return best;
+  }
+  function saveGroup(g) {
+    const L = layoutOf(map.id);
+    if (g.dx || g.dy) L[g.key] = [g.dx, g.dy]; else delete L[g.key];
+    AV.resetNav(map.id);
+    if (blocked(player.x, player.y)) { player.x = map.spawn.x; player.y = map.spawn.y; player.path = []; }
+    changed();
+  }
+  AV.editLayout = (on) => {
+    if (on && (!map.movables || VISIT)) return;
+    if (on && pose) AV.leavePose();
+    EDIT.on = !!on; EDIT.sel = null; EDIT.drag = null;
+    editBar.classList.toggle('show', EDIT.on);
+    arrangeBtn.classList.toggle('on', EDIT.on);
+    arrangeBtn.textContent = EDIT.on ? '✅ Xong sắp xếp' : '🛋️ Sắp xếp đồ';
+    if (EDIT.on) { player.target = null; player.path = []; player.pending = null; UI.toast('🛋️ Chế độ sắp xếp: kéo món đồ để dời, bấm ✅ Xong khi xong', 3500); }
+  };
+  editBar.querySelector('[data-ok]').onclick = () => AV.editLayout(false);
+  editBar.querySelector('[data-r]').onclick = () => { if (!EDIT.sel) return UI.toast('Chọn một món đồ trước'); MAPS.moveGroup(EDIT.sel, 0, 0); saveGroup(EDIT.sel); };
+  editBar.querySelector('[data-all]').onclick = () => UI.confirm('Đưa tất cả đồ ở tầng này về chỗ ban đầu?', 'Đặt lại', () => { (map.movables || []).forEach((g) => MAPS.moveGroup(g, 0, 0)); S.layout[map.id] = {}; AV.resetNav(map.id); changed(); });
+  /** kéo thả (trả về true nếu đã xử lý cú chạm) */
+  function editDown(w) {
+    const g = pickGroup(w);
+    if (!g) return false;
+    EDIT.sel = g; EDIT.drag = { sx: w.x, sy: w.y, dx0: g.dx, dy0: g.dy };
+    return true;
+  }
+  function editMove(w) {
+    const d = EDIT.drag, g = EDIT.sel;
+    if (!d || !g) return;
+    let dx = Math.round((d.dx0 + w.x - d.sx) / 10) * 10, dy = Math.round((d.dy0 + w.y - d.sy) / 10) * 10;
+    const b = map.bounds, bx = (g.bb0[0] + g.bb0[2]) / 2, by = g.bb0[3];
+    dx = Math.max(b.l + 10 - bx, Math.min(b.r - 10 - bx, dx));
+    dy = Math.max(b.t + 20 - by, Math.min(b.b + 25 - by, dy));
+    MAPS.moveGroup(g, dx, dy);
+  }
+  function editUp() { if (EDIT.drag && EDIT.sel) saveGroup(EDIT.sel); EDIT.drag = null; }
+  function drawEdit(g2) {
+    g2.save();
+    for (const g of visibleGroups()) {
+      const b = gbb(g), sel = g === EDIT.sel;
+      g2.setLineDash(sel ? [] : [8, 6]); g2.lineWidth = sel ? 4 : 2;
+      g2.strokeStyle = sel ? '#ffd43b' : 'rgba(255,255,255,.8)';
+      g2.strokeRect(b[0], b[1], b[2] - b[0], b[3] - b[1]);
+      if (sel) { g2.fillStyle = 'rgba(255,212,59,.15)'; g2.fillRect(b[0], b[1], b[2] - b[0], b[3] - b[1]); }
+    }
+    g2.restore();
+  }
+
+  /* ---------- 🏠 Nâng cấp nhà nhiều tầng ---------- */
+  AV.houseLv = () => Math.max(1, Math.min(4, S.house || 1));
+  AV.upgradeHouse = () => {
+    const next = DATA.HOUSE_LEVELS[AV.houseLv()];
+    if (!next) { UI.toast('🏰 Nhà bạn đã là biệt thự cao cấp nhất rồi!'); return false; }
+    if (!AV.spend(next.price)) return false;
+    S.house = next.lv;
+    changed();
+    UI.toast(`🏗️ Thợ xây xong rồi! Nhà bạn giờ là ${next.icon} ${next.name}`, 5000);
+    float(`${next.icon} ${next.name}!`, player.x, player.y - 120, '#ffd43b');
+    NET.sendSys(`🏗️ ${S.name} vừa nâng cấp nhà lên ${next.icon} ${next.name}!`);
+    return true;
+  };
+  /** lên / xuống tầng (via: 'stairs' | 'lift') */
+  AV.goFloor = (n, via) => {
+    if (n < 1 || n > AV.houseLv()) return;
+    const id = n === 1 ? 'home' : 'home' + n;
+    const lift = via === 'lift';
+    AV.teleport(id, false, lift ? 1730 : 1700, lift ? 935 : 640, lift ? `🛗 Ting! Tầng ${n}` : `🪜 ${n > AV.floor() ? 'Lên' : 'Xuống'} tầng ${n}…`);
+  };
+  AV.floor = () => (map.id === 'home' ? 1 : /^home\d$/.test(map.id) ? +map.id.slice(4) : 0);
+  AV.useStairs = () => {
+    const f = AV.floor(), top = AV.houseLv();
+    if (top < 2) return UI.houseUpgrade();
+    if (f === 1) return AV.goFloor(2, 'stairs');
+    if (f === top) return AV.goFloor(f - 1, 'stairs');
+    UI.stairsPick(f, top);
+  };
+  AV.homeAct = homeActivity;
   AV.watchTV = () => homeActivity('lastTV', 30, 8, '📺 Xem TV vui ghê! +8 XP', '📺 Phim hay quá!', 'Xem nhiều quá mỏi mắt đó');
 
   /** Rương cất đồ: chuyển vật phẩm giữa túi và rương */
@@ -2886,6 +3005,7 @@
     if (map.id === 'farm' && (dusts.length || coinFx.length)) list.push({ y: 99999, draw: () => drawBiteFx(g) });
     list.sort((a, b) => a.y - b.y);
     list.forEach((o) => o.draw(g, clock));
+    if (EDIT.on && map.movables) drawEdit(g);
     if (AV.hw() && !map.indoor) {
       const vw = W / ZOOM, vh = H / ZOOM;
       if (map.hz > 0) ART.hwBunting(g, Math.max(0, cam.x - vw / 2 - 60), Math.min(map.w, cam.x + vw / 2 + 60), map.hz - 40, clock);
@@ -3049,6 +3169,7 @@
   const DRAG_PX = 10;
   function tap(e) {
     if (UI.isBlocking() || player.hidden || fade.mode) return;
+    if (EDIT.on) return;
     if (player.fishing && player.fishing.state === 'bite') { AV.pullRod(); return; }
     if (TABLE.seated()) { TABLE.openView(); return; }
     if (BIL.seated()) { BIL.openView(); return; }
@@ -3060,6 +3181,7 @@
     // cá cắn câu: giật cần ngay khi chạm, không đợi nhấc tay
     if (player.fishing && player.fishing.state === 'bite') { AV.pullRod(); return; }
     try { canvas.setPointerCapture(e.pointerId); } catch (er) { /* bỏ qua */ }
+    if (EDIT.on && drag.pointers.size === 0 && editDown(toWorld(e.clientX, e.clientY))) { EDIT.pid = e.pointerId; return; }
     drag.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (drag.pointers.size === 2) {
       const [a, b] = [...drag.pointers.values()];
@@ -3071,6 +3193,7 @@
     Object.assign(drag, { active: true, moved: false, sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY });
   });
   canvas.addEventListener('pointermove', (e) => {
+    if (EDIT.drag && e.pointerId === EDIT.pid) { editMove(toWorld(e.clientX, e.clientY)); return; }
     if (!drag.pointers.has(e.pointerId)) return;
     drag.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (drag.pointers.size >= 2) {
@@ -3089,6 +3212,7 @@
     drag.lx = e.clientX; drag.ly = e.clientY;
   });
   const endPointer = (e, cancel) => {
+    if (EDIT.drag && e.pointerId === EDIT.pid) { editUp(); return; }
     if (!drag.pointers.has(e.pointerId)) return;
     drag.pointers.delete(e.pointerId);
     if (drag.pointers.size > 0) return;

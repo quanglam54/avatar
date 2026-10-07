@@ -12,6 +12,40 @@ const MAPS = (() => {
   /** Đồ vật chuyển động: vẽ lại mỗi khung hình, có viền */
   const aobj = (m, x, y, draw, box) => { const key = {}; m.objects.push({ y, draw: (ctx, t) => FX.drawCached(ctx, key, (c) => draw(c, t), x, y, box, 90), bb: bbOf(x, y, box) }); };
   const col = (m, x, y, w, h) => m.colliders.push({ x, y, w, h });
+  /** 🛋️ Đồ dời được: mọi hình / vật cản / chỗ bấm do fn() tạo ra thành 1 nhóm, dời cả nhóm theo (dx, dy) */
+  function mv(m, key, fn) {
+    m.movables = m.movables || [];
+    const o0 = m.objects.length, c0 = m.colliders.length, i0 = m.inter.length;
+    fn();
+    const g = { key, dx: 0, dy: 0, objs: m.objects.slice(o0), cols: m.colliders.slice(c0), ints: m.inter.slice(i0) };
+    g.objs.forEach((o) => {
+      o.y0 = o.y; o.bb0 = o.bb ? o.bb.slice() : null;
+      const d = o.draw;
+      o.draw = (ctx, t) => { if (!g.dx && !g.dy) return d(ctx, t); ctx.save(); ctx.translate(g.dx, g.dy); d(ctx, t); ctx.restore(); };
+    });
+    g.cols.forEach((c) => { c.x0 = c.x; c.y0 = c.y; });
+    g.ints.forEach((it) => { it.o0 = { x: it.x, y: it.y, ax: it.ax, ay: it.ay, ix: it.ix, iy: it.iy, ar: it.arrow ? { x: it.arrow.x, y: it.arrow.y } : null }; });
+    const bbs = g.objs.map((o) => o.bb0).filter(Boolean);
+    g.bb0 = bbs.length ? [Math.min(...bbs.map((b) => b[0])), Math.min(...bbs.map((b) => b[1])), Math.max(...bbs.map((b) => b[2])), Math.max(...bbs.map((b) => b[3]))] : null;
+    g.when = (g.cols.find((c) => c.when) || g.ints.find((i) => i.when) || {}).when || null;
+    g.name = (g.ints[0] && g.ints[0].name) || 'Đồ trang trí';
+    if (g.bb0) m.movables.push(g);
+    return g;
+  }
+  function moveGroup(g, dx, dy) {
+    g.dx = dx; g.dy = dy;
+    g.objs.forEach((o) => { o.y = o.y0 + dy; if (o.bb0) o.bb = [o.bb0[0] + dx, o.bb0[1] + dy, o.bb0[2] + dx, o.bb0[3] + dy]; });
+    g.cols.forEach((c) => { c.x = c.x0 + dx; c.y = c.y0 + dy; });
+    g.ints.forEach((it) => {
+      const o = it.o0;
+      it.x = o.x + dx; it.y = o.y + dy;
+      if (o.ax != null) it.ax = o.ax + dx;
+      if (o.ay != null) it.ay = o.ay + dy;
+      if (o.ix != null) it.ix = o.ix + dx;
+      if (o.iy != null) it.iy = o.iy + dy;
+      if (o.ar) it.arrow = { ...it.arrow, x: o.ar.x + dx, y: o.ar.y + dy };
+    });
+  }
   const inter = (m, o) => m.inter.push(o);
   const FLOWERS = ['#ff8fab', '#ffd43b', '#fff', '#da77f2'];
 
@@ -345,7 +379,10 @@ const MAPS = (() => {
     col(m, SX - 78, SY - 38, 156, 36);
     inter(m, { x: SX - 88, y: SY - 140, w: 176, h: 140, ax: SX, ay: SY + 26, name: 'Cửa hàng nông trại (mua hạt giống, phân bón, thuốc · bán đồ)', use: () => UI.seedShop(), arrow: { x: SX, y: SY - 144, text: 'Cửa hàng' } });
     const HX = 2650, KX = 2960;
-    sobj(m, HX, 720, (c) => ART.house(c, HX, 720));
+    {
+      const hsp = [1, 2, 3, 4].map((lv) => FX.sprite((c) => houseArt(c, HX, 720, lv), HX, 720, { l: -175, t: -250 - (lv - 1) * 104, w: 350, h: 262 + (lv - 1) * 104 }));
+      m.objects.push({ y: 720, bb: [HX - 175, 720 - 570, HX + 175, 732], draw: (ctx) => hsp[Math.max(1, Math.min(4, (AV.F().house || 1))) - 1](ctx) });
+    }
     col(m, HX - 102, 620, 204, 100);
     inter(m, { x: HX - 105, y: 540, w: 210, h: 180, ax: HX, ay: 748, name: 'Nhà của bạn (vào nhà)', use: () => AV.enterHome(), arrow: { x: HX, y: 635 } });
     m.labels.push({ text: '', x: HX, y: 504, dynamic: 'home' });
@@ -1654,7 +1691,7 @@ const MAPS = (() => {
 
   /* ---------- Bên trong nhà: phòng khách, bếp, phòng ngủ, sảnh, phòng tắm, kho ---------- */
   function home() {
-    const m = base('home', 'Nhà của bạn', 1600, 1000);
+    const m = base('home', 'Nhà của bạn', 1900, 1000);
     m.indoor = true;
     m.private = true;
     m.hz = 0;
@@ -1693,7 +1730,9 @@ const MAPS = (() => {
       g.fillStyle = '#ffa94d'; g.beginPath(); g.ellipse(420, 430, 160, 54, 0, 0, 7); g.fill();
       g.fillStyle = '#a61e4d'; g.fillRect(740, 900, 120, 46);
       g.fillStyle = '#3d2410'; g.fillRect(0, 960, m.w, 40); g.fillRect(0, 0, 40, m.h); g.fillRect(1560, 0, 40, m.h);
+      paintStairRoom(g);
     });
+    stairRoom(m, true);
 
     // tường ngăn phòng (có cửa thông)
     const wallH = (x1, x2, y) => { sobj(m, x1, y, (c) => ART.innerWallH(c, x1, x2, y), { l: -10, t: -70, w: x2 - x1 + 20, h: 74 }); col(m, x1, y - 14, x2 - x1, 16); };
@@ -1705,11 +1744,11 @@ const MAPS = (() => {
     const lab = (t, x, y) => m.labels.push({ text: t, x, y });
     lab('🛋️ Phòng khách', 420, 262); lab('🍳 Nhà bếp', 1180, 262); lab('🛏️ Phòng ngủ', 300, 602);
     lab('🚪 Sảnh', 800, 602); lab('🛁 Phòng tắm', 1170, 602); lab('📦 Kho đồ', 1430, 602);
-    const furn = (x, y, draw, box, cw, ch, it) => {
+    const furn = (x, y, draw, box, cw, ch, it) => mv(m, `${Math.round(x)}_${Math.round(y)}`, () => {
       sobj(m, x, y, draw, box);
       if (cw) col(m, x - cw / 2, y - ch, cw, ch);
       if (it) inter(m, { ax: x, ay: y + 26, ...it });
-    };
+    });
 
     // Phòng khách
     furn(420, 300, (c) => ART.tvSet(c, 420, 300, 0), { l: -110, t: -145, w: 220, h: 152 }, 190, 30,
@@ -1727,10 +1766,12 @@ const MAPS = (() => {
     furn(1460, 340, (c) => ART.fridge(c, 1460, 340), { l: -46, t: -170, w: 92, h: 176 }, 74, 30,
       { x: 1420, y: 175, w: 80, h: 165, name: 'Tủ lạnh (xem đồ ăn)', use: () => UI.inventory(), ay: 370 });
     // bàn ăn tách 2 lớp: ghế sau → người ngồi → mặt bàn + ghế trước
-    sobj(m, 1180, 520, (c) => ART.diningPart(c, 1180, 520, 'back'), { l: -100, t: -80, w: 200, h: 40 }, 470);
-    sobj(m, 1180, 520, (c) => ART.diningPart(c, 1180, 520, 'front'), { l: -110, t: -60, w: 220, h: 92 });
-    col(m, 1085, 470, 190, 50);
-    inter(m, { x: 1080, y: 440, w: 200, h: 110, ax: 1180, ay: 565, name: 'Bàn ăn (ngồi ăn cơm)', use: () => AV.sitTable() });
+    mv(m, '1180_520', () => {
+      sobj(m, 1180, 520, (c) => ART.diningPart(c, 1180, 520, 'back'), { l: -100, t: -80, w: 200, h: 40 }, 470);
+      sobj(m, 1180, 520, (c) => ART.diningPart(c, 1180, 520, 'front'), { l: -110, t: -60, w: 220, h: 92 });
+      col(m, 1085, 470, 190, 50);
+      inter(m, { x: 1080, y: 440, w: 200, h: 110, ax: 1180, ay: 565, name: 'Bàn ăn (ngồi ăn cơm)', use: () => AV.sitTable() });
+    });
 
     // Phòng ngủ
     furn(200, 900, (c) => ART.bedFurn(c, 200, 900), { l: -95, t: -200, w: 190, h: 210 }, 160, 170,
@@ -1750,7 +1791,7 @@ const MAPS = (() => {
       { x: 1380, y: 800, w: 100, h: 82, name: 'Rương cất đồ', use: () => UI.storage(), ay: 915, ax: 1360 });
 
     /* ----- Đồ nội thất mua thêm (chỉ hiện khi đã mua) ----- */
-    const own = (id, x, y, draw, box, cw, ch, it, opt = {}) => {
+    const own = (id, x, y, draw, box, cw, ch, it, opt = {}) => mv(m, 'own_' + id, () => {
       const has = () => AV.hasFurn(id);
       const bb = [x + box.l, y + box.t, x + box.l + box.w, y + box.t + box.h];
       if (opt.anim) { const key = {}; m.objects.push({ y: opt.sortY ?? y, bb, draw: (ctx, t) => { if (has()) FX.drawCached(ctx, key, (c) => draw(c, t), x, y, box, 90); } }); }
@@ -1758,7 +1799,8 @@ const MAPS = (() => {
       else { const spr = FX.sprite(draw, x, y, box); m.objects.push({ y: opt.sortY ?? y, bb, draw: (ctx) => { if (has()) spr(ctx); } }); }
       if (cw) m.colliders.push({ x: x - cw / 2, y: y - ch, w: cw, h: ch, when: has });
       if (it) inter(m, { ax: x, ay: y + 30, ...it, when: has });
-    };
+      if (!it && !cw) m.colliders.push({ x: x - 1, y: y - 1, w: 0, h: 0, when: has });
+    });
     own('painting', 420, 120, (c) => ART.painting(c, 420, 120), { l: -66, t: -50, w: 132, h: 88 }, 0, 0, null, { sortY: 150 });
     own('piano', 670, 560, (c) => ART.piano(c, 670, 560), { l: -80, t: -126, w: 160, h: 132 }, 150, 40,
       { x: 595, y: 440, w: 150, h: 120, name: 'Đàn piano (chơi đàn)', use: () => AV.playPiano(), ay: 590 });
@@ -1781,6 +1823,202 @@ const MAPS = (() => {
     m.spawn = { x: 800, y: 900 };
     m.bounds = { l: 56, t: 262, r: m.w - 56, b: 940 };
     return m;
+  }
+
+  /* ---------- 🏠 Nhà nhiều tầng: phòng cầu thang + thang máy (dùng chung mọi tầng) ---------- */
+  function paintStairRoom(g) {
+    g.fillStyle = '#efe6d8'; g.fillRect(1600, 20, 260, 220);
+    g.fillStyle = 'rgba(160,130,90,.25)'; for (let x = 1610; x < 1860; x += 30) g.fillRect(x, 20, 3, 220);
+    g.fillStyle = '#9c5b2e'; g.fillRect(1600, 226, 260, 14);
+    g.fillStyle = '#e9ecef'; g.fillRect(1600, 240, 260, 720);
+    g.strokeStyle = 'rgba(0,0,0,.08)'; g.lineWidth = 2;
+    for (let y = 240; y < 960; y += 60) for (let x = 1600; x < 1860; x += 60) g.strokeRect(x, y, 60, 60);
+    g.fillStyle = '#3d2410'; g.fillRect(1860, 0, 40, 1000); g.fillRect(1600, 960, 300, 40);
+    // cửa thông từ bếp + kho
+    g.fillStyle = '#d8cfc0'; g.fillRect(1560, 380, 40, 100); g.fillRect(1560, 760, 40, 100);
+  }
+  function stairRoom(m, ground) {
+    const lv = () => AV.houseLv();
+    // tường ngăn có 2 cửa
+    [[240, 380], [480, 760], [860, 960]].forEach(([a, b]) => m.colliders.push({ x: 1560, y: a, w: 40, h: b - a }));
+    m.labels.push({ text: '🪜 Cầu thang · 🛗 Thang máy', x: 1730, y: 262 });
+    // cầu thang
+    sobj(m, 1730, 600, (c) => {
+      for (let k = 0; k < 9; k++) {
+        const y = 590 - k * 34, x = 1640 + k * 20;
+        c.fillStyle = k % 2 ? '#b07a45' : '#c98a4b'; c.fillRect(x, y - 16, 170 - k * 8, 16);
+        c.fillStyle = '#7a4a26'; c.fillRect(x, y, 170 - k * 8, 6);
+      }
+      c.strokeStyle = '#495057'; c.lineWidth = 5; c.beginPath(); c.moveTo(1636, 560); c.lineTo(1810, 300); c.stroke();
+      for (let k = 0; k < 7; k++) { c.beginPath(); c.moveTo(1640 + k * 26, 560 - k * 38); c.lineTo(1640 + k * 26, 600 - k * 38); c.stroke(); }
+    }, { l: -110, t: -330, w: 240, h: 340 });
+    m.colliders.push({ x: 1640, y: 300, w: 200, h: 290 });
+    inter(m, { x: 1630, y: 290, w: 210, h: 310, ax: 1700, ay: 640, name: '🪜 Cầu thang', use: () => AV.useStairs(), arrow: { x: 1730, y: 290, text: 'Cầu thang' } });
+    // thang máy (nhà phố 3 tầng trở lên)
+    m.objects.push({ y: 905, bb: [1660, 720, 1800, 910], draw: (c) => {
+      const on = lv() >= 3;
+      c.fillStyle = '#868e96'; c.fillRect(1664, 740, 132, 166);
+      if (!on) { c.fillStyle = '#495057'; c.fillRect(1672, 750, 116, 150); c.fillStyle = '#ffd43b'; c.font = '900 13px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🛗 Thang máy', 1730, 800); c.fillStyle = '#fff'; c.font = '700 11px "Be Vietnam Pro", system-ui'; c.fillText('Nâng cấp nhà phố', 1730, 826); c.fillText('3 tầng để lắp', 1730, 842); return; }
+      const g2 = c.createLinearGradient(1672, 0, 1788, 0); g2.addColorStop(0, '#ced4da'); g2.addColorStop(0.5, '#f8f9fa'); g2.addColorStop(1, '#adb5bd');
+      c.fillStyle = g2; c.fillRect(1672, 760, 56, 142); c.fillRect(1732, 760, 56, 142);
+      c.fillStyle = '#212529'; c.fillRect(1700, 742, 60, 16);
+      c.fillStyle = '#ff6b6b'; c.font = '900 12px monospace'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(`▲ ${AV.floor() || 1}`, 1730, 750);
+      c.fillStyle = '#343a40'; c.fillRect(1800, 810, 12, 30); c.fillStyle = '#69db7c'; c.beginPath(); c.arc(1806, 818, 3, 0, 7); c.fill(); c.beginPath(); c.arc(1806, 832, 3, 0, 7); c.fill();
+    } });
+    m.colliders.push({ x: 1664, y: 870, w: 132, h: 36 });
+    inter(m, { x: 1664, y: 740, w: 132, h: 166, ax: 1730, ay: 935, name: '🛗 Thang máy', use: () => (lv() >= 3 ? UI.elevator() : UI.houseUpgrade()) });
+    if (ground) {
+      // nhà 1 tầng: phòng cầu thang khoá, bấm để xem nâng cấp
+      [[380, 480], [760, 860]].forEach(([a, b]) => m.colliders.push({ x: 1556, y: a, w: 48, h: b - a, when: () => lv() < 2 }));
+      m.objects.push({ y: 990, bb: [1556, 240, 1860, 960], draw: (c) => {
+        if (lv() >= 2) return;
+        c.fillStyle = 'rgba(30,20,10,.72)'; c.fillRect(1600, 240, 260, 720);
+        c.fillStyle = '#fff'; c.font = '900 40px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🔒', 1730, 520);
+        c.font = '900 16px "Be Vietnam Pro", system-ui'; c.fillText('Nâng cấp nhà', 1730, 570); c.fillText('để mở cầu thang', 1730, 592);
+      } });
+      inter(m, { x: 1540, y: 380, w: 70, h: 480, ax: 1520, ay: 620, name: '🏗️ Nâng cấp nhà (mở thêm tầng)', use: () => UI.houseUpgrade(), when: () => lv() < 2, arrow: { x: 1580, y: 360, text: 'Nâng cấp nhà' } });
+    }
+  }
+  /** tầng trên: n = 2 (ngủ + làm việc), 3 (karaoke + rạp phim + gym), 4 (sân thượng hồ bơi) */
+  function floorMap(n) {
+    const names = { 2: 'Tầng 2 · Phòng ngủ & làm việc', 3: 'Tầng 3 · Giải trí', 4: 'Sân thượng · Hồ bơi' };
+    const m = base('home' + n, 'Nhà của bạn · ' + names[n], 1900, 1000);
+    m.indoor = true; m.private = true; m.hz = 0;
+    const floorCol = { 2: ['#e9d3b5', 'plank'], 3: ['#2b2f3a', 'dark'], 4: ['#c69c6d', 'deck'] }[n];
+    ground(m, (g) => {
+      g.fillStyle = '#3d2410'; g.fillRect(0, 0, m.w, m.h);
+      if (n === 4) {
+        const sk = g.createLinearGradient(0, 20, 0, 240); sk.addColorStop(0, '#4dabf7'); sk.addColorStop(1, '#d0ebff');
+        g.fillStyle = sk; g.fillRect(40, 20, 1520, 220);
+        for (let i = 0; i < 22; i++) { const bh = 50 + (i * 37) % 110, bx = 50 + i * 70; g.fillStyle = i % 2 ? '#a5b4c8' : '#8fa3bb'; g.fillRect(bx, 240 - bh, 58, bh); g.fillStyle = 'rgba(255,255,255,.4)'; for (let wy = 240 - bh + 8; wy < 232; wy += 14) g.fillRect(bx + 8, wy, 40, 5); }
+        g.fillStyle = '#dee2e6'; g.fillRect(40, 226, 1520, 14);
+      } else {
+        g.fillStyle = n === 3 ? '#3b2a4a' : '#f3e5d0'; g.fillRect(40, 20, 1520, 220);
+        if (n === 3) { for (let i = 0; i < 40; i++) { g.fillStyle = ['#f783ac', '#74c0fc', '#ffd43b', '#b197fc'][i % 4]; g.beginPath(); g.arc(60 + i * 38, 40 + (i * 53) % 170, 3, 0, 7); g.fill(); } }
+        else { g.fillStyle = 'rgba(200,160,110,.25)'; for (let x = 50; x < 1560; x += 46) g.fillRect(x, 20, 20, 220); }
+        g.fillStyle = '#9c5b2e'; g.fillRect(40, 226, 1520, 14);
+        [[260, 60], [1080, 60]].forEach(([x, y]) => { g.fillStyle = '#7a4520'; g.fillRect(x - 6, y - 6, 172, 112); const sk = g.createLinearGradient(0, y, 0, y + 100); sk.addColorStop(0, n === 3 ? '#1b2f48' : '#74c0fc'); sk.addColorStop(1, n === 3 ? '#3b5bdb' : '#d0ebff'); g.fillStyle = sk; g.fillRect(x, y, 160, 100); g.fillStyle = '#fff'; g.fillRect(x + 78, y, 4, 100); });
+      }
+      g.fillStyle = floorCol[0]; g.fillRect(40, 240, 1520, 720);
+      g.strokeStyle = 'rgba(0,0,0,.12)'; g.lineWidth = 2;
+      if (floorCol[1] === 'plank' || floorCol[1] === 'deck') for (let y = 262; y < 960; y += 22) { g.beginPath(); g.moveTo(40, y); g.lineTo(1560, y); g.stroke(); }
+      if (floorCol[1] === 'dark') for (let y = 240; y < 960; y += 60) for (let x = 40; x < 1560; x += 60) { if (((x + y) / 60) % 2) { g.fillStyle = '#343a46'; g.fillRect(x, y, 60, 60); } }
+      g.fillStyle = '#3d2410'; g.fillRect(0, 960, m.w, 40); g.fillRect(0, 0, 40, m.h); g.fillRect(1560, 0, 40, m.h);
+      paintStairRoom(g);
+    });
+    stairRoom(m, false);
+    const furn = (x, y, draw, box, cw, ch, it) => mv(m, `${Math.round(x)}_${Math.round(y)}`, () => { sobj(m, x, y, draw, box); if (cw) col(m, x - cw / 2, y - ch, cw, ch); if (it) inter(m, { ax: x, ay: y + 26, ...it }); });
+    const lab = (t, x, y) => m.labels.push({ text: t, x, y });
+    const act = (key, min, xp, msg, bubble, wait) => () => AV.homeAct(key, min, xp, msg, bubble, wait);
+    if (n === 2) {
+      lab('🛏️ Phòng ngủ master', 420, 262); lab('💼 Phòng làm việc', 1180, 262);
+      sobj(m, 800, 960, (c) => ART.innerWallV(c, 800, 240, 520), { l: -16, t: -790, w: 32, h: 794 }); col(m, 790, 240, 20, 280);
+      sobj(m, 800, 960, (c) => ART.innerWallV(c, 800, 680, 960), { l: -16, t: -350, w: 32, h: 354 }); col(m, 790, 680, 20, 280);
+      g2Rug(m, 400, 640);
+      furn(300, 620, (c) => { c.save(); c.translate(300, 620); c.scale(1.35, 1.35); c.translate(-300, -620); ART.bedFurn(c, 300, 620); c.restore(); }, { l: -135, t: -280, w: 270, h: 290 }, 220, 230,
+        { x: 180, y: 360, w: 240, h: 260, name: 'Giường master (ngủ)', use: act('lastSleep2', 120, 30, '😴 Ngủ trên giường master êm ái! +30 XP', '😴 Zzz…', 'Bạn chưa buồn ngủ'), ax: 470, ay: 600 });
+      furn(640, 420, (c) => ART.wardrobe(c, 640, 420), { l: -60, t: -180, w: 120, h: 186 }, 108, 30, { x: 585, y: 250, w: 110, h: 170, name: 'Tủ quần áo (thay đồ)', use: () => UI.characterEditor(false), ay: 450 });
+      furn(500, 400, (c) => ART.nightstand(c, 500, 400), { l: -30, t: -92, w: 60, h: 96 }, 48, 20);
+      furn(120, 900, (c) => ART.plantPot(c, 120, 900), { l: -30, t: -95, w: 60, h: 100 }, 34, 14);
+      furn(1000, 420, (c) => { c.save(); c.translate(1000, 420); c.scale(2.4, 2.4); c.translate(-1000, -420); ART.desk(c, 1000, 420); c.restore(); }, { l: -90, t: -110, w: 180, h: 120 }, 160, 40,
+        { x: 920, y: 320, w: 170, h: 110, name: 'Bàn làm việc (làm việc chăm chỉ)', use: act('lastWork', 60, 15, '💼 Làm việc chăm chỉ! +15 XP', '💻 Gõ phím lạch cạch…', 'Làm nhiều quá rồi, nghỉ chút đi'), ay: 460 });
+      furn(1450, 400, (c) => ART.bookshelf(c, 1450, 400), { l: -56, t: -160, w: 112, h: 166 }, 96, 24);
+      furn(1200, 820, (c) => ART.sofa(c, 1200, 820, '#2f9e44'), { l: -125, t: -85, w: 250, h: 92 }, 230, 36,
+        { x: 1080, y: 740, w: 240, h: 85, name: 'Sofa (nghỉ ngơi)', use: act('lastSofa2', 30, 6, '🛋️ Ngả lưng thư giãn! +6 XP', '😌 Thoải mái quá', 'Vừa nghỉ xong mà') });
+      furn(1480, 900, (c) => ART.floorLamp(c, 1480, 900), { l: -40, t: -152, w: 80, h: 158 }, 30, 12);
+    } else if (n === 3) {
+      lab('🎤 Karaoke', 300, 262); lab('🎬 Rạp phim mini', 900, 262); lab('🏋️ Phòng gym', 1380, 262);
+      // karaoke: sân khấu + loa + đèn
+      m.objects.push({ y: 470, bb: [80, 260, 560, 480], draw: (c, t) => {
+        c.fillStyle = '#5f3dc4'; c.fillRect(100, 380, 400, 80); c.fillStyle = '#7048e8'; c.fillRect(100, 372, 400, 12);
+        for (let k = 0; k < 6; k++) { c.fillStyle = `hsl(${(t * 90 + k * 60) % 360},90%,60%)`; c.beginPath(); c.arc(130 + k * 68, 300, 10, 0, 7); c.fill(); }
+        c.fillStyle = '#212529'; c.fillRect(110, 300, 50, 80); c.fillRect(440, 300, 50, 80);
+        [135, 465].forEach((x) => { c.fillStyle = '#495057'; c.beginPath(); c.arc(x, 330, 14 + Math.abs(Math.sin(t * 8)) * 2, 0, 7); c.fill(); c.beginPath(); c.arc(x, 362, 8, 0, 7); c.fill(); });
+        c.fillStyle = '#868e96'; c.fillRect(298, 330, 4, 50); c.fillStyle = '#212529'; c.beginPath(); c.arc(300, 326, 7, 0, 7); c.fill();
+        c.fillStyle = '#111'; c.fillRect(220, 270, 160, 50); c.fillStyle = '#69db7c'; c.font = '900 13px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('♪ Hát cùng Quang Lâm ♪', 300, 295);
+      } });
+      col(m, 100, 380, 400, 80);
+      inter(m, { x: 100, y: 260, w: 400, h: 200, ax: 300, ay: 500, name: 'Sân khấu karaoke (hát)', use: act('lastSing', 30, 10, '🎤 Hát karaoke cực sung! +10 XP', '🎤 Lalala~ ♪', 'Hát nhiều quá khản giọng rồi') });
+      // rạp phim mini: màn chiếu (video thật) + 2 dãy ghế + máy chọn phim
+      m.screen = { video: 'iRjt1n3mkN4', x: 700, y: 40, w: 400, h: 190, tap: '▶ Bấm để xem phim' };
+      obj(m, 0, (c) => { c.fillStyle = '#000'; c.fillRect(694, 34, 412, 202); }, [690, 30, 1110, 240]);
+      [560, 680].forEach((y, r) => { sobj(m, 900, y, (c) => CONCERT.seats(c, 760, 1040, y), { l: -170, t: -60, w: 340, h: 66 }, y - 40); col(m, 740, y - 52, 320, 24); inter(m, { x: 740, y: y - 62, w: 320, h: 62, ax: 900, ay: y + 20, name: 'Ghế rạp mini (ngồi xem phim)', use: () => AV.sitSeat(760, 1040, y, '🎬 Ngồi xem phim — bấm nơi khác để đứng dậy', (g) => CONCERT.seatsFront(g, 760, 1040, y)) }); });
+      furn(1100, 900, (c) => { c.fillStyle = '#1c7ed6'; c.beginPath(); c.roundRect(1040, 830, 120, 70, 10); c.fill(); c.fillStyle = '#fff'; c.font = '900 13px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🎬 CHỌN PHIM', 1100, 865); }, { l: -65, t: -75, w: 130, h: 80 }, 120, 30,
+        { x: 1040, y: 830, w: 120, h: 70, name: 'Máy chọn phim (dán link YouTube)', use: () => UI.moviePicker(), ay: 930 });
+      // gym
+      m.objects.push({ y: 560, bb: [1220, 380, 1540, 570], draw: (c, t) => {
+        c.fillStyle = '#343a40'; c.fillRect(1240, 520, 150, 34); c.fillStyle = '#495057'; for (let k = 0; k < 6; k++) c.fillRect(1250 + ((k * 26 + t * 120) % 140), 526, 12, 22);
+        c.fillStyle = '#868e96'; c.fillRect(1370, 430, 8, 100); c.fillStyle = '#212529'; c.fillRect(1356, 420, 40, 20);
+        c.fillStyle = '#495057'; c.fillRect(1440, 470, 90, 8); [1440, 1530].forEach((x) => { c.fillStyle = '#212529'; c.beginPath(); c.arc(x, 474, 16, 0, 7); c.fill(); });
+      } });
+      col(m, 1240, 520, 150, 34); col(m, 1420, 455, 130, 30);
+      inter(m, { x: 1230, y: 400, w: 320, h: 160, ax: 1320, ay: 600, name: 'Máy chạy bộ & tạ (tập gym)', use: act('lastGym', 45, 12, '🏋️ Tập gym khoẻ người! +12 XP', '💪 Hây dô!', 'Tập nhiều quá mỏi cơ rồi') });
+    } else {
+      lab('🏊 Hồ bơi vô cực', 520, 262); lab('🍢 BBQ', 1200, 262); lab('🚁 Bãi đáp', 1300, 700);
+      // hồ bơi
+      m.objects.push({ y: 300, bb: [120, 300, 940, 560], draw: (c, t) => {
+        c.fillStyle = '#f8f9fa'; c.fillRect(120, 300, 820, 250);
+        const w = c.createLinearGradient(0, 314, 0, 540); w.addColorStop(0, '#74c0fc'); w.addColorStop(1, '#1c7ed6');
+        c.fillStyle = w; c.fillRect(134, 314, 792, 222);
+        c.strokeStyle = 'rgba(255,255,255,.5)'; c.lineWidth = 3;
+        for (let k = 0; k < 6; k++) { c.beginPath(); const y = 340 + k * 34; for (let x = 140; x < 920; x += 20) c.lineTo(x, y + Math.sin(x * 0.03 + t * 2 + k) * 4); c.stroke(); }
+      } });
+      col(m, 120, 300, 820, 250);
+      inter(m, { x: 120, y: 300, w: 820, h: 250, ax: 520, ay: 590, name: 'Hồ bơi vô cực (bơi thư giãn)', use: act('lastPool', 60, 15, '🏊 Bơi ở hồ vô cực ngắm thành phố! +15 XP', '🏊 Mát quá!', 'Vừa bơi xong mà') });
+      [[260, 700], [520, 700], [780, 700]].forEach(([x, y]) => mv(m, `${x}_${y}`, () => { sobj(m, x, y, (c) => { c.fillStyle = '#fff'; c.beginPath(); c.roundRect(x - 60, y - 24, 120, 20, 8); c.fill(); c.fillStyle = '#ff8787'; c.fillRect(x - 56, y - 22, 112, 6); ART.umbrella(c, x + 70, y + 10, '#ff6b6b'); }, { l: -70, t: -140, w: 180, h: 150 }); col(m, x - 60, y - 24, 120, 20);
+        inter(m, { x: x - 60, y: y - 50, w: 120, h: 50, ax: x, ay: y + 20, name: 'Ghế tắm nắng (nằm nghỉ)', use: () => { const g = (AV.debugMap().movables || []).find((q) => q.key === `${x}_${y}`) || { dx: 0, dy: 0 }; AV.sitSeat(x - 30 + g.dx, x + 30 + g.dx, y + g.dy, '😎 Tắm nắng trên sân thượng'); } }); }));
+      furn(1200, 470, (c) => { c.fillStyle = '#343a40'; c.beginPath(); c.roundRect(1130, 410, 140, 50, 10); c.fill(); c.fillStyle = '#ff922b'; for (let k = 0; k < 6; k++) { c.beginPath(); c.arc(1150 + k * 20, 420, 6, 0, 7); c.fill(); } c.fillStyle = '#868e96'; c.fillRect(1140, 460, 8, 40); c.fillRect(1252, 460, 8, 40); }, { l: -80, t: -80, w: 160, h: 100 }, 140, 40,
+        { x: 1130, y: 380, w: 140, h: 120, name: 'Bếp BBQ sân thượng', use: () => UI.eateryPanel('camp_bbq'), ay: 530 });
+      furn(1460, 480, (c) => { c.strokeStyle = '#495057'; c.lineWidth = 5; c.beginPath(); c.moveTo(1460, 480); c.lineTo(1440, 430); c.moveTo(1460, 480); c.lineTo(1480, 430); c.stroke(); c.fillStyle = '#1b2f48'; c.save(); c.translate(1460, 420); c.rotate(-0.6); c.fillRect(-40, -10, 80, 20); c.restore(); }, { l: -60, t: -100, w: 120, h: 110 }, 40, 20,
+        { x: 1410, y: 380, w: 100, h: 100, name: 'Kính thiên văn (ngắm sao)', use: act('lastStar', 60, 10, '🔭 Ngắm sao trên sân thượng thật lãng mạn! +10 XP', '✨ Đẹp quá!', 'Vừa ngắm xong mà'), ay: 520 });
+      m.objects.push({ y: 700, bb: [1180, 740, 1420, 900], draw: (c) => { c.fillStyle = '#495057'; c.beginPath(); c.arc(1300, 820, 80, 0, 7); c.fill(); c.strokeStyle = '#ffd43b'; c.lineWidth = 6; c.beginPath(); c.arc(1300, 820, 64, 0, 7); c.stroke(); c.fillStyle = '#fff'; c.font = '900 64px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('H', 1300, 824); } });
+      [[100, 900], [960, 900], [1520, 300]].forEach(([x, y]) => furn(x, y, (c) => ART.palmPot(c, x, y), { l: -50, t: -130, w: 100, h: 136 }, 40, 16));
+      m.lights = [[520, 420, 200], [1300, 820, 120]];
+    }
+    m.spawn = { x: 1700, y: 640 };
+    m.bounds = { l: 56, t: 262, r: m.w - 56, b: 940 };
+    return m;
+  }
+  function g2Rug(m, x, y) { obj(m, 245, (c) => { c.fillStyle = '#c2255c'; c.beginPath(); c.ellipse(x, y, 260, 120, 0, 0, 7); c.fill(); c.fillStyle = '#f06595'; c.beginPath(); c.ellipse(x, y, 225, 98, 0, 0, 7); c.fill(); }, [x - 260, y - 120, x + 260, y + 120]); }
+  /** Nhà ngoài nông trại theo cấp: 1 = nhà cấp 4, 2–3 = nhà nhiều tầng, 4 = biệt thự */
+  function houseArt(c, x, y, lv) {
+    if (lv <= 1) return ART.house(c, x, y);
+    const W2 = lv === 4 ? 300 : 230, FH = 104, L = x - W2 / 2;
+    c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(x, y + 4, W2 / 2 + 20, 20, 0, 0, Math.PI * 2); c.fill();
+    for (let k = 0; k < lv; k++) {
+      const fy = y - FH * (k + 1);
+      c.fillStyle = lv === 4 ? (k % 2 ? '#f8f9fa' : '#f1f3f5') : (k % 2 ? '#fff3e0' : '#ffe8cc'); c.fillRect(L, fy, W2, FH);
+      c.fillStyle = 'rgba(0,0,0,.08)'; c.fillRect(L, fy + FH - 6, W2, 6);
+      const wins = lv === 4 ? 4 : 3;
+      for (let i = 0; i < wins; i++) {
+        const wx = L + 18 + i * ((W2 - 36) / wins), ww = (W2 - 36) / wins - 14;
+        if (k === 0 && i === Math.floor(wins / 2)) continue;
+        c.fillStyle = lv === 4 ? '#1b2f48' : '#8a5a3c'; c.fillRect(wx - 3, fy + 18, ww + 6, 58);
+        const gl = c.createLinearGradient(0, fy + 20, 0, fy + 74); gl.addColorStop(0, '#d0ebff'); gl.addColorStop(1, '#74c0fc');
+        c.fillStyle = gl; c.fillRect(wx, fy + 21, ww, 52);
+        c.fillStyle = 'rgba(255,255,255,.5)'; c.fillRect(wx + 4, fy + 24, 6, 44);
+      }
+      if (k > 0) { c.fillStyle = lv === 4 ? 'rgba(165,216,255,.6)' : '#fff'; c.fillRect(L - 8, fy + FH - 22, W2 + 16, 4); for (let bx = L - 6; bx < L + W2 + 8; bx += 14) c.fillRect(bx, fy + FH - 22, 3, 20); }
+    }
+    // cửa chính
+    c.fillStyle = lv === 4 ? '#1b2f48' : '#8a5a3c'; c.fillRect(x - 26, y - 78, 52, 78);
+    c.fillStyle = lv === 4 ? '#a5d8ff' : '#c98a4b'; c.fillRect(x - 21, y - 72, 20, 72); c.fillRect(x + 1, y - 72, 20, 72);
+    c.fillStyle = '#ffd43b'; c.fillRect(x - 6, y - 40, 3, 10); c.fillRect(x + 3, y - 40, 3, 10);
+    const top = y - FH * lv;
+    if (lv === 4) {
+      // biệt thự: mái bằng + sân thượng kính + cột trắng + cây dừa
+      c.fillStyle = '#dee2e6'; c.fillRect(L - 12, top - 10, W2 + 24, 12);
+      c.fillStyle = 'rgba(165,216,255,.55)'; c.fillRect(L - 10, top - 40, W2 + 20, 30);
+      c.strokeStyle = '#fff'; c.lineWidth = 3; c.strokeRect(L - 10, top - 40, W2 + 20, 30);
+      ART.umbrella(c, x + 80, top - 10, '#ff6b6b');
+      c.fillStyle = '#2f9e44'; c.beginPath(); c.arc(L + 30, top - 56, 22, 0, 7); c.fill();
+      [L + 8, L + W2 - 8].forEach((px) => { c.fillStyle = '#fff'; c.fillRect(px - 7, y - FH * 2, 14, FH * 2); });
+      c.fillStyle = '#c9a227'; c.font = '900 16px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('✦ VILLA ✦', x, y - FH * 2 + 12);
+    } else {
+      c.fillStyle = '#e8590c'; c.beginPath(); c.moveTo(L - 22, top + 4); c.lineTo(x, top - 70); c.lineTo(L + W2 + 22, top + 4); c.closePath(); c.fill();
+      c.fillStyle = '#c2410c'; c.fillRect(L - 22, top, W2 + 44, 8);
+      c.fillStyle = '#868e96'; c.fillRect(x + 50, top - 52, 18, 40);
+    }
   }
 
   /* ---------- Khu Đua Xe ---------- */
@@ -1862,7 +2100,8 @@ const MAPS = (() => {
     return m;
   };
 
-  const all = { apt_han: () => airport('han'), apt_hph: () => airport('hph'), apt_vdo: () => airport('vdo'), apt_sgn: () => airport('sgn'), apt_pqc: () => airport('pqc'), apt_dad: () => airport('dad'), farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
+  const all = { apt_han: () => airport('han'), apt_hph: () => airport('hph'), apt_vdo: () => airport('vdo'), apt_sgn: () => airport('sgn'), apt_pqc: () => airport('pqc'), apt_dad: () => airport('dad'), home2: () => floorMap(2), home3: () => floorMap(3), home4: () => floorMap(4), farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
+  Object.defineProperty(all, 'moveGroup', { value: moveGroup, enumerable: false });
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
   return all;
 })();

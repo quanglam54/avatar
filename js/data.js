@@ -265,6 +265,14 @@ DATA.BIKES = [
   { id: 'vespa', name: 'Vespa Sprint', kind: 'vespa', body: '#63e6be', helmet: '#7c4a2a', price: 8000, max: 560, accel: 360, desc: 'Cổ điển sang chảnh, bốc nhất' },
 ];
 
+/** 🏠 Nâng cấp nhà: càng nhiều tầng càng đắt */
+DATA.HOUSE_LEVELS = [
+  { lv: 1, name: 'Nhà cấp 4', icon: '🏠', price: 0, desc: '1 tầng · phòng khách, bếp, phòng ngủ, phòng tắm, kho' },
+  { lv: 2, name: 'Nhà 2 tầng', icon: '🏡', price: 50000, desc: '+ Tầng 2: phòng ngủ master, phòng làm việc · 🪜 cầu thang' },
+  { lv: 3, name: 'Nhà phố 3 tầng', icon: '🏘️', price: 250000, desc: '+ Tầng 3: karaoke, rạp phim mini, phòng gym · 🛗 thang máy' },
+  { lv: 4, name: 'Biệt thự 4 tầng', icon: '🏰', price: 1000000, desc: '+ Tầng 4: sân thượng hồ bơi vô cực, BBQ, kính thiên văn, bãi trực thăng' },
+];
+
 /** 🚗 Ô tô điện VinFast (mua ở showroom trước cổng nông trại, tự lái trên phố, cần sạc pin) */
 DATA.CARS = [
   { id: 'vf3', name: 'VinFast VF 3', body: '#ffd43b', price: 15000, max: 520, accel: 300, range: 25, len: 120, desc: 'Mini điện nhỏ xinh, đi phố gọn gàng' },

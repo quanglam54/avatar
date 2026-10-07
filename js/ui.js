@@ -584,6 +584,30 @@ const UI = (() => {
     };
     render();
   }
+  /** 🏗️ Nâng cấp nhà */
+  function houseUpgrade() {
+    const S = AV.S, cur = AV.houseLv();
+    const p = panel('🏗️ Nâng cấp nhà', '');
+    p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Nhà hiện tại: <b>${DATA.HOUSE_LEVELS[cur - 1].icon} ${DATA.HOUSE_LEVELS[cur - 1].name}</b></div>
+      <div class="shop-list">${DATA.HOUSE_LEVELS.map((h) => `<div class="shop-row ${h.lv <= cur ? 'owned' : ''}"><span class="ic">${h.icon}</span><div class="info"><b>${h.name}</b><small>${h.desc}</small></div>
+        ${h.lv <= cur ? '<button class="btn small ghost" disabled>✅ Đã có</button>' : h.lv === cur + 1 ? `<button class="btn small" data-up>${h.price.toLocaleString('vi-VN')} xu</button>` : `<button class="btn small ghost" disabled>🔒 ${h.price.toLocaleString('vi-VN')}</button>`}</div>`).join('')}</div>
+      <p class="muted small-note">Nâng cấp lần lượt từng cấp. Lên tầng bằng 🪜 cầu thang (từ nhà 2 tầng) hoặc 🛗 thang máy (từ nhà phố 3 tầng) ở phòng cầu thang bên phải phòng bếp.</p>`;
+    const up = p.body.querySelector('[data-up]');
+    if (up) up.onclick = () => { const n = DATA.HOUSE_LEVELS[cur]; confirm(`Nâng cấp lên <b>${n.icon} ${n.name}</b> với giá <b>${n.price.toLocaleString('vi-VN')} xu</b>?`, '🏗️ Xây ngay', () => { if (AV.upgradeHouse()) { p.close(); houseUpgrade(); } }); };
+  }
+  /** 🛗 thang máy: chọn tầng */
+  function elevator() {
+    const f = AV.floor(), top = AV.houseLv();
+    const p = panel('🛗 Thang máy', `<p class="muted">Bạn đang ở tầng <b>${f}</b>. Chọn tầng muốn tới:</p>
+      <div class="lift-pad">${Array.from({ length: top }, (_, i) => top - i).map((n) => `<button class="lift-btn ${n === f ? 'on' : ''}" data-f="${n}" ${n === f ? 'disabled' : ''}>${n}<small>${['Tầng trệt', 'Phòng ngủ · làm việc', 'Karaoke · rạp phim · gym', 'Sân thượng · hồ bơi'][n - 1]}</small></button>`).join('')}</div>`);
+    p.body.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { p.close(); AV.goFloor(+b.dataset.f, 'lift'); });
+  }
+  function stairsPick(f, top) {
+    const p = panel('🪜 Cầu thang', `<div class="row-end" style="justify-content:center"><button class="btn" data-d>⬇️ Xuống tầng ${f - 1}</button><button class="btn" data-u>⬆️ Lên tầng ${f + 1}</button></div>`);
+    p.body.querySelector('[data-d]').onclick = () => { p.close(); AV.goFloor(f - 1, 'stairs'); };
+    p.body.querySelector('[data-u]').onclick = () => { p.close(); AV.goFloor(f + 1, 'stairs'); };
+  }
+
   /** ✈️ Quầy vé ở sân bay: chọn khu muốn bay tới */
   function flightDesk() {
     const S = AV.S, here = (AV.debugMap() || {}).airport;
@@ -1479,6 +1503,7 @@ const UI = (() => {
       ['set', '⚙️', 'Cài đặt', settings],
       ['app', '📲', 'Cài app', installApp],
       ['bank', '🏦', 'Ngân hàng', () => BANK.panel('app')],
+      ['house', '🏗️', 'Nâng cấp nhà', houseUpgrade],
     ];
     if (AV.isHouse()) items.push(['house', '💼', 'Két', housePanel]);
     const p = panel('☰ MENU', `
@@ -1757,5 +1782,5 @@ const UI = (() => {
     q('.mv-def').onclick = () => { CONCERT.playDefault(); p.close(); toast('🎞️ Đã về phim mặc định'); };
   }
 
-  return { flightDesk, carShop, chargeStation, moviePicker, toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
+  return { houseUpgrade, elevator, stairsPick, flightDesk, carShop, chargeStation, moviePicker, toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
 })();
