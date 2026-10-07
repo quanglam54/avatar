@@ -574,14 +574,16 @@ const MAPS = (() => {
     }
     /* ----- 🚜 cổng sang Trang Trại Mở Rộng ----- */
     {
-      const RX = 4700, RY = 1430;
+      const RX = 1300, RY = 1430, RK = 0.82;
       sobj(m, RX, RY, (c) => {
+        c.save(); c.translate(RX, RY); c.scale(RK, RK); c.translate(-RX, -RY);
         c.fillStyle = '#6b4423'; c.fillRect(RX - 70, RY - 120, 12, 120); c.fillRect(RX + 58, RY - 120, 12, 120);
         c.fillStyle = '#2f9e44'; c.beginPath(); c.roundRect(RX - 90, RY - 168, 180, 56, 10); c.fill(); c.strokeStyle = '#1b5e20'; c.lineWidth = 4; c.stroke();
         c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '900 15px "Be Vietnam Pro", system-ui'; c.fillText('🚜 TRANG TRẠI', RX, RY - 150); c.font = '900 12px "Be Vietnam Pro", system-ui'; c.fillText('MỞ RỘNG ➜', RX, RY - 128);
         c.font = '30px system-ui, "Segoe UI Emoji"'; c.fillText('🦆🐝🐐🌾', RX, RY - 70);
-      }, { l: -100, t: -178, w: 200, h: 185 });
-      inter(m, { x: RX - 90, y: RY - 170, w: 180, h: 172, ax: RX, ay: RY + 28, name: 'Sang Trang Trại Mở Rộng (vịt, ong, dê, xưởng, lúa nước…)', use: () => AV.teleport('ranch', false, 220, 1300, '🚜 Sang trang trại mở rộng…'), arrow: { x: RX, y: RY - 190, text: 'Trang trại' } });
+        c.restore();
+      }, { l: -84, t: -150, w: 168, h: 158 });
+      inter(m, { x: RX - 74, y: RY - 140, w: 148, h: 142, ax: RX, ay: RY + 28, name: 'Sang Trang Trại Mở Rộng (vịt, ong, dê, xưởng, lúa nước…)', use: () => AV.teleport('ranch', false, 220, 1300, '🚜 Sang trang trại mở rộng…'), arrow: { x: RX, y: RY - 160, text: 'Trang trại' } });
     }
     /* ----- 🧑‍🌾 biển thuê giúp việc cạnh cổng, gần bến xe buýt ----- */
     const HX2 = 1470, HY2 = 1432;
@@ -597,7 +599,7 @@ const MAPS = (() => {
       c.fillStyle = '#fff'; c.font = '900 13px "Be Vietnam Pro", system-ui'; c.fillText('THUÊ GIÚP VIỆC', HX2, HY2 - 137);
       c.font = '26px system-ui, "Segoe UI Emoji"'; c.fillText('🧑‍🌾', HX2 - 34, HY2 - 102);
       c.fillStyle = '#5c3010'; c.font = '800 10px "Be Vietnam Pro", system-ui'; c.textAlign = 'left';
-      c.fillText('💧 Tưới nước', HX2 - 16, HY2 - 117); c.fillText('🧪 Bón phân', HX2 - 16, HY2 - 106); c.fillText('🐛 Trừ sâu', HX2 - 16, HY2 - 95); c.fillText('🌾 Thu hoạch', HX2 - 16, HY2 - 84);
+      c.fillText('💧 Tưới nước', HX2 - 16, HY2 - 117); c.fillText('🧪 Bón phân', HX2 - 16, HY2 - 106); c.fillText('🐛 Trừ sâu', HX2 - 16, HY2 - 95); c.fillText('🐔 Cho ăn', HX2 - 16, HY2 - 84);
       c.textAlign = 'center'; c.fillStyle = '#c92a2a'; c.font = '900 11px "Be Vietnam Pro", system-ui'; c.fillText('Từ 30.000 xu/ngày', HX2, HY2 - 72);
       c.restore();
     }, { l: -94, t: -206, w: 188, h: 214 });
@@ -641,7 +643,7 @@ const MAPS = (() => {
     col(m, CX2 - 60, CY2 - 34, 120, 32);
     inter(m, { x: CX2 - 70, y: CY2 - 190, w: 140, h: 190, ax: CX2, ay: CY2 + 30, name: 'Trạm sạc V-GREEN (sạc pin ô tô)', use: () => UI.chargeStation(), arrow: { x: CX2, y: CY2 - 205, text: 'Trạm sạc' } });
     /* ----- Biển chúc mừng 20/10 cạnh cổng (hiện từ 1/10 đến hết 21/10) ----- */
-    const WX = 1308, WY = 1430, WK = 0.54;
+    const WX = 4700, WY = 1430, WK = 0.62;
     const womensDay = () => { const d = new Date(); return d.getMonth() === 9 && d.getDate() <= 21; };
     const wdSprite = FX.sprite((c) => {
       c.save(); c.translate(WX, WY); c.scale(WK, WK); c.translate(-WX, -WY);

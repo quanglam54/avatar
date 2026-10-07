@@ -678,7 +678,7 @@ const UI = (() => {
     const leftH = act ? Math.ceil((h.until - Date.now()) / 3600000) : 0;
     const p = panel('🧑‍🌾 Thuê giúp việc', `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
       ${act ? `<p class="game-msg">✅ Cô giúp việc đang làm · còn <b>${leftH >= 24 ? Math.floor(leftH / 24) + ' ngày ' + (leftH % 24) + ' giờ' : leftH + ' giờ'}</b></p>` : ''}
-      <p class="muted">Cô giúp việc sẽ tự <b>cho gà, bò, cừu, heo ăn</b> (bằng 🌾 lúa mì trong túi) và <b>thu trứng, sữa, len, thịt</b>, <b>hái quả chín</b> trong vườn, <b>thu hoạch</b> (nông sản vào túi bạn), <b>tưới nước</b>, <b>xịt sâu</b>, <b>bón phân</b> và <b>gieo hạt</b> vào ô trống — dùng 🌱 hạt giống, 🧪 phân bón, 🧴 thuốc trừ sâu <b>có sẵn trong túi của bạn</b>. Làm cả khi bạn ở khu khác (cần mở game).</p>
+      <p class="muted">Cô giúp việc chỉ <b>chăm sóc</b>, không thu hoạch (cây chín, trứng, sữa để bạn tự hái — bạn bè còn sang trộm được 😏): <b>cho gà, bò, cừu, heo ăn</b> (bằng 🌾 lúa mì trong túi), <b>tưới nước</b>, <b>xịt sâu</b>, <b>bón phân</b> và <b>gieo hạt</b> vào ô trống — dùng 🌱 hạt giống, 🧪 phân bón, 🧴 thuốc trừ sâu <b>có sẵn trong túi của bạn</b>. Làm cả khi bạn ở khu khác (cần mở game).</p>
       <p class="muted small-note">Trong túi: 🌱 ${Object.keys(DATA.CROPS).reduce((a, c) => a + (S.inv['seed_' + c] || 0), 0)} hạt · 🧪 ${S.inv.fertilizer || 0} phân bón · 🧴 ${S.inv.pesticide || 0} thuốc · 🌾 ${S.inv.wheat || 0} lúa mì</p>
       <div class="shop-list">${DATA.HELPER_PLANS.map((pl, i) => `<div class="shop-row"><span class="ic">🧑‍🌾</span><div class="info"><b>Thuê ${pl.label}</b><small>${Math.round(pl.price / pl.days).toLocaleString('vi-VN')} xu/ngày</small></div><button class="btn small" data-plan="${i}">${act ? 'Gia hạn' : 'Thuê'} · ${pl.price.toLocaleString('vi-VN')} xu</button></div>`).join('')}</div>
       ${st.harvest || st.water || st.animal ? `<p class="muted small-note">Đã làm: cho ăn ${st.feed || 0} · thu chuồng ${st.animal || 0} · hái cây ${st.tree || 0} · thu ${st.harvest || 0} · tưới ${st.water || 0} · diệt sâu ${st.spray || 0} · bón phân ${st.fert || 0} · gieo ${st.plant || 0}</p>` : ''}`);
@@ -1127,7 +1127,7 @@ const UI = (() => {
   function race3d() {
     const v = $('#arcadeView');
     v.innerHTML = `<div class="arc-bar"><b>🏎️ Đua Xe 3D</b><span>Về nhất được nhiều xu nhất · độ khó & số vòng càng cao thưởng càng lớn</span><button class="tv-x" data-close>✕ Thoát</button></div>
-      <iframe src="arcade/games/race3d.html" title="Đua Xe 3D" allow="autoplay; fullscreen"></iframe>`;
+      <iframe src="arcade/games/race3d.html?v=${Date.now().toString(36)}" title="Đua Xe 3D" allow="autoplay; fullscreen"></iframe>`;
     v.classList.add('show');
     v.querySelector('[data-close]').onclick = closeArcade;
     setTimeout(() => { const f = v.querySelector('iframe'); if (f) f.focus(); }, 300);

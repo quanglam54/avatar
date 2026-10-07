@@ -66,7 +66,7 @@ const RACECUP = (() => {
   function openGame(q) {
     const v = document.getElementById('arcadeView');
     v.innerHTML = `<div class="arc-bar"><b>🏎️ Đua Xe Đạo Cụ</b><span>${q.includes('mp=1') ? '🏆 Giải đua · vô địch nhận ' + fmt(PRIZE) + ' xu' : 'Chạy qua hộp ❓ nhận đạo cụ · bấm E hoặc 🎁 để dùng'}</span><button class="tv-x" data-close>✕ Thoát</button></div>
-      <iframe src="arcade/games/race3d.html?${q}" title="Đua Xe Đạo Cụ" allow="autoplay; fullscreen"></iframe>`;
+      <iframe src="arcade/games/race3d.html?${q}&v=${Date.now().toString(36)}" title="Đua Xe Đạo Cụ" allow="autoplay; fullscreen"></iframe>`;
     v.classList.add('show');
     v.querySelector('[data-close]').onclick = () => { if (active) send({ op: 'g', race: active.race, d: { op: 'quit' } }); active = null; UI.closeArcade(); };
     setTimeout(() => { const f = v.querySelector('iframe'); if (f) f.focus(); }, 300);
@@ -77,7 +77,10 @@ const RACECUP = (() => {
     active = cfg;
     UI.toast(`🏁 Giải đua bắt đầu sau ${Math.round((cfg.startAt - Date.now()) / 1000)} giây!`, 3000);
     openGame('mode=items&mp=1');
+    gotReady = false;
+    setTimeout(() => { if (active === cfg && !gotReady) UI.toast('⚠️ Game đua trên máy bạn là bản cũ nên chưa vào được giải — bấm ✕ Thoát rồi Ctrl+F5 (điện thoại: tải lại trang) và vào phòng lại', 9000); }, 25000);
   }
+  let gotReady = false;
   const frame = () => { const f = document.querySelector('#arcadeView iframe'); return f && f.contentWindow; };
 
   /* ---------- tin từ khu ---------- */
@@ -90,7 +93,7 @@ const RACECUP = (() => {
   /* ---------- tin từ game 3D ---------- */
   window.addEventListener('message', (e) => {
     const m = e.data || {};
-    if (m.type === 'kart-ready' && active) { const w = frame(); if (w) w.postMessage({ type: 'kart-config', me: me(), host: active.host, laps: active.laps, startAt: active.startAt, players: active.players }, '*'); }
+    if (m.type === 'kart-ready' && active) { gotReady = true; const w = frame(); if (w) w.postMessage({ type: 'kart-config', me: me(), host: active.host, laps: active.laps, startAt: active.startAt, players: active.players }, '*'); }
     else if (m.type === 'kart-out' && active) send({ op: 'g', race: active.race, d: m.d });
   });
   /** hết giải: trả thưởng */

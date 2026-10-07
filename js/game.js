@@ -3001,11 +3001,10 @@
     if (VISIT) return;
     const r = { harvest: 0, water: 0, spray: 0, fert: 0, plant: 0, feed: 0, animal: 0, tree: 0 }, got = {};
     const add = (id, n) => { got[id] = (got[id] || 0) + n; };
-    /* chuồng trại: thu trứng / sữa / len / thịt rồi cho ăn lại bằng lúa mì trong túi */
+    /* chuồng trại: chỉ cho ăn khi chuồng trống — trứng / sữa / len / thịt để chủ (hoặc kẻ trộm 😏) tự thu */
     let noWheat = false;
-    const barn = (st, cfg, collect) => {
+    const barn = (st, cfg) => {
       if (!st) return;
-      if (st.fedAt && now - st.fedAt >= cfg.time * 1000) { collect(st.took || {}); st.took = null; st.fedAt = 0; r.animal++; }
       if (!st.fedAt) { if ((S.inv.wheat || 0) >= cfg.feed) { S.inv.wheat -= cfg.feed; st.fedAt = now; r.feed++; } else noWheat = true; }
     };
     S.coop = S.coop || { fedAt: 0 };
@@ -3013,23 +3012,10 @@
     S.pen = normPen(S.pen);
     Object.keys(DATA.PENS).forEach((k) => barn(S.pen[k], DATA.PENS[k], (took) => Object.entries(DATA.PENS[k].out).forEach(([id, n]) => add(id, Math.max(1, n - (took[id] || 0))))));
     if (noWheat && Date.now() - (S.helper.noWheatAt || 0) > 1800000) { S.helper.noWheatAt = Date.now(); UI.toast('🧑‍🌾 Cô giúp việc: hết lúa mì 🌾 để cho gà, bò, cừu, heo ăn rồi — trồng thêm lúa mì nhé!', 5000); }
-    /* vườn cây ăn quả: hái quả chín */
-    (S.trees || []).forEach((tr, i) => {
-      const st = treeState(i);
-      if (!st.ripe) return;
-      add(DATA.ORCHARD[i], Math.max(1, st.f.yield - (tr.stolen || 0)));
-      tr.at = now; tr.stolen = 0; r.tree++;
-    });
     for (let b = 0; b < DATA.BED_COUNT; b++) {
       if (!S.beds[b]) continue;
       const tiles = S.tiles.slice(b * TPB, b * TPB + TPB);
-      // thu hoạch
-      tiles.forEach((t) => {
-        if (!t.crop || tileState(t).stage !== 2) return;
-        got[t.crop] = (got[t.crop] || 0) + Math.max(1, tileYield(t) - (t.stolen || 0));
-        t.crop = null; t.plantedAt = 0; t.watered = false; t.fert = false; t.stolen = 0; t.sprayed = false; t.pestAt = 0;
-        r.harvest++;
-      });
+      // không thu hoạch: cây chín để chủ tự hái (bạn bè còn sang hái trộm được)
       // diệt sâu (1 chai / luống)
       if (tiles.some((t) => t.crop && tileState(t).pest) && (S.inv.pesticide || 0) > 0) {
         S.inv.pesticide--;
@@ -3130,7 +3116,7 @@
   }
 
   /** 🧑‍🌾 cô giúp việc: lần lượt đi tới ruộng / chuồng / cây, làm việc vài giây rồi đi chỗ khác */
-  const HELP_SAY = { bed: ['💧 Tưới tưới…', '🌾 Thu hoạch nè!', '🐛 Bắt sâu~', '🧪 Bón phân', '🌱 Gieo hạt'], coop: ['🐔 Gà ơi ăn đi!', '🥚 Nhặt trứng~'], cow: ['🐄 Vắt sữa nào', '🌾 Cho bò ăn'], sheep: ['🐑 Cắt len~', '🌾 Cho cừu ăn'], pig: ['🐖 Đổ cám cho heo'], tree: ['🍊 Hái quả chín', '🍎 Quả to ghê!'] };
+  const HELP_SAY = { bed: ['💧 Tưới tưới…', '🐛 Bắt sâu~', '🧪 Bón phân', '🌱 Gieo hạt', '🌿 Nhổ cỏ'], coop: ['🐔 Gà ơi ăn đi!', '🌾 Rải thóc~'], cow: ['🌾 Cho bò ăn', '🐄 Ngoan nào'], sheep: ['🌾 Cho cừu ăn', '🐑 Be be~'], pig: ['🐖 Đổ cám cho heo'], tree: ['💧 Tưới gốc cây', '🍎 Quả sắp chín rồi'] };
   function helperPatrol(e) {
     const spots = map.inter.filter((o) => o.ax && (o.group === 'coop' || o.group === 'cow' || o.group === 'sheep' || o.group === 'pig' || /^Ô ruộng|^Ô hoa|^Luống|^Cây (cam|táo|xoài|đào)/.test(o.name || '')));
     if (!spots.length) return false;
@@ -3591,12 +3577,14 @@
 
   function resize() {
     DPR = Math.min(saver() ? 2 : 2.5, window.devicePixelRatio || 1);
-    W = window.innerWidth;
-    H = window.innerHeight;
+    // kích thước layout (không đổi khi lỡ chụm 2 ngón phóng to cả trang) → khung vẽ luôn phủ kín màn hình
+    const de = document.documentElement;
+    W = de.clientWidth || window.innerWidth;
+    H = de.clientHeight || window.innerHeight;
     canvas.width = Math.round(W * DPR);
     canvas.height = Math.round(H * DPR);
-    canvas.style.width = W + 'px';
-    canvas.style.height = H + 'px';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
     applyZoom();
   }
 
@@ -3764,6 +3752,10 @@
     requestAnimationFrame(loop);
     // tiết kiệm pin: tối đa ~30 hình/giây
     if (saver() && last && t - last < 30) return;
+    // máy tính màn 120–144Hz: tối đa ~60 hình/giây cho mát máy
+    if (last && t - last < 15.5) return;
+    // đang mở game đua 3D / máy game (khung toàn màn hình): ngừng vẽ cảnh phía sau
+    if (UI.arcadeOpen && UI.arcadeOpen()) { last = t; return; }
     const dt = Math.min(0.05, (t - (last || t)) / 1000);
     last = t;
     if (RIDE.active) { RIDE.frame(dt); return; }
@@ -3791,6 +3783,14 @@
   if (typeof EVENTS !== 'undefined') EVENTS.init();
   // 📱 iPhone: chặn chụm 2 ngón phóng to cả trang (bản đồ đã có zoom riêng)
   ['gesturestart', 'gesturechange'].forEach((ev) => document.addEventListener(ev, (e) => e.preventDefault(), { passive: false }));
+  // chụm 2 ngón ngoài bản đồ (trên nút, bảng…) không được phóng to cả trang; bản đồ vẫn tự zoom riêng
+  document.addEventListener('touchmove', (e) => { if (e.touches.length > 1 && e.target !== canvas) e.preventDefault(); }, { passive: false });
+  let lastTap = 0;
+  document.addEventListener('touchend', (e) => { const n = Date.now(); if (n - lastTap < 300 && !/input|textarea|select/i.test(e.target.tagName)) e.preventDefault(); lastTap = n; }, { passive: false });
+  // trang lỡ bị phóng to / xoay máy → đo lại
+  let rzT = 0; const rz = () => { clearTimeout(rzT); rzT = setTimeout(resize, 150); };
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', rz);
+  window.addEventListener('orientationchange', rz);
   if (typeof LOTTO !== 'undefined') LOTTO.init();
   if (typeof PHONE !== 'undefined') PHONE.init();
   if (typeof RANCH !== 'undefined') RANCH.init();

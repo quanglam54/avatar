@@ -20,12 +20,55 @@ const CALL = (() => {
     o.frequency.value = f; g.gain.value = vol; o.connect(g); g.connect(a.destination);
     o.start(a.currentTime + at); g.gain.setValueAtTime(vol, a.currentTime + at + dur - 0.05); g.gain.linearRampToValueAtTime(0.0001, a.currentTime + at + dur); o.stop(a.currentTime + at + dur + 0.02);
   }
+  /* 🎵 nhạc chuông cuộc gọi đến: bài YouTube (trình phát ẩn), lỗi thì dùng tiếng chuông tự tạo */
+  const RING_YT = '02obsXXuwcY';
+  let ytp = null, ytReady = false, ytWant = false, musicWas = false;
+  function prepRing() {
+    if (ytp) return;
+    ytp = 'loading';
+    const box = document.createElement('div'); box.className = 'ring-yt'; box.innerHTML = '<div id="ringYt"></div>'; document.body.appendChild(box);
+    const make = () => { ytp = new window.YT.Player('ringYt', { width: 200, height: 200, videoId: RING_YT, playerVars: { playsinline: 1, controls: 0, loop: 1, playlist: RING_YT }, events: { onReady: () => { ytReady = true; if (ytWant) playRing(); } } }); };
+    if (window.YT && window.YT.Player) make();
+    else {
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => { if (prev) prev(); make(); };
+      if (!document.getElementById('ytApi')) { const sc = document.createElement('script'); sc.id = 'ytApi'; sc.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(sc); }
+    }
+  }
+  ['pointerdown', 'keydown'].forEach((ev) => window.addEventListener(ev, prepRing, { once: true, passive: true }));
+  function playRing() {
+    ytWant = true;
+    if (!ytReady) return;
+    try { ytp.seekTo(0, true); ytp.unMute(); ytp.setVolume(100); ytp.playVideo(); } catch (e) { /* bỏ qua */ }
+  }
+  function stopRing() {
+    ytWant = false;
+    try { if (ytReady) ytp.pauseVideo(); } catch (e) { /* bỏ qua */ }
+    if (musicWas && typeof MUSIC !== 'undefined') { MUSIC.setOn(true); musicWas = false; }
+  }
   function tone(kind) {
     stopTone();
+    if (kind === 'ring') {
+      if (typeof MUSIC !== 'undefined' && MUSIC.on) { musicWas = true; MUSIC.setOn(false); }
+      prepRing(); playRing();
+      const vib = () => { if (navigator.vibrate) navigator.vibrate([300, 200, 300]); };
+      vib(); toneT = setInterval(vib, 2000);
+      // YouTube không phát được (chặn tự phát / mất mạng) → chuông tự tạo
+      setTimeout(() => {
+        let playing = false;
+        try { playing = ytReady && ytp.getPlayerState() === 1; } catch (e) { /* bỏ qua */ }
+        if (!playing && ytWant && toneT) {
+          clearInterval(toneT);
+          const bell = () => { [0, 0.18, 0.36, 0.54].forEach((t, i) => beep(i % 2 ? 1320 : 1046, 0.15, 0.07, t)); vib(); };
+          bell(); toneT = setInterval(bell, 2000);
+        }
+      }, 2500);
+      return;
+    }
     const play = kind === 'ring' ? () => { [0, 0.18, 0.36, 0.54].forEach((t, i) => beep(i % 2 ? 1320 : 1046, 0.15, 0.07, t)); if (navigator.vibrate) navigator.vibrate([300, 200, 300]); } : () => beep(425, 1, 0.04);
     play(); toneT = setInterval(play, kind === 'ring' ? 2000 : 3000);
   }
-  function stopTone() { clearInterval(toneT); toneT = null; if (navigator.vibrate) navigator.vibrate(0); }
+  function stopTone() { clearInterval(toneT); toneT = null; if (navigator.vibrate) navigator.vibrate(0); if (ytWant || musicWas) stopRing(); }
 
   /* ---------- màn hình cuộc gọi ---------- */
   let ov = null;
@@ -33,6 +76,14 @@ const CALL = (() => {
     if (!cur) { if (ov) { ov.remove(); ov = null; } return; }
     if (!ov) { ov = document.createElement('div'); ov.className = 'call-ov'; document.body.appendChild(ov); }
     const p = cur.peer, st = cur.state;
+    if (st === 'incoming') {
+      ov.className = 'call-ov in';
+      ov.innerHTML = `<div class="call-noti"><div class="cn-app"><span>📞</span><small>Gọi</small></div><div class="cn-body"><b>Cuộc gọi đến</b><span class="cn-who">${esc(p.name || PHONE.pretty(p.num))} · ${esc(PHONE.pretty(p.num))}</span>
+        <div class="cn-btns"><button class="cn-ok" data-a="accept">📞 Trả lời</button><button class="cn-no" data-a="reject">Từ chối</button></div></div></div>`;
+      ov.querySelectorAll('[data-a]').forEach((b) => b.onclick = () => act(b.dataset.a));
+      return;
+    }
+    ov.className = 'call-ov';
     const label = { calling: 'Đang gọi…', ringing: 'Đang đổ chuông…', incoming: 'Cuộc gọi đến', connecting: 'Đang kết nối…', talking: dur(), ended: cur.endMsg || 'Đã kết thúc' }[st] || '';
     ov.innerHTML = `<div class="call-box">
       <div class="call-top"><small>${cur.dir === 'in' ? '📲 Di động' : '📞 Đang gọi đi'}</small><div class="call-av">${esc((p.name || '?')[0].toUpperCase())}</div>

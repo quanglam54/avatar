@@ -544,7 +544,7 @@ const WARDROBE = (() => {
     container.querySelectorAll('[data-wc]').forEach((b) => b.onclick = () => { st.cat = b.dataset.wc; rerender(); });
     container.querySelectorAll('[data-wss]').forEach((b) => b.onclick = () => { st.ss = b.dataset.wss; rerender(); });
     const baseLook = { ...S.look, avatar: S.look.avatar === 'custom' ? (girl ? 'girl' : 'boy') : S.look.avatar };
-    container.querySelectorAll('[data-wpv]').forEach((c) => UI.drawAvatar(c, { ...baseLook, wear: withItem(S.look.wear, c.dataset.wpv) }, { scale: 1.15 }));
+    container.querySelectorAll('[data-wpv]').forEach((c, i) => setTimeout(() => { if (c.isConnected) UI.drawAvatar(c, { ...baseLook, wear: withItem(S.look.wear, c.dataset.wpv) }, { scale: 1.15 }); }, 30 + i * 40));
     container.querySelectorAll('[data-wbuy]').forEach((b) => b.onclick = () => {
       const it = BY[b.dataset.wbuy];
       UI.confirm(`Mua <b>${it.name}</b> giá <b>${fmt(it.price)} xu</b> và mặc luôn?`, 'Mua', () => {
@@ -579,7 +579,7 @@ const WARDROBE = (() => {
         ${own.length ? `<div class="b-grid sets">${own.map((it) => { const on = cur[it.slot] === it.id; return `<div class="b-card set-card ${on ? 'wd-on' : ''}"><canvas data-mpv="${it.id}"></canvas><b>${it.name}</b>${on ? `<button class="btn small ghost" data-moff="${it.id}">Cởi ra</button>` : `<button class="btn small" data-mon="${it.id}">Mặc</button>`}</div>`; }).join('')}</div>`
           : `<p class="muted">Chưa có món nào ${cat === 'all' ? '' : 'loại này '}— mua ở 👗 Tiệm Thời Trang (Khu mua sắm) → tab ✨ Thời trang 4 mùa.</p>`}`;
       UI.drawAvatar(p.body.querySelector('.wd-me'), baseLook, { scale: 1.3 });
-      p.body.querySelectorAll('[data-mpv]').forEach((c) => UI.drawAvatar(c, { ...baseLook, wear: withItem(S.look.wear, c.dataset.mpv) }, { scale: 1.15 }));
+      p.body.querySelectorAll('[data-mpv]').forEach((c, i) => setTimeout(() => { if (c.isConnected) UI.drawAvatar(c, { ...baseLook, wear: withItem(S.look.wear, c.dataset.mpv) }, { scale: 1.15 }); }, 30 + i * 40));
       p.body.querySelectorAll('[data-mc]').forEach((b) => b.onclick = () => { cat = b.dataset.mc; render(); });
       p.body.querySelectorAll('[data-mon]').forEach((b) => b.onclick = () => { wearIt(b.dataset.mon); render(); });
       p.body.querySelectorAll('[data-moff]').forEach((b) => b.onclick = () => { S.look.wear = without(S.look.wear, b.dataset.moff); changedLook(); render(); });

@@ -502,7 +502,7 @@ const RANCH = (() => {
 
     /* lối về + bảng quản lý + xe tải */
     sobj(m, 120, 1290, (c) => { c.fillStyle = '#6b4423'; c.fillRect(116, 1190, 8, 100); c.fillStyle = '#2f9e44'; c.beginPath(); c.roundRect(60, 1170, 130, 40, 8); c.fill(); c.fillStyle = '#fff'; c.font = '900 13px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('⬅ Về nông trại', 125, 1190); }, { l: -70, t: -125, w: 140, h: 130 });
-    inter(m, { x: 55, y: 1165, w: 140, h: 130, ax: 125, ay: 1320, name: 'Về nông trại', use: () => AV.teleport('farm', false, 4700, 1500, '🏡 Về nông trại…'), arrow: { x: 125, y: 1150, text: 'Nông trại' } });
+    inter(m, { x: 55, y: 1165, w: 140, h: 130, ax: 125, ay: 1320, name: 'Về nông trại', use: () => AV.teleport('farm', false, 1300, 1500, '🏡 Về nông trại…'), arrow: { x: 125, y: 1150, text: 'Nông trại' } });
     sobj(m, 420, 1260, (c) => { c.fillStyle = '#6b4423'; c.fillRect(352, 1180, 8, 80); c.fillRect(480, 1180, 8, 80); c.fillStyle = '#8a5a32'; c.beginPath(); c.roundRect(336, 1110, 168, 84, 10); c.fill(); c.fillStyle = '#fff3d6'; c.beginPath(); c.roundRect(344, 1118, 152, 68, 7); c.fill(); c.fillStyle = '#5c3a1e'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '900 14px "Be Vietnam Pro", system-ui'; c.fillText('📋 QUẢN LÝ', 420, 1138); c.font = '800 11px "Be Vietnam Pro", system-ui'; c.fillText('Xây · Đơn hàng · Hội chợ', 420, 1160); c.fillText('Trang trí · Xe & đồ', 420, 1175); }, { l: -90, t: -155, w: 180, h: 160 });
     col(m, 340, 1250, 160, 12);
     inter(m, { x: 336, y: 1110, w: 168, h: 150, ax: 420, ay: 1300, name: 'Bảng quản lý trang trại', use: () => panel('build'), arrow: { x: 420, y: 1095, text: 'Quản lý' } });

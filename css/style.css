@@ -1193,3 +1193,25 @@ html, body, button, .btn, .panel, .panel-back, a, input, select, textarea, label
 .gh-cell { background: #f4fce3; border: 2px solid #c0eb75; border-radius: 12px; padding: 8px; display: grid; gap: 4px; text-align: center; }
 .gh-cell.ripe { border-color: #fab005; background: #fff9db; }
 .gh-cell select { font: inherit; font-size: 12px; border-radius: 8px; padding: 4px; }
+
+/* 📲 cuộc gọi đến (thông báo trên cùng) */
+.call-ov.in { background: transparent; place-items: start center; pointer-events: none; padding-top: max(10px, env(safe-area-inset-top, 0px)); }
+.call-noti { pointer-events: auto; display: flex; gap: 14px; align-items: center; width: min(560px, 94vw); background: #4a62d8; color: #fff; border-radius: 22px; padding: 12px 16px; box-shadow: 0 10px 30px rgba(0,0,0,.35); animation: cnIn .35s cubic-bezier(.2,1.4,.4,1); font-family: "Be Vietnam Pro", system-ui; }
+@keyframes cnIn { from { transform: translateY(-120%); } }
+.cn-app { flex: none; width: 74px; height: 74px; border-radius: 18px; background: #fff; color: #1e5bff; display: grid; place-items: center; align-content: center; animation: evPulse 1s infinite; }
+.cn-app span { font-size: 30px; line-height: 1; }
+.cn-app small { font-weight: 900; font-size: 14px; }
+.cn-body { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.cn-body b { font-size: 20px; }
+.cn-who { font-weight: 700; font-size: 14px; opacity: .92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cn-btns { display: flex; gap: 10px; margin-top: 4px; }
+.cn-btns button { flex: 1; border: 0; border-radius: 10px; padding: 9px 6px; font: 800 16px "Be Vietnam Pro", system-ui; color: #fff; cursor: pointer; }
+.cn-ok { background: #3cb54a; } .cn-no { background: #e2546a; }
+.ring-yt { position: fixed; left: -9999px; top: 0; width: 200px; height: 200px; overflow: hidden; pointer-events: none; }
+
+/* 📱 điện thoại: xếp tầng tên khu → mùa → dải sự kiện → chip sự kiện, không đè nhau */
+@media (max-width: 600px) {
+  .season-chip { top: 136px; }
+  .tr-banner { top: 162px; }
+  .ev-chips { top: 194px; }
+}
