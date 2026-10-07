@@ -971,7 +971,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* 🏴‍☠️ Săn rương */
 .tr-banner { position: fixed; left: 50%; top: 116px; transform: translateX(-50%); z-index: 5; max-width: min(92vw, 760px); overflow: hidden; white-space: nowrap; background: linear-gradient(90deg, #ff922b, #e8590c); color: #fff; font-weight: 900; font-size: 13px; padding: 4px 0; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 3px 0 rgba(0,0,0,.25); cursor: pointer; }
-.tr-banner span { display: inline-block; padding-left: 100%; animation: trMarquee 18s linear infinite; }
+.tr-banner span { display: inline-block; padding-left: 12%; animation: trMarquee 18s linear infinite; }
+@keyframes trMarquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
 @keyframes trMarquee { to { transform: translateX(-100%); } }
 @media (max-width: 600px) { .tr-banner { top: 128px; font-size: 12px; } }
 .tr-pop { text-align: center; }

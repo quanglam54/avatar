@@ -289,6 +289,9 @@ DATA.NPC_LIKES = {
 };
 DATA.NPC_REWARDS = { 2: { coins: 500 }, 5: { coins: 3000, item: 'mine_tonic', n: 5 }, 10: { coins: 20000, item: 'gem_diamond', n: 1 } };
 
+/** 🏥 Bệnh viện Zeno: giá dịch vụ */
+DATA.HOSPITAL = { exam: 1000, pill: 2000, shot: 5000, iv: 3000, pillMin: 3 };
+
 /** 🏠 Nâng cấp nhà: càng nhiều tầng càng đắt */
 DATA.HOUSE_LEVELS = [
   { lv: 1, name: 'Nhà cấp 4', icon: '🏠', price: 0, desc: '1 tầng · phòng khách, bếp, phòng ngủ, phòng tắm, kho' },
@@ -309,7 +312,7 @@ DATA.CHARGE_PRICE = 3; // xu cho mỗi 1% pin
 
 /** ✈️ Sân bay: bay tới khu nào thì hạ cánh ở sân bay gần khu đó, qua cổng an ninh mới vào khu */
 DATA.AIRPORTS = [
-  { id: 'han', code: 'HAN', name: 'Sân bay quốc tế Nội Bài', en: 'Noi Bai International Airport', city: 'Hà Nội', zones: ['fun', 'town'], color: '#1c7ed6', palm: false },
+  { id: 'han', code: 'HAN', name: 'Sân bay quốc tế Nội Bài', en: 'Noi Bai International Airport', city: 'Hà Nội', zones: ['fun', 'town', 'hospital'], color: '#1c7ed6', palm: false },
   { id: 'hph', code: 'HPH', name: 'Sân bay quốc tế Cát Bi', en: 'Cat Bi International Airport', city: 'Hải Phòng', zones: ['farm'], color: '#e8590c', palm: false },
   { id: 'vdo', code: 'VDO', name: 'Sân bay quốc tế Vân Đồn', en: 'Van Don International Airport', city: 'Quảng Ninh', zones: ['cherry', 'mine'], color: '#0ca678', palm: false },
   { id: 'sgn', code: 'SGN', name: 'Sân bay quốc tế Tân Sơn Nhất', en: 'Tan Son Nhat International Airport', city: 'TP. Hồ Chí Minh', zones: ['mall', 'school'], color: '#c92a2a', palm: true },
@@ -392,7 +395,7 @@ DATA.ZONES = [
   { id: 'park', name: 'Công viên', icon: '🌳', x: 20, y: 72, desc: 'Câu cá, dạo hồ' },
   { id: 'beach', name: 'Bãi biển', icon: '🏖️', x: 90, y: 12, desc: 'Nhặt vỏ sò, tắm nắng' },
   { id: 'cherry', name: 'Vườn Anh Đào', icon: '🌸', x: 70, y: 64, desc: 'Cắm trại, bể bơi, chèo thuyền' },
-  { id: 'sky', name: 'Đảo Trên Trời', icon: '☁️', x: 52, y: 9, desc: 'Khinh khí cầu lên mây' },
+  { id: 'hospital', name: 'Bệnh viện Zeno', icon: '🏥', x: 52, y: 9, desc: 'Khám bệnh, tiêm, uống thuốc, truyền nước' },
   { id: 'school', name: 'Trường học', icon: '🏫', x: 48, y: 86, desc: 'Đố vui tiếng Anh' },
   { id: 'mine', name: 'Mỏ Quảng Ninh', icon: '⛏️', x: 93, y: 40, desc: 'Đào quặng, đá quý, đánh quái · Lò rèn' },
   { id: 'race', name: 'Khu Đua Xe', icon: '🏎️', x: 8, y: 48, desc: 'Đua xe 3D hoạt hình, drift ăn xu' },

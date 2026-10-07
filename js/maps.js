@@ -561,7 +561,27 @@ const MAPS = (() => {
       col(m, x - 105, y - 46, 210, 44);
       inter(m, { x: x - 105, y: y - 160, w: 210, h: 160, ax: x - 40, ay: y + 28, name: `${e.name} (ăn uống +XP)`, use: () => UI.eateryPanel(e.id) });
     });
-    addPot(m, 1450, 1360, 'mai'); addPot(m, 1750, 1360, 'dao');
+    addPot(m, 1750, 1360, 'dao');
+    /* ----- 🧑‍🌾 biển thuê giúp việc cạnh cổng, gần bến xe buýt ----- */
+    const HX2 = 1470, HY2 = 1432;
+    sobj(m, HX2, HY2, (c) => {
+      c.save(); c.translate(HX2, HY2); c.scale(1.25, 1.25); c.translate(-HX2, -HY2);
+      c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(HX2, HY2 + 2, 70, 9, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#6b4423'; c.fillRect(HX2 - 52, HY2 - 70, 9, 70); c.fillRect(HX2 + 43, HY2 - 70, 9, 70);
+      c.fillStyle = '#c98a4b'; c.beginPath(); c.roundRect(HX2 - 68, HY2 - 158, 136, 98, 12); c.fill();
+      c.strokeStyle = '#6b4423'; c.lineWidth = 5; c.stroke();
+      c.fillStyle = '#fff3d6'; c.beginPath(); c.roundRect(HX2 - 60, HY2 - 150, 120, 82, 8); c.fill();
+      c.fillStyle = '#2f9e44'; c.beginPath(); c.roundRect(HX2 - 60, HY2 - 150, 120, 26, [8, 8, 0, 0]); c.fill();
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillStyle = '#fff'; c.font = '900 13px "Be Vietnam Pro", system-ui'; c.fillText('THUÊ GIÚP VIỆC', HX2, HY2 - 137);
+      c.font = '26px system-ui, "Segoe UI Emoji"'; c.fillText('🧑‍🌾', HX2 - 34, HY2 - 102);
+      c.fillStyle = '#5c3010'; c.font = '800 10px "Be Vietnam Pro", system-ui'; c.textAlign = 'left';
+      c.fillText('💧 Tưới nước', HX2 - 16, HY2 - 117); c.fillText('🧪 Bón phân', HX2 - 16, HY2 - 106); c.fillText('🐛 Trừ sâu', HX2 - 16, HY2 - 95); c.fillText('🌾 Thu hoạch', HX2 - 16, HY2 - 84);
+      c.textAlign = 'center'; c.fillStyle = '#c92a2a'; c.font = '900 11px "Be Vietnam Pro", system-ui'; c.fillText('Từ 30.000 xu/ngày', HX2, HY2 - 72);
+      c.restore();
+    }, { l: -94, t: -206, w: 188, h: 214 });
+    col(m, HX2 - 56, HY2 - 10, 112, 10);
+    inter(m, { x: HX2 - 85, y: HY2 - 200, w: 170, h: 200, ax: HX2, ay: HY2 + 26, name: 'Biển thuê giúp việc (chăm nông trại hộ)', use: () => UI.helperPanel(), arrow: { x: HX2, y: HY2 - 218, text: 'Thuê giúp việc' } });
     /* QuangLamBank + cây ATM cạnh trạm xe buýt (vẽ sẵn 1 lần → nhẹ cho điện thoại) */
     const BX = 2345, BY = 1428, BK = 0.56; // thấp vừa để không che luống đất trong tường
     sobj(m, BX, BY, (c) => { c.save(); c.translate(BX, BY); c.scale(BK, BK); BANK.building(c, 0, 0); c.restore(); }, { l: -150, t: -235, w: 300, h: 255 });
@@ -664,10 +684,6 @@ const MAPS = (() => {
     col(m, 440, 460, 80, 12);
     inter(m, { x: 430, y: 360, w: 100, h: 112, ax: 480, ay: 500, name: 'Bảng tin', use: () => UI.cityMap(false) });
 
-    /* bến khinh khí cầu lên Đảo Trên Trời */
-    aobj(m, 1530, 470, (c, t) => { c.save(); c.translate(1530, 470); c.scale(0.8, 0.8); SKY.balloon(c, 0, 0, t); c.restore(); }, { l: -85, t: -285, w: 170, h: 295 });
-    col(m, 1500, 438, 60, 34);
-    inter(m, { x: 1470, y: 220, w: 120, h: 255, ax: 1530, ay: 505, name: 'Khinh khí cầu (bay lên Đảo Trên Trời)', use: () => SKY.fly(true), arrow: { x: 1530, y: 210, text: '☁️ Lên Đảo Trên Trời' } });
     npc(m, 'Bé Na', { skin: '#ffe0c4', hair: 'pigtails', hairColor: '#6b3e26', shirt: '#e64980', shirtStyle: 'heart', pants: '#dee2e6', hat: 'bow' }, plazaArea, 440, 690, 'bunny');
     npc(m, 'Anh Tú', { skin: '#e3a979', hair: 'spiky', hairColor: '#2b2b33', shirt: '#4c6ef5', shirtStyle: 'stripes', pants: '#343a40', hat: 'cap' }, plazaArea, 800, 690, 'dog');
     npc(m, 'Cô Mai', { skin: '#f8c9a2', hair: 'long', hairColor: '#2b2b33', shirt: '#fcc419', shirtStyle: 'plain', pants: '#8b5a2b', hat: 'nonla' }, plazaArea, 1160, 690);
@@ -1551,6 +1567,119 @@ const MAPS = (() => {
   }
 
   /* ---------- 🎬 Rạp CGV (trong rạp, dùng chung) ---------- */
+  /* ---------- 🏥 Bệnh viện Zeno (bên ngoài) ---------- */
+  function hospitalArt(c, x, y) {
+    const W = 760, L = x - W / 2;
+    c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(x, y + 6, W / 2 + 30, 26, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#f8f9fa'; c.fillRect(L, y - 360, W, 360);
+    c.fillStyle = '#e9ecef'; for (let k = 0; k < 5; k++) c.fillRect(L, y - 360 + k * 72, W, 3);
+    c.fillStyle = '#1c7ed6'; c.fillRect(L - 12, y - 380, W + 24, 26);
+    for (let r = 0; r < 3; r++) for (let i = 0; i < 9; i++) {
+      if (r === 2 && i >= 3 && i <= 5) continue;
+      const wx = L + 30 + i * 80, wy = y - 330 + r * 96;
+      c.fillStyle = '#495057'; c.fillRect(wx - 2, wy - 2, 56, 58);
+      const g = c.createLinearGradient(wx, wy, wx + 52, wy + 54); g.addColorStop(0, '#d0ebff'); g.addColorStop(1, '#74c0fc');
+      c.fillStyle = g; c.fillRect(wx, wy, 52, 54);
+      c.fillStyle = 'rgba(255,255,255,.5)'; c.fillRect(wx + 4, wy + 4, 8, 46);
+    }
+    // biển + chữ thập đỏ
+    c.fillStyle = '#fff'; c.beginPath(); c.roundRect(x - 230, y - 450, 460, 70, 14); c.fill();
+    c.strokeStyle = '#e03131'; c.lineWidth = 6; c.stroke();
+    c.fillStyle = '#e03131'; c.fillRect(x - 210, y - 440, 50, 50); c.fillStyle = '#fff'; c.fillRect(x - 192, y - 434, 14, 38); c.fillRect(x - 204, y - 422, 38, 14);
+    c.fillStyle = '#e03131'; c.font = '900 34px "Be Vietnam Pro", system-ui'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText('BỆNH VIỆN ZENO', x - 148, y - 414);
+    // sảnh kính + cửa
+    c.fillStyle = '#1864ab'; c.fillRect(x - 130, y - 150, 260, 150);
+    c.fillStyle = 'rgba(208,235,255,.9)'; c.fillRect(x - 122, y - 142, 120, 142); c.fillRect(x + 2, y - 142, 120, 142);
+    c.fillStyle = '#e03131'; c.beginPath(); c.roundRect(x - 110, y - 190, 220, 36, 8); c.fill();
+    c.fillStyle = '#fff'; c.font = '900 17px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.fillText('🚑 CẤP CỨU 24/7', x, y - 172);
+    c.fillStyle = '#ced4da'; c.fillRect(x - 150, y - 4, 300, 10);
+  }
+  function ambulance(c, x, y) {
+    c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(x, y + 2, 110, 12, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fff'; c.beginPath(); c.roundRect(x - 100, y - 82, 140, 70, 8); c.fill(); c.beginPath(); c.roundRect(x + 40, y - 62, 58, 50, 8); c.fill();
+    c.fillStyle = '#74c0fc'; c.fillRect(x + 52, y - 56, 36, 20);
+    c.fillStyle = '#e03131'; c.fillRect(x - 100, y - 44, 198, 8); c.fillRect(x - 46, y - 74, 12, 30); c.fillRect(x - 55, y - 65, 30, 12);
+    c.fillStyle = '#1c7ed6'; c.fillRect(x - 20, y - 92, 26, 10);
+    c.fillStyle = '#212529'; [x - 60, x + 60].forEach((wx) => { c.beginPath(); c.arc(wx, y - 12, 13, 0, Math.PI * 2); c.fill(); });
+  }
+  function hospital() {
+    const m = base('hospital', 'Bệnh viện Zeno', 2000, 1070);
+    ground(m, (g) => {
+      paintGrass(g, m.w, m.h, 141);
+      paintPaved(g, 120, 370, 1760, 455, '#eef2f5');
+      paintStreet(g, m.w, 870, 1000);
+    });
+    sobj(m, 1000, 700, (c) => hospitalArt(c, 1000, 700), { l: -400, t: -460, w: 800, h: 475 });
+    col(m, 620, 560, 250, 140); col(m, 1130, 560, 250, 140); col(m, 870, 560, 260, 70);
+    inter(m, { x: 880, y: 550, w: 240, h: 150, ax: 1000, ay: 740, name: 'Vào Bệnh viện Zeno', use: () => AV.teleport('clinic', false, 800, 900, '🏥 Vào bệnh viện…'), arrow: { x: 1000, y: 520, text: 'Vào khám bệnh' } });
+    sobj(m, 1520, 760, (c) => ambulance(c, 1520, 760), { l: -115, t: -100, w: 230, h: 112 });
+    col(m, 1410, 720, 200, 40);
+    [[1750, 600, 'pink'], [1880, 760, 'green']].forEach(([x, y, v]) => addTree(m, x, y, v));
+    addBench(m, 520, 780);
+    m.labels.push({ text: '🏥 Bệnh viện Zeno', x: 1000, y: 395 });
+    npc(m, 'Y tá Thảo', { skin: '#ffe0c4', hair: 'bun', hairColor: '#3b2a1a', shirt: '#f8f9fa', shirtStyle: 'plain', pants: '#f8f9fa', hat: 'none' }, { l: 700, t: 760, r: 1300, b: 840 }, 1150, 790, 'none');
+    street(m, 330, 1700);
+    m.spawn = { x: 1050, y: 875 };
+    m.bounds = { l: 20, t: 420, r: m.w - 20, b: m.h - 40 };
+    return m;
+  }
+  /* ---------- 🏥 Bên trong bệnh viện: tiếp đón, phòng khám, phòng tiêm, nhà thuốc, phòng truyền nước ---------- */
+  function clinic() {
+    const m = base('clinic', 'Bệnh viện Zeno', 1600, 1000);
+    m.indoor = true; m.hz = 0;
+    const R = { lobby: [40, 580, 760, 380, '#eef6ff'], doc: [40, 240, 520, 340, '#f1f3f5'], shot: [560, 240, 480, 340, '#fff0f6'], ward: [1040, 240, 520, 720, '#ebfbee'], pharm: [800, 580, 240, 380, '#fff9db'] };
+    ground(m, (g) => {
+      g.fillStyle = '#2b3a4a'; g.fillRect(0, 0, m.w, m.h);
+      g.fillStyle = '#e7f5ff'; g.fillRect(40, 20, 1520, 220);
+      g.fillStyle = '#74c0fc'; g.fillRect(40, 200, 1520, 40);
+      Object.values(R).forEach(([x, y, w, h, c]) => { g.fillStyle = c; g.fillRect(x, y, w, h); g.strokeStyle = 'rgba(0,0,0,.06)'; g.lineWidth = 2; for (let yy = y; yy < y + h; yy += 40) for (let xx = x; xx < x + w; xx += 40) g.strokeRect(xx, yy, 40, 40); });
+      g.fillStyle = '#e03131'; g.fillRect(760, 60, 80, 80); g.fillStyle = '#fff'; g.fillRect(788, 70, 24, 60); g.fillRect(770, 88, 60, 24);
+      g.fillStyle = '#1c7ed6'; g.font = '900 30px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('BỆNH VIỆN ZENO · Tận tâm vì sức khoẻ của bạn', 800, 170);
+      g.fillStyle = '#a61e4d'; g.fillRect(740, 900, 120, 46);
+      g.fillStyle = '#2b3a4a'; g.fillRect(0, 960, m.w, 40); g.fillRect(0, 0, 40, m.h); g.fillRect(1560, 0, 40, m.h);
+    });
+    const wallH = (x1, x2, y) => { sobj(m, x1, y, (c) => ART.innerWallH(c, x1, x2, y), { l: -10, t: -70, w: x2 - x1 + 20, h: 74 }); col(m, x1, y - 14, x2 - x1, 16); };
+    const wallV = (x, y1, y2) => { sobj(m, x, y2, (c) => ART.innerWallV(c, x, y1, y2), { l: -16, t: y1 - y2 - 70, w: 32, h: y2 - y1 + 74 }); col(m, x - 10, y1, 20, y2 - y1); };
+    [[40, 200], [340, 720], [880, 1040]].forEach(([a, b]) => wallH(a, b, 580));
+    wallV(560, 240, 400); wallV(1040, 240, 380); wallV(1040, 470, 960); wallV(800, 600, 820);
+    const lab = (t, x, y) => m.labels.push({ text: t, x, y });
+    lab('🩺 Phòng khám', 300, 262); lab('💉 Phòng tiêm', 800, 262); lab('🛏️ Truyền nước', 1300, 262); lab('🛎️ Tiếp đón', 420, 602); lab('💊 Nhà thuốc', 920, 602);
+    const H = DATA.HOSPITAL, fmt = (n) => n.toLocaleString('vi-VN');
+    // phòng khám: bàn bác sĩ
+    sobj(m, 300, 420, (c) => { c.save(); c.translate(300, 420); c.scale(2.4, 2.4); c.translate(-300, -420); ART.desk(c, 300, 420); c.restore(); c.font = '24px system-ui, "Segoe UI Emoji"'; c.textAlign = 'center'; c.fillText('🩺', 330, 330); }, { l: -90, t: -110, w: 180, h: 120 });
+    col(m, 220, 380, 160, 40);
+    inter(m, { x: 210, y: 300, w: 180, h: 130, ax: 300, ay: 470, name: `Bác sĩ khám bệnh (${fmt(H.exam)} xu)`, use: () => AV.hospital('exam'), arrow: { x: 300, y: 290, text: 'Khám bệnh' } });
+    npc(m, 'Bác sĩ Minh', { skin: '#f1c27d', hair: 'short', hairColor: '#222', shirt: '#ffffff', shirtStyle: 'plain', pants: '#1c7ed6', hat: 'none' }, { l: 280, t: 330, r: 320, b: 345 }, 300, 340, 'none');
+    // phòng tiêm: ghế + khay kim tiêm
+    sobj(m, 800, 420, (c) => { c.fillStyle = '#e64980'; c.beginPath(); c.roundRect(740, 380, 90, 40, 10); c.fill(); c.fillStyle = '#c2255c'; c.fillRect(740, 360, 20, 60); c.fillStyle = '#dee2e6'; c.fillRect(860, 370, 60, 8); c.font = '26px system-ui, "Segoe UI Emoji"'; c.textAlign = 'center'; c.fillText('💉', 890, 356); }, { l: -80, t: -90, w: 200, h: 100 });
+    col(m, 740, 380, 180, 40);
+    inter(m, { x: 730, y: 320, w: 200, h: 110, ax: 800, ay: 470, name: `Tiêm (${fmt(H.shot)} xu · khỏi sốt ngay)`, use: () => AV.hospital('shot'), arrow: { x: 800, y: 300, text: 'Tiêm' } });
+    npc(m, 'Y tá Lan', { skin: '#ffe0c4', hair: 'long', hairColor: '#3b2a1a', shirt: '#f783ac', shirtStyle: 'plain', pants: '#ffffff', hat: 'none' }, { l: 860, t: 440, r: 900, b: 455 }, 880, 450, 'none');
+    // nhà thuốc
+    sobj(m, 920, 700, (c) => { c.fillStyle = '#2f9e44'; c.fillRect(830, 650, 180, 50); c.fillStyle = '#fff'; c.fillRect(830, 650, 180, 8); c.fillStyle = '#e9ecef'; c.fillRect(840, 600, 160, 46); c.font = '20px system-ui, "Segoe UI Emoji"'; c.textAlign = 'center'; c.fillText('💊 🧴 💊 🩹', 920, 624); }, { l: -100, t: -110, w: 200, h: 120 });
+    col(m, 830, 650, 180, 50);
+    inter(m, { x: 830, y: 590, w: 180, h: 110, ax: 920, ay: 740, name: `Nhà thuốc (${fmt(H.pill)} xu · khỏi sau ${H.pillMin} phút)`, use: () => AV.hospital('pill'), arrow: { x: 920, y: 580, text: 'Mua thuốc' } });
+    // phòng truyền nước: 3 giường + cây treo dịch
+    [360, 560, 760].forEach((y) => {
+      const x = 1250;
+      sobj(m, x, y, (c) => { c.fillStyle = '#adb5bd'; c.fillRect(x - 90, y - 50, 180, 10); c.fillStyle = '#fff'; c.beginPath(); c.roundRect(x - 90, y - 70, 180, 34, 8); c.fill(); c.fillStyle = '#a5d8ff'; c.fillRect(x - 40, y - 68, 128, 30); c.fillStyle = '#fff'; c.beginPath(); c.roundRect(x - 86, y - 68, 40, 26, 8); c.fill(); c.fillStyle = '#868e96'; c.fillRect(x + 110, y - 140, 4, 100); c.fillStyle = 'rgba(165,216,255,.9)'; c.beginPath(); c.roundRect(x + 100, y - 150, 24, 30, 6); c.fill(); }, { l: -100, t: -160, w: 240, h: 170 });
+      col(m, x - 90, y - 70, 180, 34);
+      inter(m, { x: x - 90, y: y - 80, w: 180, h: 50, ax: x, ay: y + 10, name: `Giường truyền nước (${fmt(H.iv)} xu · đầy ⚡)`, use: () => { AV.hospital('iv'); }, arrow: y === 360 ? { x, y: y - 160, text: 'Truyền nước' } : undefined });
+    });
+    // quầy tiếp đón
+    sobj(m, 420, 760, (c) => { c.fillStyle = '#1c7ed6'; c.beginPath(); c.roundRect(300, 720, 240, 50, 10); c.fill(); c.fillStyle = '#fff'; c.font = '900 16px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('TIẾP ĐÓN · HƯỚNG DẪN', 420, 745); }, { l: -130, t: -50, w: 260, h: 60 });
+    col(m, 300, 720, 240, 50);
+    inter(m, { x: 300, y: 700, w: 240, h: 70, ax: 420, ay: 800, name: 'Quầy tiếp đón (hướng dẫn)', use: () => UI.toast(`🛎️ ${AV.isSick() ? 'Bạn đang sốt — vào 🩺 phòng khám trước, rồi sang 💉 tiêm hoặc 💊 nhà thuốc.' : 'Bệnh viện Zeno: 🩺 khám ' + fmt(H.exam) + ' · 💉 tiêm ' + fmt(H.shot) + ' · 💊 thuốc ' + fmt(H.pill) + ' · 💧 truyền nước ' + fmt(H.iv) + ' xu'}`, 6000) });
+    npc(m, 'Y tá Hoa', { skin: '#ffe0c4', hair: 'bob', hairColor: '#6b3e26', shirt: '#74c0fc', shirtStyle: 'plain', pants: '#ffffff', hat: 'none' }, { l: 400, t: 690, r: 440, b: 700 }, 420, 695, 'none');
+    [[120, 900], [700, 640]].forEach(([x, y]) => sobj(m, x, y, (c) => ART.plantPot(c, x, y), { l: -30, t: -95, w: 60, h: 100 }));
+    // cửa ra
+    sobj(m, 800, 962, (c) => ART.homeDoor(c, 800, 962), { l: -50, t: -22, w: 100, h: 28 });
+    inter(m, { x: 740, y: 900, w: 120, h: 70, ax: 800, ay: 930, name: 'Ra ngoài', use: () => AV.teleport('hospital', false, 1000, 760, '🏥 Ra ngoài…'), arrow: { x: 800, y: 905, text: 'Ra ngoài' } });
+    m.spawn = { x: 800, y: 900 };
+    m.bounds = { l: 56, t: 262, r: m.w - 56, b: 940 };
+    return m;
+  }
+
   function cgv() {
     const m = base('cgv', 'Rạp CGV', 2000, 1250);
     m.indoor = true;
@@ -2198,7 +2327,7 @@ const MAPS = (() => {
     return m;
   };
 
-  const all = { apt_han: () => airport('han'), apt_hph: () => airport('hph'), apt_vdo: () => airport('vdo'), apt_sgn: () => airport('sgn'), apt_pqc: () => airport('pqc'), apt_dad: () => airport('dad'), mine, home2: () => floorMap(2), home3: () => floorMap(3), home4: () => floorMap(4), farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
+  const all = { apt_han: () => airport('han'), apt_hph: () => airport('hph'), apt_vdo: () => airport('vdo'), apt_sgn: () => airport('sgn'), apt_pqc: () => airport('pqc'), apt_dad: () => airport('dad'), mine, hospital, clinic, home2: () => floorMap(2), home3: () => floorMap(3), home4: () => floorMap(4), farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
   Object.defineProperty(all, 'moveGroup', { value: moveGroup, enumerable: false });
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
   return all;

@@ -799,7 +799,23 @@
   const enOf = () => (typeof S.energy === 'number' ? S.energy : (S.energy = 100));
   let enWarnAt = 0;
   AV.energy = () => enOf();
+  /* ---------- 🤒 Ốm sốt: kiệt sức quá thì sốt, phải đi Bệnh viện Zeno ---------- */
+  AV.isSick = () => !!(S.sick && !(S.sick.cureAt && S.sick.cureAt <= Date.now()));
+  function getSick(why) {
+    if (S.sick) return;
+    S.sick = { since: Date.now(), why };
+    changed();
+    say(player, '🤒 Nóng quá… sốt rồi');
+    UI.toast(`🤒 Bạn bị ốm sốt (${why})! Đi chậm, không làm việc được. Đến 🏥 Bệnh viện Zeno khám và tiêm / uống thuốc nhé`, 7000);
+  }
+  AV.getSick = getSick;
+  function checkSick() {
+    if (S.sick && S.sick.cureAt && S.sick.cureAt <= Date.now()) { S.sick = null; S.lowSince = 0; changed(); UI.toast('💪 Thuốc ngấm rồi — bạn đã khỏi sốt!', 4000); }
+    if (enOf() < 10) { S.lowSince = S.lowSince || Date.now(); if (Date.now() - S.lowSince > 15 * 60000) getSick('đói lả lâu quá'); } else S.lowSince = 0;
+  }
+  setInterval(checkSick, 30000);
   AV.useEnergy = (n, quiet) => {
+    if (AV.isSick()) { if (!quiet && Date.now() - enWarnAt > 2500) { enWarnAt = Date.now(); UI.toast('🤒 Bạn đang ốm sốt — không làm việc được. Đến 🏥 Bệnh viện Zeno khám nhé!', 4500); } return false; }
     const e = enOf();
     if (e < n) {
       if (!quiet && Date.now() - enWarnAt > 2500) { enWarnAt = Date.now(); UI.toast('😫 Đói và mệt quá! Ăn gì đó ở quán ăn, ăn đồ trong 🎒 túi, hoặc về nhà ngủ để hồi ⚡ năng lượng', 4500); say(player, '😫 Đói quá…'); }
@@ -807,12 +823,13 @@
     }
     S.energy = Math.max(0, e - n);
     if (e >= 20 && S.energy < 20) UI.toast('⚡ Năng lượng sắp hết — nhớ ăn uống nhé!', 3500);
+    if (S.energy <= 0 && Math.random() < 0.5) getSick('làm việc kiệt sức');
     UI.updateHud();
     return true;
   };
   AV.addEnergy = (n) => { S.energy = Math.min(100, enOf() + n); UI.updateHud(); changed(); };
   // tự hồi rất chậm: +1 mỗi 2 phút
-  setInterval(() => { if (enOf() < 100) { S.energy = Math.min(100, enOf() + 1); UI.updateHud(); } }, 120000);
+  setInterval(() => { if (enOf() < (AV.isSick() ? 30 : 100)) { S.energy = Math.min(100, enOf() + 1); UI.updateHud(); } }, 120000);
   /** món ăn được từ túi đồ (món nấu, trái cây, rau quả, trứng, sữa) → năng lượng hồi */
   AV.edibleEnergy = (id) => {
     if ((DATA.RECIPES || []).some((r) => r.id === id)) return Math.min(50, Math.max(15, Math.round(DATA.ITEMS[id].sell / 2)));
@@ -2886,6 +2903,31 @@
   setInterval(() => { if (!CLOUD.user || cloudReady) AV.shipPayout(); }, 60000);
   setTimeout(() => AV.shipPayout(), 9000);
 
+  /* ---------- 🏥 Bệnh viện Zeno ---------- */
+  AV.hospital = (what) => {
+    const P = DATA.HOSPITAL, sick = AV.isSick();
+    if (what === 'exam') {
+      if (!AV.spend(P.exam)) return;
+      if (S.sick) S.sick.examined = true;
+      changed();
+      return UI.toast(sick ? `🩺 Bác sĩ: "Cháu bị sốt do ${S.sick.why}. Sang phòng tiêm tiêm 1 mũi cho khỏi ngay, hoặc ra nhà thuốc mua thuốc uống (khỏi sau ${P.pillMin} phút)."` : '🩺 Bác sĩ: "Cháu khoẻ mạnh! Nhớ ăn uống đầy đủ, đừng làm việc quá sức nhé."', 7000);
+    }
+    if (what === 'shot' || what === 'pill') {
+      if (!sick) return UI.toast('Bạn đang khoẻ mạnh, không cần ' + (what === 'shot' ? 'tiêm' : 'uống thuốc') + ' 😊');
+      if (!S.sick.examined) return UI.toast('🩺 Phải vào phòng bác sĩ khám trước để được kê đơn nhé', 4000);
+      if (!AV.spend(what === 'shot' ? P.shot : P.pill)) return;
+      if (what === 'shot') { S.sick = null; S.lowSince = 0; S.energy = Math.min(100, enOf() + 30); say(player, '💉 Á đau… nhưng khỏi rồi!'); UI.toast('💉 Tiêm xong — hết sốt ngay! +30 ⚡', 4500); }
+      else { S.sick.cureAt = Date.now() + P.pillMin * 60000; say(player, '💊 Ực…'); UI.toast(`💊 Đã uống thuốc — khỏi sốt sau ${P.pillMin} phút`, 4500); }
+      changed(); UI.updateHud();
+      return;
+    }
+    if (what === 'iv') {
+      if (!AV.spend(P.iv)) return;
+      S.energy = AV.isSick() ? 30 : 100; changed(); UI.updateHud();
+      UI.toast(AV.isSick() ? '💧 Truyền nước xong (+⚡) — nhưng vẫn đang sốt, nhớ tiêm hoặc uống thuốc!' : '💧 Truyền nước xong — năng lượng đầy 100!', 5000);
+    }
+  };
+
   /* ---------- 🧑‍🌾 Thuê giúp việc: tự thu hoạch, tưới, xịt sâu, bón phân, gieo hạt bằng đồ trong túi ---------- */
   AV.helperActive = () => !!(S.helper && S.helper.until > Date.now());
   AV.hireHelper = (plan) => {
@@ -2966,7 +3008,8 @@
     const ky = (keys.has('down') ? 1 : 0) - (keys.has('up') ? 1 : 0);
     if (!UI.isBlocking() && (kx || ky)) {
       const l = Math.hypot(kx, ky);
-      vx = kx / l * SPEED; vy = ky / l * SPEED;
+      const spd = SPEED * (AV.isSick && AV.isSick() ? 0.55 : 1);
+      vx = kx / l * spd; vy = ky / l * spd;
       player.target = null; player.pending = null; marker = null;
     } else if (player.target) {
       const dx = player.target.x - player.x, dy = player.target.y - player.y, d = Math.hypot(dx, dy);
@@ -2975,7 +3018,7 @@
         else { player.target = null; marker = null; }
       }
       else {
-        const sp = Math.min(SPEED, d / dt);
+        const sp = Math.min(SPEED * (AV.isSick && AV.isSick() ? 0.55 : 1), d / dt);
         vx = dx / d * sp; vy = dy / d * sp;
       }
     }
@@ -3376,6 +3419,15 @@
     map.npcs.forEach((n) => { if ((!n.hw || AV.hw()) && (!n.show || n.show())) at(n.x, n.y, nameTop(n.look), () => ART.namePlate(ctx, n.name, n.x, n.y - nameTop(n.look), 'npc')); });
     others.forEach((r) => at(r.rx, r.ry, nameTop(r.look), () => ART.namePlate(ctx, r.name, r.rx, r.ry - nameTop(r.look), 'other')));
     if (!player.hidden && !(pose && pose.front)) at(player.x, player.y, nameTop(S.look), () => ART.namePlate(ctx, S.name || 'Bạn', player.x, player.y - nameTop(S.look), 'me'));
+    if (!player.hidden && !(pose && pose.front)) at(player.x, player.y, nameTop(S.look) + 14, () => {
+      const e = Math.max(0, Math.min(100, enOf())), x = player.x, y = player.y - nameTop(S.look) - 14, w = 46;
+      ctx.fillStyle = 'rgba(27,47,72,.85)'; ctx.beginPath(); ctx.roundRect(x - w / 2 - 2, y - 4, w + 4, 8, 4); ctx.fill();
+      ctx.fillStyle = e < 20 ? (Math.floor(clock * 3) % 2 ? '#ff6b6b' : '#c92a2a') : e < 50 ? '#fab005' : '#40c057';
+      ctx.beginPath(); ctx.roundRect(x - w / 2, y - 2, w * e / 100, 4, 2); ctx.fill();
+      ctx.font = '11px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+      ctx.fillText(AV.isSick() ? '🤒' : '⚡', x - w / 2 - 4, y);
+      if (e < 20 && !AV.isSick()) { ctx.textAlign = 'left'; ctx.fillText('🍜', x + w / 2 + 4, y); }
+    });
     // ai đang nói qua mic: hiện 🔊 cạnh bảng tên
     const speak = (x, y) => { ctx.font = '18px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000'; ctx.fillText(Math.floor(clock * 4) % 2 ? '🔊' : '🔉', x, y); };
     others.forEach((r) => { if (VOICE.talking(r.id)) at(r.rx, r.ry, nameTop(r.look), () => speak(r.rx + 44, r.ry - nameTop(r.look) + 9)); });

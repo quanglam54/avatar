@@ -1580,7 +1580,6 @@ const UI = (() => {
       ['app', '📲', 'Cài app', installApp],
       ['bank', '🏦', 'Ngân hàng', () => BANK.panel('app')],
       ['house', '🏗️', 'Nâng cấp nhà', houseUpgrade],
-      ['helper', '🧑‍🌾', 'Giúp việc', helperPanel],
       ['treasure', '🏴‍☠️', 'Săn rương', () => TREASURE.popup()],
     ];
     if (AV.isHouse()) items.push(['house', '💼', 'Két', housePanel]);

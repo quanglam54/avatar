@@ -20,8 +20,8 @@ const RIDE = (() => {
   ];
   const E = Object.fromEntries(EDGES.map((e) => [e.id, e]));
   /** Mỗi khu nằm ở đâu trên đường: [đường, mét tính từ đầu đường] */
-  const SPOTS = { cherry: ['pvd2', 900], farm: ['pvd1', 350], school: ['hqv', 1300], town: ['cg', 800], mall: ['ph', 1250], fun: ['mdinh', 850], park: ['ldt', 1000], beach: ['htm2', 1450], race: ['tl', 1500] };
-  const PARENT = { apt_han: 'fun', apt_hph: 'farm', apt_vdo: 'cherry', apt_sgn: 'mall', apt_pqc: 'beach', apt_dad: 'park', home: 'farm', home2: 'farm', home3: 'farm', home4: 'farm', casino: 'fun', arena: 'fun', horse: 'fun', club: 'fun', concert: 'fun', cgv: 'fun', boxing: 'fun', wc: 'cherry', classroom: 'school' };
+  const SPOTS = { hospital: ['cg', 1500], cherry: ['pvd2', 900], farm: ['pvd1', 350], school: ['hqv', 1300], town: ['cg', 800], mall: ['ph', 1250], fun: ['mdinh', 850], park: ['ldt', 1000], beach: ['htm2', 1450], race: ['tl', 1500] };
+  const PARENT = { clinic: 'hospital', apt_han: 'fun', apt_hph: 'farm', apt_vdo: 'cherry', apt_sgn: 'mall', apt_pqc: 'beach', apt_dad: 'park', home: 'farm', home2: 'farm', home3: 'farm', home4: 'farm', casino: 'fun', arena: 'fun', horse: 'fun', club: 'fun', concert: 'fun', cgv: 'fun', boxing: 'fun', wc: 'cherry', classroom: 'school' };
   const zoneOf = (mapId) => { const id = PARENT[mapId] || String(mapId || '').split('-')[0]; return SPOTS[id] ? id : null; };
 
   /** Tìm đường ngắn nhất giữa 2 khu → danh sách chặng (mỗi chặng là một đoạn trên 1 con đường) */
