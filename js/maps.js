@@ -375,6 +375,9 @@ const MAPS = (() => {
     const FX0 = 180 + (2080 - (BD.w * 6 + 40 * 5)) / 2, FY0 = 458, FSTEP = BD.h + 34; // chừa lối giữa các hàng luống cho dễ bấm
     // thứ tự luống giữ nguyên số luống cũ (0–7 ruộng chính, 12–19 đất mở rộng, 20–21 đất mới) để không mất cây đang trồng
     [0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].forEach((bedIdx, slot) => addBed(bedIdx, FX0 + (slot % 6) * (BD.w + 40), FY0 + Math.floor(slot / 6) * FSTEP, 'Ô ruộng'));
+    // 🧑‍🌾 cô giúp việc (chỉ hiện khi đã thuê, ở nông trại của chính mình)
+    npc(m, 'Cô giúp việc', { skin: '#f1c27d', hair: 'bun', hairColor: '#3b2a1a', shirt: '#74c0fc', shirtStyle: 'plain', pants: '#495057', hat: 'nonla' }, { l: 260, t: 870, r: 2150, b: 880 }, 900, 875, 'none');
+    Object.assign(m.npcs[m.npcs.length - 1], { helper: true, show: () => AV.helperActive && AV.helperActive() && !(AV.visiting && AV.visiting()) });
 
     /* ----- 📦 Thùng giao hàng ----- */
     sobj(m, 2262, 760, (c) => {
@@ -1735,6 +1738,13 @@ const MAPS = (() => {
     m.labels.push({ text: '🏖️ Bãi Biển', x: 1000, y: 520 });
     m.pickupArea = { l: 150, t: 540, r: 1850, b: 830 };
     m.pickupTable = DATA.SHELLS;
+    /* 🏴‍☠️ săn rương Halloween: hố đã đào + quầy thuyền trưởng */
+    obj(m, 470, (c) => TREASURE.drawSpots(c), [0, 470, m.w, 850]);
+    sobj(m, 1640, 600, (c) => TREASURE.booth(c, 1640, 600), { l: -95, t: -160, w: 190, h: 170 });
+    col(m, 1560, 560, 160, 40);
+    inter(m, { x: 1560, y: 470, w: 160, h: 130, ax: 1640, ay: 630, name: 'Thuyền trưởng Râu Đỏ (mua xẻng, máy dò · đổi ngọc)', use: () => TREASURE.panel(), arrow: { x: 1640, y: 440, text: 'Săn rương' } });
+    npc(m, 'Thuyền trưởng Râu Đỏ', { skin: '#e0a370', hair: 'short', hairColor: '#c92a2a', shirt: '#212529', shirtStyle: 'stripes', pants: '#7a4a26', hat: 'cap' }, { l: 1700, t: 640, r: 1760, b: 680 }, 1730, 660, 'none');
+    m.npcs[m.npcs.length - 1].pirate = true;
 
     npc(m, 'Cô Hoa', { skin: '#b97a51', hair: 'long', hairColor: '#f4d06f', shirt: '#15aabf', shirtStyle: 'stripes', pants: '#fd7e14', hat: 'flower' }, { l: 200, t: 560, r: 1800, b: 830 }, 1200, 760, 'cat');
 

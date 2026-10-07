@@ -3,7 +3,7 @@
  * Không tải được three.js thì dùng lại cảnh vẽ 2D cũ. */
 const FERRIS3D = (() => {
   const URL3 = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
-  const DUR = 20, R = 110, HUB = 126;
+  const DUR = 22, R = 70, HUB = 82;
   let el = null, T = null;
 
   function load(cb) {
@@ -17,7 +17,7 @@ const FERRIS3D = (() => {
   function ride() {
     load((ok) => {
       if (!ok || !T) return PLANE.ferris();
-      try { start(); } catch (e) { console.error(e); PLANE.ferris(); }
+      try { start(); } catch (e) { console.error(e); window.__ferrisErr = String(e && e.stack); if (el) el.style.display = "none"; PLANE.ferris(); }
     });
   }
 
@@ -31,7 +31,7 @@ const FERRIS3D = (() => {
     if (!el) {
       el = document.createElement('div');
       el.className = 'ferris3d';
-      el.innerHTML = '<div class="fx-cabin"></div><div class="fx-title">🎡 Vòng quay · ngắm thành phố từ trên cao</div><div class="fx-alt"></div><button class="fx-skip">⏩ Bỏ qua</button>';
+      el.innerHTML = '<div class="fx-title">🎡 Vòng quay công viên</div><div class="fx-alt"></div><button class="fx-skip">⏩ Bỏ qua</button>';
       document.body.appendChild(el);
     }
     el.style.display = 'block';
@@ -84,7 +84,7 @@ const FERRIS3D = (() => {
       const cx = i * GRID + GRID / 2, cz = j * GRID + GRID / 2;
       if (Math.abs(cz - 1500) < 200) continue;                 // sông
       const dist = Math.hypot(cx, cz);
-      if (dist < 330) continue;                                // khu vui chơi dưới chân vòng quay
+      if (dist < 1700) continue;                               // giữa là công viên, thành phố chỉ ở xa
       const r = rnd();
       if (r < 0.12) { spots.push({ park: true, cx, cz }); continue; }
       const cnt = r > 0.85 ? 1 : 4;
@@ -126,30 +126,89 @@ const FERRIS3D = (() => {
     cars.forEach((c, i) => carMesh.setColorAt(i, col(['#e03131', '#1c7ed6', '#fab005', '#f8f9fa', '#212529', '#40c057'][i % 6])));
     scene.add(carMesh);
 
-    /* vòng quay: vành, nan hoa, cabin, trụ đỡ */
+    /* ---------- công viên quanh vòng quay ---------- */
+    const at3 = (mesh, x, y, z) => { mesh.position.set(x, y, z); return mesh; };
+    const lam = (c, e) => { const m = new T.MeshLambertMaterial({ color: col(c) }); if (e && isNight) { m.emissive = col(c); m.emissiveIntensity = 0.6; } return m; };
+    const park = new T.Mesh(new T.CircleGeometry(1650, 64), lam(isNight ? '#2b5a2f' : '#7ccf5a')); park.rotation.x = -Math.PI / 2; park.position.y = 0.8; scene.add(park);
+    const pathM = lam(isNight ? '#5c5547' : '#e9d3a6');
+    const ring = new T.Mesh(new T.RingGeometry(150, 185, 64), pathM); ring.rotation.x = -Math.PI / 2; ring.position.y = 1; scene.add(ring);
+    [0, 1].forEach((k) => { const p = new T.Mesh(new T.PlaneGeometry(36, 1600), pathM); p.rotation.x = -Math.PI / 2; p.rotation.z = k * Math.PI / 2; p.position.y = 1; scene.add(p); });
+    const plaza = new T.Mesh(new T.CircleGeometry(110, 40), lam(isNight ? '#6b5d4a' : '#f3dfb6')); plaza.rotation.x = -Math.PI / 2; plaza.position.y = 1.2; scene.add(plaza);
+    // cây quanh công viên
+    const tg = new T.Group();
+    for (let i = 0; i < 70; i++) {
+      const a2 = rnd() * Math.PI * 2, d = 230 + rnd() * 900; const x = Math.cos(a2) * d, z = Math.sin(a2) * d;
+      if (Math.abs(x) < 40 || Math.abs(z) < 40) continue;
+      const tr = new T.Mesh(new T.CylinderGeometry(2.5, 3.5, 16, 6), lam('#7a4a26')); tr.position.set(x, 8, z); tg.add(tr);
+      const cr = new T.Mesh(new T.SphereGeometry(14 + rnd() * 6, 10, 8), lam(['#2f9e44', '#40c057', '#f783ac', '#37b24d'][i % 4])); cr.position.set(x, 26, z); tg.add(cr);
+    }
+    scene.add(tg);
+    // ngựa gỗ xoay (carousel)
+    const car = new T.Group(); car.position.set(-200, 0, 120);
+    car.add(at3(new T.Mesh(new T.CylinderGeometry(42, 44, 6, 24), lam('#f8f9fa')), 0, 3, 0));
+    const roofC = new T.Mesh(new T.ConeGeometry(50, 26, 16), lam('#e64980', true)); roofC.position.y = 50; car.add(roofC);
+    const rim2 = new T.Mesh(new T.CylinderGeometry(50, 50, 6, 16, 1, true), lam('#ffd43b', true)); rim2.position.y = 36; car.add(rim2);
+    const horses = new T.Group(); car.add(horses);
+    for (let k = 0; k < 8; k++) {
+      const a3 = k / 8 * Math.PI * 2, x = Math.cos(a3) * 32, z = Math.sin(a3) * 32;
+      const pole = new T.Mesh(new T.CylinderGeometry(0.8, 0.8, 34, 6), lam('#ffd43b')); pole.position.set(x, 20, z); horses.add(pole);
+      const h = new T.Mesh(new T.BoxGeometry(14, 7, 5), lam(['#fff', '#ffc9c9', '#d0ebff', '#fff3bf'][k % 4])); h.position.set(x, 16 + (k % 2) * 4, z); h.rotation.y = -a3; h.userData.k = k; horses.add(h);
+    }
+    scene.add(car);
+    // xe kem + chùm bóng bay + ghế đá
+    const stand = new T.Group(); stand.position.set(170, 0, 140);
+    stand.add(at3(new T.Mesh(new T.BoxGeometry(30, 18, 16), lam('#ffffff')), 0, 12, 0));
+    const um = new T.Mesh(new T.ConeGeometry(26, 12, 12), lam('#ff8787', true)); um.position.y = 40; stand.add(um);
+    stand.add(at3(new T.Mesh(new T.CylinderGeometry(0.8, 0.8, 34, 4), lam('#868e96')), 0, 22, 0));
+    const balloons = [];
+    for (let k = 0; k < 9; k++) {
+      const bl = new T.Mesh(new T.SphereGeometry(5, 10, 8), lam(['#ff6b6b', '#fcc419', '#51cf66', '#339af0', '#cc5de8', '#ff922b'][k % 6], true));
+      bl.scale.set(1, 1.2, 1); bl.position.set(22 + (k % 3) * 7 - 7, 50 + Math.floor(k / 3) * 8, (k % 2) * 6); stand.add(bl); balloons.push(bl);
+    }
+    scene.add(stand);
+    [[120, -120], [-120, -120], [-130, 200], [130, 220]].forEach(([x, z]) => { const bc = new T.Mesh(new T.BoxGeometry(30, 5, 10), lam('#a0632f')); bc.position.set(x, 9, z); scene.add(bc); });
+    // đèn đường
+    for (let k = 0; k < 10; k++) { const a4 = k / 10 * Math.PI * 2, x = Math.cos(a4) * 195, z = Math.sin(a4) * 195; const lp = new T.Mesh(new T.CylinderGeometry(1, 1.4, 40, 6), lam('#495057')); lp.position.set(x, 20, z); scene.add(lp); const gl = new T.Mesh(new T.SphereGeometry(4, 8, 6), new T.MeshBasicMaterial({ color: isNight ? 0xffe08a : 0xfff9db })); gl.position.set(x, 42, z); scene.add(gl); }
+
+    /* ---------- vòng quay sặc sỡ ---------- */
     const wheel = new T.Group(); wheel.position.set(0, HUB, 0);
-    const steel = new T.MeshLambertMaterial({ color: col('#dee2e6') }), pink = new T.MeshLambertMaterial({ color: col('#f06595'), emissive: isNight ? 0xff4fa0 : 0, emissiveIntensity: isNight ? 0.7 : 0 });
-    [-6, 6].forEach((z) => { const rim = new T.Mesh(new T.TorusGeometry(R, 1.4, 6, 64), pink); rim.position.z = z; wheel.add(rim); });
+    const steel = lam('#f8f9fa'), RAIN = ['#ff6b6b', '#ff922b', '#fcc419', '#51cf66', '#22b8cf', '#339af0', '#845ef7', '#f06595'];
+    [-7, 7].forEach((z) => { const rim = new T.Mesh(new T.TorusGeometry(R, 1.8, 8, 72), lam('#f06595', true)); rim.position.z = z; wheel.add(rim); const rimIn = new T.Mesh(new T.TorusGeometry(R * 0.55, 1.2, 6, 48), lam('#ffd43b', true)); rimIn.position.z = z; wheel.add(rimIn); });
     const CAB = 12;
     for (let k = 0; k < CAB; k++) {
-      const a = k / CAB * Math.PI * 2;
-      [-6, 6].forEach((z) => { const sp = new T.Mesh(new T.CylinderGeometry(0.6, 0.6, R, 4), steel); sp.position.set(Math.cos(a) * R / 2, Math.sin(a) * R / 2, z); sp.rotation.z = a - Math.PI / 2; wheel.add(sp); });
+      const a5 = k / CAB * Math.PI * 2;
+      [-7, 7].forEach((z) => { const sp = new T.Mesh(new T.CylinderGeometry(0.8, 0.8, R, 5), lam(RAIN[k % RAIN.length])); sp.position.set(Math.cos(a5) * R / 2, Math.sin(a5) * R / 2, z); sp.rotation.z = a5 - Math.PI / 2; wheel.add(sp); });
+      const bar = new T.Mesh(new T.CylinderGeometry(0.7, 0.7, 16, 5), steel); bar.rotation.x = Math.PI / 2; bar.position.set(Math.cos(a5) * R, Math.sin(a5) * R, 0); wheel.add(bar);
     }
+    const hub = new T.Mesh(new T.CylinderGeometry(7, 7, 18, 16), lam('#ffd43b', true)); hub.rotation.x = Math.PI / 2; wheel.add(hub);
     scene.add(wheel);
+    // cabin dạng giỏ mở: thân thấp + 4 cột + mái → thấy người ngồi bên trong
     const cabins = [];
-    const cabCols = ['#ff6b6b', '#fcc419', '#51cf66', '#339af0', '#cc5de8', '#ff922b'];
-    for (let k = 1; k < CAB; k++) {
-      const g = new T.Group();
-      const body = new T.Mesh(new T.CylinderGeometry(6, 6, 8, 10), new T.MeshLambertMaterial({ color: col(cabCols[k % cabCols.length]) })); g.add(body);
-      const top = new T.Mesh(new T.ConeGeometry(7, 4, 10), steel); top.position.y = 6; g.add(top);
+    let me = null;
+    for (let k = 0; k < CAB; k++) {
+      const g = new T.Group(), c0 = RAIN[k % RAIN.length];
+      const body = new T.Mesh(new T.CylinderGeometry(8, 7, 7, 14, 1, true), new T.MeshLambertMaterial({ color: col(c0), side: T.DoubleSide })); body.position.y = -3; g.add(body);
+      const floor = new T.Mesh(new T.CircleGeometry(7, 14), lam(c0)); floor.rotation.x = -Math.PI / 2; floor.position.y = -6.4; g.add(floor);
+      for (let p = 0; p < 4; p++) { const a6 = p / 4 * Math.PI * 2 + 0.4; const post = new T.Mesh(new T.CylinderGeometry(0.5, 0.5, 12, 4), steel); post.position.set(Math.cos(a6) * 7, 4, Math.sin(a6) * 7); g.add(post); }
+      const roof = new T.Mesh(new T.ConeGeometry(10, 6, 14), lam(c0, true)); roof.position.y = 12; g.add(roof);
+      const hang = new T.Mesh(new T.CylinderGeometry(0.6, 0.6, 6, 4), steel); hang.position.y = 17; g.add(hang);
       scene.add(g); cabins.push({ g, a: k / CAB * Math.PI * 2 });
+      if (k === 0) me = g;
     }
-    [[-1], [1]].forEach(([s]) => [-8, 8].forEach((z) => { const leg = new T.Mesh(new T.CylinderGeometry(1.6, 2.2, HUB / Math.cos(0.32), 6), steel); leg.position.set(s * Math.tan(0.32) * HUB / 2, HUB / 2, z); leg.rotation.z = -s * 0.32; scene.add(leg); }));
-    const plaza = new T.Mesh(new T.CircleGeometry(300, 40), new T.MeshLambertMaterial({ color: col(isNight ? '#3b3f4a' : '#e9d8b4') })); plaza.rotation.x = -Math.PI / 2; plaza.position.y = 0.5; scene.add(plaza);
-    // đèn trang trí vành (ban đêm nhấp nháy)
-    const bulbs = new T.InstancedMesh(new T.SphereGeometry(1.2, 6, 4), new T.MeshBasicMaterial({ color: 0xffffff }), 48);
-    for (let k = 0; k < 48; k++) { const a = k / 48 * Math.PI * 2; M.compose(P3.set(Math.cos(a) * R, Math.sin(a) * R, 7.6), Q, S.set(1, 1, 1)); bulbs.setMatrixAt(k, M); }
+    // nhân vật của mình ngồi trong cabin
+    const avTex = canvasTex(160, 200, (c) => { try { ART.character(c, 80, 190, AV.S.look, { scale: 1.15, t: 0, dir: 1 }); } catch (e) { /* bỏ qua */ } });
+    const av = new T.Sprite(new T.SpriteMaterial({ map: avTex })); av.scale.set(15, 18.75, 1); av.position.set(0, 3, 0); me.add(av);
+    const flag = new T.Sprite(new T.SpriteMaterial({ map: canvasTex(256, 64, (c) => { c.fillStyle = '#ffd43b'; c.beginPath(); c.roundRect(4, 4, 248, 56, 18); c.fill(); c.fillStyle = '#1b2f48'; c.font = '900 30px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('⬇ ' + (AV.S.name || 'Bạn'), 128, 34); }) }));
+    flag.scale.set(26, 6.5, 1); flag.position.set(0, 26, 0); me.add(flag);
+    // chân đỡ + phòng vé
+    [[-1], [1]].forEach(([sd]) => [-10, 10].forEach((z) => { const leg = new T.Mesh(new T.CylinderGeometry(2, 3, HUB / Math.cos(0.3), 8), lam('#adb5bd')); leg.position.set(sd * Math.tan(0.3) * HUB / 2, HUB / 2, z); leg.rotation.z = -sd * 0.3; scene.add(leg); }));
+    const booth = new T.Mesh(new T.BoxGeometry(26, 20, 16), lam('#ff8787')); booth.position.set(60, 10, 40); scene.add(booth);
+    const boothRoof = new T.Mesh(new T.ConeGeometry(20, 10, 4), lam('#ffd43b')); boothRoof.position.set(60, 25, 40); boothRoof.rotation.y = Math.PI / 4; scene.add(boothRoof);
+    // đèn trang trí vành
+    const bulbs = new T.InstancedMesh(new T.SphereGeometry(1.4, 6, 4), new T.MeshBasicMaterial({ color: 0xffffff }), 72);
+    for (let k = 0; k < 72; k++) { const a7 = k / 72 * Math.PI * 2; M.compose(P3.set(Math.cos(a7) * R, Math.sin(a7) * R, 9), Q, S.set(1, 1, 1)); bulbs.setMatrixAt(k, M); }
     wheel.add(bulbs);
+    const bulbCols = Array.from({ length: 72 }, (_, k) => col(RAIN[k % RAIN.length]));
 
     /* chạy */
     const t0 = performance.now();
@@ -168,18 +227,21 @@ const FERRIS3D = (() => {
     let last = t0;
     const loop = (now) => {
       raf = requestAnimationFrame(loop);
+      try { frame(now); } catch (e) { window.__ferrisErr = String(e && e.stack); end(); }
+    };
+    const frame = (now) => {
       const t = (now - t0) / 1000, dt = Math.min(0.05, (now - last) / 1000); last = now;
       const u = window.__ferrisU != null ? window.__ferrisU : Math.min(1, t / DUR);
       const ang = -Math.PI / 2 + u * Math.PI * 2;               // bắt đầu ở đáy, quay 1 vòng
       wheel.rotation.z = u * Math.PI * 2;
-      cabins.forEach((cb) => { const a = ang + cb.a; cb.g.position.set(Math.cos(a) * R, HUB + Math.sin(a) * R - 8, 0); });
-      // camera trong cabin, nhìn ra thành phố, hơi đung đưa
-      const cy = HUB + Math.sin(ang) * R - 4, cx = Math.cos(ang) * R;
-      camera.position.set(cx, cy, 16);
-      const sway = Math.sin(t * 1.3) * 0.04;
-      // nhìn ra ngoài (phía trước vòng quay), lên cao thì chúc xuống ngắm phố
-      camera.lookAt(cx * 0.6 + Math.sin(t * 0.22) * 500, cy * 0.35, 1100);
-      camera.rotation.z += sway;
+      cabins.forEach((cb) => { const a = ang + cb.a; cb.g.position.set(Math.cos(a) * R, HUB + Math.sin(a) * R - 17, 0); cb.g.rotation.z = Math.sin(t * 1.6 + cb.a) * 0.05; });
+      const cx = me.position.x, cy = me.position.y;
+      // camera đứng ngoài, lượn quanh vòng quay rồi tiến lại gần cabin của mình
+      const th = -0.75 + u * 1.5, dist = 260 - Math.sin(u * Math.PI) * 120;
+      camera.position.set(Math.sin(th) * dist + cx * 0.3, 40 + cy * 0.55, Math.cos(th) * dist);
+      camera.lookAt(cx * 0.65, HUB * 0.35 + cy * 0.65, 0);
+      horses.rotation.y = t * 0.6; horses.children.forEach((h) => { if (h.userData.k != null) h.position.y = 16 + Math.sin(t * 3 + h.userData.k) * 4; });
+      balloons.forEach((bl, k) => { bl.position.x += Math.sin(t * 2 + k) * 0.02; });
       // xe
       cars.forEach((c, i) => {
         c.p += c.v * dt; const L = GRID * N * 2; c.p = ((c.p % L) + L) % L;
@@ -189,8 +251,9 @@ const FERRIS3D = (() => {
         Q.identity(); carMesh.setMatrixAt(i, M);
       });
       carMesh.instanceMatrix.needsUpdate = true;
-      bulbs.material.color.setHSL(isNight ? (t * 0.15) % 1 : 0.12, isNight ? 0.9 : 0.4, isNight ? 0.65 : 0.95);
-      altEl.textContent = `Độ cao ${Math.max(0, Math.round(cy * 0.45))} m`;
+      for (let k = 0; k < 72; k++) bulbs.setColorAt(k, bulbCols[((k + Math.floor(Math.max(0, t) * 8)) % 72 + 72) % 72]);
+      bulbs.instanceColor.needsUpdate = true;
+      altEl.textContent = `🎡 Bạn đang ở độ cao ${Math.max(0, Math.round(cy * 0.4))} m`;
       renderer.render(scene, camera);
       if (t >= DUR) end();
     };

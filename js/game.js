@@ -32,6 +32,7 @@
     const d = defaultState();
     // ô tô VinFast từng lưu nhầm vào S.cars (trùng danh sách xe đua) → tách sang S.evs
     if (typeof s.energy !== 'number') s.energy = 100;
+    if (Array.isArray(s.guard) && s.guard.length && !Array.isArray(s.guardExp)) s.guardExp = s.guard.map(() => Date.now() + DATA.GUARD_DAYS * 86400000);
     if (s.cars && !Array.isArray(s.cars) && typeof s.cars === 'object') { s.evs = { ...(s.evs || {}), ...s.cars }; s.cars = ['basic']; }
     if (!s.tiles) {
       // chuyển dữ liệu từ ruộng cũ (10 ô) sang luống mới
@@ -1560,6 +1561,28 @@
   /** Thú thứ k có đang bị thương không (1 = bị thương; số lớn = đang hồi phục đến thời điểm đó) */
   /** Thú bị thương tự khỏi sau 2 giờ (chữa bằng thuốc / thức ăn thì nhanh hơn) */
   const HURT_MS = 2 * 3600000;
+  /** dấu "ốm" (hết hạn chăm sóc) lưu chung mảng guardHurt → người đến thăm cũng biết con này không canh được */
+  const SICK = 9e15;
+  AV.SICK = SICK;
+  function checkGuards() {
+    if (VISIT || !(S.guard || []).length) return;
+    const H = AV.guardHurtList(), now2 = Date.now();
+    S.guardExp = S.guardExp || []; S.guardSick = S.guardSick || [];
+    let gone = null;
+    S.guard.forEach((id, k) => {
+      if (!S.guardExp[k]) S.guardExp[k] = now2 + DATA.GUARD_DAYS * 86400000;
+      if (!(H[k] >= SICK) && S.guardExp[k] < now2) { H[k] = SICK; S.guardSick[k] = now2; changed(); UI.toast(`🤒 ${guardDef(id).icon} ${guardDef(id).name} bị ốm — không canh nhà được! Mua 💊 thuốc thú y ở cửa hàng nông trại cho uống nhé`, 6000); }
+      if (H[k] >= SICK && now2 - (S.guardSick[k] || now2) > DATA.GUARD_LEAVE_DAYS * 86400000 && gone === null) gone = k;
+    });
+    if (gone !== null) {
+      const g = guardDef(S.guard[gone]);
+      S.guard.splice(gone, 1); H.splice(gone, 1); S.guardExp.splice(gone, 1); S.guardSick.splice(gone, 1);
+      UI.toast(`😢 ${g.icon} ${g.name} ốm lâu không được chữa nên đã bỏ đi…`, 6000);
+      changed();
+    }
+  }
+  setInterval(checkGuards, 60000);
+  setTimeout(checkGuards, 8000);
   const hurtOf = (arr, k) => { const v = arr && arr[k]; return typeof v === 'number' && v > 1 && v > Date.now(); }; // giá trị cũ 1/true = đã khỏi
   AV.hurtOf = hurtOf;
   AV.guardHurtList = () => (S.guardHurt = Array.isArray(S.guardHurt) ? S.guardHurt : []);
@@ -1571,7 +1594,8 @@
     if ((S.inv[item] || 0) < 1) return UI.toast(`Hết ${DATA.ITEMS[item].icon} ${DATA.ITEMS[item].name} — mua ở 🌱 Cửa hàng nông trại (tab Vật phẩm)`, 4000);
     S.inv[item]--;
     const g = guardDef((S.guard || [])[k]);
-    if (how === 'med') { H[k] = 0; UI.toast(`💊 ${g.icon} ${g.name} đã khỏi hẳn, lại ra canh nhà!`); }
+    if (H[k] >= SICK && how !== 'med') { S.inv[item]++; return UI.toast(`🤒 ${g.name} đang ốm — phải cho uống 💊 thuốc thú y`); }
+    if (how === 'med') { H[k] = 0; S.guardExp = S.guardExp || []; S.guardExp[k] = Math.max(S.guardExp[k] || 0, Date.now()) + DATA.GUARD_DAYS * 86400000; if (S.guardSick) S.guardSick[k] = 0; UI.toast(`💊 ${g.icon} ${g.name} đã khoẻ, canh nhà thêm ${DATA.GUARD_DAYS} ngày!`); }
     else { H[k] = Math.min(H[k] === 1 ? Infinity : H[k], Date.now() + 10 * 60000); UI.toast(`🦴 ${g.icon} ${g.name} ăn ngon lành — khoẻ lại sau 10 phút`); }
     changed();
   };
@@ -1803,7 +1827,7 @@
     const team = v.data.guard || [], name = v.data.name;
     const fight = null;
     // nuôi con nào thì con đó đều cắn — chỉ nông trại không nuôi thú mới trộm được
-    const biters = team.map((id, k) => ({ k, g: guardDef(id) }));
+    const biters = team.map((id, k) => ({ k, g: guardDef(id) })).filter((x) => !((v.data.guardHurt || [])[x.k] >= SICK));
     const bitten = biters.length > 0;
     const qty = bitten ? 0 : Object.values(o.give).reduce((x, n) => x + n, 0);
     const fine = bitten ? Math.min(biters.reduce((x, y) => x + y.g.fine, 0), S.coins, 1000) : 0;
@@ -1962,7 +1986,8 @@
     if (S.guard.length >= DATA.GUARD_MAX) return UI.toast(`Đã đủ ${DATA.GUARD_MAX} con canh nhà — bán bớt một con nếu muốn đổi con khác`, 3500);
     if (!AV.spend(g.price)) return;
     S.guard.push(id);
-    UI.toast(`${g.icon} Đã mua ${g.name}! Nó ra canh nông trại ngay (${S.guard.length}/${DATA.GUARD_MAX} con)`, 3500);
+    S.guardExp = S.guardExp || []; S.guardExp[S.guard.length - 1] = Date.now() + DATA.GUARD_DAYS * 86400000;
+    UI.toast(`${g.icon} Đã mua ${g.name}! Khoẻ mạnh canh nhà ${DATA.GUARD_DAYS} ngày, sau đó cần 💊 thuốc để tiếp tục (${S.guard.length}/${DATA.GUARD_MAX} con)`, 4500);
     changed();
   };
   /** Bán lại một con trong đội (nhận lại một nửa giá) */
@@ -1972,6 +1997,8 @@
     const g = guardDef(id), back = Math.floor(g.price / 2);
     S.guard.splice(k, 1);
     AV.guardHurtList().splice(k, 1);
+    if (S.guardExp) S.guardExp.splice(k, 1);
+    if (S.guardSick) S.guardSick.splice(k, 1);
     S.coins += back;
     UI.toast(`Đã bán ${g.icon} ${g.name}, nhận lại ${back.toLocaleString('vi-VN')} xu`);
     changed();
@@ -2784,6 +2811,8 @@
       say(e, q.open ? q.q : `Đáp án: ${q.answer} ✨`);
       return;
     }
+    if (e.kind === 'npc' && e.helper) { say(e, VISIT ? 'Chào bạn~' : 'Nông trại để cô lo nhé! 🌱'); if (!VISIT) UI.helperPanel(); return; }
+    if (e.kind === 'npc' && e.pirate) { say(e, 'Arrr! Săn rương không, cháu? 🏴‍☠️'); TREASURE.panel(); return; }
     if (e.kind === 'npc') {
       e.dir = player.x < e.x ? -1 : 1;
       e.wait = Math.max(e.wait, 3);
@@ -2856,6 +2885,74 @@
   };
   setInterval(() => { if (!CLOUD.user || cloudReady) AV.shipPayout(); }, 60000);
   setTimeout(() => AV.shipPayout(), 9000);
+
+  /* ---------- 🧑‍🌾 Thuê giúp việc: tự thu hoạch, tưới, xịt sâu, bón phân, gieo hạt bằng đồ trong túi ---------- */
+  AV.helperActive = () => !!(S.helper && S.helper.until > Date.now());
+  AV.hireHelper = (plan) => {
+    if (!AV.spend(plan.price)) return false;
+    const base = Math.max(Date.now(), (S.helper && S.helper.until) || 0);
+    S.helper = { ...(S.helper || {}), until: base + plan.days * 86400000 };
+    changed();
+    UI.toast(`🧑‍🌾 Đã thuê giúp việc ${plan.label}! Cô sẽ chăm nông trại bằng hạt giống, phân bón, thuốc trong túi của bạn`, 5000);
+    setTimeout(helperTick, 1500);
+    return true;
+  };
+  let helperSaid = 0;
+  function helperTick() {
+    if (!AV.helperActive()) return;
+    now = Date.now();
+    const r = { harvest: 0, water: 0, spray: 0, fert: 0, plant: 0 }, got = {};
+    for (let b = 0; b < DATA.BED_COUNT; b++) {
+      if (!S.beds[b]) continue;
+      const tiles = S.tiles.slice(b * TPB, b * TPB + TPB);
+      // thu hoạch
+      tiles.forEach((t) => {
+        if (!t.crop || tileState(t).stage !== 2) return;
+        got[t.crop] = (got[t.crop] || 0) + Math.max(1, tileYield(t) - (t.stolen || 0));
+        t.crop = null; t.plantedAt = 0; t.watered = false; t.fert = false; t.stolen = 0; t.sprayed = false; t.pestAt = 0;
+        r.harvest++;
+      });
+      // diệt sâu (1 chai / luống)
+      if (tiles.some((t) => t.crop && tileState(t).pest) && (S.inv.pesticide || 0) > 0) {
+        S.inv.pesticide--;
+        tiles.forEach((t) => { const st = tileState(t); if (!t.crop || st.stage === 2) return; if (st.pest) { const total = DATA.CROPS[t.crop].time * 1000; t.plantedAt += now - (t.plantedAt + t.pestAt * total); r.spray++; } t.sprayed = true; });
+      }
+      // tưới + bón phân
+      tiles.forEach((t) => {
+        if (!t.crop) return;
+        const st = tileState(t), total = DATA.CROPS[t.crop].time * 1000;
+        if (st.stage < 0 || st.stage === 2) return;
+        if (!t.watered) { if (st.thirsty) t.plantedAt += now - (t.plantedAt + DATA.THIRSTY_AT * total); t.plantedAt -= DATA.WATER_CUT * total; t.watered = true; r.water++; }
+        if (!t.fert && (S.inv.fertilizer || 0) > 0) { S.inv.fertilizer--; t.plantedAt -= DATA.FERT.cut * total; t.fert = true; r.fert++; }
+      });
+      // gieo hạt vào ô trống (hạt đúng mùa, nhiều nhất trong túi)
+      for (let k = b * TPB; k < b * TPB + TPB; k++) {
+        if (S.tiles[k].crop) continue;
+        const seeds = Object.keys(DATA.CROPS).filter((c) => (S.inv['seed_' + c] || 0) > 0 && AV.cropAllowed(k, c) && (typeof SEASON === 'undefined' || SEASON.inSeason(c)));
+        if (!seeds.length) break;
+        seeds.sort((a, b2) => (S.inv['seed_' + b2] || 0) - (S.inv['seed_' + a] || 0));
+        const c = seeds[0];
+        S.inv['seed_' + c]--;
+        const pestAt = Math.random() < DATA.PEST.chance ? Math.round((0.15 + Math.random() * 0.55) * 1000) / 1000 : 0;
+        S.tiles[k] = { crop: c, plantedAt: now, watered: false, pestAt: pestAt === DATA.THIRSTY_AT ? pestAt + 0.01 : pestAt };
+        r.plant++;
+      }
+    }
+    Object.entries(got).forEach(([c, n]) => addItem(c, n));
+    const any = Object.values(r).some((v) => v);
+    if (!any) return;
+    changed();
+    S.helper.stats = S.helper.stats || { harvest: 0, water: 0, spray: 0, fert: 0, plant: 0 };
+    Object.keys(r).forEach((k) => { S.helper.stats[k] += r[k]; });
+    if (Date.now() - helperSaid > 180000) {
+      helperSaid = Date.now();
+      const parts = [r.harvest && `thu ${r.harvest} ô`, r.water && `tưới ${r.water}`, r.spray && `diệt sâu ${r.spray}`, r.fert && `bón phân ${r.fert}`, r.plant && `gieo ${r.plant}`].filter(Boolean);
+      UI.toast(`🧑‍🌾 Cô giúp việc: ${parts.join(' · ')}`, 4000);
+    }
+  }
+  AV.helperTick = helperTick;
+  setInterval(helperTick, 20000);
+  setTimeout(helperTick, 10000);
 
   /* ---------- Cập nhật ---------- */
   const keys = new Set();
@@ -3177,7 +3274,7 @@
       else { g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 2.5; g.beginPath(); g.ellipse(x, y - 6, 26 + Math.sin(clock * 4) * 3, 7, 0, 0, Math.PI * 2); g.stroke(); }
     } });
     map.npcs.forEach((n) => {
-      if ((n.hw && !AV.hw()) || !inView(n.x, n.y)) return;
+      if ((n.hw && !AV.hw()) || (n.show && !n.show()) || !inView(n.x, n.y)) return;
       charDraw(n.x, n.y, n.look, n, n);
       if (n.petState) petDraw(n.petState, n.look.pet);
     });
@@ -3276,7 +3373,7 @@
     // bảng tên gỗ trên đầu nhân vật
     // bảng tên nằm sát trên đỉnh đầu (cao hơn khi đội mũ); bong bóng chat nằm trên bảng tên
     const nameTop = (look) => (ART.isPainted(look) ? 116 : !look || look.hat === 'none' ? 118 : look.hat === 'nonla' ? 138 : 130);
-    map.npcs.forEach((n) => { if (!n.hw || AV.hw()) at(n.x, n.y, nameTop(n.look), () => ART.namePlate(ctx, n.name, n.x, n.y - nameTop(n.look), 'npc')); });
+    map.npcs.forEach((n) => { if ((!n.hw || AV.hw()) && (!n.show || n.show())) at(n.x, n.y, nameTop(n.look), () => ART.namePlate(ctx, n.name, n.x, n.y - nameTop(n.look), 'npc')); });
     others.forEach((r) => at(r.rx, r.ry, nameTop(r.look), () => ART.namePlate(ctx, r.name, r.rx, r.ry - nameTop(r.look), 'other')));
     if (!player.hidden && !(pose && pose.front)) at(player.x, player.y, nameTop(S.look), () => ART.namePlate(ctx, S.name || 'Bạn', player.x, player.y - nameTop(S.look), 'me'));
     // ai đang nói qua mic: hiện 🔊 cạnh bảng tên
@@ -3369,7 +3466,7 @@
   function entityAt(x, y) {
     const remote = NET.players().find((r) => !r.hidden && Math.abs(x - r.rx) < 26 && y < r.ry + 6 && y > r.ry - 100);
     if (remote) return remote;
-    return [...map.npcs, ...map.animals].find((e) => {
+    return [...map.npcs.filter((n) => !n.show || n.show()), ...map.animals].find((e) => {
       const h = e.kind === 'npc' ? 100 : e.kind === 'chicken' ? 34 : 54;
       const w = e.kind === 'npc' ? 26 : e.kind === 'chicken' ? 18 : 34;
       return Math.abs(x - e.x) < w && y < e.y + 6 && y > e.y - h;
@@ -3541,6 +3638,7 @@
   window.addEventListener('resize', resize);
   enterMap(maps[S.map] ? S.map : 'farm', S.x, S.y);
   UI.init();
+  if (typeof TREASURE !== 'undefined') TREASURE.init();
   MUSIC.init(S.settings || {});
   SOCIAL.init();
   VOICE.init();

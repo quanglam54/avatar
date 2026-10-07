@@ -149,7 +149,16 @@ DATA.GUARDS = [
   { id: 'dragon', name: 'Rồng lửa', icon: '🐉', price: 20000, bite: 0.9, fine: 500 },
 ];
 /** Thuốc / thức ăn chữa thú giữ nhà bị thương (bán ở cửa hàng nông trại) */
-DATA.PETMED = { id: 'pet_med', name: 'Thuốc thú y', icon: '💊', price: 60, desc: 'Chữa khỏi ngay 1 con thú giữ nhà bị thương' };
+DATA.PETMED = { id: 'pet_med', name: 'Thuốc thú y', icon: '💊', price: 300, desc: 'Chữa khỏi ngay 1 con thú giữ nhà bị thương / ốm (thêm 5 ngày khoẻ mạnh)' };
+/** 🐕 thú giữ nhà khoẻ được bao lâu (sau đó ốm, phải cho uống thuốc; ốm quá lâu sẽ bỏ đi) */
+DATA.GUARD_DAYS = 5;
+DATA.GUARD_LEAVE_DAYS = 3;
+/** 🧑‍🌾 thuê giúp việc chăm nông trại (dùng vật phẩm có sẵn trong túi) */
+DATA.HELPER_PLANS = [
+  { days: 1, price: 30000, label: '1 ngày' },
+  { days: 3, price: 80000, label: '3 ngày' },
+  { days: 7, price: 170000, label: '7 ngày' },
+];
 DATA.PETFOOD = { id: 'pet_food', name: 'Thức ăn thú cưng', icon: '🦴', price: 25, desc: 'Cho thú bị thương ăn — khoẻ lại sau 10 phút' };
 /** Pháo hoa ở Sân Chơi nông trại */
 DATA.FIREWORKS = [
@@ -496,5 +505,9 @@ DATA.ITEMS = (() => {
   items.gem_ruby = { name: 'Hồng ngọc', icon: '❤️', sell: 150 };
   items.gem_diamond = { name: 'Kim cương', icon: '💎', sell: 500 };
   items.mine_tonic = { name: 'Nước tăng lực', icon: '🧃', sell: 0 };
+  // 🏴‍☠️ săn rương Halloween
+  items.hw_gem = { name: 'Ngọc Halloween', icon: '💠', sell: 0 };
+  items.tool_shovel = { name: 'Xẻng hải tặc', icon: '🪏', sell: 0 };
+  items.tool_detector = { name: 'Máy dò kim loại', icon: '📡', sell: 0 };
   return items;
 })();

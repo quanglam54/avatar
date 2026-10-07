@@ -968,3 +968,22 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .ferris3d .fx-title { position: absolute; top: 34px; left: 50%; transform: translateX(-50%); z-index: 2; background: rgba(27,47,72,.85); color: #fff; font-weight: 900; padding: 6px 16px; border-radius: 14px; border: 2px solid #fff; white-space: nowrap; }
 .ferris3d .fx-skip { position: absolute; top: 34px; right: 40px; z-index: 2; border: 2px solid #fff; border-radius: 12px; padding: 6px 12px; font: inherit; font-weight: 900; background: rgba(27,47,72,.85); color: #fff; cursor: pointer; }
 .fx-alt { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); z-index: 2; color: #ffd43b; font-weight: 900; font-size: 18px; text-shadow: 0 2px 4px #000; }
+
+/* 🏴‍☠️ Săn rương */
+.tr-banner { position: fixed; left: 50%; top: 116px; transform: translateX(-50%); z-index: 5; max-width: min(92vw, 760px); overflow: hidden; white-space: nowrap; background: linear-gradient(90deg, #ff922b, #e8590c); color: #fff; font-weight: 900; font-size: 13px; padding: 4px 0; border-radius: 999px; border: 2px solid #fff; box-shadow: 0 3px 0 rgba(0,0,0,.25); cursor: pointer; }
+.tr-banner span { display: inline-block; padding-left: 100%; animation: trMarquee 18s linear infinite; }
+@keyframes trMarquee { to { transform: translateX(-100%); } }
+@media (max-width: 600px) { .tr-banner { top: 128px; font-size: 12px; } }
+.tr-pop { text-align: center; }
+.tr-pop h2 { margin: 4px 0; color: #e8590c; font-size: 26px; letter-spacing: 1px; text-shadow: 0 2px 0 #ffd43b; }
+.tr-chest { font-size: 54px; text-align: center; animation: stkPop .6s cubic-bezier(.3,1.6,.5,1); }
+.tr-bar { position: relative; height: 22px; border-radius: 12px; background: #e9ecef; overflow: hidden; border: 2px solid #1b2f48; margin: 8px 0; }
+.tr-bar.big { height: 30px; }
+.tr-bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #da77f2, #7048e8); }
+.tr-bar span { position: relative; display: block; text-align: center; font-weight: 900; line-height: 18px; color: #1b2f48; }
+.tr-bar.big span { line-height: 26px; }
+.tr-hud { position: fixed; right: 12px; bottom: 210px; z-index: 6; display: none; flex-direction: column; gap: 6px; align-items: flex-end; }
+.tr-meter { background: rgba(27,47,72,.92); color: #fff; font-weight: 900; font-size: 13px; padding: 6px 10px; border-radius: 12px; border: 2px solid #fff; min-width: 170px; }
+.tr-gauge { height: 8px; background: #343a40; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+.tr-gauge i { display: block; height: 100%; width: 0; transition: width .2s; }
+.tr-dig { border: 3px solid #fff; border-radius: 16px; padding: 10px 18px; font: inherit; font-weight: 900; font-size: 17px; color: #1b2f48; background: linear-gradient(#ffe066, #fab005); box-shadow: 0 3px 0 #1b2f48; cursor: pointer; }

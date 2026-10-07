@@ -627,6 +627,19 @@ const UI = (() => {
     render();
   }
 
+  /** 🧑‍🌾 Thuê giúp việc */
+  function helperPanel() {
+    const S = AV.S, h = S.helper || {}, act = AV.helperActive(), st = h.stats || {};
+    const leftH = act ? Math.ceil((h.until - Date.now()) / 3600000) : 0;
+    const p = panel('🧑‍🌾 Thuê giúp việc', `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
+      ${act ? `<p class="game-msg">✅ Cô giúp việc đang làm · còn <b>${leftH >= 24 ? Math.floor(leftH / 24) + ' ngày ' + (leftH % 24) + ' giờ' : leftH + ' giờ'}</b></p>` : ''}
+      <p class="muted">Cô giúp việc sẽ tự <b>thu hoạch</b> (nông sản vào túi bạn), <b>tưới nước</b>, <b>xịt sâu</b>, <b>bón phân</b> và <b>gieo hạt</b> vào ô trống — dùng 🌱 hạt giống, 🧪 phân bón, 🧴 thuốc trừ sâu <b>có sẵn trong túi của bạn</b>. Làm cả khi bạn ở khu khác (cần mở game).</p>
+      <p class="muted small-note">Trong túi: 🌱 ${Object.keys(DATA.CROPS).reduce((a, c) => a + (S.inv['seed_' + c] || 0), 0)} hạt · 🧪 ${S.inv.fertilizer || 0} phân bón · 🧴 ${S.inv.pesticide || 0} thuốc</p>
+      <div class="shop-list">${DATA.HELPER_PLANS.map((pl, i) => `<div class="shop-row"><span class="ic">🧑‍🌾</span><div class="info"><b>Thuê ${pl.label}</b><small>${Math.round(pl.price / pl.days).toLocaleString('vi-VN')} xu/ngày</small></div><button class="btn small" data-plan="${i}">${act ? 'Gia hạn' : 'Thuê'} · ${pl.price.toLocaleString('vi-VN')} xu</button></div>`).join('')}</div>
+      ${st.harvest || st.water ? `<p class="muted small-note">Đã làm: thu ${st.harvest || 0} · tưới ${st.water || 0} · diệt sâu ${st.spray || 0} · bón phân ${st.fert || 0} · gieo ${st.plant || 0}</p>` : ''}`);
+    p.body.querySelectorAll('[data-plan]').forEach((b) => b.onclick = () => { const pl = DATA.HELPER_PLANS[+b.dataset.plan]; confirm(`Thuê giúp việc <b>${pl.label}</b> giá <b>${pl.price.toLocaleString('vi-VN')} xu</b>?`, 'Thuê', () => { if (AV.hireHelper(pl)) { p.close(); helperPanel(); } }); });
+  }
+
   /** 🏗️ Nâng cấp nhà */
   function houseUpgrade() {
     const S = AV.S, cur = AV.houseLv();
@@ -1141,7 +1154,8 @@ const UI = (() => {
         <p class="muted">Nuôi tối đa <b>${DATA.GUARD_MAX} con</b> cùng canh nông trại (mua trùng loại cũng được). Bạn bè sang <b>hái trộm</b> ô đã chín có thể bị <b>nhiều con cắn cùng lúc</b> — tiền phạt cộng dồn và về túi bạn!</p>
         <h4>🛡️ Đội canh nhà của bạn (${team.length}/${DATA.GUARD_MAX})</h4>
         ${team.length ? `<div class="guard-team">${team.map((id, k) => { const g = DATA.GUARDS.find((x) => x.id === id); const H = AV.guardHurtList(), hv = H[k], hurt = AV.hurtOf(H, k), healing = hurt && typeof hv === 'number' && hv > 1;
-          return `<div class="g-slot ${hurt ? 'hurt' : ''}"><canvas data-team="${id}"></canvas><b>${g.name}</b>${hurt ? (`<small class="hurt-tag">🤕 Bị thương — không canh nhà${healing ? ` · tự khỏi sau ${Math.ceil((hv - Date.now()) / 60000)} phút` : ''}</small><div class="row-end"><button class="btn small" data-med="${k}">💊 Thuốc (${S.inv.pet_med || 0})</button><button class="btn small ghost" data-food="${k}">🦴 Cho ăn (${S.inv.pet_food || 0})</button></div>`) : ''}<button class="btn small ghost" data-sell="${k}">Bán · ${Math.floor(g.price / 2).toLocaleString('vi-VN')}💰</button></div>`; }).join('')}</div>
+          const sick = hv >= AV.SICK, exp = (S.guardExp || [])[k] || 0, dLeft = Math.max(0, Math.ceil((exp - Date.now()) / 86400000));
+          return `<div class="g-slot ${hurt ? 'hurt' : ''}"><canvas data-team="${id}"></canvas><b>${g.name}</b>${sick ? `<small class="hurt-tag">🤒 Bị ốm — không canh nhà! Cho uống 💊 thuốc, quá ${DATA.GUARD_LEAVE_DAYS} ngày sẽ bỏ đi</small><div class="row-end"><button class="btn small" data-med="${k}">💊 Thuốc (${S.inv.pet_med || 0})</button></div>` : !hurt ? `<small>💚 Khoẻ · còn ${dLeft} ngày (sau đó cần thuốc)</small>` : ''}${hurt && !sick ? (`<small class="hurt-tag">🤕 Bị thương — không canh nhà${healing ? ` · tự khỏi sau ${Math.ceil((hv - Date.now()) / 60000)} phút` : ''}</small><div class="row-end"><button class="btn small" data-med="${k}">💊 Thuốc (${S.inv.pet_med || 0})</button><button class="btn small ghost" data-food="${k}">🦴 Cho ăn (${S.inv.pet_food || 0})</button></div>`) : ''}<button class="btn small ghost" data-sell="${k}">Bán · ${Math.floor(g.price / 2).toLocaleString('vi-VN')}💰</button></div>`; }).join('')}</div>
           <p class="muted small-note">Kẻ trộm có <b>${Math.min(99, Math.round((1 - safe) * 100))}%</b> bị cắn, bị phạt tới <b>${maxFine} xu</b> mỗi lần.</p>`
           : '<p class="muted">Chưa có con nào canh nhà — bạn bè hái trộm thoải mái đó 😅</p>'}
         <h4>🛒 Mua thêm</h4>
@@ -1566,6 +1580,8 @@ const UI = (() => {
       ['app', '📲', 'Cài app', installApp],
       ['bank', '🏦', 'Ngân hàng', () => BANK.panel('app')],
       ['house', '🏗️', 'Nâng cấp nhà', houseUpgrade],
+      ['helper', '🧑‍🌾', 'Giúp việc', helperPanel],
+      ['treasure', '🏴‍☠️', 'Săn rương', () => TREASURE.popup()],
     ];
     if (AV.isHouse()) items.push(['house', '💼', 'Két', housePanel]);
     const p = panel('☰ MENU', `
@@ -1851,5 +1867,5 @@ const UI = (() => {
     q('.mv-def').onclick = () => { CONCERT.playDefault(); p.close(); toast('🎞️ Đã về phim mặc định'); };
   }
 
-  return { npcPanel, shipBin, race3d, raceStart, race3dStats, houseUpgrade, elevator, stairsPick, flightDesk, carShop, chargeStation, moviePicker, toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
+  return { helperPanel, npcPanel, shipBin, race3d, raceStart, race3dStats, houseUpgrade, elevator, stairsPick, flightDesk, carShop, chargeStation, moviePicker, toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
 })();
