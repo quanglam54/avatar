@@ -68,8 +68,7 @@ const MINE = (() => {
     el = document.createElement('div');
     el.className = 'mine-view';
     el.innerHTML = `<canvas></canvas>
-      <div class="mine-hud"><b class="mh-floor"></b><div class="mh-hp"><i></i><span></span></div><span class="mh-haul"></span></div>
-      <div class="mine-btns"><button data-tonic>🧃 <span></span></button><button data-exit>⬆️ Lên mặt đất</button></div>
+      <div class="mine-hud"><b class="mh-floor"></b><div class="mh-hp"><i></i><span></span></div><span class="mh-haul"></span><button data-tonic title="Uống nước tăng lực">🧃 <span></span></button><button data-exit>⬆️ Lên mặt đất</button></div>
       <div class="mine-msg"></div>`;
     document.body.appendChild(el);
     cv = el.querySelector('canvas'); g = cv.getContext('2d');
@@ -80,10 +79,10 @@ const MINE = (() => {
     window.addEventListener('resize', () => { if (run) size(); });
   }
   function size() {
-    DPR = Math.min(2, devicePixelRatio || 1); VW = innerWidth; VH = innerHeight;
+    DPR = Math.min(2, devicePixelRatio || 1); VW = el.clientWidth || innerWidth; VH = el.clientHeight || innerHeight;
     cv.width = VW * DPR; cv.height = VH * DPR; cv.style.width = VW + 'px'; cv.style.height = VH + 'px';
-    K = Math.min(VW / (COLS * T), (VH - 120) / (ROWS * T));
-    OX = (VW - COLS * T * K) / 2; OY = 60 + (VH - 120 - ROWS * T * K) / 2;
+    K = Math.min((VW - 16) / (COLS * T), (VH - 80) / (ROWS * T));
+    OX = (VW - COLS * T * K) / 2; OY = 64 + (VH - 80 - ROWS * T * K) / 2;
   }
   /** chọn tầng bắt đầu (1 hoặc các tầng thang máy đã mở) */
   function enter() {

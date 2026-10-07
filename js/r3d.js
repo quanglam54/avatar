@@ -5,7 +5,7 @@
  * Bấm chuột: bắn tia vào cảnh → đổi ra điểm 2D tương ứng nên mọi thao tác cũ vẫn dùng được. */
 const R3D = (() => {
   const THREE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
-  const YAW = 0.56, PITCH = 50 * Math.PI / 180, WIDE = 520;
+  const YAW = 0, PITCH = 55 * Math.PI / 180, WIDE = 520;
   let T = null, renderer = null, scene = null, cam = null, sun = null, hemi = null;
   let ground = null, groundSrc = null, curMap = null, loading = false, failed = false, on = false, ray = null;
   const bills = new Map();      // khoá → { mesh, cv, c, tex, w, h, last, painted, bb, flat, wide }
