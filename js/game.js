@@ -3085,9 +3085,15 @@
 
   function draw() {
     updateCamera();
-    const px = pixelSize();
+    const use3d = typeof R3D !== 'undefined' && R3D.active(map);
+    const px = use3d ? 0 : pixelSize();
     let g, bw = 0, bh = 0;
-    if (px) {
+    if (use3d) {
+      g = ctx;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      worldTransform(ctx, DPR * ZOOM, DPR * (W / 2 - cam.x * ZOOM), DPR * (H / 2 - cam.y * ZOOM));
+    } else if (px) {
       bw = Math.ceil(W / px); bh = Math.ceil(H / px);
       if (wbuf.width !== bw || wbuf.height !== bh) { wbuf.width = bw; wbuf.height = bh; }
       g = wctx;
@@ -3105,18 +3111,29 @@
     g.imageSmoothingEnabled = true;
     ensureGround(map, px ? 1 : FX.scale);
     const VW = W / ZOOM, VH = H / ZOOM;
-    const vl = cam.x - VW / 2 - 160, vr = cam.x + VW / 2 + 160, vt = cam.y - VH / 2 - 220, vb = cam.y + VH / 2 + 220;
+    const mg3 = use3d ? Math.max(VW, VH) * 0.55 : 0;
+    const vl = cam.x - VW / 2 - 160 - mg3, vr = cam.x + VW / 2 + 160 + mg3, vt = cam.y - VH / 2 - 220 - mg3, vb = cam.y + VH / 2 + 220 + mg3;
+    /** 3D: vẽ fn (toạ độ 2D quanh điểm x, y−h) đúng chỗ của điểm mặt đất (x, y) cao h trên màn hình */
+    const at = (x, y, h, fn) => {
+      if (!use3d) return fn();
+      const p = R3D.toScreen(x, y, h, W, H);
+      ctx.setTransform(DPR * ZOOM, 0, 0, DPR * ZOOM, DPR * p.x - DPR * ZOOM * x, DPR * p.y - DPR * ZOOM * (y - h));
+      fn();
+    };
+    const resetWT = () => worldTransform(ctx, DPR * ZOOM, DPR * (W / 2 - cam.x * ZOOM), DPR * (H / 2 - cam.y * ZOOM));
     const inView = (x, y) => x > vl && x < vr && y > vt && y < vb;
-    {
+    if (!use3d) {
       const gs = map.groundScale, sx = Math.max(0, Math.floor(cam.x - VW / 2 - 4)), sy = Math.max(0, Math.floor(cam.y - VH / 2 - 4));
       const sw = Math.min(map.w - sx, Math.ceil(VW + 8)), sh = Math.min(map.h - sy, Math.ceil(VH + 8));
       if (sw > 0 && sh > 0) g.drawImage(map.ground, sx * gs, sy * gs, sw * gs, sh * gs, sx, sy, sw, sh);
     }
-    if (!map.indoor) ART.backdrop(g, map.w, map.hz, cam.x, clock, map.id === 'beach');
     const night = map.indoor ? 0 : nightFactor();
-    ART.nightSky(g, map.w, map.hz, night, clock);
+    if (!use3d) {
+      if (!map.indoor) ART.backdrop(g, map.w, map.hz, cam.x, clock, map.id === 'beach');
+      ART.nightSky(g, map.w, map.hz, night, clock);
+    }
 
-    if (marker) {
+    if (marker && !use3d) {
       const sc = 1 + (marker.t % 0.8);
       g.strokeStyle = `rgba(255,255,255,${Math.max(0, 0.9 - (marker.t % 0.8))})`;
       g.lineWidth = 2.5;
@@ -3125,7 +3142,9 @@
 
     const out = (fn, x, y, box, key, ms = 55) => FX.drawCached(g, key, fn, x, y, box, ms);
     const list = map.objects.filter((o) => !o.bb || (o.bb[0] < vr && o.bb[2] > vl && o.bb[1] < vb && o.bb[3] > vt));
-    map.animals.forEach((a) => inView(a.x, a.y) && list.push({ y: a.y, draw: () => {
+    const ABX = { chicken: FX.BOX.chicken, cow: FX.BOX.cow, sheep: FX.BOX.sheep, pig: FX.BOX.pig, dog: { l: -55, t: -80, w: 110, h: 86 } };
+    const bbOf = (x, y, b) => [x + b.l - 4, y + b.t - 4, x + b.l + b.w + 4, y + b.t + b.h + 4];
+    map.animals.forEach((a) => inView(a.x, a.y) && list.push({ y: a.y, key: a, ent: true, bb: bbOf(a.x, a.y, ABX[a.kind] || FX.BOX.pig), draw: () => {
       if (a.kind === 'chicken') out((c) => ART.chicken(c, a.x, a.y, a.dir, a.t, a.moving, a.peck), a.x, a.y, FX.BOX.chicken, a);
       else if (a.kind === 'cow') out((c) => ART.cow(c, a.x, a.y, a.dir, a.t, a.moving, a.seed), a.x, a.y, FX.BOX.cow, a);
       else if (a.kind === 'sheep') out((c) => ART.sheep(c, a.x, a.y, a.dir, a.t, a.moving), a.x, a.y, FX.BOX.sheep, a);
@@ -3136,17 +3155,17 @@
       if (!gd.id || !inView(gd.x, gd.y)) return;
       const ang = gd.angry > now;
       const hy = gd.y - (gd.hop || 0);
-      list.push({ y: gd.y, draw: () => {
+      list.push({ y: gd.y, key: gd, ent: true, bb: [gd.x - 120, hy - 110, gd.x + 120, gd.y + 18], draw: () => {
         if (gd.hop > 10) { g.fillStyle = 'rgba(0,0,0,.16)'; g.beginPath(); g.ellipse(gd.x, gd.y, 58 - gd.hop * 0.2, 11, 0, 0, Math.PI * 2); g.fill(); }
         out((c) => ART.guard(c, gd.x, hy, gd.id, gd.dir, gd.t, gd.moving, ang), gd.x, hy, { l: -115, t: -105, w: 230, h: 111 }, gd, ang ? 30 : 55);
         if (gd.hurt) ART.iconBubble(g, '🤕', gd.x, hy - 95, clock);
       } });
     });
-    map.pickups.forEach((p) => inView(p.x, p.y) && list.push({ y: p.y, draw: () => out((c) => ART.pickup(c, p.x, p.y, p.item.icon, clock), p.x, p.y, BOX_PICK, p, 120) }));
-    const petDraw = (p, kind) => list.push({ y: p.y, draw: () => out((c) => ART.pet(c, p.x, p.y, kind, p.dir, p.t, p.moving), p.x, p.y, FX.BOX.pet, p) });
+    map.pickups.forEach((p) => inView(p.x, p.y) && list.push({ y: p.y, key: p, ent: true, bb: bbOf(p.x, p.y, BOX_PICK), draw: () => out((c) => ART.pickup(c, p.x, p.y, p.item.icon, clock), p.x, p.y, BOX_PICK, p, 120) }));
+    const petDraw = (p, kind) => list.push({ y: p.y, key: p, ent: true, bb: bbOf(p.x, p.y, FX.BOX.pet), draw: () => out((c) => ART.pet(c, p.x, p.y, kind, p.dir, p.t, p.moving), p.x, p.y, FX.BOX.pet, p) });
     // sprite pixel đã có viền sẵn → vẽ thẳng, không thêm viền mềm
     const drawChar = (x, y, look, o, key) => (PX.ready || ART.isPainted(look) ? ART.character(g, x, y, look, o) : out((c) => ART.character(c, x, y, look, o), x, y, FX.BOX.character, key));
-    const charDraw = (x, y, look, o, key) => list.push({ y, draw: () => {
+    const charDraw = (x, y, look, o, key) => list.push({ y, key, ent: true, bb: [x - 75, y - 200, x + 75, y + 16], draw: () => {
       const boat = o && o.boat, swim = !boat && map.id === 'cherry' && CAMP.inPool(x, y);
       if (!boat && !swim) return drawChar(x, y, look, o, key);
       if (boat) CAMP.boat(g, x, y, clock);
@@ -3188,11 +3207,20 @@
     }
     if (map.busStop && bus.state !== 'away' && bus.state !== 'travel') {
       const busY = map.busY || BUS_Y;
-      list.push({ y: busY, draw: () => out((c) => ART.bus(c, bus.x, busY, clock, bus.state !== 'waiting'), bus.x, busY, BOX_BUS, bus, 70) });
+      list.push({ y: busY, key: bus, ent: true, bb: bbOf(bus.x, busY, BOX_BUS), draw: () => out((c) => ART.bus(c, bus.x, busY, clock, bus.state !== 'waiting'), bus.x, busY, BOX_BUS, bus, 70) });
     }
     if (map.id === 'farm' && (dusts.length || coinFx.length)) list.push({ y: 99999, draw: () => drawBiteFx(g) });
     list.sort((a, b) => a.y - b.y);
-    list.forEach((o) => o.draw(g, clock));
+    if (use3d) {
+      // bầu trời + đồi xa: 1 tấm hình động phía sau cùng
+      if (!map.indoor) list.unshift({ y: 0, key: 'sky', bb: [Math.max(0, cam.x - VW / 2 - 80), -40, Math.min(map.w, cam.x + VW / 2 + 80), map.hz + 4], draw: (c) => { ART.backdrop(c, map.w, map.hz, cam.x, clock, map.id === 'beach'); ART.nightSky(c, map.w, map.hz, night, clock); } });
+      R3D.render({ map, cx: cam.x, cy: cam.y, W, H, ZOOM, DPR, night, items: list.filter((o) => o.bb || o.bed),
+        paint: (it, c) => { const og = g; g = c; try { it.draw(c, clock); } finally { g = og; } } });
+      list.filter((o) => !o.bb && !o.bed).forEach((o) => at(player.x, player.y, 0, () => o.draw(g, clock)));
+      R3D.bedOverlays(at, g, clock);
+      if (marker) at(marker.x, marker.y, 0, () => { const sc = 1 + (marker.t % 0.8); g.strokeStyle = `rgba(255,255,255,${Math.max(0, 0.9 - (marker.t % 0.8))})`; g.lineWidth = 2.5; g.beginPath(); g.ellipse(marker.x, marker.y, 10 * sc, 4 * sc, 0, 0, Math.PI * 2); g.stroke(); });
+      resetWT();
+    } else list.forEach((o) => o.draw(g, clock));
     if (EDIT.on && map.movables) drawEdit(g);
     if (!map.indoor && typeof SEASON !== 'undefined') { const VW2 = W / ZOOM, VH2 = H / ZOOM; g.fillStyle = SEASON.now().tint; g.fillRect(cam.x - VW2 / 2 - 10, cam.y - VH2 / 2 - 10, VW2 + 20, VH2 + 20); }
     if (AV.hw() && !map.indoor) {
@@ -3202,10 +3230,10 @@
     }
     if (night > 0) {
       const vw = W / ZOOM, vh = H / ZOOM;
-      g.fillStyle = `rgba(16,26,72,${0.45 * night})`;
+      g.fillStyle = `rgba(16,26,72,${(use3d ? 0.15 : 0.45) * night})`;
       g.fillRect(cam.x - vw / 2 - 10, cam.y - vh / 2 - 10, vw + 20, vh + 20); // phủ cả màn để nhà cửa không bị 2 màu ở đường chân trời
       ART.fireflies(g, cam.x, cam.y, vw, vh, night, clock);
-      if (map.lights) {
+      if (map.lights && !use3d) {
         g.save();
         g.globalCompositeOperation = 'lighter';
         for (const [lx, ly, lr, kind] of map.lights) {
@@ -3231,48 +3259,48 @@
 
     // Lớp chữ & giao diện trong thế giới: vẽ ở độ phân giải đầy đủ cho sắc nét
     worldTransform(ctx, DPR * ZOOM, DPR * (W / 2 - cam.x * ZOOM), DPR * (H / 2 - cam.y * ZOOM));
-    map.labels.forEach((l) => ART.label(ctx, l.dynamic === 'home' ? `🏠 Nhà ${FD().name || 'của bạn'}` : l.dynamic === 'gate' ? `Nông trại của ${FD().name || 'bạn'}` : l.text, l.x, l.y));
+    map.labels.forEach((l) => at(l.x, l.y, 0, () => ART.label(ctx, l.dynamic === 'home' ? `🏠 Nhà ${FD().name || 'của bạn'}` : l.dynamic === 'gate' ? `Nông trại của ${FD().name || 'bạn'}` : l.text, l.x, l.y)));
     map.inter.forEach((o) => {
       if (!o.indicator || !inView(o.ix, o.iy) || (o.when && !o.when())) return;
       const r = o.indicator();
       if (r == null) return;
-      if (typeof r === 'object') ART.timerLabel(ctx, o.ix, o.iy, r.left, r.p);
-      else ART.iconBubble(ctx, r, o.ix, o.iy - 14, clock);
+      if (typeof r === 'object') at(o.ix, o.iy, 0, () => ART.timerLabel(ctx, o.ix, o.iy, r.left, r.p));
+      else at(o.ix, o.iy, 0, () => ART.iconBubble(ctx, r, o.ix, o.iy - 14, clock));
     });
 
     if (map.board) drawBoard(map.board);
 
     // mũi tên vàng "Vào" trước cửa
-    map.inter.forEach((o) => { if (o.arrow && (!o.hw || AV.hw()) && (!o.when || o.when())) ART.doorArrow(ctx, o.arrow.x, o.arrow.y, clock, o.arrow.text); });
+    map.inter.forEach((o) => { if (o.arrow && (!o.hw || AV.hw()) && (!o.when || o.when())) at(o.arrow.x, (o.ay || o.arrow.y), (o.ay || o.arrow.y) - o.arrow.y, () => ART.doorArrow(ctx, o.arrow.x, o.arrow.y, clock, o.arrow.text)); });
 
     // bảng tên gỗ trên đầu nhân vật
     // bảng tên nằm sát trên đỉnh đầu (cao hơn khi đội mũ); bong bóng chat nằm trên bảng tên
     const nameTop = (look) => (ART.isPainted(look) ? 116 : !look || look.hat === 'none' ? 118 : look.hat === 'nonla' ? 138 : 130);
-    map.npcs.forEach((n) => { if (!n.hw || AV.hw()) ART.namePlate(ctx, n.name, n.x, n.y - nameTop(n.look), 'npc'); });
-    others.forEach((r) => ART.namePlate(ctx, r.name, r.rx, r.ry - nameTop(r.look), 'other'));
-    if (!player.hidden && !(pose && pose.front)) ART.namePlate(ctx, S.name || 'Bạn', player.x, player.y - nameTop(S.look), 'me');
+    map.npcs.forEach((n) => { if (!n.hw || AV.hw()) at(n.x, n.y, nameTop(n.look), () => ART.namePlate(ctx, n.name, n.x, n.y - nameTop(n.look), 'npc')); });
+    others.forEach((r) => at(r.rx, r.ry, nameTop(r.look), () => ART.namePlate(ctx, r.name, r.rx, r.ry - nameTop(r.look), 'other')));
+    if (!player.hidden && !(pose && pose.front)) at(player.x, player.y, nameTop(S.look), () => ART.namePlate(ctx, S.name || 'Bạn', player.x, player.y - nameTop(S.look), 'me'));
     // ai đang nói qua mic: hiện 🔊 cạnh bảng tên
     const speak = (x, y) => { ctx.font = '18px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000'; ctx.fillText(Math.floor(clock * 4) % 2 ? '🔊' : '🔉', x, y); };
-    others.forEach((r) => { if (VOICE.talking(r.id)) speak(r.rx + 44, r.ry - nameTop(r.look) + 9); });
-    if (!player.hidden && VOICE.meTalking()) speak(player.x + 44, player.y - nameTop(S.look) + 9);
+    others.forEach((r) => { if (VOICE.talking(r.id)) at(r.rx, r.ry, nameTop(r.look), () => speak(r.rx + 44, r.ry - nameTop(r.look) + 9)); });
+    if (!player.hidden && VOICE.meTalking()) at(player.x, player.y, nameTop(S.look), () => speak(player.x + 44, player.y - nameTop(S.look) + 9));
 
     const bubbleOf = (e) => {
       if (e.bubble && e.bubble.until > now) {
         const top = e.kind === 'npc' || e === player ? nameTop(e === player ? S.look : e.look) + 4 : 52;
-        ART.bubble(ctx, e.bubble.text, e.x, e.y - top, e.bubble.big);
+        at(e.x, e.y, top, () => ART.bubble(ctx, e.bubble.text, e.x, e.y - top, e.bubble.big));
       }
     };
     map.animals.forEach(bubbleOf);
-    if (map.id === 'farm') guards.forEach((gd) => { if (gd.bubble && gd.bubble.until > now) ART.bubble(ctx, gd.bubble.text, gd.x, gd.y - 78, gd.bubble.big); });
+    if (map.id === 'farm') guards.forEach((gd) => { if (gd.bubble && gd.bubble.until > now) at(gd.x, gd.y, 78, () => ART.bubble(ctx, gd.bubble.text, gd.x, gd.y - 78, gd.bubble.big)); });
     map.npcs.forEach(bubbleOf);
     others.forEach((r) => {
-      if (r.bubble && r.bubble.until > now) ART.bubble(ctx, r.bubble.text, r.rx, r.ry - nameTop(r.look) - 4, r.bubble.big);
+      if (r.bubble && r.bubble.until > now) at(r.rx, r.ry, nameTop(r.look) + 4, () => ART.bubble(ctx, r.bubble.text, r.rx, r.ry - nameTop(r.look) - 4, r.bubble.big));
     });
     if (!player.hidden) bubbleOf(player);
-    if (player.fishing && player.fishing.state === 'bite') ART.biteMark(ctx, player.x, player.y - nameTop(S.look) - 10, clock);
-    others.forEach((r) => { if (r.fish && r.fish.bite) ART.biteMark(ctx, r.rx, r.ry - nameTop(r.look) - 10, clock); });
+    if (player.fishing && player.fishing.state === 'bite') at(player.x, player.y, nameTop(S.look) + 10, () => ART.biteMark(ctx, player.x, player.y - nameTop(S.look) - 10, clock));
+    others.forEach((r) => { if (r.fish && r.fish.bite) at(r.rx, r.ry, nameTop(r.look) + 10, () => ART.biteMark(ctx, r.rx, r.ry - nameTop(r.look) - 10, clock)); });
 
-    floats.forEach((f) => {
+    floats.forEach((f) => at(f.x, f.y + 100, 100, () => {
       ctx.globalAlpha = Math.max(0, 1 - f.t / 1.4);
       ctx.font = '800 17px "Be Vietnam Pro", system-ui, sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -3281,7 +3309,7 @@
       ctx.fillStyle = f.color;
       ctx.fillText(f.text, f.x, f.y - f.t * 40);
       ctx.globalAlpha = 1;
-    });
+    }));
 
     if (hover && !UI.isBlocking()) {
       const hx = hover.x + hover.w / 2;
@@ -3334,6 +3362,7 @@
   }
 
   function toWorld(cx, cy) {
+    if (typeof R3D !== 'undefined' && R3D.on) { const p = R3D.pick(cx, cy); if (p) return p; }
     return { x: (cx - W / 2) / ZOOM + cam.x, y: (cy - H / 2) / ZOOM + cam.y };
   }
 
@@ -3393,7 +3422,11 @@
     }
     if (!drag.active) return;
     if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > DRAG_PX) drag.moved = true;
-    if (drag.moved) {
+    if (drag.moved && typeof R3D !== 'undefined' && R3D.on) {
+      const a = R3D.pickGround(drag.lx, drag.ly), b = R3D.pickGround(e.clientX, e.clientY);
+      if (a && b) { camOff.x -= b.x - a.x; camOff.y -= b.y - a.y; }
+      canvas.style.cursor = 'grabbing';
+    } else if (drag.moved) {
       camOff.x -= (e.clientX - drag.lx) / ZOOM;
       camOff.y -= (e.clientY - drag.ly) / ZOOM;
       canvas.style.cursor = 'grabbing';

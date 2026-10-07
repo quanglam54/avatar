@@ -8,7 +8,7 @@ const MAPS = (() => {
   const obj = (m, y, draw, bb) => m.objects.push({ y, draw, bb });
   const bbOf = (x, y, box) => [x + box.l, y + box.t, x + box.l + box.w, y + box.t + box.h];
   /** Đồ vật tĩnh: vẽ sẵn một lần, có viền đậm kiểu Avatar */
-  const sobj = (m, x, y, draw, box = FX.BOX.object, sortY = y) => m.objects.push({ y: sortY, draw: FX.sprite(draw, x, y, box), bb: bbOf(x, y, box) });
+  const sobj = (m, x, y, draw, box = FX.BOX.object, sortY = y) => m.objects.push({ y: sortY, s: 1, draw: FX.sprite(draw, x, y, box), bb: bbOf(x, y, box) });
   /** Đồ vật chuyển động: vẽ lại mỗi khung hình, có viền */
   const aobj = (m, x, y, draw, box) => { const key = {}; m.objects.push({ y, draw: (ctx, t) => FX.drawCached(ctx, key, (c) => draw(c, t), x, y, box, 90), bb: bbOf(x, y, box) }); };
   const col = (m, x, y, w, h) => m.colliders.push({ x, y, w, h });
@@ -189,6 +189,7 @@ const MAPS = (() => {
     obj(m, o.sortY ?? y, (ctx) => {
       const im = IMG.get(src);
       if (!im) { if (o.fallback) o.fallback(ctx, performance.now() / 1000); return; }
+      if (!ob.s) { ob.s = 1; ob.repaint = true; }
       const h = w * im.naturalHeight / im.naturalWidth, k = FX.scale;
       if (!cache || cache.k !== k) {
         // thu nhỏ ảnh + ghi chữ biển hiệu MỘT lần (đỡ nặng cho điện thoại)
@@ -203,6 +204,7 @@ const MAPS = (() => {
       }
       ctx.drawImage(cache.c, x - w / 2, y - h, w, h);
     }, [x - w / 2 - 10, y - hh - 20, x + w / 2 + 10, y + 10]);
+    const ob = m.objects[m.objects.length - 1];
     function paint(ctx, im, h) {
       ctx.drawImage(im, x - w / 2, y - h, w, h);
       const sg = o.sign;
@@ -360,6 +362,7 @@ const MAPS = (() => {
         ctx.drawImage(cv, L, T, BWc, BHc);
         if (owned) ART.bed(ctx, bx, by, owned, 0, tiles, t, 'over');
       }, [L, T, L + BWc, T + BHc]);
+      m.objects[m.objects.length - 1].bed = { idx: bedIdx, bx, by };
       for (let k = 0; k < 12; k++) {
         const i = bedIdx * 12 + k;
         const tx = bx + BD.padX + (k % 6) * BD.step, ty = by + BD.padY + Math.floor(k / 6) * BD.step;
@@ -432,6 +435,7 @@ const MAPS = (() => {
     // vùng nước theo ảnh ao mới (ảnh to hơn ao cũ)
     m.lake = { x: 1290, y: 1045, rx: 175, ry: 105 };
     pic(m, 'img/farm/' + 'pond.png', 1300, 1196, 430, { h: 340, sortY: 880, fallback: (c, t) => ART.lake(c, 1300, 1060, 180, 110, t) });
+    m.objects[m.objects.length - 1].flat = 1;
     // chặn cả mặt nước + bờ đá + cầu gỗ (không đi lên ao được)
     col(m, 1100, 900, 400, 270);
     m.labels.push({ text: '🎣 Ao Cá', x: 1300, y: 868 }, { text: '🐔 Sân Gà', x: 1865, y: 900 });
