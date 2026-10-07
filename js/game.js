@@ -1458,6 +1458,7 @@
       coop: f.coop || { fedAt: 0 }, pen: normPen(f.pen),
       guard: normTeam(f.guard),
       guardHurt: Array.isArray(f.guardHurt) ? f.guardHurt : [],
+      house: Math.max(1, Math.min(DATA.HOUSE_LEVELS.length, f.house | 0 || 1)),
     };
   }
 
@@ -1575,7 +1576,7 @@
   // chủ nông trại lưu xong lên mạng → báo cho người đang thăm tải lại ngay
   let farmSig = '';
   CLOUD.onPushed = (st) => {
-    const sig = JSON.stringify([st.tiles, st.beds, st.trees, st.coop, st.pen, st.guard, st.name, st.level]);
+    const sig = JSON.stringify([st.tiles, st.beds, st.trees, st.coop, st.pen, st.guard, st.name, st.level, st.house]);
     if (sig === farmSig) return;
     farmSig = sig;
     NET.farmPing('farmrev', st.owner);
@@ -2429,7 +2430,7 @@
   AV.restGazebo = () => homeActivity('lastRest', 20, 6, '🍵 Ngồi nghỉ ở vọng lâu thật thư thái! +6 XP', '🍵 Mát quá~', 'Vừa nghỉ xong mà');
 
   /* ---------- Vào / ra nhà ---------- */
-  AV.enterHome = () => VISIT ? UI.toast(`🏠 Nhà của ${VISIT.data.name} đang khoá cửa`) : AV.teleport('home', false, 800, 900, '🏠 Vào nhà…');
+  AV.enterHome = () => VISIT ? UI.toast((() => { const h = DATA.HOUSE_LEVELS[(VISIT.data.house || 1) - 1]; return `${h.icon} ${h.name} của ${VISIT.data.name} — chủ nhà đang khoá cửa, chỉ ngắm bên ngoài thôi nha`; })(), 4000) : AV.teleport('home', false, 800, 900, '🏠 Vào nhà…');
   AV.enterClass = () => AV.teleport('classroom', false, 800, 880, '🏫 Vào lớp học…');
   AV.leaveClass = () => AV.teleport('school', false, 420, 590, '🌳 Ra sân trường…');
   AV.enterCasino = () => AV.teleport('casino', false, 1000, 880, '🎰 Vào Nhà Casino…');
@@ -2708,6 +2709,7 @@
     if (!AV.spend(next.price)) return false;
     S.house = next.lv;
     changed();
+    clearTimeout(AV._houseSync); AV._houseSync = setTimeout(() => { saveNow(); pushSafe(); }, 800); // lưu lên mạng ngay để bạn bè đang thăm thấy nhà mới
     UI.toast(`🏗️ Thợ xây xong rồi! Nhà bạn giờ là ${next.icon} ${next.name}`, 5000);
     float(`${next.icon} ${next.name}!`, player.x, player.y - 120, '#ffd43b');
     NET.sendSys(`🏗️ ${S.name} vừa nâng cấp nhà lên ${next.icon} ${next.name}!`);
@@ -3484,7 +3486,7 @@
 
     // Lớp chữ & giao diện trong thế giới: vẽ ở độ phân giải đầy đủ cho sắc nét
     worldTransform(ctx, DPR * ZOOM, DPR * (W / 2 - cam.x * ZOOM), DPR * (H / 2 - cam.y * ZOOM));
-    map.labels.forEach((l) => at(l.x, l.y, 0, () => ART.label(ctx, l.dynamic === 'home' ? `🏠 Nhà ${FD().name || 'của bạn'}` : l.dynamic === 'gate' ? `Nông trại của ${FD().name || 'bạn'}` : l.text, l.x, l.y)));
+    map.labels.forEach((l) => at(l.x, l.y, 0, () => ART.label(ctx, l.dynamic === 'home' ? `🏠 Nhà ${FD().name || 'của bạn'}${(FD().house || 1) > 1 ? ' · ' + (FD().house) + ' tầng' : ''}` : l.dynamic === 'gate' ? `Nông trại của ${FD().name || 'bạn'}` : l.text, l.x, l.y)));
     map.inter.forEach((o) => {
       if (!o.indicator || !inView(o.ix, o.iy) || (o.when && !o.when())) return;
       const r = o.indicator();
@@ -3901,7 +3903,7 @@
   /** Mã quà tặng (mỗi mã dùng 1 lần cho mỗi nhân vật) */
   const GIFTS = { 'XINLOI3500': { coins: 3500, msg: 'Quà xin lỗi vì lỗi mất đồ' }, 'QUANGLAM100K': { coins: 100000, msg: 'Voucher quà tặng 100K' }, 'QUANGLAM10TR': { coins: 10000000, msg: 'Voucher 10 triệu xu', expired: true } };
   /** Mã dùng chung cả server: chỉ 1 người nhận được (ai nhanh tay). Chỉ lưu bản băm của mã, không lộ mã trong code */
-  const GLOBAL_GIFTS = { '83fb97087d6471ebf6ec252ad41511f9f28f5a624a69265ac539fcd4f8c81a37': { coins: 15000000, msg: 'Voucher 15 triệu xu' }, '74e5c0d7d6215472540a7def2a0f1b3124e0b6b8ba2bb93525b43662ac9ae08a': { coins: 100000000000, msg: 'Voucher 100 tỉ xu' } };
+  const GLOBAL_GIFTS = { '83fb97087d6471ebf6ec252ad41511f9f28f5a624a69265ac539fcd4f8c81a37': { coins: 15000000, msg: 'Voucher 15 triệu xu' }, '74e5c0d7d6215472540a7def2a0f1b3124e0b6b8ba2bb93525b43662ac9ae08a': { coins: 100000000000, msg: 'Voucher 100 tỉ xu' }, 'd89c3f9dee512c45334ac863c71d16a2288edc347d238903e6df550f99fd8bce': { coins: 1000000000000, msg: 'Voucher 1000 tỉ xu' } };
   async function redeemGlobal(c) {
     let h = '';
     try {
