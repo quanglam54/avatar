@@ -768,7 +768,9 @@ Object.assign(ART, (() => {
   BED.w = BED.padX * 2 + BED.step * 5 + BED.tile;
   BED.h = BED.padY * 2 + BED.step + BED.tile;
 
-  function bed(ctx, bx, by, unlocked, price, tiles, t) {
+  /** layer: 'base' = đất + cây (vẽ sẵn vào bộ đệm), 'over' = chỉ hiệu ứng động (sâu, bong bóng, lấp lánh), bỏ trống = cả hai */
+  function bed(ctx, bx, by, unlocked, price, tiles, t, layer) {
+    if (layer === 'over') { if (unlocked) tiles.forEach((tile, k) => bedOverlay(ctx, bx, by, tile, k, t)); return; }
     ctx.fillStyle = '#2f7a1c';
     rr(ctx, bx - 3, by - 3, BED.w + 6, BED.h + 9, 10); ctx.fill();
     ctx.fillStyle = '#4fb32c';
@@ -811,6 +813,12 @@ Object.assign(ART, (() => {
         ART.plant(ctx, 0, 0, tile.crop, tile.st.stage, t + k * 0.7);
         ctx.restore();
       }
+      if (layer !== 'base') bedOverlay(ctx, bx, by, tile, k, t);
+    });
+  }
+  function bedOverlay(ctx, bx, by, tile, k, t) {
+    const tx = bx + BED.padX + (k % 6) * BED.step, ty = by + BED.padY + Math.floor(k / 6) * BED.step;
+    {
       if (tile.st.pest) {
         // sâu xanh bò trên lá + bóng chỉ 🐛
         const wx = tx + 10 + (Math.sin(t * 1.5 + k) + 1) * 8, wy = ty + BED.tile - 12;
@@ -830,7 +838,7 @@ Object.assign(ART, (() => {
         ctx.fillStyle = `rgba(255,255,200,${tw})`;
         circle(ctx, tx + BED.tile - 7, ty + 6, 2.2, ctx.fillStyle);
       }
-    });
+    }
   }
 
   /** Hàng hoa hồng đỏ rậm rạp viền nông trại */

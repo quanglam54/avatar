@@ -10,6 +10,65 @@ const SOCIAL = (() => {
   let chatWith = null, chatPanel = null, mainPanel = null, pulling = false, replyTo = null;
   const EMOS = ['😀', '😂', '🤣', '😍', '🥰', '😘', '😎', '🤩', '😜', '😢', '😭', '😡', '🤬', '😱', '🥺', '😴', '🤔', '🙄', '😏', '🤗', '😅', '😳', '🤭', '😤',
     '👍', '👎', '👏', '🙏', '💪', '👋', '🤝', '✌️', '🔥', '❤️', '💔', '💯', '✨', '🎉', '🎁', '🌹', '💩', '👻', '🤡', '💀', '🐶', '🐱', '🐷', '🌾', '🍉', '🍺', '🥊', '🎵'];
+  /* ---------- 🧸 Nhãn dán (sticker) kiểu Zalo / Messenger: vẽ bằng canvas 1 lần rồi dùng lại ---------- */
+  const STICKERS = {
+    ava: { name: '🧒 Bé Avatar', list: [
+      ['a_hi', 'boy', '👋', 'Chào nha!', '#4dabf7'], ['a_love', 'girl', '😍', 'Yêu quá à', '#f06595'], ['a_lol', 'boy', '🤣', 'Hahaha', '#fab005'], ['a_cry', 'girl', '😭', 'Huhu…', '#74c0fc'],
+      ['a_angry', 'boy', '😡', 'Giận rồi đó!', '#fa5252'], ['a_thx', 'girl', '🙏', 'Cảm ơn nhiều', '#40c057'], ['a_ok', 'boy', '👌', 'OK luôn', '#20c997'], ['a_sleep', 'girl', '😴', 'Ngủ đây…', '#9775fa'],
+      ['a_rich', 'boy', '💰', 'Giàu rồi!', '#f59f00'], ['a_farm', 'girl', '🌾', 'Ra đồng thôi', '#82c91e'], ['a_kiss', 'girl', '😘', 'Moaa~', '#f783ac'], ['a_wow', 'boy', '😱', 'Ối dồi ôi', '#ff922b'],
+    ] },
+    pet: { name: '🐶 Thú cưng', list: [
+      ['p_dog', '🐶', 'Gâu gâu!', '#e8590c'], ['p_cat', '🐱', 'Meo~', '#f783ac'], ['p_pig', '🐷', 'Ủn ỉn', '#ff8fab'], ['p_bear', '🐻', 'Ôm cái nào', '#a0522d'],
+      ['p_frog', '🐸', 'Ộp ộp', '#40c057'], ['p_panda', '🐼', 'Lười quá', '#495057'], ['p_chick', '🐥', 'Chíp chíp', '#fab005'], ['p_bunny', '🐰', 'Bye bye', '#cc5de8'],
+      ['p_tiger', '🐯', 'Gừ gừ', '#f76707'], ['p_duck', '🦆', 'Quạc quạc', '#1c7ed6'], ['p_unicorn', '🦄', 'Lung linh', '#be4bdb'], ['p_dragon', '🐲', 'Phun lửa nè', '#e03131'],
+    ] },
+    word: { name: '💬 Chữ', list: [
+      ['w_xin', 'XỊN XÒ', '#7048e8', '✨'], ['w_dinh', 'ĐỈNH CAO', '#e03131', '🔥'], ['w_ghe', 'GHÊ CHƯA', '#f59f00', '😎'], ['w_xong', 'THÔI XONG', '#495057', '💀'],
+      ['w_chot', 'CHỐT ĐƠN', '#2f9e44', '✅'], ['w_iu', 'IU NHIỀU', '#e64980', '💖'], ['w_ok', 'OK BẠN ƠI', '#1c7ed6', '👍'], ['w_hihi', 'HIHI', '#fab005', '😆'],
+    ] },
+  };
+  const STICK = {};
+  Object.entries(STICKERS).forEach(([pk, p]) => p.list.forEach((x) => { STICK[x[0]] = { pk, x }; }));
+  const stickCache = new Map();
+  function stickerURL(id) {
+    const st = STICK[id];
+    if (!st) return '';
+    if (stickCache.has(id)) return stickCache.get(id);
+    const cv = document.createElement('canvas'); cv.width = 240; cv.height = 240;
+    const c = cv.getContext('2d'); c.scale(2, 2);
+    const caption = (text, col, y = 104, size = 19) => {
+      c.font = `900 ${size}px "Be Vietnam Pro", system-ui`; c.textAlign = 'center'; c.textBaseline = 'middle';
+      let fs2 = size; while (c.measureText(text).width > 112 && fs2 > 11) { fs2--; c.font = `900 ${fs2}px "Be Vietnam Pro", system-ui`; }
+      c.lineJoin = 'round'; c.lineWidth = 6; c.strokeStyle = '#fff'; c.strokeText(text, 60, y);
+      c.fillStyle = col; c.fillText(text, 60, y);
+    };
+    if (st.pk === 'ava') {
+      const [, av, emo, text, col] = st.x;
+      const look = { ...AV.S.look, avatar: av, phair: undefined };
+      c.save(); ART.character(c, 54, 88, look, { scale: 1.15, t: 0, dir: 1 }); c.restore();
+      c.fillStyle = '#fff'; c.beginPath(); c.arc(92, 26, 20, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = col; c.lineWidth = 3; c.stroke();
+      c.font = '24px system-ui, "Segoe UI Emoji"'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(emo, 92, 27);
+      caption(text, col);
+    } else if (st.pk === 'pet') {
+      const [, emo, text, col] = st.x;
+      c.fillStyle = col + '22'; c.beginPath(); c.arc(60, 50, 44, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#000'; c.font = '66px system-ui, "Segoe UI Emoji"'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(emo, 60, 52);
+      caption(text, col);
+    } else {
+      const [, text, col, emo] = st.x;
+      c.save(); c.translate(60, 60); c.rotate(-0.12);
+      c.fillStyle = '#fff'; c.beginPath(); c.roundRect(-56, -26, 112, 52, 16); c.fill();
+      c.strokeStyle = col; c.lineWidth = 4; c.stroke();
+      c.restore();
+      c.save(); c.translate(0, 0); caption(text, col, 58, 22); c.restore();
+      c.font = '26px system-ui, "Segoe UI Emoji"'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(emo, 100, 22); c.fillText(emo, 18, 96);
+    }
+    const url = cv.toDataURL('image/png');
+    stickCache.set(id, url);
+    return url;
+  }
+
   /** tin chỉ gồm 1–3 emoji → hiện to */
   const onlyEmoji = (t) => /^(\p{Extended_Pictographic}|\p{Emoji_Component}|\u200d|\ufe0f|\s){1,12}$/u.test(t) && [...t.replace(/\s/g, '')].filter((c) => /\p{Extended_Pictographic}/u.test(c)).length <= 3;
   const snip = (t, n = 60) => (t.length > n ? t.slice(0, n - 1) + '…' : t);
@@ -195,9 +254,10 @@ const SOCIAL = (() => {
       const mine = m.from_user === me, time = new Date(m.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
       const g = m.body || {};
       const raw = m.kind === 'gift' ? `🎁 Tặng ${g.coins ? fmt(g.coins) + ' xu' : g.n + ' ' + (DATA.ITEMS[g.item] ? DATA.ITEMS[g.item].icon + ' ' + DATA.ITEMS[g.item].name.toLowerCase() : '')}${g.note ? ' — ' + g.note : ''}` : String(g.text || '');
-      const big = m.kind === 'chat' && !g.re && onlyEmoji(raw);
+      const stk = m.kind === 'chat' && g.st && STICK[g.st];
+      const big = !stk && m.kind === 'chat' && !g.re && onlyEmoji(raw);
       const re = g.re && typeof g.re === 'object' ? `<div class="dm-quote" data-goto="${+g.re.id || 0}"><b>↩ ${esc(String(g.re.w || '') === S().name ? 'Bạn' : String(g.re.w || ''))}</b>${esc(snip(String(g.re.t || ''), 80))}</div>` : '';
-      return `<div class="dm-msg ${mine ? 'me' : ''} ${big ? 'big' : ''}" data-id="${m.id}" data-who="${esc(mine ? S().name : chatWith.name)}" data-t="${esc(snip(raw, 80))}">${re}<span>${esc(raw)}</span><small>${time}</small><button class="dm-re" title="Trả lời" type="button">↩</button></div>`;
+      return `<div class="dm-msg ${mine ? 'me' : ''} ${big ? 'big' : ''} ${stk ? 'sticker' : ''}" data-id="${m.id}" data-who="${esc(mine ? S().name : chatWith.name)}" data-t="${esc(snip(raw, 80))}">${re}${stk ? `<img class="dm-stk" src="${stickerURL(g.st)}" alt="nhãn dán">` : `<span>${esc(raw)}</span>`}<small>${time}</small><button class="dm-re" title="Trả lời" type="button">↩</button></div>`;
     }).join('') : '<p class="muted">Chưa có tin nhắn nào. Chào nhau một câu đi 👋</p>';
     if (atBottom) box.scrollTop = box.scrollHeight;
     box.querySelectorAll('.dm-re').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const el = b.closest('.dm-msg'); setReply({ id: +el.dataset.id, t: el.dataset.t, w: el.dataset.who }); });
@@ -224,14 +284,35 @@ const SOCIAL = (() => {
     chatPanel = UI.panel(`💬 ${esc(f.name)}`, `<small class="muted">@${esc(f.username)} · ${on ? '🟢 đang ở ' + ZONE(on.map) : '⚪ offline — sẽ đọc khi online'}</small>
       <div class="dm-log"><p class="muted">⏳ Đang tải…</p></div>
       <div class="dm-reply" hidden><span></span><button type="button" class="dm-reply-x" title="Huỷ trả lời">✕</button></div>
-      <div class="dm-emo" hidden>${EMOS.map((e) => `<button type="button" data-e="${e}">${e}</button>`).join('')}</div>
+      <div class="dm-pick" hidden>
+        <div class="dm-tabs"><button type="button" data-tab="emo" class="on">😀 Emoji</button>${Object.entries(STICKERS).map(([k, p]) => `<button type="button" data-tab="${k}">${p.name}</button>`).join('')}</div>
+        <div class="dm-emo">${EMOS.map((e) => `<button type="button" data-e="${e}">${e}</button>`).join('')}</div>
+        <div class="dm-stks" hidden></div>
+      </div>
       <form class="dm-form" data-dm><button type="button" class="dm-emo-btn" title="Emote">😊</button><input class="field" name="t" maxlength="200" placeholder="Nhắn cho ${esc(f.name)}…" autocomplete="off"><button class="btn">Gửi</button></form>
       <div class="row-end"><button class="btn small ghost" data-g>🎁 Tặng quà</button></div>`, { onClose: () => { if (chatPanel === me) { chatWith = null; chatPanel = null; } } });
     const me = chatPanel;
     replyTo = null;
     const form = chatPanel.body.querySelector('[data-dm]');
-    const emo = chatPanel.body.querySelector('.dm-emo');
-    chatPanel.body.querySelector('.dm-emo-btn').onclick = () => { emo.hidden = !emo.hidden; };
+    const pickBox = chatPanel.body.querySelector('.dm-pick'), emo = pickBox.querySelector('.dm-emo'), stks = pickBox.querySelector('.dm-stks');
+    const syncPick = () => chatPanel.body.classList.toggle('picking', !pickBox.hidden);
+    chatPanel.body.querySelector('.dm-emo-btn').onclick = () => { pickBox.hidden = !pickBox.hidden; syncPick(); };
+    pickBox.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => {
+      pickBox.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('on', x === b));
+      const k = b.dataset.tab;
+      emo.hidden = k !== 'emo'; stks.hidden = k === 'emo';
+      if (k !== 'emo') {
+        stks.innerHTML = STICKERS[k].list.map((x) => `<button type="button" data-st="${x[0]}"><img src="${stickerURL(x[0])}" alt=""></button>`).join('');
+        stks.querySelectorAll('[data-st]').forEach((sb) => sb.onclick = () => sendSticker(sb.dataset.st));
+      }
+    });
+    const sendSticker = async (id) => {
+      pickBox.hidden = true; syncPick();
+      const body = { text: '[Nhãn dán]', st: id };
+      if (replyTo) body.re = { id: replyTo.id, t: snip(replyTo.t, 80), w: String(replyTo.w || '').slice(0, 16) };
+      setReply(null);
+      try { await send(f.uid, 'chat', body); await loadChat(); const box = chatPanel && chatPanel.body.querySelector('.dm-log'); if (box) box.scrollTop = box.scrollHeight; } catch (er) { UI.toast('⚠️ ' + errText(er), 4500); }
+    };
     emo.querySelectorAll('[data-e]').forEach((b) => b.onclick = () => {
       const i = form.t, a = i.selectionStart ?? i.value.length, z = i.selectionEnd ?? i.value.length;
       i.value = (i.value.slice(0, a) + b.dataset.e + i.value.slice(z)).slice(0, 200);
@@ -243,7 +324,7 @@ const SOCIAL = (() => {
       const t = form.t.value.trim();
       if (!t) return;
       form.t.value = '';
-      emo.hidden = true;
+      pickBox.hidden = true; syncPick();
       const body = { text: t.slice(0, 200) };
       if (replyTo) body.re = { id: replyTo.id, t: snip(replyTo.t, 80), w: String(replyTo.w || '').slice(0, 16) };
       setReply(null);
@@ -276,12 +357,13 @@ const SOCIAL = (() => {
       const items = Object.entries(st.inv).filter(([id, n]) => n > 0 && DATA.ITEMS[id] && id !== 'ticket');
       const max = kind === 'coins' ? st.coins : (st.inv[item] || 0);
       p.body.innerHTML = `<div class="coins-line">💰 ${fmt(st.coins)} xu</div>
-        <div class="chips center"><button class="chip ${kind === 'coins' ? 'on' : ''}" data-k="coins">💰 Tặng xu</button><button class="chip ${kind === 'item' ? 'on' : ''}" data-k="item">🎒 Tặng đồ</button></div>
+        <div class="chips center"><button class="chip ${kind === 'coins' ? 'on' : ''}" data-k="coins">💰 Tặng xu</button><button class="chip ${kind === 'item' ? 'on' : ''}" data-k="item">🎒 Tặng đồ</button><button class="chip" data-bankx>🏦 Chuyển khoản STK</button></div>
         ${kind === 'item' ? `<div class="ss-grid gift-grid">${items.map(([id, n]) => `<button class="ss-cell ${id === item ? 'sel' : ''}" data-it="${id}"><span>${DATA.ITEMS[id].icon}</span><i>${n}</i></button>`).join('') || '<p class="muted">Túi trống</p>'}</div>${item ? `<p class="muted">${DATA.ITEMS[item].name} · đang có ${st.inv[item] || 0}</p>` : ''}` : ''}
         ${err ? `<p class="game-msg">${err}</p>` : ''}
         <form class="fsearch" data-send><input class="field" name="n" type="number" min="1" value="${amount}" placeholder="Số lượng"><input class="field" name="note" maxlength="60" placeholder="Lời nhắn (không bắt buộc)"><button class="btn" ${kind === 'item' && !item ? 'disabled' : ''}>🎁 Tặng</button></form>
         <p class="muted small-note">Có tối đa: ${fmt(max)}</p>`;
       p.body.querySelectorAll('[data-k]').forEach((b) => b.onclick = () => { kind = b.dataset.k; amount = kind === 'coins' ? 100 : 1; render(); });
+      p.body.querySelector('[data-bankx]').onclick = () => { p.close(); if (!AV.S.bank) return UI.toast('🏦 Bạn chưa có tài khoản QuangLamBank — mở tài khoản ở ngân hàng trước cổng nông trại nhé', 5000); UI.toast(`🏦 Nhập mật khẩu, rồi điền STK của ${f.name} ở mục 💸 Chuyển khoản`, 4500); BANK.panel('app'); };
       p.body.querySelectorAll('[data-it]').forEach((b) => b.onclick = () => { item = b.dataset.it; render(); });
       const form = p.body.querySelector('[data-send]');
       form.onsubmit = async (e) => {

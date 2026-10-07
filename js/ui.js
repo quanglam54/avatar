@@ -513,11 +513,14 @@ const UI = (() => {
     if (!inf) return AV.travelTo(id);
     const z = DATA.ZONES.find((x) => x.id === id) || { icon: '📍', name: id };
     const bikes = (S.bikes || []).map((b) => DATA.BIKES.find((x) => x.id === b)).filter(Boolean);
+    const cars = Object.keys(S.cars || {}).map((c) => (DATA.CARS || []).find((x) => x.id === c)).filter(Boolean);
+    const ap = DATA.airportOf(id);
     const p = panel(`🚦 Đi tới ${z.icon} ${z.name}`, `
       <p class="ride-route">🛣️ ${inf.streets.map(esc).join(' → ')} <b>· ${inf.km}</b></p>
       <div class="ride-opts">
         ${AV.hasBusStop() ? '<button class="ride-opt" data-v="bus"><span>🚌</span><b>Xe buýt</b><small>Miễn phí · tới ngay</small></button>' : ''}
-        <button class="ride-opt plane" data-v="plane"><span>✈️</span><b>Máy bay</b><small>100 xu · bay trên trời</small></button>
+        <button class="ride-opt plane" data-v="plane"><span>✈️</span><b>Máy bay</b><small>100 xu · hạ cánh ${ap.code}</small></button>
+        ${cars.map((c) => { const b = Math.round(S.cars[c.id].bat), need = RIDE.batNeed(c, inf.m); return `<button class="ride-opt bike car ${b < need ? 'lowbat' : ''}" data-v="${c.id}"><canvas data-pv="${c.id}"></canvas><b>${esc(c.name)}</b><small>${b < 20 ? '🪫' : '🔋'} ${b}% · cần ${need}%</small></button>`; }).join('')}
         <button class="ride-opt taxi" data-v="taxi"><span>🚕</span><b>Taxi Xanh SM</b><small>${inf.fare} xu · ngồi ngắm phố</small></button>
         ${bikes.map((b) => `<button class="ride-opt bike" data-v="${b.id}"><canvas data-pv="${b.id}"></canvas><b>${esc(b.name)}</b><small>Tự lái · miễn phí</small></button>`).join('')}
         <button class="ride-opt shop" data-shop><span>🏍️</span><b>${bikes.length ? 'Mua thêm xe' : 'Mua xe máy'}</b><small>Từ ${Math.min(...DATA.BIKES.map((b) => b.price)).toLocaleString('vi-VN')} xu</small></button>
@@ -528,6 +531,15 @@ const UI = (() => {
       const v = b.dataset.v;
       if (v === 'bus') { p.close(); AV.travelTo(id); return; }
       if (v === 'plane') { if (S.coins < 100) { toast('Không đủ xu mua vé máy bay 😢'); return; } p.close(); AV.spend(100); PLANE.fly(id, z.icon + ' ' + z.name); return; }
+      const car = (DATA.CARS || []).find((c) => c.id === v);
+      if (car) {
+        const b = S.cars[v].bat, need = RIDE.batNeed(car, inf.m);
+        if (b < need) {
+          confirm(`🪫 <b>${esc(car.name)}</b> còn <b>${Math.round(b)}%</b> pin, quãng đường ${inf.km} cần khoảng <b>${need}%</b>.<br>Ra <b>trạm sạc V-GREEN</b> trước cổng nông trại để sạc nhé. Vẫn đi? (hết pin giữa đường sẽ phải gọi cứu hộ 150 xu)`, 'Vẫn đi', () => { p.close(); AV.startRide(id, v); });
+          return;
+        }
+        p.close(); AV.startRide(id, v); return;
+      }
       if (v === 'taxi') { if (S.coins < inf.fare) { toast('Không đủ xu đi taxi 😢'); return; } p.close(); if (AV.startRide(id, 'taxi')) AV.spend(inf.fare); return; }
       p.close();
       S.bike = v;
@@ -552,6 +564,61 @@ const UI = (() => {
       p.body.querySelectorAll('[data-buy]').forEach((bt) => bt.onclick = () => { if (AV.buyBike(bt.dataset.buy)) render(); });
       const bk = p.body.querySelector('[data-back]');
       if (bk) bk.onclick = () => { p.close(); rideChooser(backTo); };
+    };
+    render();
+  }
+
+  /* ---------- 🚗 Showroom VinFast ---------- */
+  function carShop() {
+    const S = AV.S;
+    const p = panel('🚗 VinFast Showroom', '', { wide: true });
+    const render = () => {
+      const own = S.cars || {};
+      p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
+        <div class="bike-grid">${DATA.CARS.map((c) => `<div class="bike-card car-card"><canvas data-pv="${c.id}"></canvas>
+          <b>${esc(c.name)}</b><small>${esc(c.desc)}</small><small>⚡ ${Math.round(c.max / 10)} km/h · 🔋 đầy pin đi ~${c.range} km</small>
+          ${own[c.id] ? `<button class="btn small ghost" disabled>✅ Đã có · ${Math.round(own[c.id].bat)}%</button>` : `<button class="btn small" data-buy="${c.id}">${c.price.toLocaleString('vi-VN')} xu</button>`}</div>`).join('')}</div>
+        <p class="muted small-note">Mua xong chọn khu trên 🗺️ bản đồ → chọn xe của bạn để tự lái qua phố Hà Nội. Xe chạy điện: hết pin thì sạc ở <b>trạm V-GREEN</b> ngay bên cạnh.</p>`;
+      p.body.querySelectorAll('[data-pv]').forEach((cv) => requestAnimationFrame(() => RIDE.preview(cv, cv.dataset.pv, S.look)));
+      p.body.querySelectorAll('[data-buy]').forEach((bt) => bt.onclick = () => { const c = DATA.CARS.find((x) => x.id === bt.dataset.buy); confirm(`Mua <b>${esc(c.name)}</b> giá <b>${c.price.toLocaleString('vi-VN')} xu</b>?`, 'Mua xe', () => { if (AV.buyCar(c.id)) render(); }); });
+    };
+    render();
+  }
+  /** ✈️ Quầy vé ở sân bay: chọn khu muốn bay tới */
+  function flightDesk() {
+    const S = AV.S, here = (AV.debugMap() || {}).airport;
+    const list = DATA.ZONES.filter((z) => z.id !== 'sky' && !(here && here.zones.includes(z.id)));
+    const p = panel('✈️ QuangLam Air · Quầy bán vé', `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Vé: <b>100 xu</b></div>
+      <div class="shop-list">${list.map((z) => { const a = DATA.airportOf(z.id); return `<div class="shop-row"><span class="ic">${z.icon}</span><div class="info"><b>${esc(z.name)}</b><small>Hạ cánh ${a.code} · ${esc(a.name)}</small></div><button class="btn small" data-fly="${z.id}">✈️ Bay</button></div>`; }).join('')}</div>`);
+    p.body.querySelectorAll('[data-fly]').forEach((b) => b.onclick = () => {
+      if (S.coins < 100) return toast('Không đủ xu mua vé máy bay 😢');
+      const z = DATA.ZONES.find((x) => x.id === b.dataset.fly);
+      p.close(); AV.spend(100); PLANE.fly(z.id, z.icon + ' ' + z.name);
+    });
+  }
+  function chargeStation() {
+    const S = AV.S;
+    const p = panel('🔌 Trạm sạc V-GREEN', '');
+    const render = (msg) => {
+      const own = Object.keys(S.cars || {}).map((id) => DATA.CARS.find((c) => c.id === id)).filter(Boolean);
+      p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · ⚡ ${DATA.CHARGE_PRICE} xu / 1% pin</div>
+        ${msg ? `<p class="game-msg">${msg}</p>` : ''}
+        ${own.length ? `<div class="shop-list">${own.map((c) => { const b = Math.round(S.cars[c.id].bat); return `<div class="shop-row"><span class="ic">🚗</span><div class="info"><b>${esc(c.name)}</b>
+          <div class="bat-bar ${b <= 20 ? 'low' : ''}"><i style="width:${b}%"></i><span>${b}%</span></div></div>
+          <button class="btn small" data-ch="${c.id}" ${b >= 100 ? 'disabled' : ''}>🔌 Sạc đầy · ${Math.ceil(100 - b) * DATA.CHARGE_PRICE} xu</button></div>`; }).join('')}</div>`
+          : '<p class="muted">Bạn chưa có ô tô điện. Ghé <b>VinFast Showroom</b> bên cạnh để mua xe nhé!</p>'}`;
+      p.body.querySelectorAll('[data-ch]').forEach((bt) => bt.onclick = () => {
+        const id = bt.dataset.ch, c = DATA.CARS.find((x) => x.id === id), from = S.cars[id].bat;
+        if (S.coins < Math.ceil(100 - from) * DATA.CHARGE_PRICE) return render('⚠️ Không đủ xu để sạc');
+        bt.disabled = true;
+        const bar = bt.parentElement.querySelector('.bat-bar i'), lab = bt.parentElement.querySelector('.bat-bar span');
+        let v = from;
+        const iv = setInterval(() => {
+          v = Math.min(100, v + 4);
+          bar.style.width = v + '%'; lab.textContent = '⚡ ' + Math.round(v) + '%';
+          if (v >= 100) { clearInterval(iv); const cost = AV.chargeCar(id); render(cost ? `✅ Đã sạc đầy ${esc(c.name)} · −${cost.toLocaleString('vi-VN')} xu` : ''); }
+        }, 80);
+      });
     };
     render();
   }
@@ -1411,6 +1478,7 @@ const UI = (() => {
       ['help', '❓', 'Cách chơi', help],
       ['set', '⚙️', 'Cài đặt', settings],
       ['app', '📲', 'Cài app', installApp],
+      ['bank', '🏦', 'Ngân hàng', () => BANK.panel('app')],
     ];
     if (AV.isHouse()) items.push(['house', '💼', 'Két', housePanel]);
     const p = panel('☰ MENU', `
@@ -1689,5 +1757,5 @@ const UI = (() => {
     q('.mv-def').onclick = () => { CONCERT.playDefault(); p.close(); toast('🎞️ Đã về phim mặc định'); };
   }
 
-  return { moviePicker, toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
+  return { flightDesk, carShop, chargeStation, moviePicker, toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
 })();

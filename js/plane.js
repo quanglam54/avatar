@@ -156,10 +156,21 @@ const PLANE = (() => {
   }
   function fly(dest, label) {
     let scroll = 0, last = 0;
-    open(`✈️ QuangLam Air · bay tới ${label}`, 14, (c, t, u) => {
+    const ap = DATA.airportOf(dest);
+    open(`✈️ QuangLam Air · ${label} · hạ cánh ${ap.code} ${ap.name.replace('Sân bay quốc tế ', '')}`, 14, (c, t, u) => {
       const alt = u < 0.18 ? Math.sin((u / 0.18) * Math.PI / 2) : u > 0.82 ? Math.sin(((1 - u) / 0.18) * Math.PI / 2) : 1;
       scroll -= (t - last) * (260 + alt * 420); last = t;              // bay về phía trên màn hình
       cityView(c, t, alt, scroll);
+      if (alt < 0.9) {                                                     // đường băng sân bay lúc cất / hạ cánh
+        const k = 1.7 - alt * 1.05, rw = 150 * k, a = 1 - alt / 0.9;
+        c.globalAlpha = Math.min(1, a * 1.4);
+        c.fillStyle = '#3d4148'; c.fillRect(W / 2 - rw / 2, 0, rw, H);
+        c.fillStyle = '#f8f9fa';
+        const off = ((-scroll * k) % (90 * k) + 90 * k) % (90 * k);
+        for (let y = -90 * k + off; y < H; y += 90 * k) c.fillRect(W / 2 - 3 * k, y, 6 * k, 45 * k);
+        for (const sx of [-1, 1]) { c.fillRect(W / 2 + sx * (rw / 2 - 8 * k) - 2 * k, 0, 4 * k, H); for (let y = off; y < H; y += 60 * k) { c.fillStyle = '#ffd43b'; c.beginPath(); c.arc(W / 2 + sx * (rw / 2 + 6 * k), y, 3 * k, 0, Math.PI * 2); c.fill(); c.fillStyle = '#f8f9fa'; } }
+        c.globalAlpha = 1;
+      }
       c.fillStyle = `rgba(${night() > 0.5 ? '20,30,60' : '200,225,255'},${0.08 + alt * 0.22})`; c.fillRect(0, 0, W, H); // khí quyển mờ khi lên cao
       const ps = Math.min(W, H) / 900 * (1.25 - alt * 0.3);
       // bóng máy bay trên mặt đất (càng cao càng xa, càng nhỏ)
@@ -174,7 +185,7 @@ const PLANE = (() => {
       c.fillStyle = 'rgba(27,47,72,.8)'; c.beginPath(); c.roundRect(14, H - 110, 200, 40, 12); c.fill();
       c.fillStyle = '#ffd43b'; c.font = '900 16px "Be Vietnam Pro", system-ui'; c.textAlign = 'left'; c.textBaseline = 'middle';
       c.fillText(`🛫 Độ cao ${Math.round(alt * 3200).toLocaleString('vi-VN')} m`, 24, H - 90);
-    }, () => AV.teleport(dest, false, undefined, undefined, '🛬 Hạ cánh…'));
+    }, () => AV.landAt(dest));
   }
 
   /* ---------- Vòng quay nhìn 3D ---------- */

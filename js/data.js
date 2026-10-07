@@ -265,6 +265,27 @@ DATA.BIKES = [
   { id: 'vespa', name: 'Vespa Sprint', kind: 'vespa', body: '#63e6be', helmet: '#7c4a2a', price: 8000, max: 560, accel: 360, desc: 'Cổ điển sang chảnh, bốc nhất' },
 ];
 
+/** 🚗 Ô tô điện VinFast (mua ở showroom trước cổng nông trại, tự lái trên phố, cần sạc pin) */
+DATA.CARS = [
+  { id: 'vf3', name: 'VinFast VF 3', body: '#ffd43b', price: 15000, max: 520, accel: 300, range: 25, len: 120, desc: 'Mini điện nhỏ xinh, đi phố gọn gàng' },
+  { id: 'vf5', name: 'VinFast VF 5', body: '#4dabf7', price: 25000, max: 560, accel: 330, range: 30, len: 135, desc: 'SUV cỡ A, rộng rãi cho cả nhà' },
+  { id: 'vf6', name: 'VinFast VF 6', body: '#40c057', price: 40000, max: 600, accel: 360, range: 36, len: 145, desc: 'SUV cỡ B, tăng tốc mượt' },
+  { id: 'vf8', name: 'VinFast VF 8', body: '#e03131', price: 70000, max: 660, accel: 400, range: 44, len: 155, desc: 'SUV cỡ D, mạnh mẽ đi xa' },
+  { id: 'vf9', name: 'VinFast VF 9', body: '#212529', price: 100000, max: 700, accel: 420, range: 50, len: 165, desc: 'SUV 7 chỗ hạng sang, pin bền nhất' },
+];
+DATA.CHARGE_PRICE = 3; // xu cho mỗi 1% pin
+
+/** ✈️ Sân bay: bay tới khu nào thì hạ cánh ở sân bay gần khu đó, qua cổng an ninh mới vào khu */
+DATA.AIRPORTS = [
+  { id: 'han', code: 'HAN', name: 'Sân bay quốc tế Nội Bài', en: 'Noi Bai International Airport', city: 'Hà Nội', zones: ['fun', 'town'], color: '#1c7ed6', palm: false },
+  { id: 'hph', code: 'HPH', name: 'Sân bay quốc tế Cát Bi', en: 'Cat Bi International Airport', city: 'Hải Phòng', zones: ['farm'], color: '#e8590c', palm: false },
+  { id: 'vdo', code: 'VDO', name: 'Sân bay quốc tế Vân Đồn', en: 'Van Don International Airport', city: 'Quảng Ninh', zones: ['cherry'], color: '#0ca678', palm: false },
+  { id: 'sgn', code: 'SGN', name: 'Sân bay quốc tế Tân Sơn Nhất', en: 'Tan Son Nhat International Airport', city: 'TP. Hồ Chí Minh', zones: ['mall', 'school'], color: '#c92a2a', palm: true },
+  { id: 'pqc', code: 'PQC', name: 'Sân bay quốc tế Phú Quốc', en: 'Phu Quoc International Airport', city: 'Phú Quốc', zones: ['beach'], color: '#f59f00', palm: true },
+  { id: 'dad', code: 'DAD', name: 'Sân bay quốc tế Đà Nẵng', en: 'Da Nang International Airport', city: 'Đà Nẵng', zones: ['park', 'race'], color: '#7048e8', palm: true },
+];
+DATA.airportOf = (zone) => DATA.AIRPORTS.find((a) => a.zones.includes(zone)) || DATA.AIRPORTS[0];
+
 /** Quán vỉa hè dọc đường phố (đi xe máy chậm sát lề thì tấp vào ăn được) */
 DATA.STREET_FOOD = [
   { id: 'sf_bundau', name: 'Bún Đậu Mắm Tôm', logo: '🍢', umb: '#2b8a3e', signBg: '#2b8a3e', signFg: '#fff', items: ['🍢', '🥬'],

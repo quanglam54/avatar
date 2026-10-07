@@ -302,10 +302,30 @@ const MAPS = (() => {
     const BD = ART.BED;
     /** Vẽ 1 luống + 12 ô bấm được */
     const addBed = (bedIdx, bx, by, tileName) => {
+      // luống được vẽ sẵn vào bộ đệm, chỉ vẽ lại khi cây đổi trạng thái (lớn, khát, sâu, chín…) → ruộng kín cây vẫn mượt
+      const L = bx - 10, T = by - 72, BWc = BD.w + 20, BHc = BD.h + 94;
+      let sig = '', at = 0, tiles = [], owned = false, cv = null, sc = 0;
       obj(m, by + BD.h - 25, (ctx, t) => {
-        const tiles = AV.F().tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert, stolen: x.stolen }));
-        ART.bed(ctx, bx, by, AV.F().beds[bedIdx], DATA.BED_PRICES[bedIdx], tiles, t);
-      }, [bx - 10, by - 70, bx + BD.w + 10, by + BD.h + 20]);
+        const now = performance.now(), Fm = AV.F();
+        if (now - at > 400 || Fm !== addBed.lastF) {
+          at = now; addBed.lastF = Fm;
+          owned = !!Fm.beds[bedIdx];
+          tiles = Fm.tiles.slice(bedIdx * 12, bedIdx * 12 + 12).map((x) => ({ crop: x.crop, st: AV.tileState(x), wet: x.watered, fert: x.fert, stolen: x.stolen }));
+          const s2 = (owned ? 1 : 0) + '|' + tiles.map((q) => `${q.crop || ''}${q.st.stage}${q.st.thirsty ? 't' : ''}${q.wet ? 'w' : ''}${q.fert ? 'f' : ''}${q.stolen ? 's' : ''}`).join(',');
+          if (s2 !== sig) { sig = s2; sc = 0; }
+        }
+        const S2 = Math.min(2, FX.scale);
+        if (sc !== S2 || !cv) {
+          sc = S2;
+          cv = cv || document.createElement('canvas');
+          cv.width = Math.ceil(BWc * S2); cv.height = Math.ceil(BHc * S2);
+          const g = cv.getContext('2d');
+          g.setTransform(S2, 0, 0, S2, -L * S2, -T * S2);
+          ART.bed(g, bx, by, owned, DATA.BED_PRICES[bedIdx], tiles, 0, 'base');
+        }
+        ctx.drawImage(cv, L, T, BWc, BHc);
+        if (owned) ART.bed(ctx, bx, by, owned, 0, tiles, t, 'over');
+      }, [L, T, L + BWc, T + BHc]);
       for (let k = 0; k < 12; k++) {
         const i = bedIdx * 12 + k;
         const tx = bx + BD.padX + (k % 6) * BD.step, ty = by + BD.padY + Math.floor(k / 6) * BD.step;
@@ -472,11 +492,11 @@ const MAPS = (() => {
     });
 
     /* ----- Bên ngoài cổng ----- */
-    [[3760, 1400, 'fruit'], [4300, 1395, 'green'], [4800, 1400, 'pink'], [5250, 1395, 'fruit']].forEach(([x, y, v]) => addTree(m, x, y, v));
+    [[4300, 1395, 'green'], [4800, 1400, 'pink'], [5250, 1395, 'fruit']].forEach(([x, y, v]) => addTree(m, x, y, v));
     /* ----- Phố ẩm thực trước cổng: cơm, phở, bún bò, mì cay | trà sữa, cà phê ----- */
-    m.labels.push({ text: '🍜 Phố Ẩm Thực', x: 620, y: 1250 }, { text: '☕ Trà Sữa · Cà Phê', x: 3000, y: 1250 });
+    m.labels.push({ text: '🍜 Phố Ẩm Thực', x: 620, y: 1250 }, { text: '☕ Trà Sữa · Cà Phê', x: 3690, y: 1250 });
     DATA.EATERIES.forEach((e, i) => {
-      const x = i < 4 ? 260 + i * 240 : 2640 + (i - 4) * 240, y = 1425;
+      const x = i < 4 ? 260 + i * 240 : 3330 + (i - 4) * 240, y = 1425;
       sobj(m, x, y, (c) => ART.foodShop(c, x, y, e), { l: -125, t: -165, w: 260, h: 172 });
       col(m, x - 105, y - 46, 210, 44);
       inter(m, { x: x - 105, y: y - 160, w: 210, h: 160, ax: x - 40, ay: y + 28, name: `${e.name} (ăn uống +XP)`, use: () => UI.eateryPanel(e.id) });
@@ -491,6 +511,15 @@ const MAPS = (() => {
     col(m, 2418, 1412, 74, 28);
     inter(m, { x: 2410, y: 1318, w: 90, h: 124, ax: 2455, ay: 1470, name: 'Cây ATM QuangLamBank', use: () => BANK.panel('atm'), arrow: { x: 2455, y: 1300, text: 'ATM' } });
     addBusStop(m, GATE + 140, 1432, 1);
+    /* ----- 🚗 VinFast Showroom + 🔌 trạm sạc V-GREEN cạnh ATM ----- */
+    const VX = 2790, VY = 1430;
+    sobj(m, VX, VY, (c) => vinfast(c, VX, VY), { l: -230, t: -300, w: 460, h: 320 });
+    col(m, VX - 210, VY - 50, 150, 48); col(m, VX + 60, VY - 50, 150, 48); col(m, VX - 60, VY - 50, 120, 16);
+    inter(m, { x: VX - 60, y: VY - 150, w: 120, h: 150, ax: VX, ay: VY + 30, name: 'VinFast Showroom (mua ô tô điện)', use: () => UI.carShop(), arrow: { x: VX, y: VY - 170, text: 'VinFast' } });
+    const CX2 = 3115, CY2 = 1430;
+    sobj(m, CX2, CY2, (c) => charger(c, CX2, CY2), { l: -80, t: -200, w: 160, h: 215 });
+    col(m, CX2 - 60, CY2 - 34, 120, 32);
+    inter(m, { x: CX2 - 70, y: CY2 - 190, w: 140, h: 190, ax: CX2, ay: CY2 + 30, name: 'Trạm sạc V-GREEN (sạc pin ô tô)', use: () => UI.chargeStation(), arrow: { x: CX2, y: CY2 - 205, text: 'Trạm sạc' } });
     /* ----- Biển chúc mừng 20/10 cạnh cổng (hiện từ 1/10 đến hết 21/10) ----- */
     const WX = 1300, WY = 1430, WK = 0.62;
     const womensDay = () => { const d = new Date(); return d.getMonth() === 9 && d.getDate() <= 21; };
@@ -1180,6 +1209,169 @@ const MAPS = (() => {
     return m;
   }
 
+  /* ---------- 🚗 Showroom VinFast + trạm sạc (vẽ bằng code) ---------- */
+  function vfLogo(c, x, y, r) {
+    c.fillStyle = '#fff'; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#1864ab'; c.lineWidth = r * 0.22; c.lineJoin = 'round';
+    c.beginPath(); c.moveTo(x - r * 0.55, y - r * 0.4); c.lineTo(x, y + r * 0.5); c.lineTo(x + r * 0.55, y - r * 0.4); c.stroke();
+    c.strokeStyle = '#e03131'; c.lineWidth = r * 0.12; c.beginPath(); c.moveTo(x - r * 0.3, y - r * 0.4); c.lineTo(x, y + r * 0.15); c.lineTo(x + r * 0.3, y - r * 0.4); c.stroke();
+  }
+  function vinfast(c, x, y) {
+    const W2 = 440, L = x - W2 / 2;
+    c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(x, y + 6, W2 / 2 + 20, 20, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#343a40'; c.fillRect(L, y - 250, W2, 250);
+    c.fillStyle = '#1b2f48'; c.fillRect(L - 8, y - 276, W2 + 16, 36);
+    vfLogo(c, L + 34, y - 258, 15);
+    c.fillStyle = '#fff'; c.font = '900 26px "Be Vietnam Pro", system-ui'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText('VINFAST', L + 58, y - 257);
+    c.font = '700 12px "Be Vietnam Pro", system-ui'; c.fillStyle = '#a5d8ff'; c.fillText('SHOWROOM Ô TÔ ĐIỆN', L + 190, y - 256);
+    const g = c.createLinearGradient(L, y - 230, L, y); g.addColorStop(0, '#d0ebff'); g.addColorStop(1, '#74c0fc');
+    c.fillStyle = g; c.fillRect(L + 12, y - 230, W2 - 24, 226);
+    c.fillStyle = '#e9ecef'; c.fillRect(L + 12, y - 40, W2 - 24, 36);
+    c.save(); c.translate(L + 130, y - 42); c.scale(1.05, 1.05); RIDE.drawCar(c, 0, 0, 'vf8'); c.restore();
+    c.save(); c.translate(L + 330, y - 42); c.scale(0.9, 0.9); c.scale(-1, 1); RIDE.drawCar(c, 0, 0, 'vf3'); c.restore();
+    c.fillStyle = 'rgba(255,255,255,.35)'; for (let k = 0; k < 4; k++) { c.beginPath(); c.moveTo(L + 30 + k * 110, y - 230); c.lineTo(L + 70 + k * 110, y - 230); c.lineTo(L + 20 + k * 110, y - 4); c.lineTo(L - 20 + k * 110 > L + 12 ? L - 20 + k * 110 : L + 12, y - 4); c.closePath(); c.fill(); }
+    c.fillStyle = '#343a40'; [0.33, 0.66].forEach((f) => c.fillRect(L + W2 * f - 3, y - 230, 6, 226));
+    c.fillStyle = '#1b2f48'; c.fillRect(x - 56, y - 150, 112, 150);
+    c.fillStyle = 'rgba(208,235,255,.85)'; c.fillRect(x - 50, y - 144, 48, 144); c.fillRect(x + 2, y - 144, 48, 144);
+    c.fillStyle = '#ffd43b'; c.fillRect(x - 8, y - 80, 4, 20); c.fillRect(x + 4, y - 80, 4, 20);
+  }
+  function charger(c, x, y) {
+    c.fillStyle = 'rgba(0,0,0,.15)'; c.beginPath(); c.ellipse(x, y + 4, 80, 12, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#868e96'; c.fillRect(x - 70, y - 190, 6, 190); c.fillRect(x + 64, y - 190, 6, 190);
+    c.fillStyle = '#0ca678'; c.beginPath(); c.roundRect(x - 80, y - 200, 160, 30, 8); c.fill();
+    c.fillStyle = '#fff'; c.font = '900 16px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('⚡ V-GREEN', x, y - 185);
+    [-28, 28].forEach((dx) => {
+      c.fillStyle = '#f8f9fa'; c.beginPath(); c.roundRect(x + dx - 18, y - 120, 36, 120, 8); c.fill();
+      c.fillStyle = '#0ca678'; c.fillRect(x + dx - 18, y - 120, 36, 16);
+      c.fillStyle = '#1b2f48'; c.fillRect(x + dx - 12, y - 96, 24, 18);
+      c.fillStyle = '#69db7c'; c.fillRect(x + dx - 9, y - 93, 18 * (dx < 0 ? 0.8 : 0.4), 12);
+      c.strokeStyle = '#212529'; c.lineWidth = 3; c.beginPath(); c.moveTo(x + dx + 18, y - 60); c.quadraticCurveTo(x + dx + 34, y - 30, x + dx + 20, y - 14); c.stroke();
+    });
+    c.fillStyle = '#ffd43b'; c.font = '900 22px system-ui'; c.fillText('⚡', x, y - 140);
+  }
+
+  /* ---------- ✈️ Sân bay (6 sân bay dùng chung 1 mẫu) ---------- */
+  function bigPlane(c, x, y, col) {
+    // máy bay đỗ trên sân đỗ, mũi quay phải; (x,y) = chân bánh giữa
+    c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(x + 20, y + 4, 320, 22, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = col; c.beginPath(); c.moveTo(x - 300, y - 120); c.lineTo(x - 250, y - 250); c.lineTo(x - 200, y - 250); c.lineTo(x - 170, y - 125); c.closePath(); c.fill();
+    const g = c.createLinearGradient(0, y - 150, 0, y - 60); g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#ced4da');
+    c.fillStyle = g; c.beginPath(); c.moveTo(x - 310, y - 110); c.quadraticCurveTo(x - 300, y - 150, x - 240, y - 152); c.lineTo(x + 230, y - 152); c.quadraticCurveTo(x + 330, y - 145, x + 340, y - 100); c.quadraticCurveTo(x + 330, y - 62, x + 250, y - 60); c.lineTo(x - 250, y - 62); c.quadraticCurveTo(x - 300, y - 68, x - 310, y - 110); c.closePath(); c.fill();
+    c.fillStyle = col; c.fillRect(x - 290, y - 92, 600, 10);
+    c.fillStyle = '#1b2f48'; c.font = '900 30px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('QUANGLAM AIR', x - 20, y - 125);
+    c.fillStyle = '#1b2f48'; c.beginPath(); c.moveTo(x + 268, y - 140); c.quadraticCurveTo(x + 318, y - 132, x + 330, y - 112); c.lineTo(x + 280, y - 112); c.closePath(); c.fill();
+    for (let k = 0; k < 14; k++) { c.fillStyle = '#74c0fc'; c.beginPath(); c.roundRect(x - 230 + k * 32, y - 116, 16, 18, 6); c.fill(); }
+    c.fillStyle = '#adb5bd'; c.fillRect(x + 196, y - 140, 26, 60);                    // cửa
+    c.fillStyle = '#868e96'; c.beginPath(); c.moveTo(x - 60, y - 80); c.lineTo(x - 170, y - 30); c.lineTo(x - 90, y - 30); c.lineTo(x + 40, y - 80); c.closePath(); c.fill();
+    c.fillStyle = '#495057'; c.beginPath(); c.roundRect(x - 120, y - 52, 90, 30, 14); c.fill();
+    [[-200, 0], [10, 0], [270, 0]].forEach(([dx]) => { c.fillStyle = '#343a40'; c.fillRect(x + dx - 3, y - 62, 6, 50); c.fillStyle = '#212529'; c.beginPath(); c.arc(x + dx, y - 10, 12, 0, Math.PI * 2); c.fill(); });
+    // xe thang lên máy bay
+    c.fillStyle = '#f1f3f5'; c.beginPath(); c.moveTo(x + 196, y - 82); c.lineTo(x + 290, y); c.lineTo(x + 250, y); c.lineTo(x + 180, y - 70); c.closePath(); c.fill();
+    c.strokeStyle = '#adb5bd'; c.lineWidth = 3; for (let k = 0; k < 7; k++) { c.beginPath(); c.moveTo(x + 190 + k * 13, y - 76 + k * 11.5); c.lineTo(x + 205 + k * 13, y - 76 + k * 11.5); c.stroke(); }
+    c.fillStyle = '#fab005'; c.fillRect(x + 250, y - 14, 60, 14);
+  }
+  function airport(apId) {
+    const ap = DATA.AIRPORTS.find((a) => a.id === apId);
+    const m = base('apt_' + apId, ap.name, 2600, 1100);
+    m.hz = 230;
+    const RT = 255, RB = 395, AP_T = 480;
+    ground(m, (g) => {
+      paintGrass(g, m.w, m.h, 71);
+      const sk = g.createLinearGradient(0, 0, 0, 230); sk.addColorStop(0, '#74c0fc'); sk.addColorStop(1, '#d0ebff');
+      g.fillStyle = sk; g.fillRect(0, 0, m.w, 230);
+      g.fillStyle = '#a5c8a0'; for (let x = 0; x < m.w; x += 160) { g.beginPath(); g.ellipse(x + 80, 232, 120, 34, 0, Math.PI, 0); g.fill(); }
+      // đường băng
+      g.fillStyle = '#3d4148'; g.fillRect(0, RT, m.w, RB - RT);
+      g.fillStyle = '#f8f9fa'; g.fillRect(0, RT + 8, m.w, 4); g.fillRect(0, RB - 12, m.w, 4);
+      for (let x = 260; x < m.w - 260; x += 120) g.fillRect(x, (RT + RB) / 2 - 3, 60, 6);
+      for (const x0 of [40, m.w - 160]) for (let k = 0; k < 8; k++) g.fillRect(x0, RT + 22 + k * 14, 120, 7);
+      g.font = '900 54px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('11', 240, (RT + RB) / 2); g.fillText('29', m.w - 240, (RT + RB) / 2);
+      // đường lăn + sân đỗ
+      g.fillStyle = '#5c6068'; g.fillRect(300, RB, 120, AP_T - RB); g.fillRect(2180, RB, 120, AP_T - RB);
+      g.strokeStyle = '#ffd43b'; g.lineWidth = 4; [[360, RB, 360, AP_T + 40], [2240, RB, 2240, AP_T + 40]].forEach(([a, b, c2, d]) => { g.beginPath(); g.moveTo(a, b); g.lineTo(c2, d); g.stroke(); });
+      g.fillStyle = '#c9c7bf'; g.fillRect(100, AP_T, m.w - 200, 1060 - AP_T);
+      g.strokeStyle = 'rgba(0,0,0,.08)'; g.lineWidth = 2;
+      for (let x = 100; x < m.w - 100; x += 100) { g.beginPath(); g.moveTo(x, AP_T); g.lineTo(x, 1060); g.stroke(); }
+      for (let y = AP_T; y < 1060; y += 100) { g.beginPath(); g.moveTo(100, y); g.lineTo(m.w - 100, y); g.stroke(); }
+      g.strokeStyle = '#ffd43b'; g.lineWidth = 5; g.beginPath(); g.moveTo(360, AP_T + 40); g.quadraticCurveTo(380, 700, 760, 708); g.lineTo(1300, 708); g.stroke();
+      g.fillStyle = '#ffd43b'; g.font = '900 24px "Be Vietnam Pro", system-ui'; g.fillText('GATE 3', 760, 740);
+      // lối đi bộ vạch kẻ tới nhà ga
+      g.fillStyle = 'rgba(255,255,255,.85)'; for (let x = 1060; x < 1880; x += 40) g.fillRect(x, 820, 24, 50);
+    });
+    // tháp điều khiển
+    obj(m, 250, (c) => {
+      const x = 2440;
+      c.fillStyle = '#dee2e6'; c.fillRect(x - 18, 40, 36, 210);
+      c.fillStyle = '#495057'; c.beginPath(); c.moveTo(x - 46, 40); c.lineTo(x + 46, 40); c.lineTo(x + 36, 0); c.lineTo(x - 36, 0); c.closePath(); c.fill();
+      c.fillStyle = '#74c0fc'; c.fillRect(x - 38, 8, 76, 26);
+      c.fillStyle = '#e03131'; c.beginPath(); c.arc(x, -6, 5, 0, Math.PI * 2); c.fill();
+    }, [2380, -20, 2500, 260]);
+    // máy bay đỗ
+    sobj(m, 760, 690, (c) => bigPlane(c, 760, 690, ap.color), { l: -330, t: -260, w: 680, h: 280 });
+    col(m, 460, 650, 600, 40);
+    // nhà ga
+    const TL = 1420, TR = 2440, TB = 800;
+    sobj(m, (TL + TR) / 2, TB, (c) => {
+      const w = TR - TL;
+      c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(TL, TB - 4, w, 14);
+      c.fillStyle = '#e9ecef'; c.fillRect(TL, TB - 280, w, 280);
+      c.fillStyle = ap.color; c.beginPath(); c.moveTo(TL - 30, TB - 280); c.quadraticCurveTo((TL + TR) / 2, TB - 380, TR + 30, TB - 280); c.closePath(); c.fill();
+      const gl = c.createLinearGradient(0, TB - 250, 0, TB); gl.addColorStop(0, '#a5d8ff'); gl.addColorStop(1, '#4dabf7');
+      c.fillStyle = gl; c.fillRect(TL + 16, TB - 250, w - 32, 240);
+      c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 3; for (let x = TL + 16; x < TR - 16; x += 70) { c.beginPath(); c.moveTo(x, TB - 250); c.lineTo(x, TB - 10); c.stroke(); }
+      c.beginPath(); c.moveTo(TL + 16, TB - 130); c.lineTo(TR - 16, TB - 130); c.stroke();
+      c.fillStyle = '#fff'; c.beginPath(); c.roundRect((TL + TR) / 2 - 360, TB - 340, 720, 74, 14); c.fill();
+      c.strokeStyle = ap.color; c.lineWidth = 5; c.stroke();
+      c.fillStyle = ap.color; c.font = '900 38px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(ap.name.toUpperCase(), (TL + TR) / 2, TB - 314);
+      c.fillStyle = '#495057'; c.font = '800 16px "Be Vietnam Pro", system-ui'; c.fillText(`${ap.en} · ${ap.code} · ${ap.city}`, (TL + TR) / 2, TB - 282);
+      c.fillStyle = '#1b2f48'; c.fillRect(TR - 260, TB - 240, 210, 40); c.fillStyle = '#ffd43b'; c.font = '900 18px "Be Vietnam Pro", system-ui'; c.fillText('🛬 GA ĐẾN · ARRIVALS', TR - 155, TB - 220);
+    }, { l: -(TR - TL) / 2 - 40, t: -390, w: TR - TL + 80, h: 400 });
+    col(m, TL, TB - 40, 400, 40); col(m, 1750, TB - 40, TR - 1750, 40);
+    // quầy vé
+    const QX = 1520, QY = 880;
+    sobj(m, QX, QY, (c) => {
+      c.fillStyle = ap.color; c.beginPath(); c.roundRect(QX - 90, QY - 60, 180, 60, 10); c.fill();
+      c.fillStyle = '#fff'; c.beginPath(); c.roundRect(QX - 96, QY - 110, 192, 40, 10); c.fill();
+      c.fillStyle = ap.color; c.font = '900 17px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('✈️ QUẦY BÁN VÉ', QX, QY - 90);
+      c.fillStyle = '#fff'; c.font = '800 13px "Be Vietnam Pro", system-ui'; c.fillText('QUANGLAM AIR', QX, QY - 30);
+    }, { l: -100, t: -115, w: 200, h: 120 });
+    col(m, QX - 90, QY - 40, 180, 38);
+    inter(m, { x: QX - 96, y: QY - 115, w: 192, h: 115, ax: QX, ay: QY + 30, name: 'Quầy bán vé máy bay', use: () => UI.flightDesk(), arrow: { x: QX, y: QY - 130, text: 'Mua vé bay' } });
+    // cổng an ninh
+    const GX = 1600 + 0, GY2 = 800;
+    const SX = 1650;
+    sobj(m, SX, GY2, (c) => {
+      c.fillStyle = '#495057'; c.fillRect(SX - 70, GY2 - 130, 12, 130); c.fillRect(SX - 6, GY2 - 130, 12, 130); c.fillRect(SX - 70, GY2 - 136, 76, 14);
+      c.fillStyle = '#69db7c'; c.beginPath(); c.arc(SX - 32, GY2 - 146, 6, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#343a40'; c.beginPath(); c.roundRect(SX + 16, GY2 - 70, 80, 70, 8); c.fill();
+      c.fillStyle = '#212529'; c.fillRect(SX + 10, GY2 - 30, 92, 10);
+      c.fillStyle = '#1b2f48'; c.beginPath(); c.roundRect(SX - 90, GY2 - 196, 200, 40, 10); c.fill();
+      c.fillStyle = '#fff'; c.font = '900 17px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🛃 CỬA AN NINH · LỐI RA', SX + 10, GY2 - 176);
+    }, { l: -100, t: -200, w: 210, h: 205 });
+    inter(m, { x: SX - 80, y: GY2 - 150, w: 100, h: 160, ax: SX - 32, ay: GY2 + 40, name: 'Cửa an ninh → ra khu', use: () => AV.exitAirport(), arrow: { x: SX - 32, y: GY2 - 210, text: 'Ra khỏi sân bay' } });
+    npc(m, 'An ninh sân bay', { skin: '#f1c27d', hair: 'short', hairColor: '#222', shirt: '#1c7ed6', shirtStyle: 'plain', pants: '#212529', hat: 'cap' }, { l: 1700, t: 830, r: 1760, b: 850 }, 1730, 840, 'none');
+    // bảng giờ bay
+    sobj(m, 1240, 840, (c) => {
+      c.fillStyle = '#495057'; c.fillRect(1236, 760, 8, 80);
+      c.fillStyle = '#111'; c.beginPath(); c.roundRect(1150, 660, 180, 104, 8); c.fill();
+      c.fillStyle = '#ffd43b'; c.font = '900 12px monospace'; c.textAlign = 'left'; c.textBaseline = 'middle';
+      c.fillText('CHUYẾN    ĐI   TỚI', 1160, 676);
+      DATA.AIRPORTS.filter((a) => a.id !== apId).slice(0, 4).forEach((a, i) => { c.fillStyle = i % 2 ? '#69db7c' : '#fff'; c.fillText(`QL${101 + i * 7}  ${ap.code} ${a.code}  ${i % 3 ? 'ĐÚNG GIỜ' : 'LÊN TÀU'}`, 1160, 696 + i * 17); });
+    }, { l: -95, t: -185, w: 190, h: 190 });
+    // ống gió + xe hành lý + cây
+    obj(m, 470, (c, t) => { c.fillStyle = '#868e96'; c.fillRect(196, 400, 4, 70); c.fillStyle = '#ff922b'; c.beginPath(); c.moveTo(200, 402); c.lineTo(250, 408 + Math.sin(t * 3) * 3); c.lineTo(250, 418 + Math.sin(t * 3) * 3); c.lineTo(200, 416); c.closePath(); c.fill(); }, [190, 395, 260, 475]);
+    sobj(m, 1180, 600, (c) => { c.fillStyle = '#fab005'; c.beginPath(); c.roundRect(1130, 566, 60, 30, 6); c.fill(); c.fillStyle = '#868e96'; for (let k = 0; k < 2; k++) { c.fillRect(1196 + k * 70, 570, 64, 22); } c.fillStyle = '#212529'; [1145, 1180, 1215, 1250, 1290, 1320].forEach((x) => { c.beginPath(); c.arc(x, 598, 6, 0, Math.PI * 2); c.fill(); }); }, { l: -60, t: -40, w: 210, h: 46 });
+    for (let i = 0; i < 6; i++) { const x = 160 + i * 220, y = 1070; if (ap.palm) { sobj(m, x, y, (c) => ART.palm(c, x, y)); col(m, x - 14, y - 10, 28, 12); } else addTree(m, x, y, i % 2 ? 'green' : 'pink'); }
+    m.labels.push({ text: `✈️ ${ap.name} (${ap.code})`, x: 760, y: 455 });
+    m.lights = [];
+    for (let x = 60; x < m.w; x += 180) m.lights.push([x, RT, 20], [x, RB, 20]);
+    m.lights.push([1240, 650, 60], [QX, QY - 100, 60], [SX, GY2 - 160, 60]);
+    m.spawn = { x: 1000, y: 770 };
+    m.bounds = { l: 110, t: AP_T + 10, r: m.w - 110, b: 1040 };
+    m.airport = ap;
+    return m;
+  }
+
   /* ---------- 🥊 Võ Đài Quyền Anh (dùng chung) ---------- */
   function boxing() {
     const m = base('boxing', 'Võ Đài', 2000, 1100);
@@ -1670,7 +1862,7 @@ const MAPS = (() => {
     return m;
   };
 
-  const all = { farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
+  const all = { apt_han: () => airport('han'), apt_hph: () => airport('hph'), apt_vdo: () => airport('vdo'), apt_sgn: () => airport('sgn'), apt_pqc: () => airport('pqc'), apt_dad: () => airport('dad'), farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
   return all;
 })();

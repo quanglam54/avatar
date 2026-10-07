@@ -19,9 +19,99 @@ const BANK = (() => {
   }
   const acc = () => AV.S.bank || null;
   const save = () => { AV.markChanged(); UI.updateHud(); };
-  function log(type, amt) {
+  function log(type, amt, who) {
     const b = acc();
-    b.log = [{ type, amt, at: Date.now(), bal: b.bal }, ...(b.log || [])].slice(0, 12);
+    b.log = [{ type, amt, at: Date.now(), bal: b.bal, ...(who ? { who } : {}) }, ...(b.log || [])].slice(0, 30);
+  }
+
+  /* ---------- Chuyển khoản theo STK (Supabase: supabase/09-chuyen-khoan-ngan-hang.sql) ---------- */
+  const online = () => typeof CLOUD !== 'undefined' && CLOUD.user && CLOUD.client;
+  let regKey = '', regTaken = false;
+  function sqlMissing(e) { return /bank_|does not exist|Could not find the function/i.test(String((e && e.message) || e || '')); }
+  /** gắn STK với nhân vật trên máy chủ (để người khác chuyển tiền tới được) */
+  async function register() {
+    const b = acc();
+    if (!b || !online()) return;
+    const k = b.acct + '|' + AV.S.name;
+    if (k === regKey) return;
+    const { data, error } = await CLOUD.client.rpc('bank_register', { p_acct: b.acct, p_name: AV.S.name });
+    if (error) return;
+    regKey = k; regTaken = data === 'taken';
+  }
+  async function lookup(acct) {
+    if (!online()) throw new Error('Cần đăng nhập tài khoản game để chuyển khoản');
+    const { data, error } = await CLOUD.client.rpc('bank_lookup', { p_acct: acct });
+    if (error) throw new Error(sqlMissing(error) ? 'Chủ game chưa bật chuyển khoản (chạy supabase/09-chuyen-khoan-ngan-hang.sql)' : 'Không tra được số tài khoản');
+    return data || null;
+  }
+  /** chuyển tiền từ số dư tài khoản → trả về biên lai */
+  async function transfer(toAcct, amt, note) {
+    const b = acc();
+    amt = Math.floor(amt);
+    if (!b) throw new Error('Chưa có tài khoản');
+    if (!/^\d{6,12}$/.test(toAcct)) throw new Error('Số tài khoản người nhận gồm 6–12 chữ số');
+    if (toAcct === b.acct) throw new Error('Không thể tự chuyển cho chính mình');
+    if (!(amt > 0)) throw new Error('Nhập số xu muốn chuyển');
+    if (amt > b.bal) throw new Error(`Số dư không đủ (còn ${fmt(b.bal)} xu). Gửi thêm xu vào tài khoản trước nhé`);
+    if (!online()) throw new Error('Cần đăng nhập tài khoản game để chuyển khoản');
+    await register();
+    b.bal -= amt; save();                                          // trừ trước, lỗi thì hoàn lại
+    let data, error;
+    try { ({ data, error } = await CLOUD.client.rpc('bank_send', { p_to: toAcct, p_amount: amt, p_note: String(note || '').slice(0, 80), p_from_acct: b.acct, p_from_name: AV.S.name })); }
+    catch (e) { error = e; }
+    const why = error ? (sqlMissing(error) ? 'Chủ game chưa bật chuyển khoản (chạy supabase/09-chuyen-khoan-ngan-hang.sql)' : 'Không kết nối được máy chủ ngân hàng') : data && data.error ? ({ not_found: 'Số tài khoản không tồn tại', self: 'Không thể tự chuyển cho chính mình', rate: 'Chuyển quá nhanh, đợi 1 phút nhé', auth: 'Cần đăng nhập' }[data.error] || 'Giao dịch thất bại') : '';
+    if (why) { b.bal += amt; save(); throw new Error(why); }
+    log('xout', amt, `${data.to_name || ''} · ${toAcct}`); save();
+    return { id: data.id, toName: data.to_name || '', toAcct, amt, note: String(note || ''), at: data.at ? new Date(data.at) : new Date(), fromName: AV.S.name, fromAcct: b.acct, bal: b.bal };
+  }
+  /** nhận tiền người khác chuyển tới (gọi định kỳ) */
+  let receiving = false;
+  async function receive() {
+    const b = acc();
+    if (!b || !online() || receiving || (AV.isCloudReady && !AV.isCloudReady())) return;
+    receiving = true;
+    try {
+      await register();
+      const { data, error } = await CLOUD.client.rpc('bank_claim');
+      if (error || !Array.isArray(data) || !data.length) return;
+      let tot = 0;
+      data.forEach((r) => { const a = Math.max(0, Math.floor(+r.amt) || 0); tot += a; b.bal += a; log('xin', a, `${r.n || 'Ai đó'} · ${r.a || ''}${r.note ? ' · "' + r.note + '"' : ''}`); });
+      save();
+      UI.toast(`🏦 QuangLamBank: +${fmt(tot)} xu vào tài khoản ${b.acct} (${data.length} giao dịch) — mở 🏦 Ngân hàng trong MENU để xem`, 7000);
+      if (typeof MUSIC !== 'undefined' && MUSIC.coin) MUSIC.coin();
+    } finally { receiving = false; }
+  }
+  setInterval(receive, 45000);
+  setTimeout(receive, 8000);
+
+  /** 🧾 Biên lai "Chuyển tiền thành công" (ảnh, có thể lưu về máy) */
+  function receipt(r) {
+    const cv = document.createElement('canvas'), W2 = 520, H2 = 640;
+    cv.width = W2 * 2; cv.height = H2 * 2;
+    const c = cv.getContext('2d'); c.scale(2, 2);
+    const bg = c.createLinearGradient(0, 0, 0, H2); bg.addColorStop(0, '#00703c'); bg.addColorStop(0.32, '#00502b'); bg.addColorStop(0.32, '#f1f3f5'); bg.addColorStop(1, '#f1f3f5');
+    c.fillStyle = bg; c.fillRect(0, 0, W2, H2);
+    logo(c, 46, 42, 20);
+    c.fillStyle = '#fff'; c.font = '900 22px "Be Vietnam Pro", system-ui'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText('QuangLamBank', 76, 42);
+    c.fillStyle = '#fff'; c.beginPath(); c.arc(W2 / 2, 120, 34, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#2f9e44'; c.lineWidth = 7; c.lineCap = 'round'; c.beginPath(); c.moveTo(W2 / 2 - 15, 121); c.lineTo(W2 / 2 - 3, 133); c.lineTo(W2 / 2 + 17, 108); c.stroke();
+    c.textAlign = 'center'; c.fillStyle = '#fff'; c.font = '900 22px "Be Vietnam Pro", system-ui'; c.fillText('Chuyển tiền thành công', W2 / 2, 178);
+    c.fillStyle = '#fff'; c.beginPath(); c.roundRect(24, 214, W2 - 48, 396, 18); c.fill();
+    c.fillStyle = '#00703c'; c.font = '900 38px "Be Vietnam Pro", system-ui'; c.fillText(`${fmt(r.amt)} xu`, W2 / 2, 262);
+    c.fillStyle = '#868e96'; c.font = '600 14px "Be Vietnam Pro", system-ui'; c.fillText(r.at.toLocaleString('vi-VN'), W2 / 2, 294);
+    const rows = [['Người nhận', r.toName || '—'], ['Số tài khoản nhận', r.toAcct], ['Người chuyển', r.fromName], ['Từ tài khoản', r.fromAcct], ['Nội dung', r.note || 'Chuyển tiền'], ['Mã giao dịch', 'QL' + String(r.id).padStart(8, '0')]];
+    rows.forEach(([k, v], i) => {
+      const y = 334 + i * 44;
+      c.strokeStyle = '#e9ecef'; c.lineWidth = 1; c.beginPath(); c.moveTo(44, y - 22); c.lineTo(W2 - 44, y - 22); c.stroke();
+      c.textAlign = 'left'; c.fillStyle = '#868e96'; c.font = '600 14px "Be Vietnam Pro", system-ui'; c.fillText(k, 44, y);
+      c.textAlign = 'right'; c.fillStyle = '#1b2f48'; c.font = '800 15px "Be Vietnam Pro", system-ui';
+      let t = String(v); while (c.measureText(t).width > 260 && t.length > 4) t = t.slice(0, -2) + '…';
+      c.fillText(t, W2 - 44, y);
+    });
+    c.textAlign = 'center'; c.fillStyle = '#adb5bd'; c.font = '600 12px "Be Vietnam Pro", system-ui'; c.fillText('Cảm ơn quý khách đã sử dụng dịch vụ QuangLamBank 💚', W2 / 2, 624);
+    const url = cv.toDataURL('image/png');
+    const p = UI.panel('🧾 Biên lai chuyển khoản', `<img class="bk-receipt" src="${url}" alt="Chuyển tiền thành công"><div class="row-end"><a class="btn small ghost" download="chuyen-khoan-QL${r.id}.png" href="${url}">📥 Lưu ảnh</a><button class="btn small" data-ok>Xong</button></div>`);
+    p.body.querySelector('[data-ok]').onclick = () => p.close();
   }
   /** Cộng lãi từ lần tính trước (gọi khi mở ngân hàng / ATM) */
   function accrue() {
@@ -41,8 +131,12 @@ const BANK = (() => {
     if (acc()) return 'Bạn đã có tài khoản rồi';
     if (!/^\d{6,12}$/.test(acct)) return 'Số tài khoản gồm 6–12 chữ số';
     if (!/^\d{6}$/.test(pin)) return 'Mật khẩu gồm đúng 6 chữ số';
+    if (online()) {
+      try { const { data } = await CLOUD.client.rpc('bank_lookup', { p_acct: acct }); if (data) return 'Số tài khoản này đã có người dùng, chọn số khác nhé'; } catch (e) { /* chưa bật chuyển khoản */ }
+    }
     AV.S.bank = { acct, pin: await hash(acct, pin), bal: 0, fails: 0, lockUntil: 0, opened: Date.now(), lastInt: Date.now(), log: [] };
     log('open', 0); save();
+    regKey = ''; register();
     return null;
   }
   async function checkPin(pin) {
@@ -77,9 +171,11 @@ const BANK = (() => {
   /** where: 'counter' (quầy giao dịch trong ngân hàng) | 'atm' */
   function panel(where = 'atm') {
     const S = AV.S;
-    const atm = where === 'atm';
-    const p = UI.panel(atm ? '🏧 ATM QuangLamBank' : '🏦 QuangLamBank · Quầy giao dịch', '', { wide: false });
+    const atm = where === 'atm' || where === 'app';
+    const p = UI.panel(where === 'app' ? '📱 QuangLam Mobile Banking' : atm ? '🏧 ATM QuangLamBank' : '🏦 QuangLamBank · Quầy giao dịch', '', { wide: false });
+    register(); receive();
     let unlocked = false, msg = '', ok = false;
+    if (where === 'app' && !acc()) { p.close(); return UI.toast('🏦 Bạn chưa có tài khoản — mở tài khoản ở QuangLamBank trước cổng nông trại nhé', 5000); }
     const got = accrue();
     if (got > 0) setTimeout(() => UI.toast(`💹 Tiền lãi về tài khoản: +${fmt(got)} xu`, 4000), 300);
     const say = (m, good) => { msg = m || ''; ok = !!good; };
@@ -125,8 +221,13 @@ const BANK = (() => {
           <div class="bk-row"><input class="field" data-in type="number" min="1" placeholder="Số xu"><button class="btn small ghost" data-inall>Tất cả</button><button class="btn small" data-dep>Gửi</button></div>
           <label class="muted">Rút xu về túi</label>
           <div class="bk-row"><input class="field" data-out type="number" min="1" placeholder="Số xu"><button class="btn small ghost" data-outall>Tất cả</button><button class="btn small" data-wd>Rút</button></div>
+          <div class="bk-xfer"><b>💸 Chuyển khoản</b>${regTaken ? '<p class="bk-msg">⚠️ STK của bạn trùng với người khác nên chưa nhận được chuyển khoản — mở tài khoản mới ở quầy giao dịch.</p>' : ''}
+            <div class="bk-row"><input class="field" data-to inputmode="numeric" maxlength="12" placeholder="Số tài khoản người nhận"><button class="btn small ghost" data-look>Kiểm tra</button></div>
+            <p class="muted" data-toname></p>
+            <div class="bk-row"><input class="field" data-amt type="number" min="1" placeholder="Số xu"><input class="field" data-note maxlength="80" placeholder="Nội dung (không bắt buộc)"></div>
+            <div class="row-end"><button class="btn" data-send>💸 Chuyển tiền</button></div></div>
           ${note}
-          ${(b.log || []).length ? `<div class="bk-log">${b.log.map((l) => `<div><span>${l.type === 'in' ? '⬇️ Gửi' : l.type === 'out' ? '⬆️ Rút' : l.type === 'int' ? '💹 Tiền lãi' : l.type === 'pin' ? '🔑 Đổi mật khẩu' : '🏦 Mở tài khoản'}</span><b class="${l.type === 'int' ? 'in' : l.type}">${l.type === 'in' || l.type === 'int' ? '+' : l.type === 'out' ? '−' : ''}${l.amt ? fmt(l.amt) : ''}</b><small>${new Date(l.at).toLocaleString('vi-VN')}</small></div>`).join('')}</div>` : ''}
+          ${(b.log || []).length ? `<div class="bk-log">${b.log.map((l) => `<div><span>${l.type === 'in' ? '⬇️ Gửi' : l.type === 'out' ? '⬆️ Rút' : l.type === 'int' ? '💹 Tiền lãi' : l.type === 'xin' ? '💰 Nhận CK từ ' + esc(l.who || '') : l.type === 'xout' ? '💸 Chuyển tới ' + esc(l.who || '') : l.type === 'pin' ? '🔑 Đổi mật khẩu' : '🏦 Mở tài khoản'}</span><b class="${l.type === 'int' || l.type === 'xin' ? 'in' : l.type === 'xout' ? 'out' : l.type}">${l.type === 'in' || l.type === 'int' || l.type === 'xin' ? '+' : l.type === 'out' || l.type === 'xout' ? '−' : ''}${l.amt ? fmt(l.amt) : ''}</b><small>${new Date(l.at).toLocaleString('vi-VN')}</small></div>`).join('')}</div>` : ''}
           <div class="row-end"><button class="btn small ghost" data-chpin>🔑 Đổi mật khẩu</button><button class="btn small ghost" data-lock>🔒 Thoát</button></div>`;
         p.body.querySelector('[data-out]') && (p.body.querySelector('[data-outall]').onclick = () => { p.body.querySelector('[data-out]').value = b.bal; });
         p.body.querySelector('[data-wd]').onclick = () => {
@@ -134,6 +235,23 @@ const BANK = (() => {
           say(e || `✅ Đã rút ${fmt(+val('[data-out]'))} xu về túi`, !e); render();
         };
         p.body.querySelector('[data-lock]').onclick = () => { unlocked = false; say(''); render(); };
+        const nameBox = p.body.querySelector('[data-toname]');
+        p.body.querySelector('[data-look]').onclick = async () => {
+          const a = val('[data-to]').trim();
+          if (!/^\d{6,12}$/.test(a)) { nameBox.textContent = '⚠️ Số tài khoản gồm 6–12 chữ số'; return; }
+          nameBox.textContent = '⏳ Đang tra…';
+          try { const n = await lookup(a); nameBox.innerHTML = n ? `👤 Người nhận: <b>${esc(n)}</b>` : '⚠️ Không tìm thấy số tài khoản này'; } catch (e) { nameBox.textContent = '⚠️ ' + e.message; }
+        };
+        p.body.querySelector('[data-send]').onclick = async () => {
+          const a = val('[data-to]').trim(), n = +val('[data-amt]'), t = val('[data-note]');
+          let who = null;
+          try { who = await lookup(a); } catch (e) { say('⚠️ ' + e.message); return render(); }
+          if (!who) { say('⚠️ Không tìm thấy số tài khoản ' + esc(a)); return render(); }
+          UI.confirm(`Chuyển <b>${fmt(n || 0)} xu</b> tới <b>${esc(who)}</b> (STK ${esc(a)})?`, '💸 Chuyển', async () => {
+            try { const r = await transfer(a, n, t); say(`✅ Đã chuyển ${fmt(r.amt)} xu tới ${esc(r.toName)}`, true); render(); receipt(r); }
+            catch (e) { say('⚠️ ' + e.message); render(); }
+          });
+        };
         p.body.querySelector('[data-chpin]').onclick = () => changePin();
       }
       p.body.querySelector('[data-inall]').onclick = () => { p.body.querySelector('[data-in]').value = S.coins; };
@@ -224,5 +342,5 @@ const BANK = (() => {
     c.fillStyle = LG; c.beginPath(); c.moveTo(x + 2, y - 398); c.lineTo(x + 46, y - 386); c.lineTo(x + 2, y - 372); c.closePath(); c.fill();
   }
 
-  return { panel, building, logo };
+  return { panel, building, logo, receive, lookup, transfer, receipt };
 })();

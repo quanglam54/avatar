@@ -21,7 +21,7 @@ const RIDE = (() => {
   const E = Object.fromEntries(EDGES.map((e) => [e.id, e]));
   /** Mỗi khu nằm ở đâu trên đường: [đường, mét tính từ đầu đường] */
   const SPOTS = { cherry: ['pvd2', 900], farm: ['pvd1', 350], school: ['hqv', 1300], town: ['cg', 800], mall: ['ph', 1250], fun: ['mdinh', 850], park: ['ldt', 1000], beach: ['htm2', 1450], race: ['tl', 1500] };
-  const PARENT = { home: 'farm', casino: 'fun', arena: 'fun', horse: 'fun', club: 'fun', concert: 'fun', cgv: 'fun', boxing: 'fun', wc: 'cherry', classroom: 'school' };
+  const PARENT = { apt_han: 'fun', apt_hph: 'farm', apt_vdo: 'cherry', apt_sgn: 'mall', apt_pqc: 'beach', apt_dad: 'park', home: 'farm', casino: 'fun', arena: 'fun', horse: 'fun', club: 'fun', concert: 'fun', cgv: 'fun', boxing: 'fun', wc: 'cherry', classroom: 'school' };
   const zoneOf = (mapId) => { const id = PARENT[mapId] || String(mapId || '').split('-')[0]; return SPOTS[id] ? id : null; };
 
   /** Tìm đường ngắn nhất giữa 2 khu → danh sách chặng (mỗi chặng là một đoạn trên 1 con đường) */
@@ -185,23 +185,49 @@ const RIDE = (() => {
     if (!r) return false;
     ensureDom();
     legs = r; li = 0; from = fromZone; dest = to; veh = vehicle;
-    bike = veh === 'taxi' ? null : (DATA.BIKES || []).find((b) => b.id === veh) || DATA.BIKES[0];
-    me = { x: 0, v: 0, lane: 3, ly: LANE_Y[3], len: bike ? 70 : 150 };
+    carDef = (DATA.CARS || []).find((c) => c.id === veh) || null;
+    bike = veh === 'taxi' ? null : carDef || (DATA.BIKES || []).find((b) => b.id === veh) || DATA.BIKES[0];
+    me = { x: 0, v: 0, lane: 3, ly: LANE_Y[3], len: carDef ? carDef.len : bike ? 70 : 150 };
+    batWarn = 0; towed = false;
     npcs = []; others.clear(); keys.clear();
     phase = 'drive'; phaseT = 0; fadeIn = 1; shake = 0; finedAt = -1; eatOpen = false; blockedT = 0; trainX = null;
-    banner = { text: `${veh === 'taxi' ? '🚕 Taxi Xanh SM' : '🛵 ' + bike.name} · ${leg().e.name}`, until: clock + 2.6 };
+    banner = { text: `${veh === 'taxi' ? '🚕 Taxi Xanh SM' : (carDef ? '🚗 ' : '🛵 ') + bike.name} · ${leg().e.name}`, until: clock + 2.6 };
     active = true;
     el.classList.toggle('bike', !!bike);
     el.style.display = 'block';
     resize();
     seedTraffic();
     updateHud(true);
-    if (bike) UI.toast('🛵 Giữ ⚡ (hoặc →) để ga, 🛑 (←) để phanh, ⬆⬇ để đổi làn. Nhớ dừng đèn đỏ nhé!', 5000);
+    if (carDef) UI.toast(`🚗 Giữ ⚡ (hoặc →) để ga, 🛑 (←) để phanh, ⬆⬇ đổi làn · 🔋 Pin ${Math.round(carBat())}%`, 5000);
+    else if (bike) UI.toast('🛵 Giữ ⚡ (hoặc →) để ga, 🛑 (←) để phanh, ⬆⬇ để đổi làn. Nhớ dừng đèn đỏ nhé!', 5000);
     return true;
+  }
+
+  /* ---------- Pin ô tô điện ---------- */
+  let carDef = null, batWarn = 0, towed = false;
+  const carState = () => { const S = AV.S; S.cars = S.cars || {}; return S.cars[carDef.id] || (S.cars[carDef.id] = { bat: 100 }); };
+  const carBat = () => (carDef ? carState().bat : 100);
+  /** % pin cần cho một quãng đường (mét) */
+  const batNeed = (car, m) => Math.ceil((m / 1000) / car.range * 100);
+  function drainBattery(dist) {
+    if (!carDef || towed) return;
+    const st = carState();
+    st.bat = Math.max(0, st.bat - (dist / 1000) / carDef.range * 100);
+    if (st.bat <= 20 && batWarn < 1) { batWarn = 1; UI.toast('🔋 Pin còn dưới 20% — nhớ ghé trạm sạc V-GREEN trước cổng nông trại nhé!', 4500); }
+    if (st.bat <= 5 && batWarn < 2) { batWarn = 2; UI.toast('🪫 Pin sắp cạn (dưới 5%)!', 3500); if (navigator.vibrate) navigator.vibrate(150); }
+    if (st.bat <= 0 && !towed) {
+      towed = true; st.bat = 0; me.v = 0;
+      const fee = Math.min(150, AV.S.coins);
+      AV.S.coins -= fee;
+      banner = { text: '🪫 Hết pin! Xe cứu hộ VinFast đang tới…', until: clock + 3 };
+      UI.toast(`🪫 Xe hết pin giữa đường! Cứu hộ VinFast kéo xe bạn tới nơi (−${fee} xu). Nhớ sạc ở trạm V-GREEN trước cổng nông trại.`, 7000);
+      phase = 'arrive'; phaseT = -1.5;
+    }
   }
 
   function finish() {
     if (!active) return;
+    if (carDef) { const b = Math.round(carBat()); AV.markChanged(); if (!towed && b < 20) setTimeout(() => UI.toast(`🔋 ${carDef.name} còn ${b}% pin — sạc ở trạm V-GREEN trước cổng nông trại nhé`, 5000), 1500); }
     active = false;
     el.style.display = 'none';
     keys.clear();
@@ -312,6 +338,8 @@ const RIDE = (() => {
       if (bike) driveBike(dt, blocking);
       else driveTaxi(dt);
       me.x += me.v * dt;
+      drainBattery(me.v * dt);
+      if (phase !== 'drive') { updateHud(true); draw(); return; }
       me.ly += (LANE_Y[me.lane] - me.ly) * Math.min(1, dt * 7);
       // vượt đèn đỏ bằng xe máy → phạt nguội
       if (bike && !lastLeg() && finedAt !== li) {
@@ -504,13 +532,18 @@ const RIDE = (() => {
     const food = st && (DATA.STREET_FOOD || []).find((f) => f.id === st.food);
     const eat = food ? `${food.logo} Tấp vào: ${food.name}` : '';
     const ban = banner && banner.until > clock ? banner.text : '';
-    const key = [l.e.id, next, eat, ban, Math.round(me.v / 10)].join('|');
+    const bat = carDef ? Math.round(carBat()) : -1;
+    const key = [l.e.id, next, eat, ban, Math.round(me.v / 10), bat].join('|');
     if (!force && key === hudKey) return;
     hudKey = key;
     el.querySelector('.ride-sign b').textContent = l.e.name;
     el.querySelector('.ride-street small').textContent = l.e.dist + ' · Hà Nội';
     el.querySelector('.ride-next').textContent = next;
     el.querySelector('.ride-speed b').textContent = Math.round(me.v / 10);
+    let bt = el.querySelector('.ride-bat');
+    if (!bt) { bt = document.createElement('div'); bt.className = 'ride-bat'; el.appendChild(bt); }
+    bt.style.display = carDef ? 'block' : 'none';
+    if (carDef) { bt.textContent = `${bat <= 20 ? '🪫' : '🔋'} ${bat}%`; bt.classList.toggle('low', bat <= 20); }
     const eb = el.querySelector('.ride-eat');
     eb.textContent = eat;
     eb.style.display = eat ? 'block' : 'none';
@@ -996,7 +1029,41 @@ const RIDE = (() => {
   }
 
   /** Xe của người chơi (mình hoặc người khác): taxi Xanh SM có mình ngồi sau, hoặc xe máy tự lái */
+  /** Ô tô VinFast tự lái: thân xe màu, logo V, người chơi ngồi ghế lái */
+  function vfCar(c, x, y, car, look, t) {
+    const L = car.len, h = car.id === 'vf3' ? 60 : 64;
+    c.fillStyle = car.body;
+    rr(c, x - L / 2, y - 42, L, 30, 10); c.fill();
+    c.beginPath(); c.moveTo(x - L * 0.42, y - 40); c.quadraticCurveTo(x - L * 0.36, y - h, x - L * 0.2, y - h); c.lineTo(x + L * 0.12, y - h); c.quadraticCurveTo(x + L * 0.26, y - h + 2, x + L * 0.36, y - 40); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.22)'; c.fillRect(x - L / 2 + 8, y - 36, L - 16, 3);
+    c.fillStyle = '#1b2a38';
+    c.beginPath(); c.moveTo(x - L * 0.36, y - 41); c.quadraticCurveTo(x - L * 0.32, y - h + 6, x - L * 0.19, y - h + 6); c.lineTo(x - L * 0.04, y - h + 6); c.lineTo(x - L * 0.04, y - 41); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(x, y - 41); c.lineTo(x, y - h + 6); c.lineTo(x + L * 0.11, y - h + 6); c.quadraticCurveTo(x + L * 0.22, y - h + 8, x + L * 0.3, y - 41); c.closePath(); c.fill();
+    // người lái
+    c.save(); c.beginPath(); c.moveTo(x, y - 41); c.lineTo(x, y - h + 6); c.lineTo(x + L * 0.11, y - h + 6); c.quadraticCurveTo(x + L * 0.22, y - h + 8, x + L * 0.3, y - 41); c.closePath(); c.clip();
+    if (look) ART.character(c, x + L * 0.1, y - 16, look, { scale: 0.5, t, dir: 1 });
+    c.restore();
+    // đèn LED chữ V đặc trưng + logo
+    c.strokeStyle = '#e7f5ff'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(x + L / 2 - 16, y - 36); c.lineTo(x + L / 2 - 6, y - 30); c.lineTo(x + L / 2 - 2, y - 36); c.stroke();
+    c.fillStyle = '#ff6b6b'; c.fillRect(x - L / 2, y - 36, 6, 5);
+    c.fillStyle = car.body === '#212529' ? '#ced4da' : '#1b2a38'; c.font = '900 9px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('VINFAST', x - L * 0.1, y - 24);
+    wheel(c, x - L * 0.3, y - 12, 13); wheel(c, x + L * 0.3, y - 12, 13);
+  }
   function drawPlayerVeh(c, x, y, v, look, t, d, name, mine) {
+    const car = (DATA.CARS || []).find((q) => q.id === v);
+    if (car) {
+      c.save();
+      c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(x, y - 1, car.len * 0.5, 6, 0, 0, Math.PI * 2); c.fill();
+      c.translate(x, 0); c.scale(d, 1); c.translate(-x, 0);
+      vfCar(c, x, y, car, look, t);
+      c.restore();
+      const top = y - 86;
+      c.font = '800 13px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      const w = c.measureText(name).width + 14;
+      c.fillStyle = mine ? 'rgba(47,158,68,.92)' : 'rgba(27,47,72,.85)'; rr(c, x - w / 2, top - 11, w, 20, 8); c.fill();
+      c.fillStyle = '#fff'; c.fillText(name, x, top - 1);
+      return;
+    }
     const b = v === 'taxi' ? null : (DATA.BIKES || []).find((q) => q.id === v) || DATA.BIKES[0];
     c.save();
     c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(x, y - 1, b ? 40 : 74, 6, 0, 0, Math.PI * 2); c.fill();
@@ -1034,8 +1101,18 @@ const RIDE = (() => {
     c.fillStyle = '#fff'; c.fillText(name, x, top - 1);
   }
 
-  /** Ảnh xem trước xe máy trong cửa hàng */
+  /** Ảnh xem trước xe máy / ô tô trong cửa hàng */
   function preview(canvas, bikeId, look) {
+    const car = (DATA.CARS || []).find((q) => q.id === bikeId);
+    if (car) {
+      const g = canvas.getContext('2d'), d = Math.min(2, devicePixelRatio || 1);
+      const w = canvas.clientWidth || 120, h = canvas.clientHeight || 90;
+      canvas.width = w * d; canvas.height = h * d;
+      const k = Math.min(w / (car.len + 30), h / 80);
+      g.setTransform(d * k, 0, 0, d * k, d * w / 2, d * (h - 6));
+      vfCar(g, 0, 0, car, look, 0);
+      return;
+    }
     const b = (DATA.BIKES || []).find((q) => q.id === bikeId);
     if (!b) return;
     const g = canvas.getContext('2d'), d = Math.min(2, devicePixelRatio || 1);
@@ -1049,7 +1126,8 @@ const RIDE = (() => {
   }
 
   return {
-    start, frame, onNet, info, zoneOf, preview,
+    start, frame, onNet, info, zoneOf, preview, batNeed,
+    drawCar: (c, x, y, id, look) => { const car = (DATA.CARS || []).find((q) => q.id === id); if (car) vfCar(c, x, y, car, look, 0); },
     get active() { return active; },
     canRide: (fromMap, to) => !!(zoneOf(fromMap) && SPOTS[to] && zoneOf(fromMap) !== to),
     _debug: () => ({ li, x: me && me.x, v: me && me.v, phase, light: legs && !lastLeg() ? light(leg()).s : '-', stop: legs && !lastLeg() ? stopX() : 0, legs: legs && legs.map((l) => `${l.e.id}:${l.from}->${l.to}`), npcs: npcs.length, others: others.size }),

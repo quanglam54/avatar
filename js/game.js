@@ -1226,6 +1226,51 @@
     return true;
   };
 
+  /** 🚗 Mua ô tô VinFast (pin đầy 100%) */
+  AV.buyCar = (id) => {
+    const c = (DATA.CARS || []).find((x) => x.id === id);
+    if (!c) return false;
+    S.cars = S.cars || {};
+    if (S.cars[id]) { UI.toast('Bạn có xe này rồi 🚗'); return false; }
+    if (!AV.spend(c.price)) return false;
+    S.cars[id] = { bat: 100, at: Date.now() };
+    changed();
+    UI.updateHud();
+    UI.toast(`🚗 Chúc mừng! Bạn đã sở hữu ${c.name} (pin 100%). Chọn khu trên bản đồ → chọn xe để tự lái nhé`, 5000);
+    return true;
+  };
+  /** 🔌 Sạc pin tới 100% ở trạm V-GREEN */
+  AV.chargeCar = (id) => {
+    const st = (S.cars || {})[id], c = (DATA.CARS || []).find((x) => x.id === id);
+    if (!st || !c) return 0;
+    const need = Math.ceil(100 - st.bat);
+    if (need <= 0) { UI.toast('🔋 Pin đã đầy rồi'); return 0; }
+    const cost = need * DATA.CHARGE_PRICE;
+    if (!AV.spend(cost)) return 0;
+    st.bat = 100;
+    changed();
+    return cost;
+  };
+
+  /* ---------- ✈️ Sân bay ---------- */
+  AV.flightDest = null;
+  /** hạ cánh: vào sân bay gần khu muốn tới */
+  AV.landAt = (zone) => {
+    const ap = DATA.airportOf(zone);
+    AV.flightDest = zone;
+    AV.teleport('apt_' + ap.id, false, 1060, 740, `🛬 Hạ cánh · ${ap.name}`);
+  };
+  /** qua cổng an ninh → ra khu (khu đã bay tới, hoặc khu chính của sân bay) */
+  AV.exitAirport = () => {
+    const ap = DATA.AIRPORTS.find((a) => 'apt_' + a.id === map.id);
+    if (!ap) return;
+    const zone = ap.zones.includes(AV.flightDest) ? AV.flightDest : ap.zones[0];
+    const m = maps[zone], st = m && m.busStop;
+    AV.flightDest = null;
+    AV.teleport(zone, false, st ? st.x + 50 : undefined, st ? st.y + 12 : undefined, `🛃 Qua cửa an ninh · ra ${m ? m.name : ''}…`);
+  };
+  AV.isCloudReady = () => cloudReady;
+
   /** Chuyển thẳng tới một khu (dùng khi mới vào game) */
   AV.teleport = (id, showHelp, x, y, label) => {
     if (!maps[id] || fade.mode) return;

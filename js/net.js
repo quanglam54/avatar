@@ -269,7 +269,7 @@ const NET = (() => {
 
   function announce() {
     lobbyBeat = 0;
-    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId === 'casino' || mapId === 'arena' || mapId === 'horse' || mapId === 'club' || mapId === 'concert' || mapId === 'cgv' || mapId === 'boxing' ? 'fun' : mapId === 'classroom' ? 'school' : mapId.split('-')[0], at: mapId.split('-')[0], user: (typeof CLOUD !== 'undefined' && CLOUD.username) || '' });
+    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId.startsWith('apt_') ? ((DATA.AIRPORTS.find((a) => 'apt_' + a.id === mapId) || { zones: ['fun'] }).zones[0]) : mapId === 'casino' || mapId === 'arena' || mapId === 'horse' || mapId === 'club' || mapId === 'concert' || mapId === 'cgv' || mapId === 'boxing' ? 'fun' : mapId === 'classroom' ? 'school' : mapId.split('-')[0], at: mapId.split('-')[0], user: (typeof CLOUD !== 'undefined' && CLOUD.username) || '' });
   }
 
   /** Báo ngắn cho mọi người: nông trại của uid vừa thay đổi / vừa bị tưới giúp, hái trộm */
