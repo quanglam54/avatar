@@ -2826,7 +2826,7 @@
     if (night > 0) {
       const vw = W / ZOOM, vh = H / ZOOM;
       g.fillStyle = `rgba(16,26,72,${0.45 * night})`;
-      g.fillRect(cam.x - vw / 2 - 10, map.hz, vw + 20, vh + 400);
+      g.fillRect(cam.x - vw / 2 - 10, cam.y - vh / 2 - 10, vw + 20, vh + 20); // phủ cả màn để nhà cửa không bị 2 màu ở đường chân trời
       ART.fireflies(g, cam.x, cam.y, vw, vh, night, clock);
       if (map.lights) {
         g.save();
