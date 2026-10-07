@@ -48,9 +48,9 @@ const R3D = (() => {
     document.body.insertBefore(el, document.getElementById('game'));
     scene = new T.Scene();
     cam = new T.OrthographicCamera(-1, 1, 1, -1, 1, 30000);
-    hemi = new T.HemisphereLight(0xffffff, 0x7a9a5a, 0.66);
+    hemi = new T.HemisphereLight(0xfff1d6, 0x5f7f35, 0.62);
     scene.add(hemi);
-    sun = new T.DirectionalLight(0xfff0d0, 0.6);
+    sun = new T.DirectionalLight(0xffd59a, 0.78);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.bias = -0.0006;
@@ -74,7 +74,7 @@ const R3D = (() => {
     }
     const tex = new T.CanvasTexture(src);
     tex.encoding = T.sRGBEncoding; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    ground = new T.Mesh(new T.PlaneGeometry(m.w, m.h), new T.MeshLambertMaterial({ map: tex, depthWrite: false }));
+    ground = new T.Mesh(new T.PlaneGeometry(m.w, m.h), new T.MeshLambertMaterial({ map: tex, depthWrite: false, color: 0xd9e8b4 }));
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(m.w / 2, 0, m.h / 2);
     ground.receiveShadow = true;
@@ -122,8 +122,7 @@ const R3D = (() => {
       b.wide = true;
       m.quaternion.set(0, 0, 0, 1);
       m.position.set(cx, lift, sortY);
-      if (!m.material.depthWrite) { m.material.depthWrite = true; m.material.alphaTest = 0.5; m.material.needsUpdate = true; }
-      m.renderOrder = -1e5;
+      m.renderOrder = depthOf(cx, sortY); // camera nhìn thẳng: vẽ theo thứ tự trước/sau như bản 2D
       return;
     } else {
       b.wide = false;
@@ -160,7 +159,82 @@ const R3D = (() => {
   const BOXG = {};
   const boxGeo = (w, h, d) => { const k = `${w}|${h}|${d}`; return BOXG[k] || (BOXG[k] = new T.BoxGeometry(w, h, d)); };
   const MATS = {};
-  const lam = (col) => MATS[col] || (MATS[col] = new T.MeshLambertMaterial({ color: col }));
+  const lam = (col) => { if (!MATS[col]) { MATS[col] = new T.MeshLambertMaterial({ color: col }); MATS[col].color.convertSRGBToLinear(); } return MATS[col]; };
+  /** hàng rào gỗ: cọc mỗi ~40px + 2 thanh ngang */
+  function fence(g, L, Tp, R, Bt) {
+    const H = 30, wood = lam('#8a5a32'), dark = lam('#6b4423');
+    const post = (x, z) => { const p = new T.Mesh(boxGeo(7, H, 7), dark); p.position.set(x, H / 2, z); p.castShadow = true; g.add(p); const cap = new T.Mesh(boxGeo(9, 3, 9), wood); cap.position.set(x, H + 1.5, z); g.add(cap); };
+    const side = (x1, z1, x2, z2) => {
+      const len = Math.hypot(x2 - x1, z2 - z1), n = Math.max(1, Math.round(len / 42));
+      for (let i = 0; i < n; i++) post(x1 + (x2 - x1) * i / n, z1 + (z2 - z1) * i / n);
+      [11, 23].forEach((h) => {
+        const r = new T.Mesh(x1 === x2 ? boxGeo(4, 4, len) : boxGeo(len, 4, 4), wood);
+        r.position.set((x1 + x2) / 2, h, (z1 + z2) / 2); r.castShadow = true; g.add(r);
+      });
+    };
+    side(L, Tp, R, Tp); side(R, Tp, R, Bt); side(R, Bt, L, Bt); side(L, Bt, L, Tp);
+  }
+  /* ---------- 🏞️ đồ vật 3D thật ở nông trại: ao cá, rơm, ổ gà ---------- */
+  let props = null, ducks = [];
+  function buildProps(map) {
+    if (props) { scene.remove(props); props = null; ducks = []; }
+    if (map.id !== 'farm') return;
+    const g = new T.Group();
+    const add = (mesh, x, y, z, shadow = true) => { mesh.position.set(x, y, z); mesh.castShadow = shadow; mesh.receiveShadow = true; g.add(mesh); return mesh; };
+    // ao cá: nước + bờ đá + lá sen + cầu gỗ + vịt
+    const L = map.lake;
+    if (L) {
+      const water = new T.Mesh(new T.CircleGeometry(1, 48), (() => { const w = new T.MeshPhongMaterial({ color: 0x3fa7e8, shininess: 90, specular: 0xffffff, transparent: true, opacity: 0.92 }); w.color.convertSRGBToLinear(); return w; })());
+      water.rotation.x = -Math.PI / 2; water.scale.set(L.rx, L.ry, 1); add(water, L.x, 3, L.y, false);
+      const bed = new T.Mesh(new T.CircleGeometry(1, 48), lam('#1c5f8a')); bed.rotation.x = -Math.PI / 2; bed.scale.set(L.rx + 6, L.ry + 6, 1); add(bed, L.x, 1.5, L.y, false);
+      const rockG = new T.DodecahedronGeometry(1, 0);
+      for (let i = 0; i < 34; i++) {
+        const a = i / 34 * Math.PI * 2, r = 20 + (i * 37 % 13);
+        const rock = new T.Mesh(rockG, lam(['#8d939a', '#a3a9ae', '#7b8188'][i % 3]));
+        rock.scale.set(r, r * 0.7, r * 0.9); rock.rotation.set(i, i * 2, i * 3);
+        add(rock, L.x + Math.cos(a) * (L.rx + 8), r * 0.4, L.y + Math.sin(a) * (L.ry + 8));
+      }
+      const padG = new T.CylinderGeometry(1, 1, 2, 16);
+      [[-90, -30], [-40, 40], [60, -40], [110, 30], [10, -10], [-120, 20]].forEach(([dx, dz], i) => {
+        const pad = new T.Mesh(padG, lam('#3c9e36')); pad.scale.set(18 + i % 3 * 4, 1, 14 + i % 2 * 4); add(pad, L.x + dx, 4, L.y + dz, false);
+        if (i % 2 === 0) { const fl = new T.Mesh(new T.SphereGeometry(6, 10, 8), lam('#f783ac')); add(fl, L.x + dx, 8, L.y + dz); }
+      });
+      // cầu gỗ
+      for (let k = 0; k < 6; k++) add(new T.Mesh(boxGeo(16, 5, 70), lam(k % 2 ? '#a0632f' : '#b5773c')), L.x + 80 + k * 17, 10, L.y - L.ry + 10);
+      [[0, 0], [100, 0], [0, 60], [100, 60]].forEach(([dx, dz]) => add(new T.Mesh(boxGeo(10, 34, 10), lam('#6b4423')), L.x + 74 + dx, 10, L.y - L.ry - 20 + dz));
+      // vịt
+      for (let i = 0; i < 3; i++) {
+        const d = new T.Group();
+        const body = new T.Mesh(new T.SphereGeometry(13, 14, 10), lam(i ? '#ffd43b' : '#ffffff')); body.scale.set(1.2, 0.8, 1); d.add(body);
+        const head = new T.Mesh(new T.SphereGeometry(8, 12, 10), lam(i ? '#ffd43b' : '#ffffff')); head.position.set(12, 12, 0); d.add(head);
+        const beak = new T.Mesh(boxGeo(8, 3, 5), lam('#ff922b')); beak.position.set(21, 11, 0); d.add(beak);
+        d.children.forEach((c) => { c.castShadow = true; });
+        d.userData = { a: i * 2.1, r: 60 + i * 25 };
+        g.add(d); ducks.push(d);
+      }
+    }
+    // rơm
+    const hay = (x, z, big) => {
+      const n = big ? [[0, 0, 0], [44, 0, 0], [22, 0, 26]] : [[0, 0, 0]];
+      if (big) n.push([22, 26, 13]);
+      n.forEach(([dx, dy, dz]) => {
+        const b = new T.Mesh(boxGeo(42, 24, 28), lam('#e9c46a')); add(b, x - (big ? 22 : 0) + dx, 12 + dy, z - 14 + dz);
+        const band = new T.Mesh(boxGeo(43, 25, 4), lam('#b8892b')); add(band, x - (big ? 22 : 0) + dx, 12 + dy, z - 14 + dz - 6, false);
+      });
+    };
+    hay(470, 1210, true); hay(650, 960, false); hay(1975, 980, false); hay(1760, 1210, true);
+    // ổ gà: thùng gỗ + rơm + trứng
+    const NX = 1865, NZ = 1040;
+    add(new T.Mesh(boxGeo(150, 30, 56), lam('#8a5a32')), NX, 15, NZ);
+    add(new T.Mesh(boxGeo(140, 6, 48), lam('#e9c46a')), NX, 31, NZ, false);
+    const eggG = new T.SphereGeometry(7, 10, 8);
+    for (let i = 0; i < 5; i++) { const e = new T.Mesh(eggG, lam('#fff4e6')); e.scale.set(1, 1.3, 1); add(e, NX - 50 + i * 25, 39, NZ); }
+    [[-75], [75]].forEach(([dx]) => add(new T.Mesh(boxGeo(8, 70, 8), lam('#6b4423')), NX + dx, 35, NZ - 26));
+    const roof = new T.Mesh(boxGeo(170, 8, 50), lam('#c2410c')); roof.rotation.x = 0.35; add(roof, NX, 72, NZ - 20);
+    props = g;
+    scene.add(g);
+  }
+
   function bedGroup(o) {
     const { idx, bx, by } = o.bed, BD = ART.BED;
     let B = beds.get(idx);
@@ -170,8 +244,7 @@ const R3D = (() => {
       frame.position.set(bx + BD.w / 2, 4, by + BD.h / 2);
       frame.castShadow = true; frame.receiveShadow = true;
       g.add(frame);
-      const rim = [[BD.w + 8, 6, 6, 0, -(BD.h + 2) / 2], [BD.w + 8, 6, 6, 0, (BD.h + 2) / 2], [6, 6, BD.h + 8, -(BD.w + 2) / 2, 0], [6, 6, BD.h + 8, (BD.w + 2) / 2, 0]];
-      rim.forEach(([w, h, d, dx, dz]) => { const r = new T.Mesh(boxGeo(w, h, d), lam('#8a5a32')); r.position.set(bx + BD.w / 2 + dx, 11, by + BD.h / 2 + dz); r.castShadow = true; r.receiveShadow = true; g.add(r); });
+      fence(g, bx - 6, by - 6, bx + BD.w + 6, by + BD.h + 6);
       const dirt = new T.Mesh(boxGeo(BD.w - 4, 4, BD.h - 4), lam('#a07a48'));
       dirt.position.set(bx + BD.w / 2, 9, by + BD.h / 2); dirt.receiveShadow = true;
       g.add(dirt);
@@ -247,6 +320,7 @@ const R3D = (() => {
       bills.clear();
       beds.forEach((B) => scene.remove(B.g)); beds.clear();
       curMap = map;
+      buildProps(map);
     }
     setGround(map);
     const d = Math.min(2, DPR);
@@ -265,9 +339,9 @@ const R3D = (() => {
     sun.target.position.set(cx, 0, cy);
     const sc = sun.shadow.camera, ext = Math.max(hw, hh) * 1.7;
     sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext; sc.near = 10; sc.far = 8000; sc.updateProjectionMatrix();
-    sun.intensity = 0.6 * (1 - night * 0.85);
-    hemi.intensity = 0.66 - night * 0.38;
-    hemi.color.setRGB(1 - night * 0.45, 1 - night * 0.35, 1 - night * 0.05);
+    sun.intensity = 0.78 * (1 - night * 0.85);
+    hemi.intensity = 0.62 - night * 0.36;
+    hemi.color.setRGB(1 - night * 0.45, 0.945 - night * 0.3, 0.84 + night * 0.1);
     const tint = new T.Color(1 - night * 0.5, 1 - night * 0.45, 1 - night * 0.2);
     const L = (map.lights || []).filter((l) => l[3] !== 'hw' || AV.hw()).map((l) => [l, Math.hypot(l[0] - cx, l[1] - cy)]).sort((a, b) => a[1] - b[1]).slice(0, lamps.length);
     lamps.forEach((p, i) => { const l = L[i]; if (l && night > 0.05) { p.position.set(l[0][0], 90, l[0][1] + 40); p.intensity = night * 1.5; p.distance = l[0][2] * 5; } else p.intensity = 0; });
@@ -276,6 +350,7 @@ const R3D = (() => {
     beds.forEach((B) => { B.g.visible = false; });
     for (const it of items) {
       if (it.bed) { const B = bedGroup(it); updateBed(it, B); B.g.visible = true; continue; }
+      if (it.hide3d) continue;
       if (!it.bb) continue;
       const bb = it.bb, s = Math.min(2, DPR * ZOOM, 2048 / Math.max(1, bb[2] - bb[0]), 2048 / Math.max(1, bb[3] - bb[1]));
       const w = Math.max(2, Math.ceil((bb[2] - bb[0]) * s)), h = Math.max(2, Math.ceil((bb[3] - bb[1]) * s));
@@ -296,7 +371,8 @@ const R3D = (() => {
       seen.add(key);
     }
     bills.forEach((b, k) => { if (!seen.has(k)) b.mesh.visible = false; });
-    scene.background = new T.Color(night > 0.5 ? 0x0b1730 : 0x9fd3f5);
+    if (map.lake) { const tt = performance.now() / 1000; ducks.forEach((d) => { const a = d.userData.a + tt * 0.25; d.position.set(map.lake.x + Math.cos(a) * d.userData.r, 6 + Math.sin(tt * 3 + a) * 1.5, map.lake.y + Math.sin(a) * d.userData.r * 0.55); d.rotation.y = -a - Math.PI / 2; }); }
+    scene.background = new T.Color(night > 0.5 ? 0x0b1730 : 0xbfe0ee);
     renderer.render(scene, cam);
   }
 
@@ -304,7 +380,9 @@ const R3D = (() => {
   const _v = () => new T.Vector3();
   /** điểm (x, y mặt đất, cao h) → điểm màn hình (px CSS) */
   function toScreen(x, y, h, W, H) {
-    const v = _v().set(x, h || 0, y).project(cam);
+    // cao h tính dọc theo tấm hình (nghiêng theo camera) để tên / bong bóng nằm đúng trên đầu nhân vật
+    const U = camUp(), hh = h || 0;
+    const v = _v().set(x + U.x * hh, U.y * hh, y + U.z * hh).project(cam);
     return { x: (v.x + 1) / 2 * W, y: (1 - v.y) / 2 * H };
   }
   function ndc(clientX, clientY) { const r = renderer.domElement.getBoundingClientRect(); return new T.Vector2((clientX - r.left) / r.width * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1); }

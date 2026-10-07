@@ -412,7 +412,9 @@ const MAPS = (() => {
     sobj(m, 340, 1040, (c) => ART.barn(c, 340, 1040), { l: -140, t: -200, w: 280, h: 214 });
     col(m, 228, 990, 224, 52);
     pic(m, 'img/farm/' + 'hay.png', 470, 1225, 90, { h: 80, fallback: (c) => ART.hayStack(c, 470, 1215) });
+    m.objects[m.objects.length - 1].hide3d = 1;
     pic(m, 'img/farm/' + 'hay.png', 650, 970, 70, { h: 62, fallback: (c) => ART.hayBale(c, 650, 960) });
+    m.objects[m.objects.length - 1].hide3d = 1;
     sobj(m, 890, 1000, (c) => ART.pigSty(c, 890, 1000), { l: -125, t: -156, w: 250, h: 164 });
     col(m, 792, 950, 196, 50);
     obj(m, 1080, (ctx, t) => ART.mudPool(ctx, 880, 1160, t), [790, 1110, 970, 1210]);
@@ -435,7 +437,7 @@ const MAPS = (() => {
     // vùng nước theo ảnh ao mới (ảnh to hơn ao cũ)
     m.lake = { x: 1290, y: 1045, rx: 175, ry: 105 };
     pic(m, 'img/farm/' + 'pond.png', 1300, 1196, 430, { h: 340, sortY: 880, fallback: (c, t) => ART.lake(c, 1300, 1060, 180, 110, t) });
-    m.objects[m.objects.length - 1].flat = 1;
+    m.objects[m.objects.length - 1].hide3d = 1;
     // chặn cả mặt nước + bờ đá + cầu gỗ (không đi lên ao được)
     col(m, 1100, 900, 400, 270);
     m.labels.push({ text: '🎣 Ao Cá', x: 1300, y: 868 }, { text: '🐔 Sân Gà', x: 1865, y: 900 });
@@ -445,9 +447,12 @@ const MAPS = (() => {
     col(m, 1350, 1240, 100, 12);
     inter(m, { x: 1334, y: 1084, w: 132, h: 170, ax: 1400, ay: 1282, name: 'Bảng tin nông trại (ai đến trộm, ai tưới giúp)', use: () => AV.useNoticeBoard(), indicator: () => AV.noticeIndicator(), ix: 1400, iy: 1072 });
     sobj(m, 1865, 1060, (c) => ART.henNest(c, 1865, 1060), { l: -80, t: -78, w: 160, h: 88 });
+    m.objects[m.objects.length - 1].hide3d = 1;
     col(m, 1805, 1042, 120, 20);
     pic(m, 'img/farm/' + 'hay.png', 1975, 990, 72, { h: 64, fallback: (c) => ART.hayBale(c, 1975, 980) });
+    m.objects[m.objects.length - 1].hide3d = 1;
     pic(m, 'img/farm/' + 'hay.png', 1760, 1225, 90, { h: 80, fallback: (c) => ART.hayStack(c, 1760, 1215) });
+    m.objects[m.objects.length - 1].hide3d = 1;
     for (let i = 0; i < 5; i++) animal(m, 'chicken', { l: 1720, t: 930, r: 2010, b: 1240 }, i);
     for (let i = 5; i < 9; i++) animal(m, 'chicken', { l: 240, t: 860, r: 2280, b: 876 }, i);
     inter(m, {
