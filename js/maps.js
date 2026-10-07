@@ -554,26 +554,32 @@ const MAPS = (() => {
     DATA.EATERIES.forEach((e, i) => {
       const x = i < 4 ? 260 + i * 240 : 3330 + (i - 4) * 240, y = 1425;
       sobj(m, x, y, (c) => ART.foodShop(c, x, y, e), { l: -125, t: -165, w: 260, h: 172 });
+      m.objects[m.objects.length - 1].b3d = { w: 236, h: 160, roof: e.trim, wall: e.wall, stools: e.deco === 'stools' };
       col(m, x - 105, y - 46, 210, 44);
       inter(m, { x: x - 105, y: y - 160, w: 210, h: 160, ax: x - 40, ay: y + 28, name: `${e.name} (ăn uống +XP)`, use: () => UI.eateryPanel(e.id) });
     });
     addPot(m, 1450, 1360, 'mai'); addPot(m, 1750, 1360, 'dao');
     /* QuangLamBank + cây ATM cạnh trạm xe buýt (vẽ sẵn 1 lần → nhẹ cho điện thoại) */
-    const BX = 2200, BY = 1428, BK = 0.74;
-    sobj(m, BX, BY, (c) => { c.save(); c.translate(BX, BY); c.scale(BK, BK); BANK.building(c, 0, 0); c.restore(); }, { l: -200, t: -305, w: 400, h: 330 });
-    col(m, BX - 170, BY - 52, 120, 50); col(m, BX + 50, BY - 52, 120, 50); col(m, BX - 50, BY - 52, 100, 18);
-    inter(m, { x: BX - 52, y: BY - 110, w: 104, h: 112, ax: BX, ay: BY + 30, name: 'QuangLamBank (mở tài khoản, gửi / rút xu)', use: () => BANK.panel('counter'), arrow: { x: BX, y: BY - 88, text: 'Ngân hàng' } });
+    const BX = 2200, BY = 1428, BK = 0.56; // thấp vừa để không che luống đất trong tường
+    sobj(m, BX, BY, (c) => { c.save(); c.translate(BX, BY); c.scale(BK, BK); BANK.building(c, 0, 0); c.restore(); }, { l: -150, t: -235, w: 300, h: 255 });
+    m.objects[m.objects.length - 1].b3d = { w: 256, h: 190, roof: '#00502b', wall: '#efe6d2', depth: 45 };
+    col(m, BX - 128, BY - 42, 90, 40); col(m, BX + 38, BY - 42, 90, 40); col(m, BX - 38, BY - 42, 76, 14);
+    inter(m, { x: BX - 40, y: BY - 84, w: 80, h: 86, ax: BX, ay: BY + 30, name: 'QuangLamBank (mở tài khoản, gửi / rút xu)', use: () => BANK.panel('counter'), arrow: { x: BX, y: BY - 70, text: 'Ngân hàng' } });
     pic(m, 'img/mall/atm.png', 2455, 1440, 86, { h: 124 });
+    m.objects[m.objects.length - 1].b3d = { w: 70, h: 112, roof: '#2b8a3e', wall: '#e9ecef' };
     col(m, 2418, 1412, 74, 28);
     inter(m, { x: 2410, y: 1318, w: 90, h: 124, ax: 2455, ay: 1470, name: 'Cây ATM QuangLamBank', use: () => BANK.panel('atm'), arrow: { x: 2455, y: 1300, text: 'ATM' } });
     addBusStop(m, GATE + 140, 1432, 1);
     /* ----- 🚗 VinFast Showroom + 🔌 trạm sạc V-GREEN cạnh ATM ----- */
     const VX = 2790, VY = 1430;
-    sobj(m, VX, VY, (c) => vinfast(c, VX, VY), { l: -230, t: -300, w: 460, h: 320 });
-    col(m, VX - 210, VY - 50, 150, 48); col(m, VX + 60, VY - 50, 150, 48); col(m, VX - 60, VY - 50, 120, 16);
-    inter(m, { x: VX - 60, y: VY - 150, w: 120, h: 150, ax: VX, ay: VY + 30, name: 'VinFast Showroom (mua ô tô điện)', use: () => UI.carShop(), arrow: { x: VX, y: VY - 170, text: 'VinFast' } });
+    const VK = 0.72; // thấp vừa để không che luống đất
+    sobj(m, VX, VY, (c) => { c.save(); c.translate(VX, VY); c.scale(VK, VK); c.translate(-VX, -VY); vinfast(c, VX, VY); c.restore(); }, { l: -170, t: -220, w: 340, h: 240 });
+    m.objects[m.objects.length - 1].b3d = { w: 316, h: 198, roof: '#1b2f48', wall: '#495057', depth: 45 };
+    col(m, VX - 152, VY - 38, 108, 36); col(m, VX + 44, VY - 38, 108, 36); col(m, VX - 44, VY - 38, 88, 12);
+    inter(m, { x: VX - 44, y: VY - 110, w: 88, h: 110, ax: VX, ay: VY + 30, name: 'VinFast Showroom (mua ô tô điện)', use: () => UI.carShop(), arrow: { x: VX, y: VY - 124, text: 'VinFast' } });
     const CX2 = 3115, CY2 = 1430;
     sobj(m, CX2, CY2, (c) => charger(c, CX2, CY2), { l: -80, t: -200, w: 160, h: 215 });
+    m.objects[m.objects.length - 1].b3d = { w: 160, h: 196, roof: '#0ca678', wall: '#dee2e6', canopy: 1 };
     col(m, CX2 - 60, CY2 - 34, 120, 32);
     inter(m, { x: CX2 - 70, y: CY2 - 190, w: 140, h: 190, ax: CX2, ay: CY2 + 30, name: 'Trạm sạc V-GREEN (sạc pin ô tô)', use: () => UI.chargeStation(), arrow: { x: CX2, y: CY2 - 205, text: 'Trạm sạc' } });
     /* ----- Biển chúc mừng 20/10 cạnh cổng (hiện từ 1/10 đến hết 21/10) ----- */

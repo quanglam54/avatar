@@ -235,6 +235,46 @@ const R3D = (() => {
     scene.add(g);
   }
 
+  /* ---------- 🏪 khối nhà 3D sau mặt tiền (quán, ngân hàng, showroom…) ----------
+   * mặt tiền vẫn là hình vẽ; phía sau dựng khối nhà có mái nhìn thấy từ trên xuống + bậc thềm phía trước, đổ bóng thật */
+  const blds = new Map();
+  function building(it) {
+    let G = blds.get(it);
+    if (G) return G;
+    const b = it.b3d, x = (it.bb[0] + it.bb[2]) / 2, y = it.y, U = camUp();
+    const top = -U.z * b.h, hgt = U.y * b.h, Dp = b.depth || (b.canopy ? 70 : 70);
+    G = new T.Group();
+    const wall = lam(b.wall || '#e9ecef'), roof = lam(b.roof || '#c2410c');
+    const back = y - top - 14;                // mặt trước khối nhà lùi sau mặt tiền → không bao giờ che biển hiệu
+    if (b.canopy) {
+      const slab = new T.Mesh(boxGeo(b.w + 10, 8, Dp), roof); slab.position.set(x, hgt - 4, back - Dp / 2); slab.castShadow = true; G.add(slab);
+    } else {
+      const body = new T.Mesh(boxGeo(b.w, hgt, Dp), wall); body.position.set(x, hgt / 2, back - Dp / 2); body.castShadow = true; body.receiveShadow = true; G.add(body);
+      const cap = new T.Mesh(boxGeo(b.w + 14, 10, Dp + 8), roof); cap.position.set(x, hgt + 5, back - Dp / 2 - 4); cap.castShadow = true; cap.receiveShadow = true; G.add(cap);
+      const ridge = new T.Mesh(boxGeo(b.w * 0.6, 8, Dp * 0.5), lam('#adb5bd')); ridge.position.set(x - b.w * 0.15, hgt + 14, back - Dp / 2 - 6); ridge.castShadow = true; G.add(ridge);
+      // máy lạnh + bồn nước trên mái như nhà phố thật
+      const ac = new T.Mesh(boxGeo(26, 16, 18), lam('#f1f3f5')); ac.position.set(x + b.w * 0.3, hgt + 18, back - Dp * 0.7); ac.castShadow = true; G.add(ac);
+      if (b.w > 150) { const tank = new T.Mesh(new T.CylinderGeometry(12, 12, 26, 14), lam('#74c0fc')); tank.position.set(x + b.w * 0.36, hgt + 23, back - Dp * 0.3); tank.castShadow = true; G.add(tank); }
+      // bậc thềm + chậu cây hai bên cửa
+      const step = new T.Mesh(boxGeo(Math.min(120, b.w * 0.5), 5, 22), lam('#ced4da')); step.position.set(x, 2.5, y + 6); step.receiveShadow = true; G.add(step);
+      const pot = lam('#b5651d'), leaf = lam('#2f9e44');
+      [-1, 1].forEach((sd) => {
+        const px = x + sd * (b.w / 2 - 12);
+        const p = new T.Mesh(new T.CylinderGeometry(9, 7, 16, 12), pot); p.position.set(px, 8, y + 4); p.castShadow = true; G.add(p);
+        const l = new T.Mesh(new T.SphereGeometry(13, 10, 8), leaf); l.position.set(px, 24, y + 4); l.castShadow = true; G.add(l);
+      });
+      // quán ăn: ghế nhựa đỏ / xanh sát tường kiểu vỉa hè
+      if (b.stools) [[-1, '#e03131'], [1, '#1c7ed6']].forEach(([sd, col]) => {
+        for (let k = 0; k < 2; k++) {
+          const st = new T.Mesh(new T.CylinderGeometry(7, 8, 14, 10), lam(col)); st.position.set(x + sd * (b.w / 2 - 34 - k * 18), 7, y + 2); st.castShadow = true; G.add(st);
+        }
+      });
+    }
+    scene.add(G);
+    blds.set(it, G);
+    return G;
+  }
+
   function bedGroup(o) {
     const { idx, bx, by } = o.bed, BD = ART.BED;
     let B = beds.get(idx);
@@ -319,6 +359,7 @@ const R3D = (() => {
       bills.forEach((b) => { scene.remove(b.mesh); b.tex.dispose(); b.mesh.material.dispose(); });
       bills.clear();
       beds.forEach((B) => scene.remove(B.g)); beds.clear();
+      blds.forEach((G) => scene.remove(G)); blds.clear();
       curMap = map;
       buildProps(map);
     }
@@ -351,6 +392,7 @@ const R3D = (() => {
     for (const it of items) {
       if (it.bed) { const B = bedGroup(it); updateBed(it, B); B.g.visible = true; continue; }
       if (it.hide3d) continue;
+      if (it.b3d) { const G = building(it); G.visible = true; G.userData.seen = frameNo; }
       if (!it.bb) continue;
       const bb = it.bb, s = Math.min(2, DPR * ZOOM, 2048 / Math.max(1, bb[2] - bb[0]), 2048 / Math.max(1, bb[3] - bb[1]));
       const w = Math.max(2, Math.ceil((bb[2] - bb[0]) * s)), h = Math.max(2, Math.ceil((bb[3] - bb[1]) * s));
@@ -371,6 +413,7 @@ const R3D = (() => {
       seen.add(key);
     }
     bills.forEach((b, k) => { if (!seen.has(k)) b.mesh.visible = false; });
+    blds.forEach((G) => { G.visible = G.userData.seen === frameNo; });
     if (map.lake) { const tt = performance.now() / 1000; ducks.forEach((d) => { const a = d.userData.a + tt * 0.25; d.position.set(map.lake.x + Math.cos(a) * d.userData.r, 6 + Math.sin(tt * 3 + a) * 1.5, map.lake.y + Math.sin(a) * d.userData.r * 0.55); d.rotation.y = -a - Math.PI / 2; }); }
     scene.background = new T.Color(night > 0.5 ? 0x0b1730 : 0xbfe0ee);
     renderer.render(scene, cam);
