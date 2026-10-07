@@ -73,14 +73,14 @@ const ZAPPS = (() => {
     const caller = vo.caller || { name: pickUp ? `Tài xế ${label.replace(/^\S+\s/, '')}` : 'Shipper ZenoFood', num: pickUp ? '19006868' : '19001234' };
     /** gọi vào số người đặt: đúng số mình thì đổ chuông, số khác thì mình không nghe được */
     const ring = (opt) => { if (vo.ring === false) { UI.toast(`📞 ${caller.name} đang gọi ${PHONE.pretty(vo.wrongNum || '')} — không phải số của bạn nên bạn không nghe được`, 5000); return false; } return typeof CALL !== 'undefined' && CALL.fakeIncoming(caller, opt); };
-    const line = pickUp ? 'Xe tới rồi, bạn ra đường lên xe nhé!' : 'Đồ ăn tới rồi, bạn ra ngoài đường lấy giúp mình nhé!';
+    const line = pickUp ? 'Alo, tài xế đây ạ. Mình đến địa chỉ rồi đây, bạn ra xe nhé!' : 'Alo, shipper đây ạ. Đồ ăn của bạn tới rồi, bạn ra lấy đồ nhé!';
     busy = true;
     // khu không có đường (trong nhà, khu kín…): gọi điện rồi giao tận cửa
     if (roadY == null) {
       UI.toast(`${label} đang tới…`, 3500);
       setTimeout(() => {
         const done = () => { busy = false; onArrive(); };
-        if (!(ring({ line: pickUp ? 'Xe đợi ở cửa rồi nha!' : 'Mình để đồ ở cửa rồi nha!', onAnswer: () => setTimeout(done, 1500), onReject: done, onMissed: done }))) done();
+        if (!(ring({ line: pickUp ? 'Alo, tài xế đây ạ. Mình đến địa chỉ rồi đây, xe đợi ở cửa nhé!' : 'Alo, shipper đây ạ. Mình tới cửa rồi, bạn ra lấy đồ nhé!', onEnd: done, onReject: done, onMissed: done }))) done();
       }, 6000);
       return true;
     }
@@ -100,8 +100,11 @@ const ZAPPS = (() => {
     AV.worldFx.push(fx);
     UI.toast(`${label} đang chạy tới đường gần chỗ bạn — để ý điện thoại nhé!`, 4000);
     const end = () => { const i = AV.worldFx.indexOf(fx); if (i >= 0) AV.worldFx.splice(i, 1); busy = false; if (marker) AV.removePickups((p) => p === marker); };
+    const onPhone = () => typeof CALL !== 'undefined' && CALL.busy();
     const handOver = () => {
       if (fx.ph !== 'wait') return;
+      // đang nghe / đang đổ chuông → nghe xong, cúp máy rồi mới lấy đồ / lên xe
+      if (onPhone()) { if (!fx.toldCall) { fx.toldCall = 1; UI.toast('📞 Nghe máy xong đã rồi mới ' + (pickUp ? 'lên xe' : 'nhận đồ') + ' nhé'); setTimeout(() => { fx.toldCall = 0; }, 4000); } return; }
       fx.ph = 'go'; fx.t = 0; opt.moving = true;
       if (marker) AV.removePickups((p) => p === marker);
       if (pickUp) { P.hidden = true; P.target = null; opt.passenger = AV.S.look; AV.sayMine('🚕 Đi thôi!'); }
@@ -123,7 +126,7 @@ const ZAPPS = (() => {
         }
       } else if (fx.ph === 'wait') {
         // người chơi đi tới gần xe (đứng trên vỉa hè / lòng đường cạnh xe) cũng tính
-        if (AV.currentMap() === mapId && !P.hidden && Math.abs(P.x - fx.x) < 110 && Math.abs(P.y - fx.y) < 90) handOver();
+        if (AV.currentMap() === mapId && !P.hidden && !onPhone() && Math.abs(P.x - fx.x) < 110 && Math.abs(P.y - fx.y) < 90) handOver();
         if (marker && AV.currentMap() === mapId && !AV.pickups().includes(marker)) marker = AV.dropPickup(fx.x, fx.y + 6, pickUp ? '👋' : '📦', handOver, { big: 1 });
         if (fx.t > 180) { fx.ph = 'go'; fx.t = 0; opt.moving = true; UI.toast(pickUp ? '🚕 Đợi lâu quá, tài xế đã đi mất' : '🛵 Đợi lâu quá, shipper đã đi mất', 5000); fx.abandon = true; }
       } else {
@@ -273,7 +276,7 @@ const ZAPPS = (() => {
       else if (!o.calledAway) {
         // tài xế tới nơi mà người đặt đang ở chỗ khác → gọi báo ra đó nhận
         o.calledAway = now;
-        const line = `Mình tới ${o.to.name} rồi, bạn ra đó ${o.type === 'food' ? 'nhận đồ' : 'lên xe'} nhé!`;
+        const line = o.type === 'food' ? `Alo, shipper đây ạ. Mình tới ${o.to.name} rồi, bạn ra lấy đồ nhé!` : `Alo, tài xế đây ạ. Mình đến ${o.to.name} rồi đây, bạn ra xe nhé!`;
         if (!(o.num === PHONE.myNum() && typeof CALL !== 'undefined' && CALL.fakeIncoming({ name: `${o.type === 'food' ? 'Shipper' : 'Tài xế'} ${o.driver.name}`, num: o.driver.num }, { line }))) UI.toast(`📍 ${o.driver.name} đã tới ${o.to.name} — hãy tới đó (đơn huỷ sau 5 phút)`, 5000);
       } else if (now - o.calledAway > 300000) {
         UI.toast(`⌛ ${o.driver.name} đợi ở ${o.to.name} lâu quá nên đã huỷ đơn`, 5000);

@@ -58,12 +58,32 @@ const CALL = (() => {
   function stopRing() {
     ytWant = false;
     try { if (ytReady) ytp.pauseVideo(); } catch (e) { /* bỏ qua */ }
-    if (musicWas && typeof MUSIC !== 'undefined') { MUSIC.setOn(true); musicWas = false; }
+  }
+  /** có cuộc gọi → tạm tắt nhạc nền; cuộc gọi kết thúc → bật lại nếu trước đó đang mở */
+  function muteMusic() { if (!musicWas && typeof MUSIC !== 'undefined' && MUSIC.on) { musicWas = true; MUSIC.setOn(false); } }
+  function restoreMusic() { if (musicWas && typeof MUSIC !== 'undefined') { musicWas = false; MUSIC.setOn(true); } }
+  /* 🗣️ giọng đọc tiếng Việt: ưu tiên giọng Google trong trình duyệt, không có thì dùng Google Dịch đọc */
+  try { if (window.speechSynthesis) { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices(); } } catch (e) { /* bỏ qua */ }
+  function speak(text, c, done) {
+    let fin = false;
+    const finish = () => { if (!fin) { fin = true; clearTimeout(safety); done(); } };
+    const safety = setTimeout(finish, 15000);
+    const after = () => setTimeout(finish, 700);
+    const ss = window.speechSynthesis, vs = ss ? ss.getVoices() : [], vi = vs.filter((x) => /^vi/i.test(x.lang));
+    const say = (v) => { try { ss.cancel(); const u = new SpeechSynthesisUtterance(text); u.voice = v; u.lang = v.lang; u.rate = 1.05; u.onend = after; u.onerror = after; ss.speak(u); } catch (e) { setTimeout(finish, 3500); } };
+    // 1) giọng Google có sẵn (Chrome) 2) giọng Google Dịch 3) giọng tiếng Việt khác của máy
+    const g = vi.find((x) => /google/i.test(x.name));
+    if (g) return say(g);
+    const au = new Audio('https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=' + encodeURIComponent(text.slice(0, 190)));
+    c.tts = au; au.onended = after;
+    let failed = false;
+    const fail = () => { if (failed || fin) return; failed = true; if (vi[0] && cur === c) say(vi[0]); else setTimeout(finish, 3500); };
+    au.onerror = fail; au.play().catch(fail);
   }
   function tone(kind) {
     stopTone();
     if (kind === 'ring') {
-      if (typeof MUSIC !== 'undefined' && MUSIC.on) { musicWas = true; MUSIC.setOn(false); }
+      muteMusic();
       prepRing(); playRing();
       const vib = () => { if (navigator.vibrate) navigator.vibrate([300, 200, 300]); };
       vib(); toneT = setInterval(vib, 2000);
@@ -82,7 +102,7 @@ const CALL = (() => {
     const play = kind === 'ring' ? () => { [0, 0.18, 0.36, 0.54].forEach((t, i) => beep(i % 2 ? 1320 : 1046, 0.15, 0.07, t)); if (navigator.vibrate) navigator.vibrate([300, 200, 300]); } : () => beep(425, 1, 0.04);
     play(); toneT = setInterval(play, kind === 'ring' ? 2000 : 3000);
   }
-  function stopTone() { clearInterval(toneT); toneT = null; if (navigator.vibrate) navigator.vibrate(0); if (ytWant || musicWas) stopRing(); }
+  function stopTone() { clearInterval(toneT); toneT = null; if (navigator.vibrate) navigator.vibrate(0); if (ytWant) stopRing(); }
 
   /* ---------- màn hình cuộc gọi ---------- */
   let ov = null;
@@ -139,13 +159,14 @@ const CALL = (() => {
   function act(a) {
     if (!cur) return;
     if (cur.fake && (a === 'accept' || a === 'acceptv')) {
-      // cuộc gọi từ shipper / tài xế: nghe xong nói 1 câu rồi tự cúp
+      // cuộc gọi từ shipper / tài xế: nghe máy → giọng Google đọc câu báo → tự cúp
       stopTone(); cur.state = 'talking'; cur.startAt = Date.now(); show();
-      const f = cur.fake; if (f.onAnswer) f.onAnswer();
-      UI.toast(`📞 ${cur.peer.name}: "${f.line}"`, 6000); AV.sayMine('📞 Dạ vâng!');
-      setTimeout(() => { if (cur && cur.fake === f) end('Đã kết thúc', true); }, 4000);
+      const f = cur.fake, c0 = cur; if (f.onAnswer) f.onAnswer();
+      UI.toast(`📞 ${cur.peer.name}: "${f.line}"`, 7000);
+      speak(f.line, c0, () => { if (cur === c0) { AV.sayMine('📞 Dạ vâng, mình ra ngay!'); end('Đã kết thúc', true); if (f.onEnd) f.onEnd(); } });
       return;
     }
+    if (cur.fake && a === 'hang') { const f = cur.fake; end('Đã kết thúc', true); if (f.onEnd) f.onEnd(); return; }
     if (cur.fake && a === 'reject') { const f = cur.fake; end('Đã từ chối', true); if (f.onReject) f.onReject(); return; }
     if (a === 'accept') return accept(false);
     if (a === 'acceptv') return accept(true);
@@ -167,6 +188,7 @@ const CALL = (() => {
     if (cur) return UI.toast('📞 Bạn đang có cuộc gọi khác');
     if (!CLOUD.user) return UI.toast('🔐 Đăng nhập tài khoản để gọi điện');
     cur = { cid: Math.random().toString(36).slice(2, 10), peer, dir: 'out', state: 'calling', ice: [], speaker: true, onMissed, video: !!video, facing: 'user' };
+    muteMusic();
     if (video) getMedia(true).then((st) => { if (cur && !cur.stream && st) { cur.stream = st; show(); } else if (st && cur && cur.stream !== st) st.getTracks().forEach((t) => t.stop()); });
     show(); tone('back');
     send('ring', { fromName: AV.S.name, fromNum: PHONE.myNum(), video: video ? 1 : 0 });
@@ -244,7 +266,8 @@ const CALL = (() => {
   function end(msg, quiet) {
     if (!cur) return;
     const c = cur;
-    clearTimeout(c.timer); stopTone();
+    if (c.fake) { try { window.speechSynthesis.cancel(); } catch (e) { /* bỏ qua */ } if (c.tts) c.tts.pause(); }
+    clearTimeout(c.timer); stopTone(); restoreMusic();
     try { if (c.pc) c.pc.close(); } catch (e) { /* bỏ qua */ }
     if (c.stream) c.stream.getTracks().forEach((t) => t.stop());
     if (c.audio) { c.audio.srcObject = null; }
