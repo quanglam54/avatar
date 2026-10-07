@@ -110,6 +110,19 @@ const CLOUD = (() => {
   }
 
   /** Nhận mã quà dùng chung cả server: bảng gift_claims có khoá chính là mã → chỉ người đầu tiên ghi được */
+  /** Két nhà cái: ghi lại số xu người chơi vừa thua (lỗi thì bỏ qua, không làm phiền người chơi) */
+  async function houseLoss(amount, game, name) {
+    if (!user || !(amount > 0)) return;
+    try { await client.from('house_income').insert({ player: user.id, player_name: name, game, amount: Math.min(Math.floor(amount), 1e9) }); } catch (e) { /* bỏ qua */ }
+  }
+  /** Chủ game gom xu trong két → { total, rows } ; người khác → null */
+  async function claimHouse() {
+    if (!user) return null;
+    const { data, error } = await client.rpc('claim_house');
+    if (error) return undefined; // lỗi mạng / chưa chạy SQL → thử lại sau
+    return data || null;
+  }
+
   async function claimGift(hash, name) {
     const { error } = await client.from('gift_claims').insert({ code: hash, user_id: user.id, name });
     if (!error) return;
@@ -213,7 +226,7 @@ const CLOUD = (() => {
   }
 
   const api = {
-    init, signUp, signIn, signOut, pull, push, pushOnExit, getFarm, recentFarms, sendHelp, pullHelps, sendSteal, pullSteals, history, peekChangedAt, claimGift,
+    init, signUp, signIn, signOut, pull, push, pushOnExit, getFarm, recentFarms, sendHelp, pullHelps, sendSteal, pullSteals, history, peekChangedAt, claimGift, houseLoss, claimHouse,
     onPushed: null,
     markDirty: () => { dirty = true; },
     get user() { return user; },

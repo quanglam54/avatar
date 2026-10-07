@@ -1374,7 +1374,28 @@
     changed();
   }
   AV.receiveHelps = receiveHelps;
-  setInterval(() => { receiveHelps(); receiveSteals(); }, 60000);
+
+  /* ---------- Két nhà cái (ngầm): xu người chơi thua bầu cua về nick chủ game ---------- */
+  let isHouse = null; // null = chưa biết, false = không phải chủ, true = chủ game
+  AV.isHouse = () => isHouse === true;
+  AV.houseLoss = (amount, game) => { if (isHouse !== true && CLOUD.user) CLOUD.houseLoss(amount, game, S.name); };
+  async function receiveHouse() {
+    if (!CLOUD.user || isHouse === false) return;
+    if (!cloudReady) { setTimeout(receiveHouse, 5000); return; } // đợi tải xong bản lưu trên mạng rồi mới cộng xu
+    const r = await CLOUD.claimHouse();
+    if (r === undefined) return;
+    if (!r) { isHouse = false; return; }
+    isHouse = true;
+    const tot = +r.total || 0;
+    if (!tot) return;
+    S.coins += tot;
+    S.houseLog = [...(r.rows || []).map((x) => ({ n: x.n, g: x.g, a: +x.a, t: Date.parse(x.t) || Date.now() })), ...(S.houseLog || [])].slice(0, 200);
+    UI.toast(`💼 Két: +${tot.toLocaleString('vi-VN')} xu (${(r.rows || []).length} lượt)`, 4000);
+    UI.updateHud();
+    changed();
+  }
+  AV.receiveHouse = receiveHouse;
+  setInterval(() => { receiveHelps(); receiveSteals(); receiveHouse(); }, 60000);
 
   /* ---------- Nông trại bạn bè cập nhật liên tục ---------- */
   /** Tải lại nông trại đang thăm: giữ lại những gì mình vừa làm (tưới giúp, hái trộm) mà chủ chưa nhận */
@@ -3177,6 +3198,8 @@
 
   AV.afterLogin = async () => {
     setTimeout(() => { receiveHelps(); receiveSteals(); }, 4000);
+    isHouse = null;
+    setTimeout(receiveHouse, 6000);
     cloudReady = false;
     const uid = CLOUD.user.id;
     let cloud = null;

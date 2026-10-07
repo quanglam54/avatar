@@ -668,6 +668,7 @@ const UI = (() => {
           const net = win - spent;
           msg = `Ra: <b>${res.map((r) => r.name).join(' · ')}</b> — ${net > 0 ? `🎉 Thắng <b>+${net}</b> xu!` : net === 0 ? 'Hoà vốn 😅' : `😢 Thua <b>${-net}</b> xu`}`;
           if (win) AV.earn(win, 1);
+          if (net < 0) AV.houseLoss(-net, 'baucua');
           lastBets = bets;
           bets = {};
           rolling = false;
@@ -1408,6 +1409,7 @@ const UI = (() => {
       ['set', '⚙️', 'Cài đặt', settings],
       ['app', '📲', 'Cài app', installApp],
     ];
+    if (AV.isHouse()) items.push(['house', '💼', 'Két', housePanel]);
     const p = panel('☰ MENU', `
       <div class="menu-head"><canvas class="menu-av"></canvas><div><b>${esc(S.name)}</b><small>Cấp ${S.level} · 💰 ${S.coins.toLocaleString('vi-VN')} xu</small></div></div>
       <div class="menu-grid">${items.map(([id, ic, label]) => `<button class="menu-item" data-m="${id}"><span>${ic}</span>${label}</button>`).join('')}</div>`);
@@ -1417,6 +1419,19 @@ const UI = (() => {
       p.close();
       it[3]();
     });
+  }
+
+  /** 💼 Két nhà cái — chỉ chủ game thấy */
+  function housePanel() {
+    const S = AV.S, log = S.houseLog || [];
+    const today = new Date().toDateString();
+    const sumToday = log.filter((x) => new Date(x.t).toDateString() === today).reduce((a, x) => a + x.a, 0);
+    const sumAll = log.reduce((a, x) => a + x.a, 0);
+    const p = panel('💼 Két', `
+      <p><b>Hôm nay:</b> +${sumToday.toLocaleString('vi-VN')} xu · <b>200 lượt gần nhất:</b> +${sumAll.toLocaleString('vi-VN')} xu</p>
+      <button class="btn small" data-pull>🔄 Gom ngay</button>
+      <div class="farm-log">${log.length ? log.map((x) => `<div class="log-row"><b>${esc(x.n || 'Ai đó')}</b> thua 🎲 bầu cua <b>+${x.a.toLocaleString('vi-VN')} xu</b><small>${new Date(x.t).toLocaleString('vi-VN')}</small></div>`).join('') : '<p class="muted">Chưa có ai thua 😅</p>'}</div>`);
+    p.body.querySelector('[data-pull]').onclick = async () => { await AV.receiveHouse(); p.close(); housePanel(); };
   }
 
   /* ---------- Chọn bản lưu khi 2 máy khác nhau ---------- */
