@@ -2457,7 +2457,7 @@
   }
   AV.belly = () => belly().v;
   AV.eat = (shopId, itemId) => {
-    const shop = [...DATA.EATERIES, ...(DATA.STREET_FOOD || []), ...(DATA.CLUB_MENU || []), ...(DATA.CAMP_MENU || []), ...(DATA.CGV_MENU || [])].find((e) => e.id === shopId), it = shop && shop.menu.find((x) => x.id === itemId);
+    const shop = [...DATA.EATERIES, ...(DATA.STREET_FOOD || []), ...(DATA.CLUB_MENU || []), ...(DATA.CAMP_MENU || []), ...(DATA.CGV_MENU || []), ...(DATA.TEA_MENU || [])].find((e) => e.id === shopId), it = shop && shop.menu.find((x) => x.id === itemId);
     if (!it) return false;
     const b = belly();
     if (b.v >= DATA.BELLY.max) { UI.toast(`😵 No căng bụng rồi! Đợi khoảng ${DATA.BELLY.digestMin} phút cho tiêu bớt nhé`, 3500); say(player, '🥴 No quá…'); return false; }

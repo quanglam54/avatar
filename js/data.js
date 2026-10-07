@@ -242,6 +242,11 @@ DATA.PAINT_HAIRS = {
 };
 
 /** Vườn Anh Đào: quầy BBQ + tạp hoá cắm trại */
+/** 🧋 Quán trà đá vỉa hè cạnh bến xe buýt nông trại */
+DATA.TEA_MENU = [
+  { id: 'trada', name: 'Trà Đá Vỉa Hè', logo: '🧋', items: ['🧋', '🌻', '🥜'],
+    menu: [{ id: 'td_trada', name: 'Trà đá', icon: '🧋', price: 3, xp: 2 }, { id: 'td_tranong', name: 'Trà nóng', icon: '🍵', price: 4, xp: 2 }, { id: 'td_huongduong', name: 'Hướng dương', icon: '🌻', price: 6, xp: 3 }, { id: 'td_lac', name: 'Lạc rang', icon: '🥜', price: 6, xp: 3 }, { id: 'td_keo', name: 'Kẹo lạc', icon: '🍬', price: 5, xp: 2 }, { id: 'td_nhan', name: 'Nhãn lồng', icon: '🟤', price: 10, xp: 4 }] },
+];
 DATA.CAMP_MENU = [
   { id: 'camp_bbq', name: 'BBQ Anh Đào', logo: '🍢', wall: '#fff0f6', trim: '#e64980', awn: ['#f783ac', '#fff'], signBg: '#e64980', signFg: '#fff', items: ['🍢', '🌽', '🥩'], deco: 'stools',
     menu: [{ id: 'bbq_xien', name: 'Xiên nướng thập cẩm', icon: '🍢', price: 25, xp: 11 }, { id: 'bbq_bo', name: 'Bò nướng lá lốt', icon: '🥩', price: 40, xp: 17 }, { id: 'bbq_ngo', name: 'Ngô nướng mỡ hành', icon: '🌽', price: 12, xp: 5 }, { id: 'bbq_khoai', name: 'Khoai lang nướng', icon: '🍠', price: 10, xp: 4 }] },

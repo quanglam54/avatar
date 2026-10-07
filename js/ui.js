@@ -1377,7 +1377,7 @@ const UI = (() => {
 
   /* ---------- Quán ăn uống ---------- */
   function eateryPanel(id) {
-    const e = [...DATA.EATERIES, ...(DATA.STREET_FOOD || []), ...(DATA.CLUB_MENU || []), ...(DATA.CAMP_MENU || []), ...(DATA.CGV_MENU || [])].find((x) => x.id === id);
+    const e = [...DATA.EATERIES, ...(DATA.STREET_FOOD || []), ...(DATA.CLUB_MENU || []), ...(DATA.CAMP_MENU || []), ...(DATA.CGV_MENU || []), ...(DATA.TEA_MENU || [])].find((x) => x.id === id);
     if (!e) return;
     const S = AV.S;
     const p = panel(`${e.logo} ${e.name}`, '', { wide: true });

@@ -560,15 +560,21 @@ const MAPS = (() => {
     });
     addPot(m, 1450, 1360, 'mai'); addPot(m, 1750, 1360, 'dao');
     /* QuangLamBank + cây ATM cạnh trạm xe buýt (vẽ sẵn 1 lần → nhẹ cho điện thoại) */
-    const BX = 2200, BY = 1428, BK = 0.56; // thấp vừa để không che luống đất trong tường
+    const BX = 2345, BY = 1428, BK = 0.56; // thấp vừa để không che luống đất trong tường
     sobj(m, BX, BY, (c) => { c.save(); c.translate(BX, BY); c.scale(BK, BK); BANK.building(c, 0, 0); c.restore(); }, { l: -150, t: -235, w: 300, h: 255 });
     m.objects[m.objects.length - 1].b3d = { w: 256, h: 190, roof: '#00502b', wall: '#efe6d2', depth: 45 };
     col(m, BX - 128, BY - 42, 90, 40); col(m, BX + 38, BY - 42, 90, 40); col(m, BX - 38, BY - 42, 76, 14);
     inter(m, { x: BX - 40, y: BY - 84, w: 80, h: 86, ax: BX, ay: BY + 30, name: 'QuangLamBank (mở tài khoản, gửi / rút xu)', use: () => BANK.panel('counter'), arrow: { x: BX, y: BY - 70, text: 'Ngân hàng' } });
-    pic(m, 'img/mall/atm.png', 2455, 1440, 86, { h: 124 });
+    pic(m, 'img/mall/atm.png', 2555, 1440, 86, { h: 124 });
     m.objects[m.objects.length - 1].b3d = { w: 70, h: 112, roof: '#2b8a3e', wall: '#e9ecef' };
-    col(m, 2418, 1412, 74, 28);
-    inter(m, { x: 2410, y: 1318, w: 90, h: 124, ax: 2455, ay: 1470, name: 'Cây ATM QuangLamBank', use: () => BANK.panel('atm'), arrow: { x: 2455, y: 1300, text: 'ATM' } });
+    col(m, 2518, 1412, 74, 28);
+    inter(m, { x: 2510, y: 1318, w: 90, h: 124, ax: 2555, ay: 1470, name: 'Cây ATM QuangLamBank', use: () => BANK.panel('atm'), arrow: { x: 2555, y: 1300, text: 'ATM' } });
+    /* ----- 🧋 Quán trà đá vỉa hè cạnh bến xe buýt ----- */
+    const TX = 2100, TY = 1428;
+    sobj(m, TX, TY, (c) => teaStall(c, TX, TY), { l: -95, t: -150, w: 190, h: 165 });
+    col(m, TX - 2, TY - 30, 80, 28);
+    inter(m, { x: TX, y: TY - 120, w: 80, h: 120, ax: TX + 40, ay: TY + 30, name: 'Quán trà đá (trà đá, hướng dương, lạc rang)', use: () => UI.eateryPanel('trada'), arrow: { x: TX + 40, y: TY - 140, text: 'Trà đá' } });
+    inter(m, { x: TX - 90, y: TY - 40, w: 80, h: 50, ax: TX - 50, ay: TY + 26, name: 'Ghế nhựa (ngồi uống trà đá)', use: () => AV.sitSeat(TX - 75, TX - 33, TY + 8, '🧋 Ngồi uống trà đá vỉa hè, ngắm phố', () => {}) });
     addBusStop(m, GATE + 140, 1432, 1);
     /* ----- 🚗 VinFast Showroom + 🔌 trạm sạc V-GREEN cạnh ATM ----- */
     const VX = 2790, VY = 1430;
@@ -1269,6 +1275,37 @@ const MAPS = (() => {
     m.spawn = { x: 1000, y: 1150 };
     m.bounds = { l: 56, t: 720, r: m.w - 56, b: 1205 };
     return m;
+  }
+
+  /* ---------- 🧋 Quán trà đá: xe đẩy + bình trà + bàn nhựa xanh + ghế đỏ ---------- */
+  function teaStall(c, x, y) {
+    c.fillStyle = 'rgba(0,0,0,.16)'; c.beginPath(); c.ellipse(x - 5, y + 4, 95, 12, 0, 0, Math.PI * 2); c.fill();
+    // xe đẩy gỗ
+    const cx = x + 40;
+    c.fillStyle = '#8a5a32'; c.fillRect(cx - 40, y - 52, 80, 44);
+    c.fillStyle = '#a0632f'; c.fillRect(cx - 44, y - 56, 88, 8);
+    c.strokeStyle = '#6b4423'; c.lineWidth = 2; for (let k = 0; k < 4; k++) { c.beginPath(); c.moveTo(cx - 40, y - 42 + k * 9); c.lineTo(cx + 40, y - 42 + k * 9); c.stroke(); }
+    c.fillStyle = '#212529'; [cx - 28, cx + 28].forEach((wx) => { c.beginPath(); c.arc(wx, y - 6, 8, 0, Math.PI * 2); c.fill(); c.fillStyle = '#868e96'; c.beginPath(); c.arc(wx, y - 6, 3, 0, Math.PI * 2); c.fill(); c.fillStyle = '#212529'; });
+    // ô che + biển
+    c.fillStyle = '#868e96'; c.fillRect(cx - 2, y - 128, 4, 74);
+    c.fillStyle = '#c92a2a'; c.beginPath(); c.moveTo(cx - 62, y - 112); c.quadraticCurveTo(cx, y - 150, cx + 62, y - 112); c.closePath(); c.fill();
+    c.fillStyle = '#fff'; for (let k = -2; k <= 2; k++) { c.beginPath(); c.moveTo(cx, y - 140); c.lineTo(cx + k * 24 - 6, y - 112); c.lineTo(cx + k * 24 + 6, y - 112); c.closePath(); if (k % 2 === 0) c.fill(); }
+    c.fillStyle = '#ffd43b'; c.beginPath(); c.roundRect(cx - 34, y - 98, 68, 20, 5); c.fill();
+    c.strokeStyle = '#c92a2a'; c.lineWidth = 2; c.stroke();
+    c.fillStyle = '#c92a2a'; c.font = '900 13px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('TRÀ ĐÁ', cx, y - 88);
+    // bình trà đá cam + cốc
+    c.fillStyle = '#fd7e14'; c.beginPath(); c.roundRect(cx - 30, y - 82, 26, 28, 5); c.fill();
+    c.fillStyle = '#fff'; c.fillRect(cx - 30, y - 74, 26, 4);
+    c.fillStyle = '#e67700'; c.fillRect(cx - 21, y - 86, 8, 5);
+    for (let k = 0; k < 3; k++) { c.fillStyle = 'rgba(255,236,153,.85)'; c.fillRect(cx + 4 + k * 11, y - 68, 8, 12); c.fillStyle = 'rgba(255,255,255,.7)'; c.fillRect(cx + 5 + k * 11, y - 66, 2, 8); }
+    c.fillStyle = '#ffe066'; c.beginPath(); c.arc(cx + 30, y - 60, 5, 0, Math.PI * 2); c.fill();
+    // bàn nhựa xanh thấp + ghế đỏ
+    const tx = x - 50;
+    c.fillStyle = '#1c7ed6'; c.beginPath(); c.roundRect(tx - 24, y - 26, 48, 8, 3); c.fill();
+    c.fillStyle = '#1864ab'; c.fillRect(tx - 20, y - 18, 5, 16); c.fillRect(tx + 15, y - 18, 5, 16);
+    c.fillStyle = 'rgba(255,236,153,.9)'; c.fillRect(tx - 10, y - 36, 7, 10); c.fillRect(tx + 4, y - 36, 7, 10);
+    c.fillStyle = '#e8590c'; c.beginPath(); c.arc(tx, y - 30, 3, 0, Math.PI * 2); c.fill();
+    [tx - 32, tx + 32].forEach((sx) => { c.fillStyle = '#e03131'; c.beginPath(); c.roundRect(sx - 9, y - 16, 18, 6, 2); c.fill(); c.fillStyle = '#c92a2a'; c.fillRect(sx - 8, y - 10, 3, 10); c.fillRect(sx + 5, y - 10, 3, 10); });
   }
 
   /* ---------- 🚗 Showroom VinFast + trạm sạc (vẽ bằng code) ---------- */
