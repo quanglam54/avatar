@@ -139,7 +139,16 @@ const PLANE = (() => {
     c.fillStyle = '#1c7ed6'; c.beginPath(); c.moveTo(0, 95); c.lineTo(-55, 128); c.lineTo(-55, 138); c.lineTo(0, 120); c.lineTo(55, 138); c.lineTo(55, 128); c.closePath(); c.fill(); // cánh đuôi
     const g = c.createLinearGradient(-22, 0, 22, 0); g.addColorStop(0, '#dee2e6'); g.addColorStop(0.5, '#ffffff'); g.addColorStop(1, '#dee2e6');
     c.fillStyle = g; c.beginPath(); c.ellipse(0, 20, 22, 125, 0, 0, Math.PI * 2); c.fill();             // thân
-    c.fillStyle = '#1c7ed6'; c.fillRect(-3, -60, 6, 170);
+    // chữ QUANG LÂM chạy dọc thân máy bay
+    c.save(); c.rotate(-Math.PI / 2);
+    c.font = '900 19px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineWidth = 3; c.strokeStyle = '#fff'; c.strokeText('QUANG LÂM', -18, 0);
+    c.fillStyle = '#1c7ed6'; c.fillText('QUANG LÂM', -18, 0);
+    c.fillStyle = '#e03131'; c.fillRect(-78, 11, 120, 3);
+    c.restore();
+    // chữ trên hai cánh
+    c.font = '900 12px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#1c7ed6';
+    c.fillText('QL', -105, 32); c.fillText('QL', 105, 32);
     c.fillStyle = '#1b2f48'; c.beginPath(); c.ellipse(0, -88, 12, 14, 0, Math.PI, 0); c.fill();          // buồng lái
     // đèn nháy đầu cánh
     if (Math.floor(t * 2) % 2) { c.fillStyle = '#ff6b6b'; c.beginPath(); c.arc(-150, 40, 6, 0, Math.PI * 2); c.fill(); c.fillStyle = '#69db7c'; c.beginPath(); c.arc(150, 40, 6, 0, Math.PI * 2); c.fill(); }
