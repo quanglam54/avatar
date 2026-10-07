@@ -360,6 +360,19 @@ const SOCIAL = (() => {
       try { await send(f.uid, 'chat', body); const box = chatPanel && chatPanel.body.querySelector('.dm-log'); if (box) box.scrollTop = box.scrollHeight; await loadChat(); if (box) box.scrollTop = box.scrollHeight; } catch (er) { UI.toast('⚠️ ' + errText(er), 4500); }
     };
     chatPanel.body.querySelector('[data-g]').onclick = () => giftPanel(f);
+    // 📞 cả 2 đều có điện thoại + SIM → nút gọi điện ngay trong khung chat
+    if (typeof PHONE !== 'undefined' && typeof CALL !== 'undefined' && PHONE.hasSim()) {
+      CLOUD.client.from('phone_sims').select('num').eq('user_id', f.uid).maybeSingle().then(({ data }) => {
+        if (!data || !data.num || !me.el.isConnected) return;
+        const row = me.body.querySelector('[data-g]').parentElement;
+        row.insertAdjacentHTML('afterbegin', `<button class="btn small" data-call>📞 Gọi ${esc(PHONE.pretty(data.num))}</button>`);
+        row.querySelector('[data-call]').onclick = () => {
+          if (CALL.busy()) return UI.toast('📞 Bạn đang trong cuộc gọi khác');
+          PHONE.open();
+          if (document.querySelector('.ph-wrap')) setTimeout(() => PHONE.dial(data.num), 80);
+        };
+      }, () => {});
+    }
     setTimeout(() => form.t.focus(), 60);
     loadChat();
   }
