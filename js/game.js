@@ -182,6 +182,7 @@
     // khu có nhạc riêng (H-Club): vào mới nghe, ra thì trả lại nhạc của bạn
     if (typeof MUSIC !== 'undefined' && MUSIC.zone) MUSIC.zone(map.music || null);
     if (typeof CONCERT !== 'undefined') CONCERT.onMap(id);
+    if (typeof BOX !== 'undefined') BOX.onMap(id);
     applyZoom();
   }
 
@@ -2232,6 +2233,7 @@
   AV.enterCasino = () => AV.teleport('casino', false, 1000, 880, '🎰 Vào Nhà Casino…');
   AV.enterArena = () => AV.teleport('arena', false, 1000, 990, '⚔️ Vào Đấu Trường MMA…');
   /** Rạp CGV: vé 60 xu dùng cả ngày */
+  AV.enterBoxing = () => AV.teleport('boxing', false, 1000, 1000, '🥊 Vào Võ Đài…');
   AV.enterCgv = () => {
     const today = new Date().toDateString();
     const go = () => AV.teleport('cgv', false, 1000, 1150, '🎬 Vào rạp CGV…');

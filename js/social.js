@@ -7,7 +7,12 @@ const SOCIAL = (() => {
   const fmt = (n) => Number(n).toLocaleString('vi-VN');
   let requests = [];          // lời mời kết bạn chưa trả lời
   const unread = {};          // username → số tin chưa đọc
-  let chatWith = null, chatPanel = null, mainPanel = null, pulling = false;
+  let chatWith = null, chatPanel = null, mainPanel = null, pulling = false, replyTo = null;
+  const EMOS = ['😀', '😂', '🤣', '😍', '🥰', '😘', '😎', '🤩', '😜', '😢', '😭', '😡', '🤬', '😱', '🥺', '😴', '🤔', '🙄', '😏', '🤗', '😅', '😳', '🤭', '😤',
+    '👍', '👎', '👏', '🙏', '💪', '👋', '🤝', '✌️', '🔥', '❤️', '💔', '💯', '✨', '🎉', '🎁', '🌹', '💩', '👻', '🤡', '💀', '🐶', '🐱', '🐷', '🌾', '🍉', '🍺', '🥊', '🎵'];
+  /** tin chỉ gồm 1–3 emoji → hiện to */
+  const onlyEmoji = (t) => /^(\p{Extended_Pictographic}|\p{Emoji_Component}|\u200d|\ufe0f|\s){1,12}$/u.test(t) && [...t.replace(/\s/g, '')].filter((c) => /\p{Extended_Pictographic}/u.test(c)).length <= 3;
+  const snip = (t, n = 60) => (t.length > n ? t.slice(0, n - 1) + '…' : t);
 
   const S = () => AV.S;
   const friends = () => (S().friends = S().friends || []);
@@ -185,13 +190,28 @@ const SOCIAL = (() => {
     const rows = (data || []).reverse();
     const box = chatPanel.body.querySelector('.dm-log');
     if (!box) return;
+    const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40 || box.querySelector('p.muted');
     box.innerHTML = rows.length ? rows.map((m) => {
       const mine = m.from_user === me, time = new Date(m.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
       const g = m.body || {};
-      const text = m.kind === 'gift' ? `🎁 Tặng ${g.coins ? fmt(g.coins) + ' xu' : g.n + ' ' + (DATA.ITEMS[g.item] ? DATA.ITEMS[g.item].icon + ' ' + DATA.ITEMS[g.item].name.toLowerCase() : '')}${g.note ? ' — ' + esc(g.note) : ''}` : esc(g.text);
-      return `<div class="dm-msg ${mine ? 'me' : ''}"><span>${text}</span><small>${time}</small></div>`;
+      const raw = m.kind === 'gift' ? `🎁 Tặng ${g.coins ? fmt(g.coins) + ' xu' : g.n + ' ' + (DATA.ITEMS[g.item] ? DATA.ITEMS[g.item].icon + ' ' + DATA.ITEMS[g.item].name.toLowerCase() : '')}${g.note ? ' — ' + g.note : ''}` : String(g.text || '');
+      const big = m.kind === 'chat' && !g.re && onlyEmoji(raw);
+      const re = g.re && typeof g.re === 'object' ? `<div class="dm-quote" data-goto="${+g.re.id || 0}"><b>↩ ${esc(String(g.re.w || '') === S().name ? 'Bạn' : String(g.re.w || ''))}</b>${esc(snip(String(g.re.t || ''), 80))}</div>` : '';
+      return `<div class="dm-msg ${mine ? 'me' : ''} ${big ? 'big' : ''}" data-id="${m.id}" data-who="${esc(mine ? S().name : chatWith.name)}" data-t="${esc(snip(raw, 80))}">${re}<span>${esc(raw)}</span><small>${time}</small><button class="dm-re" title="Trả lời" type="button">↩</button></div>`;
     }).join('') : '<p class="muted">Chưa có tin nhắn nào. Chào nhau một câu đi 👋</p>';
-    box.scrollTop = box.scrollHeight;
+    if (atBottom) box.scrollTop = box.scrollHeight;
+    box.querySelectorAll('.dm-re').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const el = b.closest('.dm-msg'); setReply({ id: +el.dataset.id, t: el.dataset.t, w: el.dataset.who }); });
+    box.querySelectorAll('.dm-quote').forEach((q) => q.onclick = () => {
+      const el = box.querySelector(`.dm-msg[data-id="${q.dataset.goto}"]`);
+      if (!el) return UI.toast('Tin nhắn gốc đã cũ, không còn trong khung chat');
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    });
+    // vuốt / nhấn giữ tin nhắn trên điện thoại = trả lời
+    box.querySelectorAll('.dm-msg').forEach((el) => {
+      let tm = 0;
+      el.addEventListener('touchstart', () => { tm = setTimeout(() => setReply({ id: +el.dataset.id, t: el.dataset.t, w: el.dataset.who }), 450); }, { passive: true });
+      ['touchend', 'touchmove', 'touchcancel'].forEach((ev) => el.addEventListener(ev, () => clearTimeout(tm), { passive: true }));
+    });
     const unreadIds = rows.filter((m) => m.from_user === them && !m.read && m.kind === 'chat').map((m) => m.id);
     if (unreadIds.length) { await db().update({ read: true }).in('id', unreadIds); delete unread[chatWith.username]; updateBadge(); }
   }
@@ -203,20 +223,47 @@ const SOCIAL = (() => {
     const on = NET.onlineUser(f.username);
     chatPanel = UI.panel(`💬 ${esc(f.name)}`, `<small class="muted">@${esc(f.username)} · ${on ? '🟢 đang ở ' + ZONE(on.map) : '⚪ offline — sẽ đọc khi online'}</small>
       <div class="dm-log"><p class="muted">⏳ Đang tải…</p></div>
-      <form class="dm-form" data-dm><input class="field" name="t" maxlength="200" placeholder="Nhắn cho ${esc(f.name)}…" autocomplete="off"><button class="btn">Gửi</button></form>
+      <div class="dm-reply" hidden><span></span><button type="button" class="dm-reply-x" title="Huỷ trả lời">✕</button></div>
+      <div class="dm-emo" hidden>${EMOS.map((e) => `<button type="button" data-e="${e}">${e}</button>`).join('')}</div>
+      <form class="dm-form" data-dm><button type="button" class="dm-emo-btn" title="Emote">😊</button><input class="field" name="t" maxlength="200" placeholder="Nhắn cho ${esc(f.name)}…" autocomplete="off"><button class="btn">Gửi</button></form>
       <div class="row-end"><button class="btn small ghost" data-g>🎁 Tặng quà</button></div>`, { onClose: () => { if (chatPanel === me) { chatWith = null; chatPanel = null; } } });
     const me = chatPanel;
+    replyTo = null;
     const form = chatPanel.body.querySelector('[data-dm]');
+    const emo = chatPanel.body.querySelector('.dm-emo');
+    chatPanel.body.querySelector('.dm-emo-btn').onclick = () => { emo.hidden = !emo.hidden; };
+    emo.querySelectorAll('[data-e]').forEach((b) => b.onclick = () => {
+      const i = form.t, a = i.selectionStart ?? i.value.length, z = i.selectionEnd ?? i.value.length;
+      i.value = (i.value.slice(0, a) + b.dataset.e + i.value.slice(z)).slice(0, 200);
+      const p = a + b.dataset.e.length; i.focus(); i.setSelectionRange(p, p);
+    });
+    chatPanel.body.querySelector('.dm-reply-x').onclick = () => setReply(null);
     form.onsubmit = async (e) => {
       e.preventDefault();
       const t = form.t.value.trim();
       if (!t) return;
       form.t.value = '';
-      try { await send(f.uid, 'chat', { text: t.slice(0, 200) }); loadChat(); } catch (er) { UI.toast('⚠️ ' + errText(er), 4500); }
+      emo.hidden = true;
+      const body = { text: t.slice(0, 200) };
+      if (replyTo) body.re = { id: replyTo.id, t: snip(replyTo.t, 80), w: String(replyTo.w || '').slice(0, 16) };
+      setReply(null);
+      try { await send(f.uid, 'chat', body); const box = chatPanel && chatPanel.body.querySelector('.dm-log'); if (box) box.scrollTop = box.scrollHeight; await loadChat(); if (box) box.scrollTop = box.scrollHeight; } catch (er) { UI.toast('⚠️ ' + errText(er), 4500); }
     };
     chatPanel.body.querySelector('[data-g]').onclick = () => giftPanel(f);
     setTimeout(() => form.t.focus(), 60);
     loadChat();
+  }
+
+  /** chọn tin để trả lời (null = huỷ) */
+  function setReply(r) {
+    replyTo = r && r.id ? r : null;
+    if (!chatPanel || !chatPanel.el.isConnected) return;
+    const bar = chatPanel.body.querySelector('.dm-reply');
+    bar.hidden = !replyTo;
+    if (replyTo) {
+      bar.querySelector('span').innerHTML = `↩ Trả lời <b>${esc(replyTo.w)}</b>: ${esc(snip(replyTo.t, 50))}`;
+      chatPanel.body.querySelector('[data-dm]').t.focus();
+    }
   }
 
   /* ---------- Tặng quà ---------- */

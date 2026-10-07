@@ -140,6 +140,10 @@ const NET = (() => {
     send('rps', p);
   }
 
+  function sendBox(p) {
+    send('box', p);
+  }
+
   function sendBite(ks, fine) {
     send('bite', { ks, fine });
   }
@@ -222,6 +226,8 @@ const NET = (() => {
       if (typeof ARENA !== 'undefined') ARENA.onNet(m);
     } else if (m.t === 'rps') {
       if (typeof RPS !== 'undefined') RPS.onNet(m);
+    } else if (m.t === 'box') {
+      if (typeof BOX !== 'undefined') BOX.onNet(m);
     } else if (m.t === 'vc') {
       if (typeof VOICE !== 'undefined') VOICE.onNet(m);
     } else if (m.t === 'bite') {
@@ -263,7 +269,7 @@ const NET = (() => {
 
   function announce() {
     lobbyBeat = 0;
-    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId === 'casino' || mapId === 'arena' || mapId === 'horse' || mapId === 'club' || mapId === 'concert' || mapId === 'cgv' ? 'fun' : mapId === 'classroom' ? 'school' : mapId.split('-')[0], at: mapId.split('-')[0], user: (typeof CLOUD !== 'undefined' && CLOUD.username) || '' });
+    if (lobby && mapId && AV.S.name) lobby.send({ t: 'where', id: pid, map: mapId === 'casino' || mapId === 'arena' || mapId === 'horse' || mapId === 'club' || mapId === 'concert' || mapId === 'cgv' || mapId === 'boxing' ? 'fun' : mapId === 'classroom' ? 'school' : mapId.split('-')[0], at: mapId.split('-')[0], user: (typeof CLOUD !== 'undefined' && CLOUD.username) || '' });
   }
 
   /** Báo ngắn cho mọi người: nông trại của uid vừa thay đổi / vừa bị tưới giúp, hái trộm */
@@ -379,7 +385,7 @@ const NET = (() => {
   }
 
   return {
-    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing, sendFirework, sendBite, sendVoice, sendRps, sendRide, sendArena, sendHorse,
+    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing, sendFirework, sendBite, sendVoice, sendRps, sendBox, sendRide, sendArena, sendHorse,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],

@@ -829,3 +829,38 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* Khung HUD trong suốt không được nuốt cú bấm: chỉ các nút mới bấm được, chỗ trống bấm xuyên xuống bản đồ */
 .hud-left, .hud-left .hud-row, .hud-left .hud-more, .hud-right { pointer-events: none; }
 .hud-left button, .hud-right > * { pointer-events: auto; }
+
+/* 🥊 Võ đài */
+.box-cv { display: block; width: 100%; border-radius: 14px; background: #10131c; }
+.box-moves { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 6px 0; }
+.box-moves .rps-btn { padding: 8px 4px; font-size: 13px; }
+.box-moves .rps-btn small { display: block; font-size: 10px; font-weight: 600; opacity: .75; margin-top: 2px; }
+.box-pools { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+.box-pools span { display: grid; gap: 2px; padding: 8px; border-radius: 12px; background: #fff5f5; border: 2px solid #ffc9c9; font-weight: 800; text-align: center; }
+.box-pools span:last-child { background: #e7f5ff; border-color: #a5d8ff; }
+.box-pools small { opacity: .7; }
+@media (max-width: 520px) { .box-moves { grid-template-columns: repeat(2, 1fr); } }
+
+/* 💬 Tin nhắn: emote + trả lời */
+.dm-msg { position: relative; }
+.dm-msg.big { background: none; border: 0; padding: 0 4px; }
+.dm-msg.big span { font-size: 40px; line-height: 1.1; animation: dmPop .35s ease-out; }
+@keyframes dmPop { from { transform: scale(.4); } 70% { transform: scale(1.15); } to { transform: scale(1); } }
+.dm-re { position: absolute; top: 50%; transform: translateY(-50%); right: -30px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: #e9ecef; color: #495057; font-size: 14px; cursor: pointer; opacity: 0; transition: opacity .15s; }
+.dm-msg.me .dm-re { right: auto; left: -30px; }
+.dm-msg:hover .dm-re { opacity: 1; }
+@media (hover: none) { .dm-re { opacity: .55; } }
+.dm-log { padding-left: 34px; padding-right: 34px; }
+.dm-quote { font-size: 12px; background: rgba(0,0,0,.06); border-left: 3px solid #4dabf7; border-radius: 8px; padding: 4px 8px; color: #495057; cursor: pointer; display: grid; max-width: 100%; overflow: hidden; }
+.dm-msg.me .dm-quote { border-left-color: #40c057; }
+.dm-quote b { font-size: 11px; color: #1c7ed6; }
+.dm-msg.flash { animation: dmFlash 1.2s; }
+@keyframes dmFlash { 0%, 60% { box-shadow: 0 0 0 4px #ffd43b; } 100% { box-shadow: none; } }
+.dm-reply { display: flex; align-items: center; gap: 8px; background: #e7f5ff; border-left: 4px solid #4dabf7; border-radius: 10px; padding: 6px 10px; margin-bottom: 6px; font-size: 13px; }
+.dm-reply[hidden], .dm-emo[hidden] { display: none; }
+.dm-reply span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dm-reply-x { border: 0; background: none; font-size: 16px; cursor: pointer; color: #868e96; }
+.dm-emo { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 2px; max-height: 150px; overflow-y: auto; background: #fff; border: 2px solid #dee2e6; border-radius: 12px; padding: 6px; margin-bottom: 6px; }
+.dm-emo button { border: 0; background: none; font-size: 22px; padding: 4px; border-radius: 8px; cursor: pointer; }
+.dm-emo button:hover { background: #f1f3f5; }
+.dm-emo-btn { border: 2px solid #dee2e6; background: #fff; border-radius: 12px; font-size: 20px; padding: 0 8px; cursor: pointer; }

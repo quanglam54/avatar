@@ -842,6 +842,7 @@ const UI = (() => {
       <div class="row-end">
         <button class="btn ghost" data-wave>👋 Vẫy tay</button>
         ${r.id && r.kind === 'remote' ? '<button class="btn" data-rps>✊ Oẳn tù tì</button>' : ''}
+        ${r.id && r.kind === 'remote' && AV.currentMap() === 'boxing' ? '<button class="btn" data-box>🥊 Thách đấu võ đài</button>' : ''}
         ${r.user && CLOUD.user && r.user !== CLOUD.username ? (SOCIAL.isFriend(r.user) ? '<button class="btn" data-dm>💬 Nhắn tin</button>' : '<button class="btn" data-add>➕ Kết bạn</button>') : ''}
         ${r.user ? '<button class="btn" data-visit>🏡 Thăm nông trại</button>' : ''}
       </div>
@@ -854,6 +855,8 @@ const UI = (() => {
     if (dm) dm.onclick = () => { p.close(); SOCIAL.openChat((AV.S.friends || []).find((f) => f.username === r.user)); };
     const rp = p.body.querySelector('[data-rps]');
     if (rp) rp.onclick = () => { p.close(); RPS.challenge(r); };
+    const bx = p.body.querySelector('[data-box]');
+    if (bx) bx.onclick = () => { p.close(); BOX.challenge(r); };
     const v = p.body.querySelector('[data-visit]');
     if (v) v.onclick = () => { p.close(); AV.visitFarm(r.user); };
   }
