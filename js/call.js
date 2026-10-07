@@ -74,10 +74,15 @@ const CALL = (() => {
     // 1) giọng Google có sẵn (Chrome) 2) giọng Google Dịch 3) giọng tiếng Việt khác của máy
     const g = vi.find((x) => /google/i.test(x.name));
     if (g) return say(g);
-    const au = new Audio('https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=' + encodeURIComponent(text.slice(0, 190)));
+    // Google chặn khi có Referer của trang game → tạm tắt Referer đúng lúc tải file giọng đọc
+    const meta = document.createElement('meta'); meta.name = 'referrer'; meta.content = 'no-referrer'; document.head.appendChild(meta);
+    const restore = () => { if (meta.isConnected) { meta.content = 'strict-origin-when-cross-origin'; setTimeout(() => meta.remove(), 50); } };
+    const au = new Audio();
+    au.addEventListener('loadeddata', restore); au.addEventListener('error', restore); setTimeout(restore, 5000);
+    au.src = 'https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=vi&client=gtx&q=' + encodeURIComponent(text.slice(0, 190));
     c.tts = au; au.onended = after;
     let failed = false;
-    const fail = () => { if (failed || fin) return; failed = true; if (vi[0] && (c.free || cur === c)) say(vi[0]); else setTimeout(finish, 3500); };
+    const fail = () => { if (failed || fin) return; failed = true; if (vi[0] && (c.free || cur === c)) say(vi[0]); else setTimeout(finish, 6000); };
     au.onerror = fail; au.play().catch(fail);
   }
   function tone(kind) {
