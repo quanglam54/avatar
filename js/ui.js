@@ -4,7 +4,15 @@ const UI = (() => {
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const stack = [];
 
+  const recentToasts = new Map();
   function toast(msg, ms = 2600) {
+    // không hiện lại thông báo trùng trong 4 giây, giữa màn hình tối đa 2 thông báo
+    const now = Date.now(), key = String(msg);
+    if (recentToasts.get(key) > now - 4000) return;
+    recentToasts.set(key, now);
+    if (recentToasts.size > 40) recentToasts.clear();
+    const box = $('#toasts');
+    while (box.children.length >= 2) box.firstChild.remove();
     const t = document.createElement('div');
     t.className = 'toast';
     t.textContent = msg;
@@ -80,6 +88,8 @@ const UI = (() => {
     $('#hudLv').textContent = S.level;
     $('#hudXp').style.width = Math.min(100, (S.xp / DATA.xpNeed(S.level)) * 100) + '%';
     $('#hudXpText').textContent = `${S.xp}/${DATA.xpNeed(S.level)} XP`;
+    const en = Math.floor(AV.energy ? AV.energy() : 100), eb = $('#hudEn');
+    if (eb) { eb.style.width = en + '%'; eb.parentElement.classList.toggle('low', en < 20); $('#hudEnText').textContent = `⚡ ${en}`; }
     $('#hudCoins').textContent = S.coins >= 1e9 ? (Math.floor(S.coins / 1e7) / 100).toLocaleString('vi-VN') + ' tỉ' : S.coins.toLocaleString('vi-VN');
     drawAvatar($('#hudAvatar'), S.look, { scale: 1, headOnly: true, bg: false });
   }
@@ -193,15 +203,18 @@ const UI = (() => {
       return left > 0 ? `${label}: đang sản xuất, còn <b>${AV.fmtDur(left)}</b>` : `${label}: <b>đã sẵn sàng thu hoạch!</b>`;
     };
     const p = panel('🎒 Túi đồ', `
-      <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Cấp ${S.level}</div>
+      <div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Cấp ${S.level} · ⚡ Năng lượng ${Math.floor(AV.energy())}/100</div>
+      <p class="muted small-note">🍽️ Bấm món có nhãn ⚡ để ăn hồi năng lượng. Ăn ở quán, ngủ trên giường cũng hồi sức.</p>
       ${entries.length ? `<div class="inv-grid">${entries.map(([id, n]) => {
         const it = DATA.ITEMS[id];
-        return `<div class="inv-item"><span class="ic">${it.icon}${it.sub ? `<small>${it.sub}</small>` : ''}</span><b>${n}</b><span>${it.name}</span></div>`;
+        const en = AV.edibleEnergy(id);
+        return `<div class="inv-item ${en ? 'edible' : ''}" ${en ? `data-eat="${id}" title="Bấm để ăn (+${en} ⚡)"` : ''}><span class="ic">${it.icon}${it.sub ? `<small>${it.sub}</small>` : ''}</span><b>${n}</b><span>${it.name}</span>${en ? `<em>🍽️ +${en}⚡</em>` : ''}</div>`;
       }).join('')}</div>` : '<p class="muted">Túi trống trơn…</p>'}
       <div class="status">
         <div>🐔 ${status(S.coop, DATA.COOP, 'Chuồng gà')}</div>
         ${Object.entries(DATA.PENS).map(([k, P]) => `<div>${P.icon} ${status((S.pen || {})[k] || { fedAt: 0 }, P, P.name)}</div>`).join('')}
       </div>`);
+    p.body.querySelectorAll('[data-eat]').forEach((b) => b.onclick = () => { if (AV.eatItem(b.dataset.eat)) { p.close(); inventory(); } });
     return p;
   }
 
@@ -294,10 +307,7 @@ const UI = (() => {
         };
       });
       const sa = p.body.querySelector('[data-sellall]');
-      if (sa) sa.onclick = () => confirm('Bán toàn bộ nông sản trong túi?', 'Bán tất cả', () => {
-        Object.entries(S.inv).forEach(([id, n]) => { if (n > 0 && DATA.ITEMS[id] && DATA.ITEMS[id].sell > 0) AV.sell(id, n); });
-        render();
-      });
+      if (sa) sa.onclick = () => confirm('Bán toàn bộ nông sản trong túi?', 'Bán tất cả', () => { AV.sellAll(); render(); });
     };
     render();
   }
@@ -374,10 +384,12 @@ const UI = (() => {
   function seedPicker(tileIndex) {
     const S = AV.S;
     const flowerBed = AV.isFlowerTile(tileIndex);
-    const seeds = Object.keys(DATA.CROPS).filter((id) => (S.inv['seed_' + id] || 0) > 0 && AV.cropAllowed(tileIndex, id));
+    const allSeeds = Object.keys(DATA.CROPS).filter((id) => (S.inv['seed_' + id] || 0) > 0 && AV.cropAllowed(tileIndex, id));
+    const seeds = allSeeds.filter((id) => SEASON.inSeason(id)), offSeason = allSeeds.filter((id) => !SEASON.inSeason(id));
+    const sn = SEASON.now();
     const empty = AV.emptyInBed(tileIndex);
     const p = panel(flowerBed ? '🌼 Trồng hoa' : '🌱 Gieo hạt', seeds.length
-      ? `<p class="muted">Luống này còn <b>${empty}</b> ô trống. Cây lớn được nửa chừng sẽ khát nước 😟 — nhớ quay lại tưới nhé!</p>
+      ? `<p class="muted">${sn.icon} Đang là <b>mùa ${sn.name}</b> (ngày ${sn.day}/7). Luống này còn <b>${empty}</b> ô trống.${offSeason.length ? ` Hạt ngoài mùa (chưa gieo được): ${offSeason.map((id) => DATA.CROPS[id].icon).join(' ')}` : ''}</p>
         <div class="shop-list">${seeds.map((id) => {
         const c = DATA.CROPS[id];
         const have = S.inv['seed_' + id];
@@ -386,6 +398,7 @@ const UI = (() => {
           <button class="btn small ghost" data-one="${id}">Gieo 1 ô</button>
           <button class="btn small" data-all="${id}">Cả luống (${Math.min(have, empty)})</button></div>`;
       }).join('')}</div>`
+      : offSeason.length ? `<p class="muted">${sn.icon} Đang là <b>mùa ${sn.name}</b> — hạt bạn có (${offSeason.map((id) => DATA.CROPS[id].icon + ' ' + DATA.CROPS[id].name).join(', ')}) chưa đúng mùa. Mua hạt đúng mùa ở cửa hàng nhé.</p><div class="row-end"><button class="btn" data-shop>🌱 Mở cửa hàng hạt giống</button></div>`
       : `<p class="muted">Bạn chưa có ${flowerBed ? 'hạt giống hoa (cúc, tulip, hướng dương, dâm bụt, hồng)' : 'hạt giống rau củ'}! Ra <b>🌱 Cửa hàng hạt giống</b> ngay cổng nông trại để mua nhé.</p><div class="row-end"><button class="btn" data-shop>🌱 Mở cửa hàng hạt giống</button></div>`);
     const sb = p.body.querySelector('[data-shop]');
     if (sb) sb.onclick = () => { p.close(); seedShop(); };
@@ -584,6 +597,36 @@ const UI = (() => {
     };
     render();
   }
+  /** ❤️ Bảng NPC: tim thân thiết + tặng quà */
+  function npcPanel(e) {
+    const S = AV.S, L = AV.npcLove(e.name), h = AV.npcHearts(e.name), today = new Date().toDateString();
+    const P = DATA.NPC_LIKES[e.name] || DATA.NPC_LIKES.default;
+    const gifts = Object.entries(S.inv).filter(([id, n]) => n > 0 && DATA.ITEMS[id] && !id.startsWith('seed_') && !['ticket', 'fertilizer', 'pesticide', 'pet_med', 'pet_food'].includes(id));
+    const gaveToday = L.gift && L.gift === AV.todayKeyPublic();
+    const p = panel(`💬 ${esc(e.name)}`, `<div class="npc-hearts">${Array.from({ length: 10 }, (_, i) => `<span class="${i < h ? 'on' : ''}">${i < h ? '❤️' : '🤍'}</span>`).join('')}</div>
+      <p class="muted">Thân thiết ${h}/10 tim · nói chuyện mỗi ngày +10, tặng quà 1 lần/ngày. Đủ 2 / 5 / 10 tim nhận quà lớn!</p>
+      <p class="muted small-note">💡 ${esc(e.name)} rất thích: ${h >= 2 ? P.love.map((id) => (DATA.ITEMS[id] || { icon: '❔' }).icon).join(' ') : '??? (thân hơn sẽ biết)'}</p>
+      ${gaveToday ? '<p class="game-msg">🎁 Hôm nay bạn đã tặng quà rồi</p>' : gifts.length ? `<div class="ss-grid gift-grid">${gifts.map(([id, n]) => `<button class="ss-cell" data-g="${id}" title="${esc(DATA.ITEMS[id].name)}"><span>${DATA.ITEMS[id].icon}</span><i>${n}</i></button>`).join('')}</div>` : '<p class="muted">Túi chưa có gì để tặng</p>'}`);
+    p.body.querySelectorAll('[data-g]').forEach((b) => b.onclick = () => { p.close(); AV.npcGift(e, b.dataset.g); });
+  }
+  /** 📦 Thùng giao hàng */
+  function shipBin() {
+    const S = AV.S;
+    const p = panel('📦 Thùng giao hàng', '');
+    const render = () => {
+      const sell = Object.entries(S.inv).filter(([id, n]) => n > 0 && DATA.ITEMS[id] && DATA.ITEMS[id].sell > 0 && !id.startsWith('seed_'));
+      const sh = S.ship && Object.keys(S.ship.items || {}).length ? S.ship : null;
+      p.body.innerHTML = `<p class="muted">Bỏ đồ vào thùng, <b>sáng hôm sau</b> thương lái thu mua với giá <b>cao hơn 10%</b> so với bán ngay.</p>
+        ${sh ? `<div class="bk-bal"><small>Trong thùng (nhận ngày mai)</small><b>${AV.shipValue().toLocaleString('vi-VN')} xu</b><small>${Object.entries(sh.items).map(([id, n]) => `${n} ${DATA.ITEMS[id].icon}`).join(' ')}</small></div>` : ''}
+        ${sell.length ? `<div class="shop-list">${sell.map(([id, n]) => `<div class="shop-row"><span class="ic">${DATA.ITEMS[id].icon}</span><div class="info"><b>${esc(DATA.ITEMS[id].name)}</b><small>Có ${n} · ~${Math.round(DATA.ITEMS[id].sell * 1.1)} xu/cái</small></div><button class="btn small" data-put="${id}">Bỏ vào</button></div>`).join('')}</div>
+        <div class="row-end"><button class="btn" data-all>📦 Bỏ tất cả</button></div>` : '<p class="muted">Túi không có gì bán được</p>'}`;
+      p.body.querySelectorAll('[data-put]').forEach((b) => b.onclick = () => { AV.shipPut([b.dataset.put]); render(); });
+      const all = p.body.querySelector('[data-all]');
+      if (all) all.onclick = () => { AV.shipPut(sell.map(([id]) => id)); render(); };
+    };
+    render();
+  }
+
   /** 🏗️ Nâng cấp nhà */
   function houseUpgrade() {
     const S = AV.S, cur = AV.houseLv();
@@ -1704,9 +1747,15 @@ const UI = (() => {
     box.appendChild(row);
     while (box.children.length > 30) box.firstChild.remove();
     box.scrollTop = box.scrollHeight;
-    box.classList.add('active');
-    clearTimeout(chatLog.timer);
-    chatLog.timer = setTimeout(() => box.classList.remove('active'), 8000);
+    // không tự bật khung chat (tin nhắn đã hiện bong bóng trên đầu người nói) — bấm vào ô chat mới mở lịch sử
+    if (!chatLog.hooked) {
+      chatLog.hooked = true;
+      const inp = document.getElementById('chatInput');
+      if (inp) {
+        inp.addEventListener('focus', () => { clearTimeout(chatLog.timer); box.classList.add('active'); box.scrollTop = box.scrollHeight; });
+        inp.addEventListener('blur', () => { chatLog.timer = setTimeout(() => box.classList.remove('active'), 3000); });
+      }
+    }
   }
 
   function playersPanel() {
@@ -1745,6 +1794,7 @@ const UI = (() => {
   }
 
   function init() {
+    setTimeout(() => chatLog.hooked || (() => { const box = $('#chatLog'); const n = box.children.length; chatLog('', '', false, true); if (box.children.length > n) box.lastChild.remove(); })(), 0);
     addEyes(document);
     new MutationObserver(() => addEyes(document)).observe(document.body, { childList: true, subtree: true });
     $('#netStatus').onclick = playersPanel;
@@ -1801,5 +1851,5 @@ const UI = (() => {
     q('.mv-def').onclick = () => { CONCERT.playDefault(); p.close(); toast('🎞️ Đã về phim mặc định'); };
   }
 
-  return { race3d, raceStart, race3dStats, houseUpgrade, elevator, stairsPick, flightDesk, carShop, chargeStation, moviePicker, toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
+  return { npcPanel, shipBin, race3d, raceStart, race3dStats, houseUpgrade, elevator, stairsPick, flightDesk, carShop, chargeStation, moviePicker, toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
 })();

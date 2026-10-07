@@ -914,3 +914,37 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .edit-bar { position: fixed; left: 50%; top: 70px; transform: translateX(-50%); z-index: 7; display: none; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; background: rgba(27,47,72,.92); color: #fff; padding: 8px 12px; border-radius: 14px; border: 3px solid #fff; max-width: calc(100% - 24px); font-weight: 800; font-size: 13px; }
 .edit-bar.show { display: flex; }
 .edit-bar button { border: 0; border-radius: 10px; padding: 6px 10px; font: inherit; font-weight: 900; cursor: pointer; background: #fff; color: #1b2f48; }
+
+/* 🍂 Mùa · 🎣 câu cá · ⛏️ hầm mỏ · ❤️ NPC */
+.season-chip { position: fixed; top: 58px; left: 50%; transform: translateX(-50%); z-index: 5; background: rgba(255,255,255,.88); border: 2px solid #1b2f48; border-radius: 999px; padding: 2px 12px; font-weight: 800; font-size: 12px; color: #1b2f48; cursor: pointer; white-space: nowrap; }
+@media (max-width: 600px) { .season-chip { top: 96px; font-size: 11px; } }
+.fishgame { position: fixed; inset: 0; z-index: 45; display: none; align-items: center; justify-content: center; background: rgba(10,20,40,.35); touch-action: none; user-select: none; -webkit-user-select: none; }
+.fg-box { background: #fff; border: 4px solid #1b2f48; border-radius: 20px; padding: 12px; display: grid; justify-items: center; gap: 6px; box-shadow: 0 6px 0 #1b2f48; }
+.fg-title { font-weight: 900; color: #1b2f48; }
+.fg-tip { font-size: 12px; color: #495057; text-align: center; max-width: 200px; }
+.mine-view { position: fixed; inset: 0; z-index: 40; display: none; background: #120c08; touch-action: none; }
+.mine-view canvas { display: block; }
+.mine-hud { position: absolute; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; background: rgba(27,47,72,.9); color: #fff; padding: 6px 14px; border-radius: 14px; border: 2px solid #fff; font-weight: 800; white-space: nowrap; max-width: calc(100% - 20px); overflow: hidden; }
+.mh-hp { position: relative; width: 120px; height: 16px; background: #343a40; border-radius: 8px; overflow: hidden; }
+.mh-hp i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #ff8787, #e03131); }
+.mh-hp span { position: relative; font-size: 11px; padding-left: 6px; }
+.mine-btns { position: absolute; bottom: max(14px, env(safe-area-inset-bottom)); right: 14px; display: flex; gap: 8px; }
+.mine-btns button { border: 3px solid #fff; border-radius: 14px; padding: 8px 14px; font: inherit; font-weight: 900; color: #1b2f48; background: linear-gradient(#fff, #d7eeff); box-shadow: 0 3px 0 #1b2f48; cursor: pointer; }
+.mine-msg { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.7); color: #ffe066; padding: 6px 14px; border-radius: 12px; font-weight: 800; transition: opacity .4s; text-align: center; max-width: 90%; }
+.tool-lv { color: #fff; font-size: 11px; padding: 1px 8px; border-radius: 8px; margin-left: 4px; }
+.npc-hearts { display: flex; gap: 2px; justify-content: center; font-size: 20px; margin: 4px 0; }
+
+/* ⚡ Năng lượng */
+.enbar { position: relative; height: 11px; margin-top: 3px; border-radius: 6px; background: rgba(0,0,0,.25); overflow: hidden; min-width: 90px; }
+.enbar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #ffe066, #fab005); transition: width .3s; }
+.enbar span { position: relative; display: block; font-size: 9px; font-weight: 900; line-height: 11px; padding-left: 4px; color: #1b2f48; }
+.enbar.low i { background: linear-gradient(90deg, #ff8787, #e03131); }
+.enbar.low { animation: batBlink 1s infinite; }
+.inv-item.edible { cursor: pointer; outline: 2px dashed #fab005; }
+.inv-item.edible:hover { background: #fff9db; }
+.inv-item em { font-style: normal; font-size: 10px; font-weight: 900; color: #e67700; }
+
+/* 🆕 Tự cập nhật */
+.update-bar { position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 60; background: rgba(27,47,72,.94); color: #fff; font-weight: 800; font-size: 13px; padding: 8px 12px; border-radius: 14px; border: 2px solid #ffd43b; display: flex; gap: 8px; align-items: center; max-width: calc(100% - 24px); }
+.update-bar button { border: 0; border-radius: 10px; padding: 5px 10px; font: inherit; font-weight: 900; background: #ffd43b; color: #1b2f48; cursor: pointer; white-space: nowrap; }
+.update-cover { position: fixed; inset: 0; z-index: 9999; background: #0b1730; color: #fff; display: grid; place-items: center; font-size: 20px; font-weight: 900; }

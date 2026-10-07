@@ -245,7 +245,7 @@ const NET = (() => {
       UI.chatLog(clean(m.name, 16) || 'Ai đó', text, false);
     } else if (m.t === 'bye') {
       const r = remotes.get(m.id);
-      if (r) { remotes.delete(m.id); renderStatus(); UI.toast(`${r.name} đã rời đi`); }
+      if (r) { remotes.delete(m.id); renderStatus(); }
       if (typeof VOICE !== 'undefined') VOICE.drop(m.id);
     }
   }

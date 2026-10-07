@@ -373,6 +373,16 @@ const MAPS = (() => {
     // thứ tự luống giữ nguyên số luống cũ (0–7 ruộng chính, 12–19 đất mở rộng, 20–21 đất mới) để không mất cây đang trồng
     [0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].forEach((bedIdx, slot) => addBed(bedIdx, FX0 + (slot % 6) * (BD.w + 40), FY0 + Math.floor(slot / 6) * FSTEP, 'Ô ruộng'));
 
+    /* ----- 📦 Thùng giao hàng ----- */
+    sobj(m, 2262, 760, (c) => {
+      c.fillStyle = '#8a5a32'; c.beginPath(); c.roundRect(2232, 712, 60, 48, 6); c.fill();
+      c.fillStyle = '#a0632f'; c.fillRect(2228, 704, 68, 14);
+      c.strokeStyle = '#5c3d1e'; c.lineWidth = 3; c.strokeRect(2232, 718, 60, 42);
+      c.font = '20px system-ui, "Segoe UI Emoji"'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('📦', 2262, 738);
+    }, { l: -40, t: -60, w: 80, h: 66 });
+    col(m, 2234, 740, 56, 20);
+    inter(m, { x: 2228, y: 700, w: 68, h: 62, ax: 2262, ay: 790, name: 'Thùng giao hàng (bán qua đêm +10%)', use: () => UI.shipBin(), arrow: { x: 2262, y: 690, text: 'Giao hàng' } });
+
     /* ----- Nhà + cửa hàng + bếp nằm cạnh nhau ----- */
     const SX = 2400, SY = 742;
     sobj(m, SX, SY, (c) => { c.save(); c.translate(SX, SY); c.scale(0.82, 0.82); ART.seedStall(c, 0, 0); c.restore(); }, { l: -95, t: -150, w: 190, h: 160 });
@@ -1409,6 +1419,32 @@ const MAPS = (() => {
     return m;
   }
 
+  /* ---------- ⛏️ Mỏ Quảng Ninh: cửa hầm + lò rèn ---------- */
+  function mine() {
+    const m = base('mine', 'Mỏ Quảng Ninh', 2400, 1070);
+    ground(m, (g) => {
+      paintGrass(g, m.w, m.h, 131);
+      g.fillStyle = '#b8a48a'; g.fillRect(0, 380, m.w, 470);
+      g.fillStyle = 'rgba(0,0,0,.06)'; for (let i = 0; i < 260; i++) { g.beginPath(); g.arc((i * 97) % m.w, 390 + (i * 53) % 450, 3 + (i % 4), 0, Math.PI * 2); g.fill(); }
+      paintStreet(g, m.w, 870, 1000);
+    });
+    sobj(m, 1350, 640, (c) => MINE.entrance(c, 1350, 640), { l: -340, t: -400, w: 710, h: 520 });
+    col(m, 1020, 450, 220, 190); col(m, 1460, 450, 230, 190); col(m, 1250, 450, 210, 100);
+    inter(m, { x: 1260, y: 470, w: 180, h: 170, ax: 1350, ay: 700, name: 'Cửa hầm mỏ (xuống đào quặng)', use: () => MINE.enter(), arrow: { x: 1350, y: 460, text: 'Xuống hầm' } });
+    sobj(m, 1700, 760, (c) => MINE.cart(c, 1700, 760), { l: -60, t: -70, w: 120, h: 76 });
+    col(m, 1650, 740, 100, 20);
+    aobj(m, 520, 720, (c, t) => MINE.forgeArt(c, 520, 720, t), { l: -200, t: -330, w: 400, h: 345 });
+    col(m, 350, 640, 340, 80);
+    inter(m, { x: 420, y: 560, w: 200, h: 160, ax: 520, ay: 760, name: 'Lò rèn (nâng cấp dụng cụ, bán quặng)', use: () => MINE.forge(), arrow: { x: 520, y: 540, text: 'Lò rèn' } });
+    npc(m, 'Bác thợ mỏ Tâm', { skin: '#e0a370', hair: 'short', hairColor: '#333', shirt: '#868e96', shirtStyle: 'plain', pants: '#495057', hat: 'cap' }, { l: 700, t: 760, r: 1100, b: 830 }, 900, 790, 'none');
+    [[180, 600], [2200, 600], [2000, 560]].forEach(([x, y]) => addTree(m, x, y, 'green'));
+    m.labels.push({ text: '⛏️ Mỏ Quảng Ninh', x: 1350, y: 400 });
+    street(m);
+    m.spawn = { x: 1050, y: 875 };
+    m.bounds = { l: 20, t: 420, r: m.w - 20, b: m.h - 40 };
+    return m;
+  }
+
   /* ---------- 🥊 Võ Đài Quyền Anh (dùng chung) ---------- */
   function boxing() {
     const m = base('boxing', 'Võ Đài', 2000, 1100);
@@ -2100,7 +2136,7 @@ const MAPS = (() => {
     return m;
   };
 
-  const all = { apt_han: () => airport('han'), apt_hph: () => airport('hph'), apt_vdo: () => airport('vdo'), apt_sgn: () => airport('sgn'), apt_pqc: () => airport('pqc'), apt_dad: () => airport('dad'), home2: () => floorMap(2), home3: () => floorMap(3), home4: () => floorMap(4), farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
+  const all = { apt_han: () => airport('han'), apt_hph: () => airport('hph'), apt_vdo: () => airport('vdo'), apt_sgn: () => airport('sgn'), apt_pqc: () => airport('pqc'), apt_dad: () => airport('dad'), mine, home2: () => floorMap(2), home3: () => floorMap(3), home4: () => floorMap(4), farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
   Object.defineProperty(all, 'moveGroup', { value: moveGroup, enumerable: false });
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
   return all;

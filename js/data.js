@@ -263,6 +263,18 @@ DATA.BIKES = [
   { id: 'vespa', name: 'Vespa Sprint', kind: 'vespa', body: '#63e6be', helmet: '#7c4a2a', price: 8000, max: 560, accel: 360, desc: 'Cổ điển sang chảnh, bốc nhất' },
 ];
 
+/** ❤️ Thân thiết với NPC: món rất thích / thích / ghét (còn lại là bình thường) */
+DATA.NPC_LIKES = {
+  default: { love: ['gem_diamond', 'gem_ruby', 'star_shard'], like: ['rose', 'sunflower', 'tulip', 'strawberry', 'grape', 'gem_quartz', 'milk', 'egg'], hate: ['boot', 'ore_copper', 'ore_iron'] },
+  'Chị Lan': { love: ['rose', 'gem_ruby', 'strawberry'], like: ['tulip', 'daisy', 'grape', 'milk'], hate: ['chili', 'boot'] },
+  'Bé Bin': { love: ['watermelon', 'strawberry', 'candy'], like: ['banana', 'corn', 'egg'], hate: ['ginseng', 'cabbage'] },
+  'Bác Ba': { love: ['ginseng', 'fish_vang'], like: ['wheat', 'potato', 'pumpkin', 'ore_gold'], hate: ['candy'] },
+  'Ông Tư': { love: ['ginseng', 'gem_diamond'], like: ['fish_chep', 'tomato', 'cabbage'], hate: ['boot'] },
+  'Bác thợ mỏ Tâm': { love: ['gem_diamond', 'ore_gold'], like: ['ore_iron', 'gem_quartz', 'potato', 'corn'], hate: ['rose', 'tulip'] },
+  'Tiên Mây': { love: ['star_shard', 'sky_fruit'], like: ['sunflower', 'hibiscus', 'gem_quartz'], hate: ['ore_copper', 'boot'] },
+};
+DATA.NPC_REWARDS = { 2: { coins: 500 }, 5: { coins: 3000, item: 'mine_tonic', n: 5 }, 10: { coins: 20000, item: 'gem_diamond', n: 1 } };
+
 /** 🏠 Nâng cấp nhà: càng nhiều tầng càng đắt */
 DATA.HOUSE_LEVELS = [
   { lv: 1, name: 'Nhà cấp 4', icon: '🏠', price: 0, desc: '1 tầng · phòng khách, bếp, phòng ngủ, phòng tắm, kho' },
@@ -285,7 +297,7 @@ DATA.CHARGE_PRICE = 3; // xu cho mỗi 1% pin
 DATA.AIRPORTS = [
   { id: 'han', code: 'HAN', name: 'Sân bay quốc tế Nội Bài', en: 'Noi Bai International Airport', city: 'Hà Nội', zones: ['fun', 'town'], color: '#1c7ed6', palm: false },
   { id: 'hph', code: 'HPH', name: 'Sân bay quốc tế Cát Bi', en: 'Cat Bi International Airport', city: 'Hải Phòng', zones: ['farm'], color: '#e8590c', palm: false },
-  { id: 'vdo', code: 'VDO', name: 'Sân bay quốc tế Vân Đồn', en: 'Van Don International Airport', city: 'Quảng Ninh', zones: ['cherry'], color: '#0ca678', palm: false },
+  { id: 'vdo', code: 'VDO', name: 'Sân bay quốc tế Vân Đồn', en: 'Van Don International Airport', city: 'Quảng Ninh', zones: ['cherry', 'mine'], color: '#0ca678', palm: false },
   { id: 'sgn', code: 'SGN', name: 'Sân bay quốc tế Tân Sơn Nhất', en: 'Tan Son Nhat International Airport', city: 'TP. Hồ Chí Minh', zones: ['mall', 'school'], color: '#c92a2a', palm: true },
   { id: 'pqc', code: 'PQC', name: 'Sân bay quốc tế Phú Quốc', en: 'Phu Quoc International Airport', city: 'Phú Quốc', zones: ['beach'], color: '#f59f00', palm: true },
   { id: 'dad', code: 'DAD', name: 'Sân bay quốc tế Đà Nẵng', en: 'Da Nang International Airport', city: 'Đà Nẵng', zones: ['park', 'race'], color: '#7048e8', palm: true },
@@ -368,6 +380,7 @@ DATA.ZONES = [
   { id: 'cherry', name: 'Vườn Anh Đào', icon: '🌸', x: 70, y: 64, desc: 'Cắm trại, bể bơi, chèo thuyền' },
   { id: 'sky', name: 'Đảo Trên Trời', icon: '☁️', x: 52, y: 9, desc: 'Khinh khí cầu lên mây' },
   { id: 'school', name: 'Trường học', icon: '🏫', x: 48, y: 86, desc: 'Đố vui tiếng Anh' },
+  { id: 'mine', name: 'Mỏ Quảng Ninh', icon: '⛏️', x: 93, y: 40, desc: 'Đào quặng, đá quý, đánh quái · Lò rèn' },
   { id: 'race', name: 'Khu Đua Xe', icon: '🏎️', x: 8, y: 48, desc: 'Đua xe 3D hoạt hình, drift ăn xu' },
 ];
 
@@ -470,5 +483,13 @@ DATA.ITEMS = (() => {
   items.pet_med = { name: 'Thuốc thú y', icon: '💊', sell: 0 };
   items.pet_food = { name: 'Thức ăn thú cưng', icon: '🦴', sell: 0 };
   items.candy = { name: 'Kẹo Halloween', icon: '🍬', sell: 0 };
+  // ⛏️ hầm mỏ
+  items.ore_copper = { name: 'Quặng đồng', icon: '🟠', sell: 8 };
+  items.ore_iron = { name: 'Quặng sắt', icon: '⚪', sell: 15 };
+  items.ore_gold = { name: 'Quặng vàng', icon: '🟡', sell: 35 };
+  items.gem_quartz = { name: 'Thạch anh', icon: '🤍', sell: 40 };
+  items.gem_ruby = { name: 'Hồng ngọc', icon: '❤️', sell: 150 };
+  items.gem_diamond = { name: 'Kim cương', icon: '💎', sell: 500 };
+  items.mine_tonic = { name: 'Nước tăng lực', icon: '🧃', sell: 0 };
   return items;
 })();
