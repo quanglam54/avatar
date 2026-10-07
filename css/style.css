@@ -1172,3 +1172,9 @@ html, body, button, .btn, .panel, .panel-back, a, input, select, textarea, label
 .call-b small { position: absolute; bottom: -22px; font-size: 11px; white-space: nowrap; }
 .call-b.on { background: #fff; }
 .call-b.red { background: #ff3b30; } .call-b.green { background: #34c759; animation: evPulse 1s infinite; }
+
+.ph-name { border: 0; border-bottom: 2px solid #dee2e6; background: transparent; font: 800 18px "Be Vietnam Pro", system-ui; text-align: center; padding: 6px; outline: none; }
+.ph-name:focus { border-color: #1c7ed6; }
+.ph-to { text-align: center; color: #868e96; font-weight: 700; }
+.ph-keys span { width: 62px; }
+.ph-card .btn + .btn { margin-top: 4px; }

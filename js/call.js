@@ -14,6 +14,7 @@ const CALL = (() => {
   let ac = null, toneT = null;
   const actx = () => { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); return ac; } catch (e) { return null; } };
   function beep(f, dur, vol = 0.05, at = 0) {
+    if (AV.S && AV.S.settings && AV.S.settings.sfx === false && !(cur && cur.dir === 'in' && cur.state === 'incoming')) return;
     const a = actx(); if (!a) return;
     const o = a.createOscillator(), g = a.createGain();
     o.frequency.value = f; g.gain.value = vol; o.connect(g); g.connect(a.destination);

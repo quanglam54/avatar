@@ -103,6 +103,8 @@ const SOCIAL = (() => {
   }
 
   /* ---------- Nhận thư ---------- */
+  const notified = new Set();
+  const loadedAt = Date.now();
   async function pull() {
     if (!ready() || pulling) return;
     pulling = true;
@@ -121,6 +123,14 @@ const SOCIAL = (() => {
           UI.toast(`🤝 ${m.from_name || who} đã đồng ý kết bạn!`, 4000);
           done.push(m.id);
         } else if (m.kind === 'chat') {
+          if (!notified.has(m.id)) {
+            notified.add(m.id);
+            if (Date.parse(m.created_at) > loadedAt - 5000) {
+              const g = m.body || {}, txt = g.img ? '📷 Ảnh' : g.st ? '[Nhãn dán]' : String(g.text || '').slice(0, 60);
+              if (typeof PHONE !== 'undefined') PHONE.smsTone();
+              if (!(chatWith && chatWith.username === who)) UI.toast(`💬 ${m.from_name || who}: ${txt}`, 4500);
+            }
+          }
           if (chatWith && chatWith.username === who) done.push(m.id);
           else unread[who] = (unread[who] || 0) + 1;
         } else if (m.kind === 'gift') {

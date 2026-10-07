@@ -687,13 +687,21 @@ const UI = (() => {
   /** 🏗️ Nâng cấp nhà */
   function houseUpgrade() {
     const S = AV.S, cur = AV.houseLv();
+    /** tổng tiền xây từ cấp hiện tại lên cấp lv */
+    const costTo = (lv) => DATA.HOUSE_LEVELS.filter((h) => h.lv > cur && h.lv <= lv).reduce((a, h) => a + h.price, 0);
     const p = panel('🏗️ Nâng cấp nhà', '');
     p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Nhà hiện tại: <b>${DATA.HOUSE_LEVELS[cur - 1].icon} ${DATA.HOUSE_LEVELS[cur - 1].name}</b></div>
-      <div class="shop-list">${DATA.HOUSE_LEVELS.filter((h) => h.lv >= cur - 1 && h.lv <= cur + 6).map((h) => `<div class="shop-row ${h.lv <= cur ? 'owned' : ''}"><span class="ic">${h.icon}</span><div class="info"><b>${h.name}</b><small>${h.desc}</small></div>
-        ${h.lv <= cur ? '<button class="btn small ghost" disabled>✅ Đã có</button>' : h.lv === cur + 1 ? `<button class="btn small" data-up>${h.price.toLocaleString('vi-VN')} xu</button>` : `<button class="btn small ghost" disabled>🔒 ${h.price.toLocaleString('vi-VN')}</button>`}</div>`).join('')}</div>
-      <p class="muted small-note">Nhà xây được tối đa <b>50 tầng</b> (🗼 Siêu tháp). Nâng cấp lần lượt từng cấp. Lên tầng bằng 🪜 cầu thang (từ nhà 2 tầng) hoặc 🛗 thang máy (từ nhà phố 3 tầng) ở phòng cầu thang bên phải phòng bếp.</p>`;
-    const up = p.body.querySelector('[data-up]');
-    if (up) up.onclick = () => { const n = DATA.HOUSE_LEVELS[cur]; confirm(`Nâng cấp lên <b>${n.icon} ${n.name}</b> với giá <b>${n.price.toLocaleString('vi-VN')} xu</b>?`, '🏗️ Xây ngay', () => { if (AV.upgradeHouse()) { p.close(); houseUpgrade(); } }); };
+      <div class="shop-list">${DATA.HOUSE_LEVELS.filter((h) => h.lv >= cur - 1).map((h) => `<div class="shop-row ${h.lv <= cur ? 'owned' : ''}"><span class="ic">${h.icon}</span><div class="info"><b>${h.name}</b><small>${h.desc}</small></div>
+        ${h.lv <= cur ? '<button class="btn small ghost" disabled>✅ Đã có</button>' : h.lv === cur + 1 ? `<button class="btn small" data-to="${h.lv}">${h.price.toLocaleString('vi-VN')} xu</button>` : `<button class="btn small ${costTo(h.lv) <= S.coins ? '' : 'ghost'}" data-to="${h.lv}">⏩ ${costTo(h.lv).toLocaleString('vi-VN')}</button>`}</div>`).join('')}</div>
+      <p class="muted small-note">Nhà xây được tối đa <b>50 tầng</b> (🗼 Siêu tháp). Bấm ⏩ ở cấp cao hơn để <b>xây vượt</b> một lần (trả tổng tiền các cấp). Lên tầng bằng 🪜 cầu thang (từ nhà 2 tầng) hoặc 🛗 thang máy (từ nhà phố 3 tầng) ở phòng cầu thang bên phải phòng bếp.</p>`;
+    p.body.querySelectorAll('[data-to]').forEach((b) => b.onclick = () => {
+      const to = +b.dataset.to, n = DATA.HOUSE_LEVELS[to - 1], cost = costTo(to);
+      confirm(`${to > cur + 1 ? `⏩ Xây vượt <b>${to - cur} cấp</b> một lần<br>` : ''}Nâng cấp lên <b>${n.icon} ${n.name}</b> với tổng giá <b>${cost.toLocaleString('vi-VN')} xu</b>?`, '🏗️ Xây ngay', () => {
+        if (S.coins < cost) return toast(`Không đủ xu 😢 — cần ${cost.toLocaleString('vi-VN')} xu`);
+        while (AV.houseLv() < to) if (!AV.upgradeHouse()) break;
+        p.close(); houseUpgrade();
+      });
+    });
   }
   /** 🛗 thang máy: chọn tầng */
   function elevator() {
@@ -1748,6 +1756,7 @@ const UI = (() => {
       <label class="toggle">🌧️ Thời tiết <select data-weather><option value="auto">☀️ Nắng, thỉnh thoảng mưa (mặc định)</option><option value="season">🍂 Theo mùa (xuân hoa đào, thu lá vàng, đông tuyết)</option><option value="rain">🌧️ Luôn mưa</option><option value="snow">❄️ Tuyết rơi</option><option value="petals">🌸 Hoa đào rơi</option><option value="leaves">🍁 Lá vàng rơi</option><option value="off">🌤️ Trời quang (không mưa)</option></select></label>
       <label class="toggle">📱 Đồ hoạ <select data-gfx><option value="auto">Tự động (điện thoại: tiết kiệm pin)</option><option value="saver">Tiết kiệm pin — mát máy</option><option value="high">Đẹp nhất — nét, mượt hơn</option></select></label>
       <label class="toggle"><input type="checkbox" data-music ${MUSIC.on ? 'checked' : ''}> 🎵 Nhạc nền <input type="range" data-vol min="0" max="100" value="${Math.round(MUSIC.volume * 100)}" style="flex:1;min-width:90px"></label>
+      <label class="toggle"><input type="checkbox" data-sfx ${!(S.settings && S.settings.sfx === false) ? "checked" : ""}> 🔔 Âm thanh game (chuông, tin nhắn, hiệu ứng)</label><p class="muted small-note" style="margin:-4px 0 6px">Tắt 🎵 nhạc nền vẫn nghe chuông điện thoại, tin nhắn, tiếng game.</p>
       <div class="music-src">
         <small>Đang phát: <b>${{ chill: '🎶 Nhạc chill tự tạo', yt: '▶️ YouTube', file: '🎧 File nhạc' }[MUSIC.source.kind]}</b>${(S.settings && S.settings.musicUrl !== undefined) ? ' (bạn tự chọn)' : ' (mặc định của game)'}</small>
         <form class="fsearch" data-murl><input class="field" name="u" placeholder="🎵 Dán link YouTube (bài / playlist) hoặc link .mp3" autocomplete="off" value="${esc(MUSIC.source.url || '')}"><button class="btn small">Dùng</button></form>
@@ -1765,6 +1774,7 @@ const UI = (() => {
     ts.value = (S.settings && S.settings.time) || 'real';
     ts.onchange = () => { S.settings = { ...(S.settings || {}), time: ts.value }; AV.markChanged(); };
     p.body.querySelector('[data-music]').onchange = (e) => setMusic(e.target.checked);
+    p.body.querySelector('[data-sfx]').onchange = (e) => { S.settings = { ...(S.settings || {}), sfx: e.target.checked }; AV.markChanged(); toast(e.target.checked ? '🔔 Đã bật âm thanh game' : '🔕 Đã tắt âm thanh game'); };
     p.body.querySelector('[data-vol]').oninput = (e) => { const v = e.target.value / 100; MUSIC.setVolume(v); S.settings = { ...(S.settings || {}), musicVol: v }; AV.markChanged(); };
     const setUrl = (v, label) => {
       if (v !== undefined && !MUSIC.setSource(v)) return toast('Link chưa đúng — dán link YouTube (youtu.be/… hoặc youtube.com/watch?v=…) hoặc link file .mp3', 4500);

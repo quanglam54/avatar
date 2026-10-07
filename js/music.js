@@ -92,7 +92,7 @@ const MUSIC = (() => {
     pauseCustom();
     if (!ac) return;
     fadeTo(0, 0.6);
-    setTimeout(() => { if (!on && ac) { ac.suspend(); clearInterval(timer); timer = null; started = false; } }, 700);
+    setTimeout(() => { if (!on && ac) { clearInterval(timer); timer = null; started = false; if (!sfxOn()) ac.suspend(); } }, 700);
   }
 
   /** settings: { music: bool, musicVol: 0..1 } */
@@ -118,8 +118,15 @@ const MUSIC = (() => {
   }
 
   /** Tiếng "bùm" của pháo hoa (tắt nhạc thì cũng tắt tiếng pháo) */
+  /** âm thanh game (pháo, chó sủa, mưa…) độc lập với nhạc nền — tắt riêng trong Cài đặt */
+  const sfxOn = () => !(AV.S && AV.S.settings && AV.S.settings.sfx === false);
+  function sfxOk() {
+    if (!sfxOn()) return false;
+    try { if (!ac) build(); if (ac.state === 'suspended') ac.resume(); } catch (e) { return false; }
+    return ac.state === 'running';
+  }
   function boom(size = 1) {
-    if (!ac || !on || ac.state !== 'running') return;
+    if (!sfxOk()) return;
     const t = ac.currentTime, len = 1.4;
     const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * len), ac.sampleRate);
     const d = buf.getChannelData(0);
@@ -139,7 +146,7 @@ const MUSIC = (() => {
   }
   /** Tiếng huýt khi pháo bay lên */
   function whistle() {
-    if (!ac || !on || ac.state !== 'running') return;
+    if (!sfxOk()) return;
     const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
     o.type = 'sine'; o.frequency.setValueAtTime(700, t); o.frequency.exponentialRampToValueAtTime(1900, t + 0.9);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.03 * vol, t + 0.1); g.gain.exponentialRampToValueAtTime(0.0001, t + 1);
@@ -167,7 +174,7 @@ const MUSIC = (() => {
   let rainSrc = null, rainGain = null, rainLv = -1;
   function rain(level) {
     if (!ac || ac.state !== 'running') return;
-    const v = on ? Math.round(level * 20) / 20 : 0;
+    const v = sfxOn() ? Math.round(level * 20) / 20 : 0;
     if (v === rainLv) return;
     rainLv = v;
     if (!rainSrc && v > 0) {
@@ -184,7 +191,7 @@ const MUSIC = (() => {
 
   /** Tiếng sủa (chó) / gầm (hổ, sư tử) */
   function bark(big) {
-    if (!ac || !on || ac.state !== 'running') return;
+    if (!sfxOk()) return;
     const t0 = ac.currentTime;
     (big ? [0] : [0, 0.22]).forEach((d) => {
       const t = t0 + d, o = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain();
@@ -200,7 +207,7 @@ const MUSIC = (() => {
 
   /** Tiếng "cạch" khi gậy chạm bi */
   function clack() {
-    if (!ac || !on || ac.state !== 'running') return;
+    if (!sfxOk()) return;
     const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
     o.type = 'square'; o.frequency.setValueAtTime(1400, t); o.frequency.exponentialRampToValueAtTime(500, t + 0.05);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.08 * vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);

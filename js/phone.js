@@ -21,7 +21,19 @@ const PHONE = (() => {
     cps: { name: 'CellphoneS', icon: '🔴', disc: 0.97, note: 'Giảm 3% cho thành viên S-Member' },
     tgdd: { name: 'Thế Giới Di Động', icon: '🟡', disc: 1, note: 'Tặng kèm 1 sạc dự phòng khi mua máy' },
   };
-  const POWERBANK = 590000, TRADE_IN = 0.3;
+  const POWERBANK = 590000, TRADE_IN = 0.3, LOAN = { pre: 0.3, n: 6 };
+  /** mỗi ngày tự trừ 1 kỳ trả góp; không đủ xu → khoá máy */
+  function loanTick() {
+    const ph = S() && S().phone, L = ph && ph.loan;
+    if (!L || Date.now() < L.next) return;
+    const due = Math.min(L.per, L.left);
+    if (S().coins >= due) {
+      S().coins -= due; L.left -= due; L.next += 86400000; ph.locked = false;
+      if (L.left <= 0) { delete ph.loan; UI.toast(`✅ Đã trả hết góp ${L.model} — máy là của bạn!`, 5000); }
+      else UI.toast(`💳 Đã trừ ${fmt(due)} xu tiền trả góp điện thoại (còn ${fmt(L.left)} xu)`, 4000);
+      AV.markChanged && AV.markChanged(); UI.updateHud && UI.updateHud();
+    } else if (!ph.locked) { ph.locked = true; UI.toast(`🔒 Không đủ ${fmt(due)} xu trả góp — điện thoại bị khoá! Kiếm xu rồi vào cửa hàng điện thoại trả nợ`, 7000); if (openNow) close(); }
+  }
   const fmt = (n) => Number(n).toLocaleString('vi-VN');
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const S = () => AV.S;
@@ -116,8 +128,9 @@ const PHONE = (() => {
           return `<div class="ph-card ${m.os}"><div class="ph-mini" style="--c:${m.color}"><i></i></div>
             <b>${m.name}</b><small>${m.os === 'ios' ? ' iOS' : '🤖 Android'} · ${m.tag}</small>
             <div class="ph-price">${fmt(price(m))} xu</div>${tradeIn ? `<small class="ph-tradein">Thu cũ: −${fmt(tradeIn)} xu</small>` : ''}
-            ${own ? '<button class="btn small ghost" disabled>✅ Đang dùng</button>' : `<button class="btn small" data-buy="${m.id}">Mua ngay</button>`}</div>`;
+            ${own ? '<button class="btn small ghost" disabled>✅ Đang dùng</button>' : `<button class="btn small" data-buy="${m.id}">Mua ngay</button><button class="btn small ghost" data-loan="${m.id}" ${ph && ph.loan ? 'disabled title="Đang trả góp máy khác"' : ''}>💳 Trả góp 0%</button>`}</div>`;
         }).join('')}</div>
+        ${ph && ph.loan ? `<div class="shop-row quest ready"><span class="ic">💳</span><div class="info"><b>Đang trả góp ${esc(ph.loan.model)}</b><small>Còn nợ ${fmt(ph.loan.left)} xu · ${Math.ceil(ph.loan.left / ph.loan.per)} kỳ × ${fmt(ph.loan.per)} xu${ph.locked ? ' · 🔒 MÁY ĐANG BỊ KHOÁ vì quá hạn' : ''}</small></div><button class="btn small" data-payoff>Tất toán ${fmt(ph.loan.left)}</button></div>` : ''}
         <div class="shop-list" style="margin-top:10px">
           <div class="shop-row"><span class="ic">🔋</span><div class="info"><b>Sạc dự phòng 20.000mAh</b><small>Sạc đầy pin ở bất cứ đâu · đang có ${(ph && ph.pb) || 0} cái</small></div><button class="btn small" data-pb ${cur ? '' : 'disabled'}>${fmt(POWERBANK)} xu</button></div>
           <div class="shop-row"><span class="ic">🔌</span><div class="info"><b>Cắm sạc miễn phí tại cửa hàng</b><small>Sạc đầy 100% ngay</small></div><button class="btn small ghost" data-charge ${cur && ph.bat < 100 ? '' : 'disabled'}>Cắm sạc</button></div>
@@ -137,6 +150,21 @@ const PHONE = (() => {
         });
       });
       p.body.querySelector('[data-sim]').onclick = () => { st.simTab = 1; st.net = st.net || NETS[0]; st.offers = simOffers(st.net); render(); };
+      p.body.querySelectorAll('[data-loan]').forEach((b) => b.onclick = () => {
+        const m = MODELS.find((x) => x.id === b.dataset.loan), old = model();
+        const total = price(m) - (old ? Math.round(old.price * TRADE_IN) : 0);
+        const pre = Math.round(total * LOAN.pre / 1000) * 1000, per = Math.ceil((total - pre) / LOAN.n / 1000) * 1000;
+        UI.confirm(`💳 <b>Trả góp 0% ${m.name}</b><br>Trả trước <b>${fmt(pre)} xu</b> (30%), còn lại <b>${LOAN.n} kỳ × ${fmt(per)} xu</b>, mỗi ngày tự trừ 1 kỳ.<br><small>Quá hạn không đủ xu → máy bị khoá đến khi trả nợ.</small>`, 'Trả góp', () => {
+          if (!AV.spend(pre)) return;
+          const prev = S().phone || {};
+          S().phone = { ...prev, model: m.id, bat: 100, pb: (prev.pb || 0) + (kind === 'tgdd' ? 1 : 0), loan: { left: per * LOAN.n, per, next: Date.now() + 86400000, n: LOAN.n, model: m.name } };
+          AV.markChanged && AV.markChanged();
+          UI.toast(`💳 Đã mua trả góp ${m.name}! Mỗi ngày tự trừ ${fmt(per)} xu (${LOAN.n} kỳ)`, 6000);
+          updateBtn(); render();
+        });
+      });
+      const payoff = p.body.querySelector('[data-payoff]');
+      if (payoff) payoff.onclick = () => { const L = S().phone.loan; if (!AV.spend(L.left)) return; delete S().phone.loan; S().phone.locked = false; UI.toast('✅ Đã tất toán trả góp — máy là của bạn!'); render(); };
       const pbB = p.body.querySelector('[data-pb]');
       if (pbB) pbB.onclick = () => { if (!AV.spend(POWERBANK)) return; S().phone.pb = (S().phone.pb || 0) + 1; UI.toast('🔋 Đã mua sạc dự phòng — mở điện thoại để dùng khi pin yếu'); render(); };
       const ch = p.body.querySelector('[data-charge]');
@@ -219,6 +247,14 @@ const PHONE = (() => {
         <p class="muted">Có điện thoại để: nhận số riêng, gửi số kết bạn, nhắn tin, gọi <b>115</b> khi ốm để xe cấp cứu đến đón, chụp ảnh màn hình…</p>
         <div class="row-end" style="justify-content:center"><button class="btn" data-go>🛵 Đến cửa hàng</button></div>`);
       p.body.querySelector('[data-go]').onclick = () => { p.close(); AV.teleport('farm', false, 3160, 1500, '📱 Đến cửa hàng điện thoại…'); };
+      return;
+    }
+    loanTick();
+    if (S().phone.locked) {
+      const L = S().phone.loan || { per: 0, left: 0 };
+      const p = UI.panel('🔒 Máy bị khoá', `<div class="tr-chest">📵</div><p class="confirm-text">Bạn chưa trả kỳ góp <b>${fmt(L.per)} xu</b> — nhà mạng đã khoá máy.</p>
+        <div class="row-end" style="justify-content:center"><button class="btn" data-paynow>💳 Trả kỳ này ${fmt(Math.min(L.per, L.left))} xu</button></div>`);
+      p.body.querySelector('[data-paynow]').onclick = () => { const due = Math.min(L.per, L.left); if (!AV.spend(due)) return; L.left -= due; L.next = Date.now() + 86400000; S().phone.locked = false; if (L.left <= 0) delete S().phone.loan; p.close(); UI.toast('✅ Đã trả nợ — mở khoá máy!'); };
       return;
     }
     if (S().phone.bat <= 0) {
@@ -309,10 +345,38 @@ const PHONE = (() => {
       box.querySelector('[data-c="call"]').onclick = () => { dialPre = c.num; go('call'); };
       box.querySelector('[data-c="sms"]').onclick = () => smsTo(c.num);
       box.querySelector('[data-c="del"]').onclick = () => { const l = contacts(); l.splice(l.indexOf(c), 1); if (AV.markChanged) AV.markChanged(); go('contacts'); };
+    } else if (app === 'pad') {
+      const save = padMode === 'save';
+      box.innerHTML = header(save ? 'Liên hệ mới' : 'Tin nhắn mới') + `<div class="ph-dial">
+        ${save ? `<input class="ph-name" maxlength="24" placeholder="Tên liên hệ" value="${esc((contactOf(padNum) || {}).name || '')}">` : '<div class="ph-to">Tới:</div>'}
+        <div class="ph-num"></div><div class="ph-numname"></div>
+        <div class="ph-keys">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((k) => k ? `<button data-pk="${k}">${k}</button>` : '<span></span>').join('')}</div>
+        <button class="ph-big" data-padok>${save ? '💾 Lưu vào danh bạ' : '💬 Nhắn tin'}</button></div>`;
+      back();
+      const show = () => {
+        box.querySelector('.ph-num').textContent = padNum.length === 10 ? pretty(padNum) : padNum || ' ';
+        const c = contactOf(padNum);
+        box.querySelector('.ph-numname').textContent = !save && c ? c.name : padNum && padNum.length !== 10 ? `${padNum.length}/10 số` : '';
+      };
+      box.querySelectorAll('[data-pk]').forEach((b) => b.onclick = () => {
+        const k = b.dataset.pk;
+        if (k === '⌫') padNum = padNum.slice(0, -1); else if (padNum.length < 10) padNum += k;
+        beep(700 + (+k || 0) * 40, 0.06); show();
+      });
+      box.querySelector('[data-padok]').onclick = () => {
+        if (!/^0\d{9}$/.test(padNum)) return UI.toast('Số điện thoại phải có 10 chữ số, bắt đầu bằng 0');
+        if (!save) return smsTo(padNum);
+        const name = box.querySelector('.ph-name').value.trim();
+        if (!name) return UI.toast('Nhập tên liên hệ nhé');
+        addContact(name, padNum);
+        UI.toast(`📇 Đã lưu ${name} · ${pretty(padNum)} vào danh bạ`);
+        go('contacts');
+      };
+      show();
     } else if (app === 'msg') {
       box.innerHTML = header('Tin nhắn').replace('<span></span>', '<button class="ph-back" data-compose>✏️</button>') + '<div class="ph-threads"><p class="ph-empty">⏳ Đang tải…</p></div>';
       back();
-      box.querySelector('[data-compose]').onclick = () => { const n = prompt('Nhắn tin tới số điện thoại:'); if (n) smsTo(n); };
+      box.querySelector('[data-compose]').onclick = () => { padMode = 'sms'; padNum = ''; go('pad'); };
       loadThreads(box.querySelector('.ph-threads'));
     } else if (app === 'weather') {
       const rain = AV.rainLevel() > 0.05, sea = typeof SEASON !== 'undefined' ? SEASON.now() : null;
@@ -370,15 +434,8 @@ const PHONE = (() => {
   /* ---------- 📞 gọi điện ---------- */
   let callInfo = null, dialPre = '', contactSel = null;
   /** lưu số mới (hỏi tên) */
-  function newContact(num) {
-    const n = String(num || prompt('Số điện thoại:') || '').replace(/\D/g, '');
-    if (!/^0\d{9}$/.test(n)) return n && UI.toast('Số điện thoại phải có 10 chữ số, bắt đầu bằng 0');
-    const name = prompt('Tên liên hệ:', (contactOf(n) || {}).name || '');
-    if (!name) return;
-    addContact(name.trim(), n);
-    UI.toast(`📇 Đã lưu ${name} · ${pretty(n)} vào danh bạ`);
-    render();
-  }
+  let padMode = 'save', padNum = '';
+  function newContact(num) { padMode = 'save'; padNum = String(num || '').replace(/\D/g, ''); go('pad'); }
   /** mở khung nhắn tin với 1 số */
   async function smsTo(raw) {
     const num = String(raw).replace(/\D/g, '');
@@ -474,6 +531,7 @@ const PHONE = (() => {
   let ac = null, ringT = null;
   const audio = () => { try { return (ac = ac || new (window.AudioContext || window.webkitAudioContext)()); } catch (e) { return null; } };
   function beep(f, dur = 0.1, vol = 0.05, type = 'sine') {
+    if (AV.S && AV.S.settings && AV.S.settings.sfx === false) return;
     const a = audio(); if (!a) return;
     const o = a.createOscillator(), g = a.createGain();
     o.type = type; o.frequency.value = f; g.gain.value = vol; o.connect(g); g.connect(a.destination);
@@ -549,7 +607,14 @@ const PHONE = (() => {
   function init() {
     updateBtn();
     setInterval(battTick, 30000);
+    setInterval(loanTick, 60000); setTimeout(loanTick, 8000);
     setInterval(() => { if (openNow) statusBar(); }, 15000);
   }
-  return { init, open, close, shop, charge, myNum, pretty, addContact, has: () => !!model(), hasSim: () => !!myNum(), dial, ambulance };
+  /** 🔔 chuông tin nhắn kiểu iPhone (tri-tone) */
+  function smsTone() {
+    if (!model() || (AV.S.settings && AV.S.settings.sfx === false)) return;
+    beep(1568, 0.12, 0.08); setTimeout(() => beep(1318, 0.12, 0.08), 140); setTimeout(() => beep(1046, 0.22, 0.08), 280);
+    if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
+  }
+  return { init, open, close, shop, smsTone, charge, myNum, pretty, addContact, has: () => !!model(), hasSim: () => !!myNum(), dial, ambulance };
 })();
