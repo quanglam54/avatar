@@ -5,14 +5,19 @@ const UI = (() => {
   const stack = [];
 
   const recentToasts = new Map();
+  let toastTimes = [];
   function toast(msg, ms = 2600) {
     // không hiện lại thông báo trùng trong 4 giây, giữa màn hình tối đa 2 thông báo
-    const now = Date.now(), key = String(msg);
-    if (recentToasts.get(key) > now - 4000) return;
+    const now = Date.now(), key = String(msg).replace(/[\d.,]+/g, '#').slice(0, 40);
+    if (recentToasts.get(key) > now - 15000) return;
+    // tối đa 4 thông báo / 6 giây — dồn dập quá thì bỏ bớt (thông báo dài, quan trọng vẫn hiện)
+    toastTimes = toastTimes.filter((t) => t > now - 6000);
+    if (toastTimes.length >= 4 && ms < 4500) return;
+    toastTimes.push(now);
     recentToasts.set(key, now);
     if (recentToasts.size > 40) recentToasts.clear();
     const box = $('#toasts');
-    while (box.children.length >= 2) box.firstChild.remove();
+    while (box.children.length >= (window.innerWidth < 600 ? 1 : 2)) box.firstChild.remove();
     const t = document.createElement('div');
     t.className = 'toast';
     t.textContent = msg;

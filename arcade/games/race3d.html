@@ -197,6 +197,19 @@ body.touch-on .meter-cap { display: none; }
 .panel.small { width: min(340px, 92vw); text-align: center; }
 .panel.small .row-btns { flex-direction: column; }
 
+/* 🎁 đạo cụ */
+.kitem { position: absolute; left: 50%; top: max(14px, env(safe-area-inset-top, 0px)); transform: translateX(-50%); border-radius: 20px; padding: 4px 16px 6px; display: grid; justify-items: center; min-width: 120px; }
+.kitem b { font-size: 46px; line-height: 1.1; font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif; }
+.kitem small { font-size: 12px; font-weight: 700; color: var(--soft); white-space: nowrap; }
+.kitem.has { background: var(--sun); animation: pop .5s; }
+.kitem.has small { color: var(--ink); }
+#tItem { right: max(18px, env(safe-area-inset-right, 0px)); bottom: calc(max(20px, env(safe-area-inset-bottom, 0px)) + 112px); background: rgba(255, 210, 63, .95); font-size: 34px; }
+.kflash { position: fixed; inset: 0; z-index: 4; pointer-events: none; background: #fff; opacity: 0; }
+.kflash.on { animation: kfl .6s ease-out; }
+@keyframes kfl { 0%, 30% { opacity: .85; } 100% { opacity: 0; } }
+.kfeed { position: absolute; left: max(14px, env(safe-area-inset-left, 0px)); top: 110px; display: grid; gap: 4px; }
+.kfeed div { background: var(--panel); border: 2px solid var(--ink); border-radius: 12px; padding: 2px 10px 0; font-weight: 700; font-size: 14px; animation: pop .4s; width: fit-content; }
+@media (max-width: 760px) { .kitem b { font-size: 34px; } .kitem { top: 70px; } }
 @media (prefers-reduced-motion: reduce) {
   .msg.pop, .msg.hold { animation-duration: .01s; animation-iteration-count: 1; opacity: 1; }
   .spinner { animation-duration: 3s; }
@@ -688,7 +701,7 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
 
   // ---------------------------------------------------------------- track
   const CTRL = [[-120, -130], [0, -130], [90, -125], [150, -95], [170, -30], [152, 28], [112, 55], [78, 88], [76, 140], [42, 186], [-28, 172], [-62, 112], [-115, 90], [-168, 110], [-212, 88], [-232, 28], [-228, -40], [-212, -90], [-180, -122]];
-  const HW = 8, CURBW = 1.3, WALL = 15, CAR_HW = 1.05;
+  const HW = 12, CURBW = 1.3, WALL = 19, CAR_HW = 1.05;
   const LIM = WALL - 0.42 - CAR_HW;
   function buildCenterline() {
     const P = CTRL, n = P.length, dense = [], SEG = 48;
@@ -754,7 +767,7 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
   const CURVY = new Uint8Array(N);
   for (let i = 0; i < N; i++) if (Math.abs(K[i]) > 1 / 70) for (let q = -8; q <= 8; q++) CURVY[(i + q + N) % N] = 1;
   const PADS = [{ i: 40, lat: 0 }, { i: 180, lat: 0 }, { i: 628, lat: 0 }].map((p) => {
-    p.lat = Math.abs(K[p.i]) > 1 / 120 ? Math.sign(K[p.i]) * 3.5 : 0; p.len = 6; return p;
+    p.lat = Math.abs(K[p.i]) > 1 / 120 ? Math.sign(K[p.i]) * 5 : 0; p.len = 6; return p;
   });
   const CELL = 30, HASH = new Map();
   const hkey = (cx, cz) => cx * 4096 + cz;
@@ -826,7 +839,7 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
     const tn = trackNear(x, z);
     const nat = natural(x, z);
     if (tn.i < 0) return nat;
-    return lerp(tn.h - 0.2, nat, smooth(17, 52, tn.d));
+    return lerp(tn.h - 0.2, nat, smooth(21, 56, tn.d));
   }
   const tcol = new C3();
   function terrainColor(x, z, h, d) {
@@ -837,7 +850,7 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
     r = lerp(r, PAL.grassDark.r, dk); g = lerp(g, PAL.grassDark.g, dk); b = lerp(b, PAL.grassDark.b, dk);
     const ht = smooth(10, 45, h) * 0.6;
     r = lerp(r, PAL.hill.r, ht); g = lerp(g, PAL.hill.g, ht); b = lerp(b, PAL.hill.b, ht);
-    const vt = (1 - smooth(13, 19, d)) * 0.5;
+    const vt = (1 - smooth(17, 23, d)) * 0.5;
     r = lerp(r, PAL.verge.r, vt); g = lerp(g, PAL.verge.g, vt); b = lerp(b, PAL.verge.b, vt);
     const st = smooth(WATER + 1.5, WATER + 0.3, h);
     r = lerp(r, PAL.sand.r, st); g = lerp(g, PAL.sand.g, st); b = lerp(b, PAL.sand.b, st);
@@ -960,7 +973,7 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
     finalize(bar.build('barriers', toon), 0.09);
   }
   function GRID_SLOTS() {
-    return [{ back: 6, lat: -3.5 }, { back: 11, lat: 3.5 }, { back: 16, lat: -3.5 }, { back: 21, lat: 3.5 }, { back: 26, lat: -3.5 }, { back: 31, lat: 3.5 }];
+    return [-9.5, -5.7, -1.9, 1.9, 5.7, 9.5].map((lat) => ({ back: 8, lat }));
   }
 
   // props: trees, rocks, bushes, grandstand, gantry, windmill tower
@@ -1068,12 +1081,12 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
     const F = T(X[0], Y[0], Z[0], HD[0]);
     const at = (x, y, z, yaw = 0, pitch = 0, roll = 0) => T(x, y, z, yaw, pitch, roll).multiply(F);
     for (const s of [-1, 1]) {
-      props.add(VD.cyl(11, 1.4, 1.6, 10), at(s * 16.8, 5.5, 0), PAL.red);
-      props.add(VD.cyl(0.8, 2.2, 2.2, 10), at(s * 16.8, 0.4, 0), PAL.white);
+      props.add(VD.cyl(11, 1.4, 1.6, 10), at(s * 20.8, 5.5, 0), PAL.red);
+      props.add(VD.cyl(0.8, 2.2, 2.2, 10), at(s * 20.8, 0.4, 0), PAL.white);
     }
-    props.add(VD.box(36.8, 2.4, 1.3), at(0, 10, 0), PAL.white);
-    for (let r = 0; r < 2; r++) for (let q = 0; q < 23; q++) if ((q + r) % 2 === 0) {
-      props.add(VD.box(1.5, 1.15, 1.36), at(-16.5 + q * 1.5, 9.4 + r * 1.15, 0), PAL.ink);
+    props.add(VD.box(44.8, 2.4, 1.3), at(0, 10, 0), PAL.white);
+    for (let r = 0; r < 2; r++) for (let q = 0; q < 29; q++) if ((q + r) % 2 === 0) {
+      props.add(VD.box(1.5, 1.15, 1.36), at(-21 + q * 1.5, 9.4 + r * 1.15, 0), PAL.ink);
     }
     props.add(VD.box(22, 5.2, 0.7), at(0, 14.2, 0), PAL.yellow);
     props.add(VD.box(8.2, 2.0, 1.0), at(0, 7.6, -0.3), PAL.dark);
@@ -1506,6 +1519,7 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
     $('hLapTot').textContent = '/' + settings.laps;
     $('hBest').textContent = '—';
     hud.lastPos = -1; hud.lastLap = -1;
+    if (typeof KART !== 'undefined') KART.reset();
   }
   function GOrun() {
     state = 'countdown'; cdT = 0; cdPhase = -2; firstGasT = -1; prevGas = raw.gas > 0;
@@ -1533,6 +1547,7 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
   }
   function setPaused(p) {
     if (p === paused) return;
+    if (p && KART.mp) return;
     if (p && !(state === 'race' || state === 'countdown')) return;
     paused = p;
     $('pause').classList.toggle('hidden', !p);
@@ -1728,7 +1743,7 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
   function aiDrive(c, dt) {
     const o = { steer: 0, gas: 0, brake: 0, drift: false };
     c.laneT -= dt;
-    if (c.laneT <= 0) { c.laneTarget = (Math.random() * 2 - 1) * 5; c.laneT = 2.5 + Math.random() * 3.5; }
+    if (c.laneT <= 0) { c.laneTarget = (Math.random() * 2 - 1) * 8; c.laneT = 2.5 + Math.random() * 3.5; }
     for (const p of PADS) {
       let d = p.i - c.fs; if (d < 0) d += N;
       if (d > 2 && d < 34 && c.ci % 2 === settings.diff % 2) c.laneTarget = p.lat;
@@ -1738,16 +1753,16 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
       const ahead = q.prog - c.prog;
       if (ahead > 0 && ahead < 10 && Math.abs(q.lat - c.lane) < 2.9) {
         let t = q.lat + (q.lat > c.lane ? -4.4 : 4.4);
-        if (Math.abs(t) > 6.4) t = q.lat + (q.lat > 0 ? -4.4 : 4.4);
+        if (Math.abs(t) > 10) t = q.lat + (q.lat > 0 ? -4.4 : 4.4);
         c.laneTarget = t;
       }
     }
-    c.laneTarget = clamp(c.laneTarget, -6.3, 6.3);
+    c.laneTarget = clamp(c.laneTarget, -10, 10);
     c.lane = damp(c.lane, c.laneTarget, 1.6, dt);
     const look = Math.floor(6 + Math.abs(c.vf) * 0.3);
     const j = (c.idx + look) % N;
     const kA = K[(c.idx + Math.floor(look * 1.6)) % N];
-    const tl = clamp(c.lane + clamp(kA * 240, -3.5, 3.5), -6.6, 6.6);
+    const tl = clamp(c.lane + clamp(kA * 240, -5, 5), -10.5, 10.5);
     const tx = X[j] + RX[j] * tl, tz = Z[j] + RZ[j] * tl;
     const err = wrapA(Math.atan2(tx - c.x, tz - c.z) - c.heading);
     o.steer = clamp(err * 2.6, -1, 1);
@@ -1807,8 +1822,8 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
     state = 'finished'; finishT = 0;
     const pos = standings().indexOf(player) + 1;
     // nhúng trong Avatar Game: báo thứ hạng để nhận xu
-    try { if (window.parent !== window) window.parent.postMessage({ type: 'race3d-finish', pos, diff: settings.diff, laps: settings.laps, time: player.finishT }, '*'); } catch (e) { /* chạy riêng */ }
-    showMsg(pos === 1 ? 'Về nhất!' : 'Về đích!', 'hold');
+    if (!KART.mp) try { if (window.parent !== window) window.parent.postMessage({ type: 'race3d-finish', pos, diff: settings.diff, laps: settings.laps, time: player.finishT, items: KART.on }, '*'); } catch (e) { /* chạy riêng */ }
+    showMsg(KART.mp ? 'Về đích! Chờ các tay đua khác…' : pos === 1 ? 'Về nhất!' : 'Về đích!', 'hold');
     sfx.fanfare();
     for (let k = 0; k < 5; k++) puff(player.x + (Math.random() - 0.5) * 6, player.y + 2 + Math.random() * 2, player.z + (Math.random() - 0.5) * 6, 6, [1, 0.85 + Math.random() * 0.15, 0.4 + Math.random() * 0.5]);
   }
@@ -2046,7 +2061,7 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
       const t1 = document.createElement('td'); t1.className = 'rk'; t1.textContent = k + 1;
       const t2 = document.createElement('td');
       const dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = c.hex;
-      t2.appendChild(dot); t2.appendChild(document.createTextNode(c === player ? 'Bạn' : c.name));
+      t2.appendChild(dot); t2.appendChild(document.createTextNode(c === player ? 'Bạn' : (c.netName || c.name)));
       const t3 = document.createElement('td'); t3.className = 'tm';
       t3.textContent = c.finished ? fmt(c.finishT) : 'đang chạy…';
       tr.append(t1, t2, t3); rows.appendChild(tr);
@@ -2091,6 +2106,266 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
   $('toMenuBtn').addEventListener('click', toMenu);
   setMute(audio.muted);
   setTouchMode(touchMode);
+
+  // ---------------------------------------------------------------- 🎁 ĐUA ĐẠO CỤ + GIẢI ĐUA NHIỀU NGƯỜI
+  // ?mode=items: đua đạo cụ với máy · ?mp=1: giải đua nhiều người (trang game chuyển tin qua kênh online của khu)
+  const KART = (() => {
+    const qs = new URLSearchParams(location.search);
+    const mp = qs.get('mp') === '1', on = mp || qs.get('mode') === 'items';
+    const K = { on, mp, me: 'me', cfg: null, boxes: [], hazards: [], shots: [], outT: 0, ended: false, firstFin: 0, seq: 0, waiting: false, roll: 0 };
+    const nop = () => {};
+    if (!on) return { on: false, mp: false, mod: (c, i) => i, post: nop, pre: nop, frame: nop, reset: nop, onMyFinish: nop };
+    const ICON = { missile: '🚀', banana: '🍌', bomb: '💣', shield: '🛡️', nitro: '⚡', magnet: '🧲', storm: '⛈️' };
+    const NAME = { missile: 'Tên lửa', banana: 'Vỏ chuối', bomb: 'Bom nước', shield: 'Khiên', nitro: 'Nitro', magnet: 'Nam châm', storm: 'Mây sét' };
+    const send = (d) => { if (mp) try { window.parent.postMessage({ type: 'kart-out', d }, '*'); } catch (e) { /* bỏ qua */ } };
+    const owned = (c) => !c.remote;
+
+    /* ---------- hình: emoji nổi trong 3D ---------- */
+    const emoMat = {};
+    function emoji(e, size) {
+      let mat = emoMat[e];
+      if (!mat) {
+        const t = new B.DynamicTexture('emo' + e, { width: 128, height: 128 }, scene, true);
+        const g = t.getContext(); g.clearRect(0, 0, 128, 128);
+        g.font = '104px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(e, 64, 72);
+        t.update(); t.hasAlpha = true;
+        mat = new B.StandardMaterial('em' + e, scene); mat.diffuseTexture = t; mat.useAlphaFromDiffuseTexture = true;
+        mat.emissiveColor = new C3(1, 1, 1); mat.disableLighting = true; mat.backFaceCulling = false;
+        emoMat[e] = mat;
+      }
+      const m = B.MeshBuilder.CreatePlane('p' + e, { size }, scene);
+      m.material = mat; m.billboardMode = B.Mesh.BILLBOARDMODE_ALL; m.isPickable = false;
+      return m;
+    }
+    /* ---------- hộp quà ❓ trên đường ---------- */
+    const boxTex = new B.DynamicTexture('qbox', { width: 128, height: 128 }, scene, true);
+    { const g = boxTex.getContext(), gr = g.createLinearGradient(0, 0, 128, 128); ['#ff5a4e', '#ffd23f', '#46c96f', '#3fa7ff', '#9b6bff'].forEach((c, i) => gr.addColorStop(i / 4, c)); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); g.strokeStyle = '#fff'; g.lineWidth = 10; g.strokeRect(6, 6, 116, 116); g.fillStyle = '#fff'; g.font = '900 96px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 8; g.strokeStyle = '#241c3a'; g.translate(64, 64); g.scale(1, -1); g.strokeText('?', 0, 6); g.fillText('?', 0, 6); boxTex.update(); }
+    const boxMat = new B.StandardMaterial('qboxM', scene); boxMat.diffuseTexture = boxTex; boxMat.emissiveColor = new C3(0.55, 0.55, 0.55); boxMat.alpha = 0.92;
+    [0.1, 0.27, 0.45, 0.62, 0.8, 0.94].forEach((f, r) => [-8.4, -2.8, 2.8, 8.4].forEach((lat, k) => {
+      const s = Math.floor(N * f), p = tp(s, lat, 1.5);
+      const m = B.MeshBuilder.CreateBox('qb' + r + k, { size: 1.7 }, scene); m.material = boxMat; m.position.set(p[0], p[1], p[2]); m.isPickable = false;
+      K.boxes.push({ m, x: p[0], y: p[1], z: p[2], off: 0, ph: r * 1.3 + k });
+    }));
+    const shieldMat = new B.StandardMaterial('shieldM', scene); shieldMat.diffuseColor = new C3(0.3, 0.85, 1); shieldMat.emissiveColor = new C3(0.2, 0.6, 0.9); shieldMat.alpha = 0.32;
+    const puddleMat = new B.StandardMaterial('puddleM', scene); puddleMat.diffuseColor = new C3(0.25, 0.6, 1); puddleMat.emissiveColor = new C3(0.15, 0.4, 0.8); puddleMat.alpha = 0.6;
+
+    /* ---------- HUD ô đạo cụ ---------- */
+    const box = document.createElement('div');
+    box.id = 'kItem'; box.className = 'kitem sticker';
+    box.innerHTML = '<b>🎁</b><small>Chạy qua hộp ❓ để nhận đạo cụ</small>';
+    $('hud').appendChild(box);
+    const tb = document.createElement('button');
+    tb.type = 'button'; tb.className = 'tbtn'; tb.id = 'tItem'; tb.textContent = '🎁';
+    $('touch').appendChild(tb);
+    tb.addEventListener('pointerdown', (e) => { e.preventDefault(); if (player) useItem(player); });
+    window.addEventListener('keydown', (e) => { if ((e.code === 'KeyE' || e.code === 'KeyF' || e.code === 'Enter') && state === 'race' && player && !player.finished) { e.preventDefault(); useItem(player); } });
+    const flash = document.createElement('div'); flash.className = 'kflash'; document.body.appendChild(flash);
+    const feed = document.createElement('div'); feed.className = 'kfeed'; $('hud').appendChild(feed);
+    function note(t) { const d = document.createElement('div'); d.textContent = t; feed.prepend(d); setTimeout(() => d.remove(), 3500); while (feed.children.length > 4) feed.lastChild.remove(); }
+    const nameOf = (c) => (c === player ? 'Bạn' : c.netName || c.name);
+    function drawItem() {
+      const c = player; if (!c) return;
+      if (K.roll > 0) { const ks = Object.keys(ICON); box.firstChild.textContent = ICON[ks[Math.floor(time * 14) % ks.length]]; box.lastChild.textContent = 'Đang quay…'; box.classList.add('has'); return; }
+      box.firstChild.textContent = c.item ? ICON[c.item] : '🎁';
+      box.lastChild.textContent = c.item ? NAME[c.item] + (touchMode ? ' · bấm 🎁' : ' · bấm E') : (c.shield > 0 ? '🛡️ Khiên đang bật' : 'Chạy qua hộp ❓ để nhận đạo cụ');
+      box.classList.toggle('has', !!c.item);
+    }
+
+    /* ---------- đạo cụ ---------- */
+    function rollFor(c) {
+      const order = standings(), r = order.indexOf(c) + 1, last = r === order.length;
+      const W = r <= 2 ? { banana: 30, shield: 22, nitro: 18, bomb: 22, missile: 8 }
+        : r <= 4 ? { missile: 24, banana: 14, bomb: 14, nitro: 20, shield: 10, magnet: 18 }
+          : { missile: 26, nitro: 20, magnet: 24, storm: last ? 18 : 6, shield: 6, bomb: 8 };
+      let tot = 0; for (const k in W) tot += W[k];
+      let x = Math.random() * tot; for (const k in W) { x -= W[k]; if (x < 0) return k; }
+      return 'nitro';
+    }
+    function ahead(c) { const o = standings(), i = o.indexOf(c); return i > 0 ? o[i - 1] : null; }
+    function hit(c, what) {
+      if (!c || c.finished) return;
+      if (c.shield > 0) { c.shield = 0; puff(c.x, c.y + 1.2, c.z, 10, [0.6, 0.9, 1]); if (c === player) { showMsg('Khiên đỡ đòn!', 'small'); sfx.level(2); } return; }
+      if (what === 'spin') { c.spinT = 1.6; c.boost = 0; if (c.drifting) endDrift(c, false); c.vx *= 0.3; c.vz *= 0.3; sparkBurst(c.x, c.y + 1, c.z, 16); }
+      else { c.slowT = Math.max(c.slowT || 0, 3); puff(c.x, c.y + 1, c.z, 8, [0.5, 0.75, 1]); }
+      if (c === player) { sfx.hit(8); shake = Math.max(shake, 0.6); showMsg(what === 'spin' ? 'Trúng đòn!' : 'Bị làm chậm!', 'small'); }
+    }
+    function drop(kind, x, y, z, owner, id) {
+      if (K.hazards.some((h) => h.id === id)) return;
+      const h = { id, kind, x, y, z, owner, t: 0, life: kind === 'bomb' ? 6 : 60 };
+      if (kind === 'bomb') { h.m = B.MeshBuilder.CreateDisc('pd' + id, { radius: 4.4, tessellation: 24 }, scene); h.m.material = puddleMat; h.m.rotation.x = Math.PI / 2; h.m.position.set(x, y + 0.12, z); puff(x, y + 1, z, 14, [0.5, 0.8, 1]); }
+      else { h.m = emoji('🍌', 1.8); h.m.position.set(x, y + 0.8, z); }
+      K.hazards.push(h);
+    }
+    function rmHazard(id) { const i = K.hazards.findIndex((h) => h.id === id); if (i < 0) return; K.hazards[i].m.dispose(); K.hazards.splice(i, 1); }
+    function shot(from, to) { const m = emoji('🚀', 2.2); m.position.set(from.x, from.y + 1.6, from.z); K.shots.push({ m, x0: from.x, y0: from.y, z0: from.z, to, t: 0, dur: clamp(Math.hypot(to.x - from.x, to.z - from.z) / 70, 0.6, 2.2) }); }
+    function storm(by) {
+      const o = standings(), i = o.indexOf(by);
+      flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on');
+      for (let k = 0; k < i; k++) { const q = o[k]; const m = emoji('⚡', 3); m.position.set(q.x, q.y + 3.5, q.z); setTimeout(() => m.dispose(), 700); if (owned(q)) { hit(q, 'slow'); if (!(q.shield > 0)) q.spinT = Math.max(q.spinT || 0, 0.5); } }
+      note(`⛈️ ${nameOf(by)} gọi mây sét!`);
+    }
+    function useItem(c) {
+      if (!c.item || c.finished || (c === player && K.roll > 0) || state !== 'race') return;
+      const it = c.item; c.item = null;
+      if (it === 'nitro') { c.boost = Math.max(c.boost, 2.2); onBoost(c); }
+      else if (it === 'shield') c.shield = 9;
+      else if (it === 'magnet') { c.magT = 2.6; }
+      else if (it === 'banana') { const id = K.me + '-' + (++K.seq), x = c.x - Math.sin(c.heading) * 3.8, z = c.z - Math.cos(c.heading) * 3.8; drop('banana', x, c.y, z, c.ci, id); send({ op: 'drop', kind: 'banana', id, x, y: c.y, z, o: c.ci }); }
+      else if (it === 'bomb') { const p = tp(c.fs + 24, c.lat, 0), id = K.me + '-' + (++K.seq); drop('bomb', p[0], p[1], p[2], c.ci, id); send({ op: 'drop', kind: 'bomb', id, x: p[0], y: p[1], z: p[2], o: c.ci }); }
+      else if (it === 'missile') { const t = ahead(c); if (t) { shot(c, t); send({ op: 'shot', k: c.ci, t: t.ci }); note(`🚀 ${nameOf(c)} bắn ${nameOf(t)}`); } else { c.boost = Math.max(c.boost, 1.2); onBoost(c); } }
+      else if (it === 'storm') { storm(c); send({ op: 'storm', k: c.ci }); }
+      if (c === player) { sfx.click(); showMsg(ICON[it] + ' ' + NAME[it], 'small'); }
+    }
+
+    /* ---------- điều khiển xe bị trúng đòn / nam châm ---------- */
+    function mod(c, ci) {
+      if (c.slowT > 0) c.skillDyn *= 0.55;
+      if (c.spinT > 0) return { steer: 0, gas: 0, brake: 0.4, drift: false };
+      return ci;
+    }
+    function post(c, h) {
+      if (c.spinT > 0) c.spinT -= h;
+      if (c.slowT > 0) c.slowT -= h;
+      if (c.shield > 0) c.shield -= h;
+      if (c.magT > 0) {
+        c.magT -= h;
+        const t = ahead(c);
+        if (t) { const dx = t.x - c.x, dz = t.z - c.z, d = Math.hypot(dx, dz); if (d > 4 && d < 120) { c.vx += dx / d * 16 * h; c.vz += dz / d * 16 * h; c.boost = Math.max(c.boost, 0.2); } }
+      }
+      if (!c.isPlayer && c.item && !c.finished) { c.aiT = (c.aiT == null ? 1 + Math.random() * 4 : c.aiT) - h; if (c.aiT <= 0) { c.aiT = null; useItem(c); } }
+    }
+
+    /* ---------- nhiều người: nhận vị trí xe của người khác ---------- */
+    function pre(dt) {
+      const now = performance.now();
+      for (const c of cars) {
+        if (!c.remote || !c.net) continue;
+        const n = c.net, age = clamp((now - n.at) / 1000, 0, 0.4);
+        const tx = n.x + n.vx * age, tz = n.z + n.vz * age;
+        if (Math.hypot(tx - c.x, tz - c.z) > 25) { c.x = tx; c.z = tz; } else { c.x = damp(c.x, tx, 10, dt); c.z = damp(c.z, tz, 10, dt); }
+        c.y = damp(c.y, n.y, 10, dt);
+        c.heading += wrapA(n.h - c.heading) * (1 - Math.exp(-10 * dt));
+        c.vx = n.vx; c.vz = n.vz; c.vf = n.vf; c.boost = n.b; c.drifting = !!n.dr; c.driftDir = n.dd || 1;
+        c.spinT = n.sp; c.slowT = n.sl; c.shield = n.sh; c.prog = n.pg; c.lapIdx = n.lp;
+        if (n.fin && !c.finished) { c.finished = true; c.finishT = n.ft; note(`🏁 ${nameOf(c)} về đích!`); }
+        c.idx = nearestIdx(c.x, c.z, c.idx, 20); frameAt(c);
+      }
+    }
+    function onNet(from, d) {
+      if (!d) return;
+      if (d.op === 'st') { for (const e of d.c || []) { const c = cars[e.k]; if (c && c.remote && c.owner === from) c.net = { ...e, at: performance.now() }; } }
+      else if (d.op === 'drop') drop(d.kind, d.x, d.y, d.z, d.o, d.id);
+      else if (d.op === 'rm') rmHazard(d.id);
+      else if (d.op === 'box') { const b = K.boxes[d.i]; if (b) b.off = 3.5; }
+      else if (d.op === 'shot') { const a = cars[d.k], t = cars[d.t]; if (a && t) { shot(a, t); note(`🚀 ${nameOf(a)} bắn ${nameOf(t)}`); } }
+      else if (d.op === 'storm') { const a = cars[d.k]; if (a) storm(a); }
+      else if (d.op === 'hit') { const c = cars[d.k]; if (c && owned(c)) hit(c, d.w); }
+    }
+
+    /* ---------- mỗi khung hình ---------- */
+    function frame(dt) {
+      K.roll = Math.max(0, K.roll - dt);
+      for (const b of K.boxes) {
+        if (b.off > 0) { b.off -= dt; b.m.setEnabled(b.off <= 0); }
+        b.m.rotation.y += dt * 1.6; b.m.rotation.x = Math.sin(time + b.ph) * 0.3; b.m.position.y = b.y + Math.sin(time * 2.4 + b.ph) * 0.25;
+        if (b.off > 0 || state !== 'race') continue;
+        for (const c of cars) {
+          if (!owned(c) || c.finished) continue;
+          if (Math.abs(c.x - b.x) < 2.4 && Math.abs(c.z - b.z) < 2.4 && Math.abs(c.y + 1 - b.y) < 3) {
+            b.off = 3.5; b.m.setEnabled(false); send({ op: 'box', i: K.boxes.indexOf(b) });
+            sparkBurst(b.x, b.y, b.z, 8);
+            if (!c.item) { c.item = rollFor(c); if (c === player) { K.roll = 0.9; sfx.level(1); } }
+            break;
+          }
+        }
+      }
+      for (let i = K.hazards.length - 1; i >= 0; i--) {
+        const h = K.hazards[i];
+        h.t += dt;
+        if (h.t > h.life) { h.m.dispose(); K.hazards.splice(i, 1); continue; }
+        if (h.kind === 'banana') h.m.position.y = h.y + 0.8 + Math.sin(time * 4) * 0.1;
+        for (const c of cars) {
+          if (!owned(c) || c.finished) continue;
+          const d = Math.hypot(c.x - h.x, c.z - h.z);
+          if (h.kind === 'banana' && d < 2 && h.t > 0.4) { hit(c, 'spin'); send({ op: 'rm', id: h.id }); rmHazard(h.id); if (c === player || c.ci === h.owner) note(`🍌 ${nameOf(c)} trượt vỏ chuối!`); break; }
+          if (h.kind === 'bomb' && d < 4.4 && !(c.ci === h.owner && h.t < 1)) { if (c.shield > 0) { c.shield = 0; } else c.slowT = Math.max(c.slowT || 0, 1.2); }
+        }
+      }
+      for (let i = K.shots.length - 1; i >= 0; i--) {
+        const s = K.shots[i];
+        s.t += dt; const u = clamp(s.t / s.dur, 0, 1);
+        s.m.position.set(lerp(s.x0, s.to.x, u), lerp(s.y0, s.to.y, u) + 1.6 + Math.sin(u * Math.PI) * 5, lerp(s.z0, s.to.z, u));
+        if (u >= 1) { s.m.dispose(); K.shots.splice(i, 1); sparkBurst(s.to.x, s.to.y + 1, s.to.z, 20); puff(s.to.x, s.to.y + 1, s.to.z, 10, [1, 0.6, 0.3]); if (owned(s.to)) hit(s.to, 'spin'); }
+      }
+      for (const c of cars) {
+        if (c.spinT > 0) c.yawNode.rotation.y = c.yawVis + (1.6 - c.spinT) * 9;
+        if (c.shield > 0) { if (!c.shM) { c.shM = B.MeshBuilder.CreateSphere('sh' + c.ci, { diameter: 5, segments: 12 }, scene); c.shM.material = shieldMat; c.shM.parent = c.root; c.shM.position.y = 1; c.shM.isPickable = false; } c.shM.setEnabled(true); }
+        else if (c.shM) c.shM.setEnabled(false);
+      }
+      drawItem();
+      if (!mp) return;
+      K.outT -= dt;
+      if (K.outT <= 0 && (state === 'race' || state === 'finished' || state === 'countdown')) {
+        K.outT = 0.15;
+        send({ op: 'st', c: cars.filter(owned).map((c) => ({ k: c.ci, x: +c.x.toFixed(2), y: +c.y.toFixed(2), z: +c.z.toFixed(2), h: +c.heading.toFixed(3), vx: +c.vx.toFixed(2), vz: +c.vz.toFixed(2), vf: +c.vf.toFixed(1), b: +c.boost.toFixed(2), dr: c.drifting ? 1 : 0, dd: c.driftDir, sp: +(c.spinT || 0).toFixed(2), sl: +(c.slowT || 0).toFixed(2), sh: +(c.shield || 0).toFixed(1), pg: +c.prog.toFixed(1), lp: c.lapIdx, fin: c.finished ? 1 : 0, ft: c.finishT })) });
+      }
+      // hết giải: mọi người chơi thật đã về đích, hoặc 45 giây sau người đầu tiên về
+      if (!K.ended && (state === 'race' || state === 'finished')) {
+        const humans = cars.filter((c) => c.human), fins = humans.filter((c) => c.finished);
+        if (fins.length && !K.firstFin) K.firstFin = raceTime;
+        if (fins.length === humans.length || (K.firstFin && raceTime - K.firstFin > 45)) {
+          K.ended = true;
+          const o = standings(), pos = o.indexOf(player) + 1, w = o[0];
+          try { window.parent.postMessage({ type: 'race3d-finish', mp: true, pos, humans: humans.length, winner: nameOf(w) === 'Bạn' ? player.netName : w.netName, winnerHuman: !!w.human, time: player.finished ? player.finishT : 0 }, '*'); } catch (e) { /* bỏ qua */ }
+          if (state !== 'finished') { state = 'finished'; finishT = 2.9; }
+          $('resLead').textContent = w.human ? `🏆 ${w === player ? 'Bạn' : w.netName} vô địch giải đua!` : '🤖 Xe máy về nhất — giải này không ai nhận thưởng';
+        }
+      }
+    }
+
+    /* ---------- bắt đầu ván ---------- */
+    function reset() {
+      for (const h of K.hazards) h.m.dispose();
+      for (const s of K.shots) s.m.dispose();
+      K.hazards = []; K.shots = []; K.ended = false; K.firstFin = 0; K.roll = 0;
+      for (const b of K.boxes) { b.off = 0; b.m.setEnabled(true); }
+      for (const c of cars) { c.item = null; c.shield = 0; c.spinT = 0; c.slowT = 0; c.magT = 0; c.aiT = null; if (!mp) { c.remote = false; c.human = c === player; c.netName = c === player ? 'Bạn' : c.name; } }
+    }
+    function config(cfg) {
+      if (K.cfg) return;
+      K.cfg = cfg; K.me = cfg.me;
+      settings.laps = cfg.laps || 3; settings.diff = 1;
+      const meIdx = Math.max(0, cfg.players.findIndex((p) => p.pid === cfg.me));
+      player = cars[meIdx];
+      cars.forEach((c, k) => {
+        const p = cfg.players[k];
+        c.human = !!p; c.owner = p ? p.pid : cfg.host; c.remote = c.owner !== K.me; c.net = null;
+        c.netName = p ? String(p.name).slice(0, 16) : CAR_NAMES[k] + ' 🤖'; c.name = c.netName;
+        tagEls[k].lastChild.textContent = c.netName;
+        placeOnGrid(c, k);
+        c.isPlayer = c === player; c.skill = c.human ? 1 : DIFFS[1].skill + (Math.random() * 2 - 1) * DIFFS[1].spread; c.skillDyn = c.skill; c.startDelay = c.human ? 0 : 0.05 + Math.random() * 0.3;
+      });
+      driftSparks.emitter = player.emRear;
+      raceTime = 0; finishT = 0; resultsShown = false; raceBest = null; pSteer = 0;
+      $('hLapTot').textContent = '/' + settings.laps; $('hBest').textContent = '—'; hud.lastPos = -1; hud.lastLap = -1;
+      reset();
+      $('menu').classList.add('hidden'); $('loading').classList.add('hidden'); $('hud').classList.remove('hidden');
+      for (const b of document.querySelectorAll('#results .row-btns')) b.classList.add('hidden');
+      for (const c of cars) syncVisual(c, 0);
+      camBlend = 1; chaseTargets(player, 0, camPos, camLook, true);
+      state = 'wait'; K.waiting = true;
+      showMsg('Chờ xuất phát…', 'small');
+      const goAt = cfg.startAt - 3900;
+      const tick = () => { if (Date.now() >= goAt) { K.waiting = false; initAudio(); GOrun(); } else setTimeout(tick, 50); };
+      tick();
+    }
+    window.addEventListener('message', (e) => { const m = e.data || {}; if (m.type === 'kart-config') config(m); else if (m.type === 'kart-in') onNet(m.from, m.d); });
+    if (!mp) {
+      document.querySelector('.tagline').textContent = 'Đua đạo cụ! Chạy qua hộp ❓ nhận 🚀 🍌 💣 🛡️ ⚡ 🧲 ⛈️, bấm E (hoặc 🎁) để dùng.';
+    }
+    if (qs.get('debug')) window.__k = { player: () => player, cars, useItem, standings, K };
+    return { on, mp, mod, post, pre, frame, reset, onNet, ready: () => mp && window.parent.postMessage({ type: 'kart-ready' }, '*') };
+  })();
 
   // ---------------------------------------------------------------- main update
   function update(dt) {
@@ -2137,6 +2412,7 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
         const steps = dt > 1 / 50 ? 2 : 1, h = dt / steps;
         for (let s = 0; s < steps; s++) {
           for (const c of cars) {
+            if (c.remote) continue;
             c.skillDyn = rubber(c);
             let ci;
             if (c.isPlayer && !c.finished && !autopilot) {
@@ -2144,13 +2420,16 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
               if (inp.analog) pSteer = t; else pSteer += clamp(t - pSteer, -h * 7.5, h * 7.5);
               ci = { steer: pSteer, gas: inp.gas, brake: inp.brake, drift: inp.drift };
             } else ci = aiDrive(c, h);
+            ci = KART.mod(c, ci, h);
             stepCar(c, ci, h);
+            KART.post(c, h);
           }
           collideCars();
-          for (const c of cars) updateProgress(c);
+          for (const c of cars) if (!c.remote) updateProgress(c);
         }
+        KART.pre(dt);
         for (const c of cars) {
-          if (!c.isPlayer || c.finished) {
+          if ((!c.isPlayer || c.finished) && !c.remote) {
             if (Math.abs(c.vf) < 2 && raceTime > 3) { c.stuckT += dt; if (c.stuckT > 2.5) respawn(c, false); } else c.stuckT = 0;
           }
           syncVisual(c, dt);
@@ -2164,6 +2443,7 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
           else { driftSparks.color1.set(0.5, 0.8, 1, 1); driftSparks.color2.set(0.3, 0.6, 1, 1); }
         }
         updateEngineSound(p, p.finished ? 0.4 : inp.gas, true);
+        KART.frame(dt);
         if (state === 'finished' && finishT > 2.8 && !resultsShown) {
           resultsShown = true; renderResults();
           $('results').classList.remove('hidden');
@@ -2178,8 +2458,11 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
 
   // ---------------------------------------------------------------- loop
   let perfAcc = 0, perfN = 0, perfChecks = 0;
+  let lastFrameAt = 0;
   engine.runRenderLoop(() => {
-    const dtRaw = engine.getDeltaTime() / 1000;
+    // tối đa ~60 hình/giây (màn 120–144Hz không vẽ thừa → đỡ nóng máy)
+    const nowT = performance.now(); if (lastFrameAt && nowT - lastFrameAt < 15.5) return;
+    const dtRaw = lastFrameAt ? (nowT - lastFrameAt) / 1000 : 1 / 60; lastFrameAt = nowT;
     const dt = Math.min(Math.max(dtRaw, 0.0005), 1 / 20);
     if (paused) return;
     update(dt);
@@ -2206,6 +2489,7 @@ void main(void) { float r = length(vUV); float a = (1.0 - smoothstep(0.45, 1.0, 
   $('menu').classList.remove('hidden');
   setupMinimap();
   setTimeout(() => $('startBtn').focus({ preventScroll: true }), 50);
+  if (KART.mp) { $('menu').classList.add('hidden'); setLoading('🏁 Đang vào giải đua… chờ các tay đua khác'); KART.ready(); }
   window.addEventListener('keydown', (e) => { if (state === 'title' && e.code === 'Enter' && document.activeElement === document.body) startRace(); });
 }
 })();

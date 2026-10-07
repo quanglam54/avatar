@@ -70,6 +70,8 @@ const RACECUP = (() => {
     v.classList.add('show');
     v.querySelector('[data-close]').onclick = () => { if (active) send({ op: 'g', race: active.race, d: { op: 'quit' } }); active = null; UI.closeArcade(); };
     setTimeout(() => { const f = v.querySelector('iframe'); if (f) f.focus(); }, 300);
+    // file race3d.html trên web còn là bản cũ (chưa có đạo cụ) → báo rõ
+    setTimeout(() => { try { const f = v.querySelector('iframe'), d = f && f.contentDocument; if (d && d.getElementById('menu') && !d.getElementById('kItem')) UI.toast('⚠️ Game đua trên web còn là bản cũ (chưa có đạo cụ) — chủ game cần tải file arcade/games/race3d.html mới lên', 9000); } catch (e) { /* bỏ qua */ } }, 15000);
   }
   function launch(cfg) {
     if (lp && lp.el.isConnected) { const p = lp; lp = null; clearInterval(beat); beat = null; p.close(); }

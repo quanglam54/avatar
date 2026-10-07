@@ -276,7 +276,25 @@ const PHONE = (() => {
     wrap.querySelector('.ph-home').onclick = () => (app === 'home' ? close() : go('home'));
     render();
   }
-  function close() { if (wrap) { wrap.remove(); wrap = null; screen = null; } openNow = false; }
+  function close() { if (wrap) { wrap.remove(); wrap = null; screen = null; } openNow = false; padInput = null; }
+  /* 📋 dán số đã copy (Ctrl+V, nút Dán) + gõ phím số trên máy tính khi đang ở bàn phím điện thoại */
+  let padInput = null;
+  const cleanNum = (t) => { let d = String(t || '').replace(/[^\d+]/g, ''); if (d.startsWith('+84')) d = '0' + d.slice(3); else if (d.startsWith('84') && d.length === 11) d = '0' + d.slice(2); return d.replace(/\D/g, ''); };
+  async function pasteBtn() {
+    try { const t = await navigator.clipboard.readText(); const d = cleanNum(t); if (!d) return UI.toast('📋 Chưa copy số điện thoại nào'); if (padInput) { padInput(d, 'set'); beep(900, 0.05); } }
+    catch (e) { UI.toast('📋 Trình duyệt chưa cho đọc bộ nhớ tạm — bấm Ctrl+V (điện thoại: giữ ngón tay vào ô số rồi chọn Dán)', 5000); }
+  }
+  document.addEventListener('paste', (e) => {
+    if (!wrap || !padInput || /input|textarea/i.test((document.activeElement || {}).tagName || '')) return;
+    const d = cleanNum((e.clipboardData || window.clipboardData).getData('text'));
+    if (!d) return;
+    e.preventDefault(); padInput(d, 'set'); beep(900, 0.05);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!wrap || !padInput || /input|textarea/i.test((document.activeElement || {}).tagName || '') || e.ctrlKey || e.metaKey) return;
+    if (/^[0-9]$/.test(e.key)) { e.preventDefault(); padInput(e.key); beep(700 + (+e.key) * 40, 0.06); }
+    else if (e.key === 'Backspace') { e.preventDefault(); padInput('', 'del'); }
+  });
   const go = (a) => { app = a; render(); };
   function usePb() {
     if (!S().phone || !S().phone.pb) return;
@@ -294,6 +312,7 @@ const PHONE = (() => {
   function render() {
     if (!screen) return;
     statusBar();
+    padInput = null;
     const box = screen.querySelector('.ph-app'), m = model();
     box.className = 'ph-app ' + app;
     if (app === 'home') {
@@ -308,7 +327,7 @@ const PHONE = (() => {
     }
     const back = () => { const bk = box.querySelector('[data-back]'); if (bk) bk.onclick = () => go('home'); };
     if (app === 'call') {
-      box.innerHTML = header('Điện thoại') + `<div class="ph-dial"><div class="ph-num"></div><div class="ph-numname"></div>
+      box.innerHTML = header('Điện thoại') + `<div class="ph-dial"><div class="ph-num"></div><button class="ph-paste" data-paste>📋 Dán số</button><div class="ph-numname"></div>
         <div class="ph-keys">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map((k) => `<button data-k="${k}">${k}</button>`).join('')}</div>
         <div class="ph-dial-row"><button class="ph-del" data-del>⌫</button><button class="ph-callbtn" data-call>📞</button><button class="ph-del" data-q>115</button></div>
         <button class="ph-addc" data-addc hidden>➕ Thêm vào danh bạ</button>
@@ -325,6 +344,8 @@ const PHONE = (() => {
       box.querySelectorAll('[data-k]').forEach((b) => b.onclick = () => { if (num.length < 12) num += b.dataset.k; beep(700 + (+b.dataset.k || 0) * 40, 0.06); show(); });
       box.querySelector('[data-del]').onclick = () => { num = num.slice(0, -1); show(); };
       box.querySelector('[data-q]').onclick = () => { num = '115'; show(); };
+      padInput = (t, mode) => { if (mode === 'del') num = num.slice(0, -1); else num = ((mode === 'set' ? '' : num) + t).replace(/\D/g, '').slice(0, 12); show(); };
+      box.querySelector('[data-paste]').onclick = pasteBtn;
       box.querySelector('[data-call]').onclick = () => { if (num) dial(num); };
       show();
     } else if (app === 'contacts') {
@@ -349,7 +370,7 @@ const PHONE = (() => {
       const save = padMode === 'save';
       box.innerHTML = header(save ? 'Liên hệ mới' : 'Tin nhắn mới') + `<div class="ph-dial">
         ${save ? `<input class="ph-name" maxlength="24" placeholder="Tên liên hệ" value="${esc((contactOf(padNum) || {}).name || '')}">` : '<div class="ph-to">Tới:</div>'}
-        <div class="ph-num"></div><div class="ph-numname"></div>
+        <div class="ph-num"></div><button class="ph-paste" data-paste>📋 Dán số</button><div class="ph-numname"></div>
         <div class="ph-keys">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((k) => k ? `<button data-pk="${k}">${k}</button>` : '<span></span>').join('')}</div>
         <button class="ph-big" data-padok>${save ? '💾 Lưu vào danh bạ' : '💬 Nhắn tin'}</button></div>`;
       back();
@@ -363,6 +384,8 @@ const PHONE = (() => {
         if (k === '⌫') padNum = padNum.slice(0, -1); else if (padNum.length < 10) padNum += k;
         beep(700 + (+k || 0) * 40, 0.06); show();
       });
+      padInput = (t, mode) => { if (mode === 'del') padNum = padNum.slice(0, -1); else padNum = ((mode === 'set' ? '' : padNum) + t).replace(/\D/g, '').slice(0, 10); show(); };
+      box.querySelector('[data-paste]').onclick = pasteBtn;
       box.querySelector('[data-padok]').onclick = () => {
         if (!/^0\d{9}$/.test(padNum)) return UI.toast('Số điện thoại phải có 10 chữ số, bắt đầu bằng 0');
         if (!save) return smsTo(padNum);

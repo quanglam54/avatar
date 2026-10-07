@@ -2771,14 +2771,19 @@
     if (!sg) return;
     if (UPD.sig === null) { UPD.sig = sg; return; }
     if (sg === UPD.sig) { UPD.cand = null; return; }
-    if (sg !== UPD.cand) { UPD.cand = sg; setTimeout(checkUpdate, 90000); return; }   // vừa đổi: đợi xem còn đang upload tiếp không
+    // vừa đổi: đợi đến khi file đứng yên 6 phút (chủ game upload xong hết) mới báo — tránh tải lại nhiều lần liên tiếp
+    if (sg !== UPD.cand) { UPD.cand = sg; UPD.candAt = Date.now(); setTimeout(checkUpdate, 360000); return; }
+    if (Date.now() - (UPD.candAt || 0) < 350000) return;
     UPD.pending = true;
     const bar = document.createElement('div');
     bar.className = 'update-bar';
-    bar.innerHTML = '🆕 Có bản cập nhật mới — sẽ tự cập nhật khi bạn chuyển khu <button>Cập nhật ngay</button>';
-    bar.querySelector('button').onclick = () => applyUpdate();
+    bar.innerHTML = '<span>🆕 Có bản mới</span><button data-u>Cập nhật</button><button class="ub-x" data-x>✕</button>';
+    bar.querySelector('[data-u]').onclick = () => applyUpdate();
+    bar.querySelector('[data-x]').onclick = () => bar.remove();
     document.body.appendChild(bar);
   }
+  /** đang bận (ngồi bàn bài, đua xe, gọi điện, giải đua…) thì không tự tải lại trang */
+  const busyNow = () => (typeof TABLE !== 'undefined' && TABLE.seated && TABLE.seated()) || (UI.arcadeOpen && UI.arcadeOpen()) || (typeof CALL !== 'undefined' && CALL.busy()) || (typeof RACECUP !== 'undefined' && RACECUP.active) || (typeof RACE !== 'undefined' && RACE.inRace && RACE.inRace());
   async function applyUpdate() {
     if (UPD.applying) return;
     UPD.applying = true;
@@ -2804,7 +2809,7 @@
         const pos = fade.pos || (maps[id].busStop ? [maps[id].busStop.x + 50, maps[id].busStop.y + 12] : [maps[id].spawn.x, maps[id].spawn.y]);
         enterMap(id, pos[0], pos[1]);
         player.hidden = false;
-        if (UPD.pending && !UPD.applying) { applyUpdate(); return; }
+        if (UPD.pending && !UPD.applying && !busyNow()) { applyUpdate(); return; }
         fade.mode = 'in';
         if (!fade.pos) UI.toast(`📍 Chào mừng tới ${map.name}!`);
         saveNow();
