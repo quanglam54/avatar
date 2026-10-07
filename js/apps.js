@@ -437,7 +437,7 @@ const ZAPPS = (() => {
       const goRide = () => {
         // chạy trên đường phố Hà Nội thật (chế độ taxi tự lái); khu chưa nối đường thì đưa thẳng tới nơi
         AV.afterRide = thanks;
-        if (typeof RIDE !== 'undefined' && RIDE.canRide(AV.currentMap(), to.id) && AV.startRide && AV.startRide(to.id, 'taxi')) return;
+        if (typeof RIDE !== 'undefined' && RIDE.canRide(AV.currentMap(), to.id) && AV.startRide && AV.startRide(to.id, r.id === 'bike' ? 'xeom' : r.id)) return;
         AV.afterRide = null;
         AV.player.hidden = false; AV.teleport(to.id, false, undefined, undefined, `${r.icon} ${r.name} chở bạn tới ${to.name}…`);
         setTimeout(thanks, 2500);

@@ -180,18 +180,21 @@ const RIDE = (() => {
   const stopX = () => leg().len - CROSS - 30;
 
   /* ---------- Bắt đầu / kết thúc ---------- */
+  /** xe thuê có tài xế (gọi qua app ZenoCar) */
+  const HIRED = ['taxi', 'xeom', 'vip'];
+  const XEOM_DRIVER = { skin: '#f1c27d', hair: 'short', hairColor: '#2b2b33', shirt: '#00b14f', shirtStyle: 'plain', pants: '#343a40', hat: 'none', acc: 'none', pet: 'none', npc: true };
   function start(fromZone, to, vehicle) {
     const r = route(fromZone, to);
     if (!r) return false;
     ensureDom();
     legs = r; li = 0; from = fromZone; dest = to; veh = vehicle;
     carDef = (DATA.CARS || []).find((c) => c.id === veh) || null;
-    bike = veh === 'taxi' ? null : carDef || (DATA.BIKES || []).find((b) => b.id === veh) || DATA.BIKES[0];
-    me = { x: 0, v: 0, lane: 3, ly: LANE_Y[3], len: carDef ? carDef.len : bike ? 70 : 150 };
+    bike = HIRED.includes(veh) ? null : carDef || (DATA.BIKES || []).find((b) => b.id === veh) || DATA.BIKES[0];
+    me = { x: 0, v: 0, lane: 3, ly: LANE_Y[3], len: carDef ? carDef.len : bike || veh === 'xeom' ? 70 : 150 };
     batWarn = 0; towed = false;
     npcs = []; others.clear(); keys.clear();
     phase = 'drive'; phaseT = 0; fadeIn = 1; shake = 0; finedAt = -1; eatOpen = false; blockedT = 0; trainX = null;
-    banner = { text: `${veh === 'taxi' ? '🚕 Taxi Xanh SM' : (carDef ? '🚗 ' : '🛵 ') + bike.name} · ${leg().e.name}`, until: clock + 2.6 };
+    banner = { text: `${veh === 'taxi' ? '🚕 Taxi Xanh SM' : veh === 'xeom' ? '🛵 Xe ôm ZenoCar' : veh === 'vip' ? '🚙 Xe sang ZenoCar' : (carDef ? '🚗 ' : '🛵 ') + bike.name} · ${leg().e.name}`, until: clock + 2.6 };
     active = true;
     el.classList.toggle('bike', !!bike);
     el.style.display = 'block';
@@ -906,7 +909,7 @@ const RIDE = (() => {
     sc.far.forEach((b) => { const x = lx(b.ex); if (x < -150 || x > vw + 150 || b.kind === 'field') return; c.fillStyle = `rgba(255,200,90,${0.18 * night})`; c.fillRect(x - b.w / 2 + 10, FAR - 56, b.w - 20, 56); });
     const beam = (x, y, d) => { const g = c.createLinearGradient(x, y, x + d * 150, y); g.addColorStop(0, `rgba(255,245,200,${0.45 * night})`); g.addColorStop(1, 'rgba(255,245,200,0)'); c.fillStyle = g; c.beginPath(); c.moveTo(x, y - 4); c.lineTo(x + d * 150, y - 22); c.lineTo(x + d * 150, y + 14); c.closePath(); c.fill(); };
     npcs.forEach((n) => { const x = n.x - camX, d = n.opp ? -1 : 1; beam(x + d * n.len / 2, LANE_Y[n.lane] - 26, d); });
-    beam(me.x - camX + me.len / 2, me.ly - (bike ? 44 : 28), 1);
+    beam(me.x - camX + me.len / 2, me.ly - (bike || veh === 'xeom' ? 44 : 28), 1);
     c.globalCompositeOperation = 'source-over';
   }
 
@@ -1064,7 +1067,27 @@ const RIDE = (() => {
       c.fillStyle = '#fff'; c.fillText(name, x, top - 1);
       return;
     }
-    const b = v === 'taxi' ? null : (DATA.BIKES || []).find((q) => q.id === v) || DATA.BIKES[0];
+    if (v === 'xeom') {
+      // 🛵 xe ôm: tài xế áo xanh lái, khách ngồi sau, cả hai đội mũ bảo hiểm
+      const xb = { kind: 'cub', body: '#00b14f' };
+      c.save();
+      c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(x, y - 1, 44, 6, 0, 0, Math.PI * 2); c.fill();
+      c.translate(x, 0); c.scale(d, 1); c.translate(-x, 0);
+      moto(c, x, y, xb, () => {
+        const helmet = (hx, col) => { c.fillStyle = col; c.beginPath(); c.arc(hx, y - 61, 16.5, Math.PI * 1.02, -0.02); c.fill(); c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(hx - 16, y - 62, 32, 3); };
+        ART.character(c, x - 24, y - 27, look, { scale: 0.58, t, dir: 1 }); helmet(x - 24, '#fff');
+        ART.character(c, x - 2, y - 25, XEOM_DRIVER, { scale: 0.62, t, dir: 1 }); helmet(x - 2, '#00b14f');
+        c.strokeStyle = XEOM_DRIVER.skin; c.lineWidth = 4; c.beginPath(); c.moveTo(x + 4, y - 42); c.lineTo(x + 18, y - 60); c.stroke();
+      });
+      c.restore();
+      const top = y - 86;
+      c.font = '800 13px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      const w = c.measureText(name).width + 14;
+      c.fillStyle = mine ? 'rgba(47,158,68,.92)' : 'rgba(27,47,72,.85)'; rr(c, x - w / 2, top - 11, w, 20, 8); c.fill();
+      c.fillStyle = '#fff'; c.fillText(name, x, top - 1);
+      return;
+    }
+    const b = HIRED.includes(v) ? null : (DATA.BIKES || []).find((q) => q.id === v) || DATA.BIKES[0];
     c.save();
     c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(x, y - 1, b ? 40 : 74, 6, 0, 0, Math.PI * 2); c.fill();
     c.translate(x, 0); c.scale(d, 1); c.translate(-x, 0);
@@ -1079,7 +1102,7 @@ const RIDE = (() => {
       });
       top = y - 84;
     } else {
-      const n = { kind: 'taxi', len: 150, color: '#00b8b8' };
+      const n = v === 'vip' ? { kind: 'sedan', len: 150, color: '#212529' } : { kind: 'taxi', len: 150, color: '#00b8b8' };
       car(c, x, y, n);
       // khách ngồi ghế sau + tài xế áo xanh
       c.save();
@@ -1093,7 +1116,7 @@ const RIDE = (() => {
       top = y - 92;
     }
     c.restore();
-    if (!b) carLabel(c, x, y, { kind: 'taxi' });
+    if (!b && v !== 'vip') carLabel(c, x, y, { kind: 'taxi' });
     // bảng tên trên đầu
     c.font = '800 13px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
     const w = c.measureText(name).width + 14;
