@@ -251,6 +251,12 @@ DATA.CAMP_MENU = [
     menu: [{ id: 'cs_dua', name: 'Nước dừa tươi', icon: '🥥', price: 15, xp: 6 }, { id: 'cs_kem', name: 'Kem ốc quế', icon: '🍦', price: 12, xp: 5 }, { id: 'cs_banh', name: 'Bánh mì kẹp', icon: '🥪', price: 20, xp: 8 }, { id: 'cs_snack', name: 'Snack khoai tây', icon: '🍟', price: 10, xp: 4 }, { id: 'cs_sakura', name: 'Trà sữa hoa anh đào', icon: '🌸', price: 28, xp: 12 }] },
 ];
 
+/** Quầy bắp nước rạp CGV */
+DATA.CGV_MENU = [
+  { id: 'cgv_snack', name: 'Quầy Bắp Nước CGV', logo: '🍿', items: ['🍿', '🥤'],
+    menu: [{ id: 'cgv_bap', name: 'Bắp rang bơ', icon: '🍿', price: 30, xp: 12 }, { id: 'cgv_nuoc', name: 'Nước ngọt ly lớn', icon: '🥤', price: 20, xp: 8 }, { id: 'cgv_combo', name: 'Combo bắp + 2 nước', icon: '🎬', price: 65, xp: 28 }, { id: 'cgv_hotdog', name: 'Xúc xích nướng', icon: '🌭', price: 25, xp: 10 }] },
+];
+
 /** Xe máy tự lái trên đường phố (mua 1 lần dùng mãi). max = tốc độ tối đa (÷10 ra km/h) */
 DATA.BIKES = [
   { id: 'klara', name: 'Xe điện Klara', kind: 'electric', body: '#1c7ed6', helmet: '#fff', price: 2000, max: 430, accel: 280, desc: 'Êm, không xăng, chạy phố vừa đủ' },

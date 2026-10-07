@@ -640,10 +640,10 @@ const MAPS = (() => {
 
   /* ---------- Khu giải trí ---------- */
   function fun() {
-    const m = base('fun', 'Khu giải trí', 3900, 1070);
+    const m = base('fun', 'Khu giải trí', 4500, 1070);
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 53);
-      paintPaved(g, 120, 370, 3660, 460, '#f6e3d0');
+      paintPaved(g, 120, 370, 4260, 460, '#f6e3d0');
       g.fillStyle = 'rgba(112,72,232,.12)'; g.beginPath(); g.roundRect(1960, 420, 600, 340, 30); g.fill();
       paintStreet(g, m.w, 870, 1000);
     });
@@ -693,11 +693,31 @@ const MAPS = (() => {
     col(m, VX - 280, VY - 70, 200, 66); col(m, VX + 80, VY - 70, 200, 66); col(m, VX - 80, VY - 70, 160, 26);
     inter(m, { x: VX - 70, y: VY - 82, w: 140, h: 84, ax: VX, ay: VY + 40, name: 'Concert Ngàn Chông Gai (mua vé vào xem)', use: () => CONCERT.enter(), arrow: { x: VX, y: VY - 92, text: 'Vào xem concert' } });
     m.lights = m.lights.concat([[VX - 200, VY - 230, 80], [VX + 200, VY - 230, 80]]);
+    /* ----- Rạp phim CGV ----- */
+    const GX = 4080, GY = 775;
+    aobj(m, GX, GY, (c, t) => {
+      c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(GX, GY + 4, 230, 22, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#2b2b30'; c.fillRect(GX - 210, GY - 260, 420, 260);
+      c.fillStyle = '#e03131'; c.fillRect(GX - 220, GY - 272, 440, 70);
+      c.fillStyle = '#fff'; c.font = '900 52px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('CGV', GX, GY - 236);
+      c.font = '800 13px "Be Vietnam Pro", system-ui'; c.fillStyle = '#ffe3e3'; c.fillText('CINEMAS', GX + 100, GY - 222);
+      for (let k = 0; k < 18; k++) { c.fillStyle = (Math.floor(t * 4) + k) % 2 ? '#ffd43b' : '#fff3bf'; c.beginPath(); c.arc(GX - 205 + k * 24, GY - 196, 4, 0, Math.PI * 2); c.fill(); }
+      [[-150, '#4c6ef5', '🦸'], [150, '#f03e3e', '👻']].forEach(([dx, col, ic]) => {
+        c.fillStyle = '#111'; c.fillRect(GX + dx - 46, GY - 182, 92, 128);
+        c.fillStyle = col; c.fillRect(GX + dx - 40, GY - 176, 80, 116);
+        c.font = '38px system-ui'; c.fillText(ic, GX + dx, GY - 130); c.fillStyle = '#fff'; c.font = '900 11px "Be Vietnam Pro", system-ui'; c.fillText('ĐANG CHIẾU', GX + dx, GY - 76);
+      });
+      c.fillStyle = '#c92a2a'; c.fillRect(GX - 60, GY - 120, 120, 120);
+      c.fillStyle = 'rgba(255,255,255,.2)'; c.fillRect(GX - 52, GY - 112, 50, 112); c.fillRect(GX + 2, GY - 112, 50, 112);
+      c.fillStyle = '#ffd43b'; c.font = '900 14px "Be Vietnam Pro", system-ui'; c.fillStyle = '#fff'; c.fillText('🎬 VÀO RẠP', GX, GY - 134);
+    }, { l: -235, t: -285, w: 470, h: 315 });
+    col(m, GX - 210, GY - 60, 140, 56); col(m, GX + 70, GY - 60, 140, 56); col(m, GX - 70, GY - 60, 140, 24);
+    inter(m, { x: GX - 60, y: GY - 120, w: 120, h: 122, ax: GX, ay: GY + 40, name: 'Rạp phim CGV (vé 60 xu)', use: () => AV.enterCgv(), arrow: { x: GX, y: GY - 150, text: 'Xem phim' } });
     addPot(m, CX - 130, CY + 40, 'mai'); addPot(m, CX + 130, CY + 40, 'dao');
 
     npc(m, 'Bé Bin', { skin: '#ffe0c4', hair: 'spiky', hairColor: '#c68642', shirt: '#fd7e14', shirtStyle: 'star', pants: '#364fc7', hat: 'beanie' }, { l: 200, t: 700, r: 1800, b: 830 }, 1000, 760, 'chick');
 
-    street(m);
+    street(m, 1000, 4420);
     m.spawn = { x: 1050, y: 875 };
     m.bounds = { l: 20, t: 380, r: m.w - 20, b: m.h - 40 };
     return m;
@@ -1095,6 +1115,7 @@ const MAPS = (() => {
     m.indoor = true;
     m.hz = 0;
     m.music = 'mute';
+    m.screen = { video: '_41R6YGF4dA', x: CONCERT.LED.x, y: CONCERT.LED.y, w: CONCERT.LED.w, h: CONCERT.LED.h };
     m.zoom = 0.62;
     m.camTop = 20;
     ground(m, (g) => {
@@ -1149,6 +1170,51 @@ const MAPS = (() => {
     obj(m, 5000, (ctx, t) => CONCERT.fx(ctx, t), [0, 0, m.w, m.h]);
     sobj(m, 1000, 1222, (c) => ART.homeDoor(c, 1000, 1222), { l: -50, t: -22, w: 100, h: 28 });
     inter(m, { x: 940, y: 1160, w: 120, h: 70, ax: 1000, ay: 1190, name: 'Ra Khu giải trí', use: () => AV.teleport('fun', false, 3430, 840, '🎡 Ra Khu giải trí…'), arrow: { x: 1000, y: 1165, text: 'Ra ngoài' } });
+    m.spawn = { x: 1000, y: 1150 };
+    m.bounds = { l: 56, t: 720, r: m.w - 56, b: 1205 };
+    return m;
+  }
+
+  /* ---------- 🎬 Rạp CGV (trong rạp, dùng chung) ---------- */
+  function cgv() {
+    const m = base('cgv', 'Rạp CGV', 2000, 1250);
+    m.indoor = true;
+    m.hz = 0;
+    m.music = 'mute';
+    m.zoom = 0.62;
+    m.camTop = 0;
+    m.screen = { video: 'iRjt1n3mkN4', x: 260, y: 40, w: 1480, h: 600, tap: '▶ Bấm để xem phim' };
+    ground(m, (g) => {
+      g.fillStyle = '#0b0b10'; g.fillRect(0, 0, m.w, m.h);
+      // rèm đỏ hai bên màn chiếu
+      [[40, 210], [1790, 210]].forEach(([x, w]) => { for (let k = 0; k < w; k += 30) { g.fillStyle = k % 60 ? '#a61e1e' : '#c92a2a'; g.fillRect(x + k, 0, 30, 700); } });
+      g.fillStyle = '#1a1a22'; g.fillRect(40, 700, 1920, 520);
+      // bậc sàn + đèn lối đi
+      for (let r = 0; r < 5; r++) { g.fillStyle = r % 2 ? '#22222c' : '#1c1c25'; g.fillRect(40, 760 + r * 90, 1920, 90); }
+      g.fillStyle = '#7a1424'; g.fillRect(900, 700, 200, 520);
+      for (let y = 720; y < 1220; y += 40) { g.fillStyle = '#ffd43b'; g.fillRect(896, y, 4, 8); g.fillRect(1100, y, 4, 8); }
+      g.fillStyle = '#0b0b10'; g.fillRect(0, 1220, m.w, 30); g.fillRect(0, 0, 40, m.h); g.fillRect(1960, 0, 40, m.h);
+    });
+    // viền màn chiếu (video thật hiện đè lên)
+    obj(m, 0, (c) => { c.fillStyle = '#000'; c.fillRect(250, 30, 1500, 620); c.strokeStyle = '#495057'; c.lineWidth = 8; c.strokeRect(250, 30, 1500, 620); }, [240, 20, 1760, 660]);
+    col(m, 40, 0, 1920, 700);
+    // ghế đỏ: 4 dãy mỗi bên lối đi
+    [800, 890, 980, 1070].forEach((y, r) => [[180, 820], [1180, 1820]].forEach(([L, R]) => {
+      sobj(m, (L + R) / 2, y, (c) => CONCERT.seats(c, L, R, y), { l: -(R - L) / 2 - 30, t: -60, w: R - L + 60, h: 66 }, y - 40);
+      col(m, L - 20, y - 52, R - L + 40, 24);
+      inter(m, { x: L - 20, y: y - 62, w: R - L + 40, h: 62, ax: (L + R) / 2, ay: y + 20, name: `Ghế xem phim (hàng ${String.fromCharCode(65 + r)})`, use: () => AV.sitSeat(L, R, y, '🎬 Ngồi xem phim — bấm nơi khác để đứng dậy', (g) => CONCERT.seatsFront(g, L, R, y)) });
+    }));
+    // quầy bắp nước
+    sobj(m, 1780, 1185, (c) => {
+      c.fillStyle = '#c92a2a'; c.beginPath(); c.roundRect(1680, 1130, 200, 55, 10); c.fill();
+      c.fillStyle = '#ffd43b'; c.beginPath(); c.roundRect(1676, 1090, 208, 40, 10); c.fill();
+      c.fillStyle = '#c92a2a'; c.font = '900 18px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🍿 BẮP NƯỚC', 1780, 1110);
+      c.font = '26px system-ui'; c.fillText('🍿🥤🌭', 1780, 1160);
+    }, { l: -110, t: -100, w: 220, h: 104 });
+    col(m, 1680, 1130, 200, 50);
+    inter(m, { x: 1680, y: 1090, w: 200, h: 95, ax: 1780, ay: 1080, name: 'Quầy bắp nước', use: () => UI.eateryPanel('cgv_snack'), arrow: { x: 1780, y: 1075, text: 'Bắp nước' } });
+    sobj(m, 1000, 1222, (c) => ART.homeDoor(c, 1000, 1222), { l: -50, t: -22, w: 100, h: 28 });
+    inter(m, { x: 940, y: 1160, w: 120, h: 70, ax: 1000, ay: 1190, name: 'Ra Khu giải trí', use: () => AV.teleport('fun', false, 4080, 840, '🎡 Ra Khu giải trí…'), arrow: { x: 1000, y: 1165, text: 'Ra ngoài' } });
     m.spawn = { x: 1000, y: 1150 };
     m.bounds = { l: 56, t: 720, r: m.w - 56, b: 1205 };
     return m;
@@ -1540,7 +1606,7 @@ const MAPS = (() => {
     return m;
   };
 
-  const all = { farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, park, beach, school, classroom, home, race };
+  const all = { farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, park, beach, school, classroom, home, race };
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
   return all;
 })();

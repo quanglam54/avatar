@@ -157,9 +157,11 @@ const CONCERT = (() => {
   }
 
   /* ---------- Màn LED: video YouTube thật đặt đè lên đúng vị trí màn trong thế giới game ---------- */
-  let box = null, yt = null, ready = false, raf = 0, tapBtn = null, started = false;
-  function ensureVideo() {
+  let box = null, yt = null, ready = false, raf = 0, tapBtn = null, started = false, curVid = null, needSync = false;
+  function ensureVideo(vid) {
+    if (box && curVid !== vid) { curVid = vid; needSync = true; if (yt && ready) yt.loadVideoById(vid); }
     if (box) return;
+    curVid = vid;
     box = document.createElement('div');
     box.className = 'led-video';
     box.innerHTML = '<div id="ledHolder"></div>';
@@ -170,19 +172,26 @@ const CONCERT = (() => {
     document.body.appendChild(tapBtn);
     const make = () => {
       yt = new window.YT.Player('ledHolder', {
-        width: '100%', height: '100%', videoId: VIDEO,
-        playerVars: { autoplay: 1, playsinline: 1, controls: 0, rel: 0, modestbranding: 1, loop: 1, playlist: VIDEO, disablekb: 1 },
+        width: '100%', height: '100%', videoId: curVid,
+        playerVars: { autoplay: 1, playsinline: 1, controls: 0, rel: 0, modestbranding: 1, disablekb: 1 },
         events: {
           onReady: () => {
             ready = true;
             yt.setVolume(Math.round((typeof MUSIC !== 'undefined' ? MUSIC.volume : 0.6) * 100));
+            if (yt.getVideoData && yt.getVideoData().video_id !== curVid) { needSync = true; yt.loadVideoById(curVid); setTimeout(() => { if (yt.getPlayerState && yt.getPlayerState() !== 1 && box.style.display !== 'none') tapBtn.style.display = 'block'; }, 2500); return; }
             // mọi người xem cùng một đoạn: tua theo giờ thật
             const d = yt.getDuration && yt.getDuration();
             if (d > 10) yt.seekTo((Date.now() / 1000) % d, true);
             yt.playVideo();
             setTimeout(() => { if (yt.getPlayerState && yt.getPlayerState() !== 1 && box.style.display !== 'none') tapBtn.style.display = 'block'; }, 1800);
           },
-          onStateChange: (e) => { if (e.data === 1) tapBtn.style.display = 'none'; },
+          onStateChange: (e) => {
+            if (e.data === 1) {
+              tapBtn.style.display = 'none';
+              if (needSync) { needSync = false; const d = yt.getDuration(); if (d > 10) yt.seekTo((Date.now() / 1000) % d, true); }
+            }
+            if (e.data === 0) { yt.seekTo(0, true); yt.playVideo(); } // hết video thì chiếu lại
+          },
         },
       });
     };
@@ -195,15 +204,17 @@ const CONCERT = (() => {
   }
   /** Gọi mỗi khi đổi khu */
   function onMap(id) {
-    if (id === 'concert') {
-      ensureVideo();
+    const mp = AV.debugMap && AV.debugMap(), SC = mp && mp.screen;
+    if (SC) {
+      ensureVideo(SC.video);
+      tapBtn.textContent = SC.tap || '▶ Bấm để xem màn LED';
       box.style.display = 'block';
-      if (yt && ready) { const d = yt.getDuration(); if (d > 10) yt.seekTo((Date.now() / 1000) % d, true); yt.playVideo(); }
+      if (yt && ready && !needSync) { const d = yt.getDuration(); if (d > 10) yt.seekTo((Date.now() / 1000) % d, true); yt.playVideo(); }
       started = true;
       cancelAnimationFrame(raf);
       const place = () => {
         raf = requestAnimationFrame(place);
-        const a = AV.toScreen(LED.x, LED.y), b = AV.toScreen(LED.x + LED.w, LED.y + LED.h);
+        const a = AV.toScreen(SC.x, SC.y), b = AV.toScreen(SC.x + SC.w, SC.y + SC.h);
         box.style.left = a.x + 'px'; box.style.top = a.y + 'px'; box.style.width = (b.x - a.x) + 'px'; box.style.height = (b.y - a.y) + 'px';
         box.style.visibility = UI.isBlocking() ? 'hidden' : 'visible';
         tapBtn.style.left = ((a.x + b.x) / 2) + 'px'; tapBtn.style.top = ((a.y + b.y) / 2) + 'px';

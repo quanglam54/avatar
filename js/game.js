@@ -51,7 +51,7 @@
     out.guard = normTeam(s.guard, s.owned && s.owned.guards);
     out.pen = normPen(s.pen);
     // thú bị thương kiểu cũ (không hạn) → tự khỏi sau 2 giờ kể từ lúc vào game
-    if (Array.isArray(out.guardHurt)) out.guardHurt = out.guardHurt.map((v) => (v === 1 || v === true ? Date.now() + 2 * 3600000 : v));
+    if (Array.isArray(out.guardHurt)) out.guardHurt = out.guardHurt.map((v) => (v === 1 || v === true ? 0 : v));
     if (!out.pestFix1) {
       out.pestFix1 = true;
       const now = Date.now();
@@ -807,6 +807,7 @@
   AV.useFerris = () => {
     if (!AV.spend(5)) return;
     addXP(6);
+    PLANE.ferris();
     say(player, ['Ngắm cả thành phố từ trên cao, đẹp quá! 🎡', 'Woaa, thấy cả bãi biển luôn! 🌊', 'Gió mát ghê~ 🌤️'][Math.floor(Math.random() * 3)]);
     float('-5 💰', player.x, player.y - 100, '#ffd43b');
   };
@@ -1426,7 +1427,7 @@
   /** Thú thứ k có đang bị thương không (1 = bị thương; số lớn = đang hồi phục đến thời điểm đó) */
   /** Thú bị thương tự khỏi sau 2 giờ (chữa bằng thuốc / thức ăn thì nhanh hơn) */
   const HURT_MS = 2 * 3600000;
-  const hurtOf = (arr, k) => { const v = arr && arr[k]; return v === 1 || v === true || (typeof v === 'number' && v > Date.now()); };
+  const hurtOf = (arr, k) => { const v = arr && arr[k]; return typeof v === 'number' && v > 1 && v > Date.now(); }; // giá trị cũ 1/true = đã khỏi
   AV.hurtOf = hurtOf;
   AV.guardHurtList = () => (S.guardHurt = Array.isArray(S.guardHurt) ? S.guardHurt : []);
   /** Chữa thú bị thương: 💊 thuốc (khỏi ngay) hoặc 🦴 cho ăn (khoẻ sau 10 phút) */
@@ -1667,31 +1668,9 @@
     const sd = S.stealDay && S.stealDay.day === todayKey() ? S.stealDay : (S.stealDay = { day: todayKey(), n: {} });
     if (Math.max(Object.keys(v.stolen).length, sd.n[v.uid] || 0) >= DATA.STEAL.perFarm) return UI.toast(`Hôm nay bạn đã trộm ${DATA.STEAL.perFarm} lần ở nông trại này rồi, đừng tham quá 😅`, 3500);
     const team = v.data.guard || [], name = v.data.name;
-    const ownerOk = team.map((id, k) => ({ id, k })).filter((x) => !hurtOf(v.data.guardHurt, x.k));
-    const mine = (S.guard || []).map((id, k) => ({ id, k })).filter((x) => !hurtOf(AV.guardHurtList(), x.k));
-    let fight = null;
-    if (ownerOk.length && mine.length) {
-      v.busy = true;
-      const pick = await UI.petFightPick(ownerOk.map((x) => x.id), mine);
-      v.busy = false;
-      if (pick === 'cancel') return;
-      if (typeof pick === 'number') {
-        const att = mine.find((x) => x.k === pick);
-        const def = ownerOk.slice().sort((a, b) => guardDef(b.id).fine - guardDef(a.id).fine)[0];
-        const fa = guardDef(att.id).fine, fd = guardDef(def.id).fine;
-        const pWin = Math.max(0.25, Math.min(0.75, 0.5 + (fa - fd) / (fa + fd) * 0.5));
-        fight = { att, def, win: Math.random() < pWin };
-        v.busy = true;
-        await UI.petFight(att.id, def.id, fight.win, name);
-        v.busy = false;
-      }
-    }
-    const others = team.map((id, k) => ({ k, g: guardDef(id) })).filter((x) => !hurtOf(v.data.guardHurt, x.k) && (!fight || x.k !== fight.def.k) && Math.random() < x.g.bite);
-    const biters = fight && !fight.win ? [{ k: fight.def.k, g: guardDef(fight.def.id) }, ...others] : others;
-    if (fight) {
-      if (fight.win) { v.data.guardHurt = v.data.guardHurt || []; v.data.guardHurt[fight.def.k] = Date.now() + HURT_MS; }
-      else { AV.guardHurtList()[fight.att.k] = Date.now() + HURT_MS; UI.toast(`🤕 ${guardDef(fight.att.id).icon} ${guardDef(fight.att.id).name} nhà bạn bị thương — mua 💊 thuốc hoặc 🦴 thức ăn ở cửa hàng nông trại để chữa`, 5000); }
-    }
+    const fight = null;
+    // nuôi con nào thì con đó đều cắn — chỉ nông trại không nuôi thú mới trộm được
+    const biters = team.map((id, k) => ({ k, g: guardDef(id) }));
     const bitten = biters.length > 0;
     const qty = bitten ? 0 : Object.values(o.give).reduce((x, n) => x + n, 0);
     const fine = bitten ? Math.min(biters.reduce((x, y) => x + y.g.fine, 0), S.coins, 1000) : 0;
@@ -1784,7 +1763,7 @@
         else if (res === 'l') fightMsgs.push(`🏆 ${myG.icon} ${myG.name} nhà bạn đánh thắng ${their.icon} ${their.name} của ${who}!`);
       }
       const at = r.created_at ? new Date(r.created_at).getTime() : Date.now();
-      logFarm({ type: r.bitten ? 'bite' : 'steal', who, at, place: placeName(r.tile | 0), item: r.crop, qty: r.qty | 0, fine: r.bitten ? Math.max(0, r.coins | 0) : 0 });
+      logFarm({ type: r.bitten ? 'bite' : 'steal', who, at, place: placeName(r.tile | 0), item: r.crop, qty: r.qty | 0, fine: r.bitten ? Math.max(0, r.coins | 0) : 0, fight: r.fight || '' });
       if (r.bitten) { fines += Math.max(0, r.coins | 0); bitten.add(who); return; }
       const k = r.tile | 0;
       if (k === STEAL_COOP || penOfKey(k)) {
@@ -2231,6 +2210,13 @@
   AV.leaveClass = () => AV.teleport('school', false, 420, 590, '🌳 Ra sân trường…');
   AV.enterCasino = () => AV.teleport('casino', false, 1000, 880, '🎰 Vào Nhà Casino…');
   AV.enterArena = () => AV.teleport('arena', false, 1000, 990, '⚔️ Vào Đấu Trường MMA…');
+  /** Rạp CGV: vé 60 xu dùng cả ngày */
+  AV.enterCgv = () => {
+    const today = new Date().toDateString();
+    const go = () => AV.teleport('cgv', false, 1000, 1150, '🎬 Vào rạp CGV…');
+    if (S.cgv === today) return go();
+    UI.confirm('🎟️ Mua vé xem phim CGV <b>60 xu</b> (xem cả ngày hôm nay)?', 'Mua vé', () => { if (!AV.spend(60)) return; S.cgv = today; changed(); go(); });
+  };
   AV.enterClub = () => AV.teleport('club', false, 1000, 1000, '🪩 Vào H-Club…');
   AV.leaveClub = () => AV.teleport('fun', false, 2820, 830, '🎡 Ra Khu giải trí…');
   AV.enterHorse = () => AV.teleport('horse', false, 1000, 1060, '🏇 Vào Trường Đua Ngựa…');
@@ -2307,7 +2293,7 @@
   }
   AV.belly = () => belly().v;
   AV.eat = (shopId, itemId) => {
-    const shop = [...DATA.EATERIES, ...(DATA.STREET_FOOD || []), ...(DATA.CLUB_MENU || []), ...(DATA.CAMP_MENU || [])].find((e) => e.id === shopId), it = shop && shop.menu.find((x) => x.id === itemId);
+    const shop = [...DATA.EATERIES, ...(DATA.STREET_FOOD || []), ...(DATA.CLUB_MENU || []), ...(DATA.CAMP_MENU || []), ...(DATA.CGV_MENU || [])].find((e) => e.id === shopId), it = shop && shop.menu.find((x) => x.id === itemId);
     if (!it) return false;
     const b = belly();
     if (b.v >= DATA.BELLY.max) { UI.toast(`😵 No căng bụng rồi! Đợi khoảng ${DATA.BELLY.digestMin} phút cho tiêu bớt nhé`, 3500); say(player, '🥴 No quá…'); return false; }

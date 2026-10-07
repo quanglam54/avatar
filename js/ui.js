@@ -517,6 +517,7 @@ const UI = (() => {
       <p class="ride-route">🛣️ ${inf.streets.map(esc).join(' → ')} <b>· ${inf.km}</b></p>
       <div class="ride-opts">
         ${AV.hasBusStop() ? '<button class="ride-opt" data-v="bus"><span>🚌</span><b>Xe buýt</b><small>Miễn phí · tới ngay</small></button>' : ''}
+        <button class="ride-opt plane" data-v="plane"><span>✈️</span><b>Máy bay</b><small>100 xu · bay trên trời</small></button>
         <button class="ride-opt taxi" data-v="taxi"><span>🚕</span><b>Taxi Xanh SM</b><small>${inf.fare} xu · ngồi ngắm phố</small></button>
         ${bikes.map((b) => `<button class="ride-opt bike" data-v="${b.id}"><canvas data-pv="${b.id}"></canvas><b>${esc(b.name)}</b><small>Tự lái · miễn phí</small></button>`).join('')}
         <button class="ride-opt shop" data-shop><span>🏍️</span><b>${bikes.length ? 'Mua thêm xe' : 'Mua xe máy'}</b><small>Từ ${Math.min(...DATA.BIKES.map((b) => b.price)).toLocaleString('vi-VN')} xu</small></button>
@@ -526,6 +527,7 @@ const UI = (() => {
     p.body.querySelectorAll('[data-v]').forEach((b) => b.onclick = () => {
       const v = b.dataset.v;
       if (v === 'bus') { p.close(); AV.travelTo(id); return; }
+      if (v === 'plane') { if (S.coins < 100) { toast('Không đủ xu mua vé máy bay 😢'); return; } p.close(); AV.spend(100); PLANE.fly(id, z.icon + ' ' + z.name); return; }
       if (v === 'taxi') { if (S.coins < inf.fare) { toast('Không đủ xu đi taxi 😢'); return; } p.close(); if (AV.startRide(id, 'taxi')) AV.spend(inf.fare); return; }
       p.close();
       S.bike = v;
@@ -1218,7 +1220,7 @@ const UI = (() => {
 
   /* ---------- Quán ăn uống ---------- */
   function eateryPanel(id) {
-    const e = [...DATA.EATERIES, ...(DATA.STREET_FOOD || []), ...(DATA.CLUB_MENU || []), ...(DATA.CAMP_MENU || [])].find((x) => x.id === id);
+    const e = [...DATA.EATERIES, ...(DATA.STREET_FOOD || []), ...(DATA.CLUB_MENU || []), ...(DATA.CAMP_MENU || []), ...(DATA.CGV_MENU || [])].find((x) => x.id === id);
     if (!e) return;
     const S = AV.S;
     const p = panel(`${e.logo} ${e.name}`, '', { wide: true });
@@ -1247,7 +1249,7 @@ const UI = (() => {
       const isNew = e.at > seen ? '<span class="lnew">MỚI</span>' : '';
       if (e.type === 'help') return `<div class="shop-row log-help"><span class="ic">💧</span><div class="info"><b>${esc(e.who)} tưới giúp ruộng ${isNew}</b><small>${ago(e.at)}</small></div></div>`;
       if (e.type === 'bite') return `<div class="shop-row log-bite"><span class="ic">🦷</span><div class="info"><b>${esc(e.who)} định trộm ${what ? what + ' ở ' : ''}${esc(e.place || '')} ${isNew}</b><small>${ago(e.at)} · ✅ Bị thú giữ nhà cắn · bị phạt <b>${e.fine || 0} xu</b> → về túi bạn</small></div></div>`;
-      return `<div class="shop-row log-steal"><span class="ic">🥷</span><div class="info"><b>${esc(e.who)} đã trộm ${what} ở ${esc(e.place || '')} ${isNew}</b><small>${ago(e.at)} · ❌ Không bị cắn · không bị phạt</small></div></div>`;
+      return `<div class="shop-row log-steal"><span class="ic">🥷</span><div class="info"><b>${esc(e.who)} đã trộm ${what} ở ${esc(e.place || '')} ${isNew}</b><small>${ago(e.at)} · ❌ Không bị cắn · không bị phạt${e.fight && e.fight[0] === 'w' ? ` · 🐾 họ gọi ${(DATA.GUARDS.find((g) => g.id === e.fight.split(':')[2]) || { name: 'thú' }).name} tới đánh thắng thú nhà bạn` : ''}</small></div></div>`;
     };
     panel('📋 Bảng tin nông trại', `
       <div class="log-sum"><div><b>${stolen}</b><small>lần bị trộm hôm nay</small></div><div><b>${bites.length}</b><small>kẻ trộm bị cắn</small></div><div><b>${fines}</b><small>xu tiền phạt nhận được</small></div></div>
