@@ -825,3 +825,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .f3-title { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); background: rgba(27,47,72,.85); color: #fff; font-weight: 900; padding: 8px 16px; border-radius: 14px; border: 3px solid #fff; white-space: nowrap; max-width: 90%; overflow: hidden; text-overflow: ellipsis; }
 .f3-skip { position: absolute; right: 14px; bottom: 80px; border: 3px solid #fff; border-radius: 12px; padding: 8px 14px; font: inherit; font-weight: 900; color: #1b2f48; background: linear-gradient(#fff, #d7eeff); box-shadow: 0 3px 0 #1b2f48; cursor: pointer; }
 .ride-opt.plane { background: linear-gradient(#e7f5ff, #a5d8ff); }
+
+/* Khung HUD trong suốt không được nuốt cú bấm: chỉ các nút mới bấm được, chỗ trống bấm xuyên xuống bản đồ */
+.hud-left, .hud-left .hud-row, .hud-left .hud-more, .hud-right { pointer-events: none; }
+.hud-left button, .hud-right > * { pointer-events: auto; }
