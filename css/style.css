@@ -988,3 +988,49 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .tr-gauge { height: 8px; background: #343a40; border-radius: 4px; overflow: hidden; margin-top: 4px; }
 .tr-gauge i { display: block; height: 100%; width: 0; transition: width .2s; }
 .tr-dig { border: 3px solid #fff; border-radius: 16px; padding: 10px 18px; font: inherit; font-weight: 900; font-size: 17px; color: #1b2f48; background: linear-gradient(#ffe066, #fab005); box-shadow: 0 3px 0 #1b2f48; cursor: pointer; }
+
+/* ===== 🎉 Sự kiện: chip trạng thái, sao băng, mưa tiền ===== */
+.ev-chips { position: fixed; left: 50%; top: 150px; transform: translateX(-50%); z-index: 5; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: min(94vw, 760px); pointer-events: none; }
+.ev-chip { pointer-events: auto; border: 2px solid #fff; border-radius: 999px; padding: 3px 10px; font: 900 12px "Be Vietnam Pro", system-ui; color: #fff; background: #495057; box-shadow: 0 2px 0 rgba(0,0,0,.25); cursor: pointer; white-space: nowrap; }
+.ev-chip.gold { background: linear-gradient(90deg, #f59f00, #fab005); color: #3b2a00; animation: evPulse 1.4s ease-in-out infinite; }
+.ev-chip.mer { background: #7048e8; }
+.ev-chip.met { background: #1c3d7a; }
+.ev-chip.bag { background: #2b8a3e; animation: evPulse 1s ease-in-out infinite; }
+.ev-chip.drg { background: #c92a2a; animation: evPulse 1s ease-in-out infinite; }
+@keyframes evPulse { 50% { transform: scale(1.06); } }
+@media (max-width: 600px) { .ev-chips { top: 160px; } .ev-chip { font-size: 11px; padding: 2px 8px; } }
+.ev-sky { position: fixed; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; }
+.ev-sky i { position: absolute; top: -10%; width: 3px; height: 120px; border-radius: 3px; background: linear-gradient(to bottom, rgba(255,255,255,0), #fff 70%, #ffe066); transform: rotate(35deg); animation: evMeteor 3.4s linear infinite; opacity: 0; }
+@keyframes evMeteor { 0% { opacity: 0; translate: 0 0; } 8% { opacity: 1; } 40% { opacity: 0; translate: -300px 430px; } 100% { opacity: 0; translate: -300px 430px; } }
+.ev-coins { position: fixed; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; }
+.ev-coins i { position: absolute; top: -40px; font-style: normal; font-size: 22px; animation: evCoin 2s linear infinite; }
+@keyframes evCoin { to { transform: translateY(110vh) rotate(540deg); } }
+.ev-h { margin: 10px 0 6px; font-size: 14px; }
+.ev-streak { margin-top: 12px; text-align: center; }
+.ev-dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 6px; }
+.ev-dots i { font-style: normal; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: #e9ecef; color: #868e96; font-weight: 900; font-size: 13px; }
+.ev-dots i.on { background: #fab005; color: #3b2a00; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #fab005; }
+
+/* ===== 🎰 Xổ số miền Bắc ===== */
+.xs-table { width: 100%; border-collapse: collapse; background: #fff; border: 2px solid #c92a2a; font-family: "Be Vietnam Pro", system-ui; }
+.xs-table th { width: 64px; background: #fff5f5; color: #c92a2a; font-size: 13px; border: 1px solid #ffc9c9; padding: 6px 4px; }
+.xs-table td { border: 1px solid #ffc9c9; padding: 4px; text-align: center; }
+.xs-table td span { display: inline-block; min-width: 54px; margin: 2px 6px; font-weight: 900; font-size: 17px; letter-spacing: 1px; color: #212529; font-variant-numeric: tabular-nums; }
+.xs-table tr.db td span { color: #e03131; font-size: 26px; }
+.xs-table tr.g7 td span { color: #e03131; }
+.xs-table td span.done { animation: stkPop .4s; color: #c92a2a; }
+.xs-num { font-variant-numeric: tabular-nums; letter-spacing: 2px; font-size: 18px; color: #c92a2a; }
+.xs-pick { display: flex; gap: 8px; justify-content: center; align-items: center; margin: 10px 0; }
+.xs-input { width: 150px; text-align: center; font: 900 30px "Be Vietnam Pro", system-ui; letter-spacing: 6px; color: #c92a2a; border: 3px solid #c92a2a; border-radius: 12px; padding: 4px; background: #fff9db; }
+.xs-buy { text-align: center; }
+.xs-day { text-align: center; margin: 4px 0 8px; }
+.xs-win { text-align: center; }
+.xs-win h2 { color: #e03131; font-size: 28px; margin: 8px 0 0; }
+.xs-live-note { text-align: center; margin-top: 8px; }
+
+/* 📱 chặn phóng to khi bấm đúp nút / chạm ô nhập trên điện thoại */
+html, body, button, .btn, .panel, .panel-back, a, input, select, textarea, label { touch-action: manipulation; }
+@media (pointer: coarse) { input, select, textarea { font-size: 16px !important; } }
+
+/* 💊 Nhà thuốc */
+.ph-tag { display: inline-block; background: #e7f5ff; color: #1864ab; border-radius: 999px; padding: 1px 8px; font-size: 11px; font-weight: 800; margin-left: 4px; }

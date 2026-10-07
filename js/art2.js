@@ -10,6 +10,37 @@ Object.assign(ART, (() => {
     ctx.save();
     ctx.translate(x, y - hop);
     ctx.scale(dir, 1);
+    if (kind === 'babydragon') {
+      ctx.restore();
+      ctx.save();
+      const fl = Math.sin(t * 3) * 4, wf = Math.sin(t * 12) * 0.5;
+      ctx.translate(x, y - 30 + fl);
+      ctx.scale(dir, 1);
+      // cánh
+      [-1, 1].forEach((sd) => {
+        ctx.save(); ctx.translate(-2, -6); ctx.scale(1, sd > 0 ? 1 : 0.8); ctx.rotate(-0.4 + wf * sd * 0.6);
+        ctx.fillStyle = sd > 0 ? '#ff8787' : '#e03131';
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-8, -22, -20, -20); ctx.lineTo(-14, -12); ctx.lineTo(-18, -6); ctx.lineTo(-10, -4); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      });
+      // đuôi
+      ctx.strokeStyle = '#2f9e44'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-8, 2); ctx.quadraticCurveTo(-18, 6 + Math.sin(t * 5) * 3, -22, -2); ctx.stroke();
+      ctx.fillStyle = '#e03131'; ctx.beginPath(); ctx.moveTo(-22, -6); ctx.lineTo(-27, 0); ctx.lineTo(-20, 1); ctx.closePath(); ctx.fill();
+      // thân + bụng
+      ctx.fillStyle = '#40c057'; ctx.beginPath(); ctx.ellipse(0, 0, 11, 9, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff3bf'; ctx.beginPath(); ctx.ellipse(3, 3, 6, 5, 0, 0, Math.PI * 2); ctx.fill();
+      // đầu
+      ctx.fillStyle = '#40c057'; ctx.beginPath(); ctx.ellipse(9, -11, 9, 8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(16, -8, 6, 4.4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffd43b';
+      [[4, -18], [10, -20]].forEach(([hx, hy]) => { ctx.beginPath(); ctx.moveTo(hx - 2, hy + 3); ctx.lineTo(hx, hy - 4); ctx.lineTo(hx + 2, hy + 3); ctx.closePath(); ctx.fill(); });
+      circle(ctx, 10, -13, 2.6, '#fff'); circle(ctx, 10.8, -13, 1.5, '#111');
+      circle(ctx, 19, -9, 0.9, '#1b5e20');
+      ctx.fillStyle = 'rgba(255,135,135,.6)'; ctx.beginPath(); ctx.arc(13, -7, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      return;
+    }
     if (kind === 'ghost' || kind === 'bat') {
       ctx.restore();
       ctx.save();
@@ -172,10 +203,10 @@ Object.assign(ART, (() => {
     }
   }
 
-  function pickup(ctx, x, y, icon, t) {
-    const b = Math.sin(t * 3 + x) * 2;
-    shadow(ctx, x, y, 9, 3);
-    ctx.font = '22px system-ui, "Segoe UI Emoji", sans-serif';
+  function pickup(ctx, x, y, icon, t, size = 22) {
+    const b = Math.sin(t * 3 + x) * 2 * size / 22;
+    shadow(ctx, x, y, 9 * size / 22, 3 * size / 22);
+    ctx.font = size + 'px system-ui, "Segoe UI Emoji", sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = '#000';
     ctx.fillText(icon, x, y - 2 + b);

@@ -562,6 +562,14 @@ const MAPS = (() => {
       inter(m, { x: x - 105, y: y - 160, w: 210, h: 160, ax: x - 40, ay: y + 28, name: `${e.name} (ăn uống +XP)`, use: () => UI.eateryPanel(e.id) });
     });
     addPot(m, 1750, 1360, 'dao');
+    /* ----- 🎰 Quầy Xổ Số Miền Bắc cạnh quán Mì Cay ----- */
+    if (typeof LOTTO !== 'undefined') {
+      const LX = 1150, LY = 1430;
+      sobj(m, LX, LY, (c) => LOTTO.kiosk(c, LX, LY), { l: -66, t: -206, w: 160, h: 216 });
+      obj(m, LY + 30, (c) => LOTTO.board(c, LX - 2, LY + 30), [LX - 36, LY - 56, LX + 36, LY + 32]);
+      col(m, LX - 52, LY - 14, 104, 14);
+      inter(m, { x: LX - 56, y: LY - 110, w: 112, h: 112, ax: LX, ay: LY + 26, name: 'Quầy Xổ Số Miền Bắc (mua vé đến 18h30)', use: () => LOTTO.panel(), arrow: { x: LX, y: LY - 175, text: 'Xổ số' } });
+    }
     /* ----- 🧑‍🌾 biển thuê giúp việc cạnh cổng, gần bến xe buýt ----- */
     const HX2 = 1470, HY2 = 1432;
     sobj(m, HX2, HY2, (c) => {
@@ -612,7 +620,7 @@ const MAPS = (() => {
     col(m, CX2 - 60, CY2 - 34, 120, 32);
     inter(m, { x: CX2 - 70, y: CY2 - 190, w: 140, h: 190, ax: CX2, ay: CY2 + 30, name: 'Trạm sạc V-GREEN (sạc pin ô tô)', use: () => UI.chargeStation(), arrow: { x: CX2, y: CY2 - 205, text: 'Trạm sạc' } });
     /* ----- Biển chúc mừng 20/10 cạnh cổng (hiện từ 1/10 đến hết 21/10) ----- */
-    const WX = 1300, WY = 1430, WK = 0.62;
+    const WX = 1308, WY = 1430, WK = 0.54;
     const womensDay = () => { const d = new Date(); return d.getMonth() === 9 && d.getDate() <= 21; };
     const wdSprite = FX.sprite((c) => {
       c.save(); c.translate(WX, WY); c.scale(WK, WK); c.translate(-WX, -WY);
@@ -688,6 +696,17 @@ const MAPS = (() => {
     npc(m, 'Anh Tú', { skin: '#e3a979', hair: 'spiky', hairColor: '#2b2b33', shirt: '#4c6ef5', shirtStyle: 'stripes', pants: '#343a40', hat: 'cap' }, plazaArea, 800, 690, 'dog');
     npc(m, 'Cô Mai', { skin: '#f8c9a2', hair: 'long', hairColor: '#2b2b33', shirt: '#fcc419', shirtStyle: 'plain', pants: '#8b5a2b', hat: 'nonla' }, plazaArea, 1160, 690);
     npc(m, 'Bác Ba', { skin: '#b97a51', hair: 'bald', hairColor: '#e9ecef', shirt: '#40c057', shirtStyle: 'overall', pants: '#364fc7', hat: 'none' }, plazaArea, 1520, 690, 'pug');
+
+    /* 🛒 thương lái phương xa (chỉ hiện khi đang ghé) */
+    if (typeof EVENTS !== 'undefined') {
+      const MX = 1500, MY = 470;
+      const cartSpr = FX.sprite((c) => EVENTS.cart(c, MX, MY), MX, MY, { l: -100, t: -160, w: 200, h: 172 });
+      m.objects.push({ y: MY, bb: [MX - 100, MY - 160, MX + 100, MY + 12], draw: (c) => { if (EVENTS.merchantHere()) cartSpr(c); } });
+      m.colliders.push({ x: MX - 84, y: MY - 30, w: 168, h: 30, when: () => EVENTS.merchantHere() });
+      inter(m, { x: MX - 90, y: MY - 150, w: 180, h: 150, ax: MX, ay: MY + 30, name: 'Thương lái phương xa', use: () => EVENTS.merchantPanel(), when: () => EVENTS.merchantHere(), arrow: { x: MX, y: MY - 170, text: 'Thương lái' } });
+      npc(m, 'Thương lái', { skin: '#e3a979', hair: 'short', hairColor: '#2b2b33', shirt: '#7048e8', shirtStyle: 'plain', pants: '#495057', hat: 'nonla' }, { l: MX + 90, t: MY + 10, r: MX + 120, b: MY + 30 }, MX + 104, MY + 20, 'none');
+      Object.assign(m.npcs[m.npcs.length - 1], { merchant: true, show: () => EVENTS.merchantHere() });
+    }
 
     street(m);
     m.spawn = { x: 1050, y: 875 };
@@ -1568,6 +1587,41 @@ const MAPS = (() => {
 
   /* ---------- 🎬 Rạp CGV (trong rạp, dùng chung) ---------- */
   /* ---------- 🏥 Bệnh viện Zeno (bên ngoài) ---------- */
+  /** 💊 Nhà thuốc Long Châu: biển xanh dương, cửa kính, kệ thuốc, chữ thập xanh */
+  function pharmacyArt(c, x, y) {
+    const W = 290, L = x - W / 2;
+    c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(x, y + 5, W / 2 + 16, 14, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#f8f9fa'; c.fillRect(L, y - 190, W, 190);
+    c.fillStyle = '#dee2e6'; c.fillRect(L, y - 8, W, 8);
+    // biển hiệu xanh
+    const g = c.createLinearGradient(0, y - 236, 0, y - 176); g.addColorStop(0, '#1d4ed8'); g.addColorStop(1, '#1e3a8a');
+    c.fillStyle = g; c.beginPath(); c.roundRect(L - 10, y - 236, W + 20, 62, 8); c.fill();
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff';
+    c.font = '800 13px "Be Vietnam Pro", system-ui'; c.fillText('NHÀ THUỐC', x + 18, y - 220);
+    c.font = '900 25px "Be Vietnam Pro", system-ui'; c.fillText('LONG CHÂU', x + 18, y - 194);
+    // logo tròn
+    c.fillStyle = '#fff'; c.beginPath(); c.arc(L + 30, y - 205, 20, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#1d4ed8'; c.font = '900 20px "Be Vietnam Pro", system-ui'; c.fillText('LC', L + 30, y - 204);
+    // cửa kính + kệ thuốc
+    const glass = (gx, gw) => {
+      c.fillStyle = '#343a40'; c.fillRect(gx - 3, y - 160, gw + 6, 152);
+      const gg = c.createLinearGradient(gx, y - 158, gx + gw, y - 10); gg.addColorStop(0, '#e7f5ff'); gg.addColorStop(1, '#a5d8ff');
+      c.fillStyle = gg; c.fillRect(gx, y - 157, gw, 146);
+    };
+    glass(L + 14, 98); glass(L + W - 112, 98);
+    const meds = ['#ff6b6b', '#4dabf7', '#ffd43b', '#69db7c', '#f783ac', '#ffa94d'];
+    [L + 18, L + W - 108].forEach((sx) => { for (let r = 0; r < 3; r++) { c.fillStyle = '#ced4da'; c.fillRect(sx, y - 128 + r * 38, 90, 4); for (let k = 0; k < 7; k++) { c.fillStyle = meds[(k + r * 2) % 6]; c.fillRect(sx + 4 + k * 12, y - 146 + r * 38, 9, 18); } } });
+    c.fillStyle = 'rgba(255,255,255,.4)'; c.fillRect(L + 22, y - 154, 10, 140); c.fillRect(L + W - 104, y - 154, 10, 140);
+    // cửa tự động
+    c.fillStyle = '#343a40'; c.fillRect(x - 33, y - 150, 66, 150);
+    c.fillStyle = '#d0ebff'; c.fillRect(x - 30, y - 147, 29, 147); c.fillRect(x + 1, y - 147, 29, 147);
+    c.fillStyle = '#1d4ed8'; c.fillRect(x - 30, y - 92, 60, 10);
+    c.fillStyle = '#fff'; c.font = '800 7px "Be Vietnam Pro", system-ui'; c.fillText('MỞ CỬA 24/7', x, y - 87);
+    // chữ thập xanh phát sáng
+    c.fillStyle = '#2f9e44'; c.beginPath(); c.roundRect(L + W - 26, y - 290, 44, 44, 6); c.fill();
+    c.fillStyle = '#fff'; c.fillRect(L + W - 10, y - 284, 12, 32); c.fillRect(L + W - 20, y - 274, 32, 12);
+    c.fillStyle = '#6b4423'; c.fillRect(L + W - 6, y - 246, 4, 10);
+  }
   function hospitalArt(c, x, y) {
     const W = 760, L = x - W / 2;
     c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(x, y + 6, W / 2 + 30, 26, 0, 0, Math.PI * 2); c.fill();
@@ -1613,12 +1667,18 @@ const MAPS = (() => {
     col(m, 620, 560, 250, 140); col(m, 1130, 560, 250, 140); col(m, 870, 560, 260, 70);
     inter(m, { x: 880, y: 550, w: 240, h: 150, ax: 1000, ay: 740, name: 'Vào Bệnh viện Zeno', use: () => AV.teleport('clinic', false, 800, 900, '🏥 Vào bệnh viện…'), arrow: { x: 1000, y: 520, text: 'Vào khám bệnh' } });
     sobj(m, 1520, 760, (c) => ambulance(c, 1520, 760), { l: -115, t: -100, w: 230, h: 112 });
+    /* 💊 nhà thuốc Long Châu bên trái bệnh viện */
+    const PX = 330, PY = 700;
+    sobj(m, PX, PY, (c) => pharmacyArt(c, PX, PY), { l: -165, t: -300, w: 350, h: 312 });
+    m.objects[m.objects.length - 1].b3d = { w: 290, h: 190, roof: '#1d4ed8', wall: '#f8f9fa' };
+    col(m, PX - 145, PY - 40, 110, 40); col(m, PX + 35, PY - 40, 110, 40); col(m, PX - 35, PY - 40, 70, 12);
+    inter(m, { x: PX - 60, y: PY - 160, w: 120, h: 162, ax: PX, ay: PY + 30, name: 'Nhà thuốc Long Châu (thuốc bổ +XP, thuốc cảm cúm)', use: () => UI.pharmacyPanel(), arrow: { x: PX, y: PY - 310, text: 'Nhà thuốc' } });
     col(m, 1410, 720, 200, 40);
     [[1750, 600, 'pink'], [1880, 760, 'green']].forEach(([x, y, v]) => addTree(m, x, y, v));
-    addBench(m, 520, 780);
+    addBench(m, 545, 800);
     m.labels.push({ text: '🏥 Bệnh viện Zeno', x: 1000, y: 395 });
     npc(m, 'Y tá Thảo', { skin: '#ffe0c4', hair: 'bun', hairColor: '#3b2a1a', shirt: '#f8f9fa', shirtStyle: 'plain', pants: '#f8f9fa', hat: 'none' }, { l: 700, t: 760, r: 1300, b: 840 }, 1150, 790, 'none');
-    street(m, 330, 1700);
+    street(m, 1760, 1250);
     m.spawn = { x: 1050, y: 875 };
     m.bounds = { l: 20, t: 420, r: m.w - 20, b: m.h - 40 };
     return m;

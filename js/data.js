@@ -136,6 +136,7 @@ DATA.PETS = [
   { id: 'bat', name: 'Dơi con', price: 0, event: true },
   { id: 'dino', name: 'Khủng long con', price: 600 },
   { id: 'dino_pink', name: 'Khủng long hồng', price: 0, event: true },
+  { id: 'babydragon', name: 'Rồng con', price: 0, event: true },
 ];
 
 /** Thú giữ nhà: canh nông trại, kẻ hái trộm có thể bị cắn và bị phạt xu (xu phạt về túi chủ nhà) */
@@ -444,6 +445,9 @@ DATA.QUESTS = [
   { id: 'arcade', icon: '🕹️', text: 'Chơi {n} ván máy game ở Nhà Casino (Khu giải trí)', n: 2, coins: 30, xp: 20 },
   { id: 'help', icon: '💧', text: 'Thăm và tưới giúp nông trại {n} người bạn', n: 1, coins: 35, xp: 24 },
   { id: 'dance', icon: '💃', text: 'Nhảy trên sân khấu Khu giải trí {n} lần', n: 1, coins: 25, xp: 16 },
+  { id: 'mine', icon: '⛏️', text: 'Đập {n} khối đá ở Hầm mỏ', n: 15, coins: 50, xp: 30 },
+  { id: 'eat', icon: '🍜', text: 'Ăn {n} món cho no bụng', n: 2, coins: 25, xp: 16 },
+  { id: 'gift', icon: '🎁', text: 'Tặng quà cho {n} người dân (NPC)', n: 1, coins: 40, xp: 24 },
 ];
 
 /** Cây ăn quả trong vườn: tự ra quả, không cần trồng, quả chín để lâu không hỏng */

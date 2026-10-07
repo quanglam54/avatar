@@ -260,12 +260,14 @@ const MINE = (() => {
     const R = run, def = ROCKS[cell.type], x = c * T + T / 2, y = r * T + T / 2;
     R.lv.grid[r][c] = null;
     R.xp += 1;
+    AV.quest('mine');
     if (def.drop) gain(def.drop, def.gem ? 1 : 1 + Math.floor(Math.random() * 2) + (Math.random() < tools().pick * 0.1 ? 1 : 0), x, y);
     else if (Math.random() < 0.08) gain('ore_copper', 1, x, y);
     const [lc, lr] = R.lv.ladderUnder;
     if (!R.lv.ladder && ((lc === c && lr === r) || Math.random() < 0.05)) { R.lv.ladder = [c, r]; say('🪜 Tìm thấy cầu thang xuống tầng dưới!'); }
   }
   function gain(id, n, x, y) {
+    if (/^(ore_|gem_)/.test(id)) n *= (typeof EVENTS !== 'undefined' ? EVENTS.mult() : 1);
     AV.addItem(id, n);
     run.haul[id] = (run.haul[id] || 0) + n;
     float(`+${n} ${DATA.ITEMS[id].icon}`, x, y - 20, '#ffe066');

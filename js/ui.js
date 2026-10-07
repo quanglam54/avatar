@@ -628,6 +628,45 @@ const UI = (() => {
   }
 
   /** 🧑‍🌾 Thuê giúp việc */
+  /* ---------- 💊 Nhà thuốc Long Châu cạnh Bệnh viện Zeno: thuốc bổ (+XP, +⚡), thuốc cảm cúm ---------- */
+  const PHARMA = [
+    { id: 'vitc', icon: '🍊', name: 'Viên sủi Vitamin C', desc: '+40 XP · +10 ⚡', price: 500, xp: 40, en: 10, max: 5 },
+    { id: 'ors', icon: '🧃', name: 'Oresol bù nước', desc: '+35 ⚡ năng lượng', price: 800, en: 35, max: 5 },
+    { id: 'multi', icon: '💊', name: 'Thuốc bổ tổng hợp', desc: '+180 XP · +20 ⚡', price: 2000, xp: 180, en: 20, max: 4 },
+    { id: 'omega', icon: '🐟', name: 'Dầu cá Omega-3 bổ não', desc: '+400 XP', price: 4500, xp: 400, max: 3 },
+    { id: 'sam', icon: '🌿', name: 'Hồng sâm Hàn Quốc', desc: '+1.000 XP · +60 ⚡', price: 10000, xp: 1000, en: 60, max: 2 },
+    { id: 'flu', icon: '🤧', name: 'Thuốc cảm cúm', desc: 'Đang ốm sốt: khỏi sau 5 phút, không cần khám', price: 3000, flu: true },
+  ];
+  function pharmacyPanel() {
+    const p = panel('💊 Nhà thuốc Long Châu', '', { wide: true });
+    const render = () => {
+      const S = AV.S, day = AV.todayKeyPublic();
+      if (!S.pharm || S.pharm.day !== day) S.pharm = { day, n: {} };
+      const sick = AV.isSick();
+      p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · ⚡ ${Math.round(AV.energy())}/100${sick ? ' · 🤒 <b>Đang ốm sốt</b>' : ''}</div>
+        <p class="muted">Dược sĩ: "Thuốc bổ uống ngay tại quầy giúp tăng kinh nghiệm và sức khoẻ — mỗi loại có giới hạn trong ngày nhé!"</p>
+        <div class="shop-list">${PHARMA.map((x) => {
+          const used = S.pharm.n[x.id] || 0, full = x.max && used >= x.max;
+          const btn = full ? '<button class="btn small ghost" disabled>Hết lượt hôm nay</button>' : `<button class="btn small" data-ph="${x.id}">${x.price.toLocaleString('vi-VN')} xu</button>`;
+          return `<div class="shop-row"><span class="ic">${x.icon}</span><div class="info"><b>${x.name}</b><small>${x.desc}${x.max ? `<span class="ph-tag">${used}/${x.max} hôm nay</span>` : ''}</small></div>${btn}</div>`;
+        }).join('')}</div>`;
+      p.body.querySelectorAll('[data-ph]').forEach((b) => b.onclick = () => {
+        const x = PHARMA.find((y) => y.id === b.dataset.ph);
+        if (x.flu && !AV.isSick()) return toast('😊 Bạn đang khoẻ mà — chưa cần uống thuốc cảm');
+        if (x.flu && S.sick.cureAt && S.sick.cureAt - Date.now() < 5 * 60000) return toast('💊 Bạn đã dùng thuốc rồi, sắp khỏi rồi đó');
+        if (x.en && !x.xp && AV.energy() >= 100) return toast('⚡ Năng lượng đang đầy rồi');
+        if (!AV.spend(x.price)) return;
+        S.pharm.n[x.id] = (S.pharm.n[x.id] || 0) + 1;
+        if (x.flu) { S.sick.cureAt = Date.now() + 5 * 60000; AV.sayMine('🤧 Uống thuốc cảm…'); toast('🤧 Đã uống thuốc cảm cúm — khỏi sốt sau 5 phút', 4500); }
+        if (x.en) AV.addEnergy(x.en);
+        if (x.xp) AV.earn(0, x.xp);
+        if (!x.flu) { AV.sayMine(`${x.icon} Khoẻ ra hẳn!`); toast(`${x.icon} ${x.name}: ${x.desc}`); }
+        render();
+      });
+    };
+    render();
+  }
+
   function helperPanel() {
     const S = AV.S, h = S.helper || {}, act = AV.helperActive(), st = h.stats || {};
     const leftH = act ? Math.ceil((h.until - Date.now()) / 3600000) : 0;
@@ -1500,8 +1539,10 @@ const UI = (() => {
             <div class="info"><b>${d.text.replace('{n}', q.n)}</b>
               <div class="qbar"><i style="width:${Math.min(100, q.prog / q.n * 100)}%"></i></div>
               <small>Thưởng: ${d.coins} xu · ${d.xp} XP</small></div>${btn}</div>`;
-        }).join('')}</div>`;
+        }).join('')}</div>${typeof EVENTS !== 'undefined' ? EVENTS.questChestHtml() : ''}`;
       p.body.querySelectorAll('[data-claim]').forEach((b) => b.onclick = () => { AV.claimQuest(b.dataset.claim); render(); });
+      const qc = p.body.querySelector('[data-qchest]');
+      if (qc) qc.onclick = () => { EVENTS.openQuestChest(); render(); };
     };
     render();
   }
@@ -1866,5 +1907,5 @@ const UI = (() => {
     q('.mv-def').onclick = () => { CONCERT.playDefault(); p.close(); toast('🎞️ Đã về phim mặc định'); };
   }
 
-  return { helperPanel, npcPanel, shipBin, race3d, raceStart, race3dStats, houseUpgrade, elevator, stairsPick, flightDesk, carShop, chargeStation, moviePicker, toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
+  return { pharmacyPanel, helperPanel, npcPanel, shipBin, race3d, raceStart, race3dStats, houseUpgrade, elevator, stairsPick, flightDesk, carShop, chargeStation, moviePicker, toast, panel, closeTop, isBlocking, confirm, updateHud, setLocation, characterEditor, inventory, shop, boutique, seedPicker, help, settings, init, drawAvatar, chatLog, playersPanel, cityMap, petShop, bauCua, baiCao, menu, kitchen, questsPanel, updateQuestDot, tableInvite, authPanel, storage, careBed, garage, arcade, closeArcade, arcadeOpen, playerCard, friendsPanel, updateVisitBar, chooseSave, restorePanel, halloweenPanel, updateEventBtn, guardShop, wheelPanel, updateWheelDot, updateMusicBtn, fireworksPanel, furnitureShop, farmLogPanel, eateryPanel, seedShop, dailyPanel, updateDailyDot, renamePanel, arenaPanel, petFightPick, petFight };
 })();
