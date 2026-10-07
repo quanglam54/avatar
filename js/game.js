@@ -1327,6 +1327,7 @@
     enterMap(dest, st ? st.x + 50 : undefined, st ? st.y + 12 : undefined);
     UI.toast(`📍 Đã tới ${m.name}`);
     saveNow();
+    if (AV.afterRide) { const f = AV.afterRide; AV.afterRide = null; setTimeout(f, 800); }
   };
   AV.buyBike = (id) => {
     const b = (DATA.BIKES || []).find((x) => x.id === id);

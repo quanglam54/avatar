@@ -77,7 +77,7 @@ const CALL = (() => {
     const au = new Audio('https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=' + encodeURIComponent(text.slice(0, 190)));
     c.tts = au; au.onended = after;
     let failed = false;
-    const fail = () => { if (failed || fin) return; failed = true; if (vi[0] && cur === c) say(vi[0]); else setTimeout(finish, 3500); };
+    const fail = () => { if (failed || fin) return; failed = true; if (vi[0] && (c.free || cur === c)) say(vi[0]); else setTimeout(finish, 3500); };
     au.onerror = fail; au.play().catch(fail);
   }
   function tone(kind) {
@@ -351,5 +351,7 @@ const CALL = (() => {
     cur.timer = setTimeout(() => { if (cur && cur.fake === opt && cur.state === 'incoming') { end('Cuộc gọi nhỡ', true); if (opt.onMissed) opt.onMissed(); } }, 25000);
     return true;
   }
-  return { start, onSignal, fakeIncoming, busy: () => !!cur };
+  /** tài xế / shipper nói trực tiếp (không qua cuộc gọi) bằng giọng Google */
+  const voice = (text) => { if (!cur) speak(text, { free: true }, () => {}); };
+  return { start, onSignal, fakeIncoming, voice, busy: () => !!cur };
 })();

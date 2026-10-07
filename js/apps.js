@@ -95,6 +95,7 @@ const ZAPPS = (() => {
       g.save(); g.translate(fx.x, fx.y); g.scale(K * fx.dir, K);
       (car ? drawCar : drawBike)(g, t, opt);
       g.restore();
+      if (fx.say && fx.ph === 'go') { g.font = '800 15px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.strokeStyle = '#2b1a10'; g.lineWidth = 4; g.strokeText('💬 ' + fx.say, fx.x, fx.y - 175 * K); g.fillText('💬 ' + fx.say, fx.x, fx.y - 175 * K); }
       if (fx.ph === 'wait') { const m = pickUp ? '🚕 Xe của bạn — lại đây lên xe!' : '📦 Đồ ăn của bạn — lại lấy nhé!'; g.font = '800 15px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.strokeStyle = '#2b1a10'; g.lineWidth = 4; g.strokeText(m, fx.x, fx.y - 175 * K); g.fillText(m, fx.x, fx.y - 175 * K); }
     };
     AV.worldFx.push(fx);
@@ -108,7 +109,12 @@ const ZAPPS = (() => {
       fx.ph = 'go'; fx.t = 0; opt.moving = true;
       if (marker) AV.removePickups((p) => p === marker);
       if (pickUp) { P.hidden = true; P.target = null; opt.passenger = AV.S.look; AV.sayMine('🚕 Đi thôi!'); }
-      else { onArrive(); AV.sayMine('📦 Cảm ơn anh shipper!'); }
+      else {
+        onArrive(); AV.sayMine('📦 Cảm ơn anh shipper!');
+        // shipper chào rồi mới chạy đi
+        fx.say = 'Chúc bạn ngon miệng nhé, tôi đi đây!';
+        setTimeout(() => { if (typeof CALL !== 'undefined' && CALL.voice) CALL.voice(fx.say); UI.toast(`🛵 Shipper: "${fx.say}"`, 4500); }, 900);
+      }
     };
     let last = performance.now();
     const step = (now) => {
@@ -426,10 +432,15 @@ const ZAPPS = (() => {
       if (!/^0\d{9}$/.test(num)) return UI.toast('📞 Số điện thoại phải đủ 10 số');
       const price = fare(r, from, to);
       if (!AV.spend(price)) return;
+      // tới nơi tài xế chào khách
+      const thanks = () => { const t = 'Cảm ơn bạn, chúc bạn sức khỏe!'; if (typeof CALL !== 'undefined' && CALL.voice) CALL.voice(t); UI.toast(`${r.icon} Tài xế: "${t}"`, 5000); AV.sayMine('👋 Cảm ơn bác tài!'); };
       const goRide = () => {
         // chạy trên đường phố Hà Nội thật (chế độ taxi tự lái); khu chưa nối đường thì đưa thẳng tới nơi
+        AV.afterRide = thanks;
         if (typeof RIDE !== 'undefined' && RIDE.canRide(AV.currentMap(), to.id) && AV.startRide && AV.startRide(to.id, 'taxi')) return;
+        AV.afterRide = null;
         AV.player.hidden = false; AV.teleport(to.id, false, undefined, undefined, `${r.icon} ${r.name} chở bạn tới ${to.name}…`);
+        setTimeout(thanks, 2500);
       };
       const start = ZONES().filter((z) => z.id !== from.id)[Math.floor(Math.random() * (ZONES().length - 1))] || from;
       placeOrder({
