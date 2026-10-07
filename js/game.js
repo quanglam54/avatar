@@ -2378,6 +2378,7 @@
     if (m.type === 'arcade-close') return UI.closeArcade();
     if (m.type === 'race3d-finish') {
       if (!UI.arcadeOpen()) return;
+      if (m.mp) return typeof RACECUP !== 'undefined' && RACECUP.onFinish(m);
       const pos = Math.max(1, Math.min(6, m.pos | 0)), diff = Math.max(0, Math.min(2, m.diff | 0)), laps = [2, 3, 5].includes(m.laps) ? m.laps : 3;
       const coins = Math.round([100, 70, 50, 35, 25, 15][pos - 1] * [0.5, 1, 1.6][diff] * laps / 3);
       const xp = 10 + (6 - pos) * 4;

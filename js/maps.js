@@ -2526,7 +2526,7 @@ const MAPS = (() => {
 
     sobj(m, 1320, 830, (c) => ART.startGate(c, 1320, 830), { l: -145, t: -180, w: 290, h: 186 });
     col(m, 1186, 822, 20, 10); col(m, 1434, 822, 20, 10);
-    inter(m, { x: 1180, y: 650, w: 280, h: 185, ax: 1320, ay: 850, name: 'Cổng xuất phát (Đua Xe 3D)', use: () => UI.race3d(), arrow: { x: 1320, y: 705, text: 'Đua xe' } });
+    inter(m, { x: 1180, y: 650, w: 280, h: 185, ax: 1320, ay: 850, name: 'Cổng xuất phát (Đua Xe 3D · Đạo cụ · Giải đua)', use: () => (typeof RACECUP !== 'undefined' ? RACECUP.gate() : UI.race3d()), arrow: { x: 1320, y: 705, text: 'Đua xe' } });
 
     const garage = { w: 240, wall: '#fff9db', roof: '#f08c00', awning: '#e67700', sign: '🏆 BẢNG VÀNG', icons: ['🏆', '🏎️'], door: '#495057' };
     sobj(m, 300, 560, (c) => ART.building(c, 300, 560, garage));

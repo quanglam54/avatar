@@ -109,6 +109,10 @@ const NET = (() => {
   function sendRace(p) {
     send('race', p);
   }
+  /** 🏆 giải đua đạo cụ: phòng chờ + vị trí xe / đạo cụ (chỉ người cùng khu nhận) */
+  function sendKart(p) {
+    send('kart', p);
+  }
 
   function sendTable(p) {
     send('tbl', p);
@@ -214,6 +218,8 @@ const NET = (() => {
       r.seen = Date.now();
     } else if (m.t === 'race') {
       RACE.onNet(m);
+    } else if (m.t === 'kart') {
+      if (typeof RACECUP !== 'undefined') RACECUP.onNet(m);
     } else if (m.t === 'tbl') {
       TABLE.onNet(m);
       BIL.onNet(m);
@@ -398,7 +404,7 @@ const NET = (() => {
   }
 
   return {
-    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, remotes, zoneCounts, announce, farmPing, sendNews, sendCall, sendFirework, sendBite, sendVoice, sendRps, sendBox, sendRide, sendArena, sendHorse,
+    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, sendKart, remotes, zoneCounts, announce, farmPing, sendNews, sendCall, sendFirework, sendBite, sendVoice, sendRps, sendBox, sendRide, sendArena, sendHorse,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],
