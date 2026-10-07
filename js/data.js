@@ -300,6 +300,21 @@ DATA.HOUSE_LEVELS = [
   { lv: 3, name: 'Nhà phố 3 tầng', icon: '🏘️', price: 250000, desc: '+ Tầng 3: karaoke, rạp phim mini, phòng gym · 🛗 thang máy' },
   { lv: 4, name: 'Biệt thự 4 tầng', icon: '🏰', price: 1000000, desc: '+ Tầng 4: sân thượng hồ bơi vô cực, BBQ, kính thiên văn, bãi trực thăng' },
 ];
+/** 🏙️ Phòng theo chủ đề cho tầng 5 → 49 (lặp vòng), tầng 50 là penthouse sân thượng */
+DATA.FLOOR_THEMES = [
+  { id: 'vip', name: 'Phòng khách VIP', icon: '🛋️' }, { id: 'lib', name: 'Thư viện', icon: '📚' }, { id: 'game', name: 'Phòng game', icon: '🎮' },
+  { id: 'guest', name: 'Phòng ngủ khách', icon: '🛏️' }, { id: 'art', name: 'Phòng tranh', icon: '🖼️' }, { id: 'bar', name: 'Quầy bar riêng', icon: '🍸' },
+  { id: 'music', name: 'Phòng nhạc', icon: '🎹' }, { id: 'spa', name: 'Spa & xông hơi', icon: '🧖' }, { id: 'garden', name: 'Vườn treo', icon: '🌿' },
+  { id: 'aqua', name: 'Bể cá cảnh', icon: '🐠' }, { id: 'ceo', name: 'Phòng CEO', icon: '💼' }, { id: 'cinema', name: 'Rạp chiếu riêng', icon: '🎬' },
+];
+DATA.floorTheme = (n) => (n >= 50 ? { id: 'penthouse', name: 'Penthouse sân thượng', icon: '🚁' } : DATA.FLOOR_THEMES[(n - 5) % DATA.FLOOR_THEMES.length]);
+(() => {
+  const tier = (lv) => (lv < 10 ? ['Biệt thự cao tầng', '🏰'] : lv < 20 ? ['Toà nhà', '🏢'] : lv < 35 ? ['Cao ốc', '🏙️'] : lv < 50 ? ['Tháp chọc trời', '🌆'] : ['Siêu tháp', '🗼']);
+  for (let lv = 5; lv <= 50; lv++) {
+    const [nm, icon] = tier(lv), th = DATA.floorTheme(lv);
+    DATA.HOUSE_LEVELS.push({ lv, name: `${nm} ${lv} tầng`, icon, price: Math.round(3000000 * Math.pow(1.22, lv - 5) / 100000) * 100000, desc: `+ Tầng ${lv}: ${th.icon} ${th.name}` });
+  }
+})();
 
 /** 🚗 Ô tô điện VinFast (mua ở showroom trước cổng nông trại, tự lái trên phố, cần sạc pin) */
 DATA.CARS = [
@@ -366,7 +381,7 @@ DATA.EXCHANGE = [
 DATA.GUARD_MAX = 5;
 
 /** Hái trộm: tối đa 3 ô / nông trại / ngày, lấy được một nửa sản lượng của ô */
-DATA.STEAL = { perFarm: 3, share: 0.5 };
+DATA.STEAL = { perFarm: 6, share: 0.5 };
 
 /** Vòng quay may mắn: làm nhiệm vụ để nhận lượt, tối đa 2 lượt / ngày */
 DATA.WHEEL = {

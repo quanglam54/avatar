@@ -117,12 +117,15 @@ const ART = (() => {
   const spriteCache = new Map();
   function paintedSprite(look, im) {
     const p = paintedSrc(look), k = Math.min(3, Math.max(1, (typeof FX !== 'undefined' && FX.scale) || 1));
-    const key = p.src + '|' + k;
+    const wear = typeof WARDROBE !== 'undefined' && WARDROBE.active(look) ? look.wear : '';
+    const key = p.src + '|' + k + '|' + wear;
     let e = spriteCache.get(key);
     if (e) return e;
     const split = p.squash ? SPLIT : 0.42, bk = p.squash ? BODY_K : 0.72;
-    const H = PAINT_H / (split + (1 - split) * bk), W = H * im.naturalWidth / im.naturalHeight;
-    const iw = im.naturalWidth, ih = im.naturalHeight, headH = H * split, bodyH = H * (1 - split) * bk;
+    im = (wear && WARDROBE.dress(p.src, im, wear)) || im;
+    const iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height;
+    const H = PAINT_H / (split + (1 - split) * bk), W = H * iw / ih;
+    const headH = H * split, bodyH = H * (1 - split) * bk;
     const pad = 3, cw = Math.ceil((W + pad * 2) * k), chh = Math.ceil((PAINT_H + pad * 2) * k);
     const a = document.createElement('canvas'); a.width = cw; a.height = chh;
     const g = a.getContext('2d'); g.imageSmoothingQuality = 'high';
@@ -136,7 +139,7 @@ const ART = (() => {
     o2.globalCompositeOperation = 'source-in'; o2.fillStyle = '#2b1a10'; o2.fillRect(0, 0, cw, chh);
     o2.globalCompositeOperation = 'source-over'; o2.drawImage(a, 0, 0);
     e = { c: out, w: W + pad * 2, h: PAINT_H + pad * 2, pad };
-    if (spriteCache.size > 40) spriteCache.clear();
+    if (spriteCache.size > 120) spriteCache.clear();
     spriteCache.set(key, e);
     return e;
   }

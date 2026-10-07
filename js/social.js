@@ -174,6 +174,7 @@ const SOCIAL = (() => {
   async function accept(req) {
     try {
       const who = req.from_username;
+      if (req.body && req.body.phone && typeof PHONE !== 'undefined' && PHONE.has()) PHONE.addContact(req.from_name || who, String(req.body.phone), req.from_user);
       if (!isFriend(who)) friends().push({ uid: req.from_user, username: who, name: req.from_name || who });
       AV.markChanged();
       await db().update({ read: true }).eq('id', req.id);
@@ -260,9 +261,15 @@ const SOCIAL = (() => {
       const big = !stk && m.kind === 'chat' && !g.re && onlyEmoji(raw);
       const re = g.re && typeof g.re === 'object' ? `<div class="dm-quote" data-goto="${+g.re.id || 0}"><b>↩ ${esc(String(g.re.w || '') === S().name ? 'Bạn' : String(g.re.w || ''))}</b>${esc(snip(String(g.re.t || ''), 80))}</div>` : '';
       const pic = m.kind === 'chat' && typeof CHATIMG !== 'undefined' && g.img && CHATIMG.url(g.img);
+      const card = m.kind === 'chat' && g.card && /^0\d{9}$/.test(String(g.card.num || '')) ? g.card : null;
+      if (card) return `<div class="dm-msg ${mine ? 'me' : ''}" data-id="${m.id}" data-who="${esc(mine ? S().name : chatWith.name)}" data-t="📇 Danh thiếp"><span>📇 <b>${esc(String(card.name || '').slice(0, 24))}</b><br>${esc(String(card.num).replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3'))}</span>${mine ? '' : `<button class="btn small" type="button" data-savecard="${esc(card.num)}" data-cn="${esc(String(card.name || '').slice(0, 24))}">➕ Lưu danh bạ</button>`}<small>${time}</small><button class="dm-re" title="Trả lời" type="button">↩</button></div>`;
       return `<div class="dm-msg ${mine ? 'me' : ''} ${big ? 'big' : ''} ${stk || pic ? 'sticker' : ''}" data-id="${m.id}" data-who="${esc(mine ? S().name : chatWith.name)}" data-t="${esc(snip(raw, 80))}">${re}${pic ? `<img class="dm-img" src="${pic}" alt="ảnh" loading="lazy">` : stk ? `<img class="dm-stk" src="${stickerURL(g.st)}" alt="nhãn dán">` : `<span>${esc(raw)}</span>`}<small>${time}</small><button class="dm-re" title="Trả lời" type="button">↩</button></div>`;
     }).join('') : '<p class="muted">Chưa có tin nhắn nào. Chào nhau một câu đi 👋</p>';
     if (atBottom) box.scrollTop = box.scrollHeight;
+    box.querySelectorAll('[data-savecard]').forEach((b) => b.onclick = () => {
+      if (typeof PHONE === 'undefined' || !PHONE.has()) return UI.toast('📱 Mua điện thoại để lưu danh bạ nhé');
+      if (PHONE.addContact(b.dataset.cn, b.dataset.savecard, them)) UI.toast(`📇 Đã lưu ${b.dataset.cn} vào danh bạ`);
+    });
     box.querySelectorAll('.dm-img').forEach((im) => { im.onclick = () => CHATIMG.view(im.src); im.onload = () => { if (atBottom) box.scrollTop = box.scrollHeight; }; });
     box.querySelectorAll('.dm-re').forEach((b) => b.onclick = (e) => { e.stopPropagation(); const el = b.closest('.dm-msg'); setReply({ id: +el.dataset.id, t: el.dataset.t, w: el.dataset.who }); });
     box.querySelectorAll('.dm-quote').forEach((q) => q.onclick = () => {
@@ -412,5 +419,11 @@ const SOCIAL = (() => {
     setInterval(() => { if (mainPanel && mainPanel.el.isConnected && tab === 'list') renderMain(); }, 8000);
   }
 
-  return { init, pull, open, addFriend, openChat, giftPanel, isFriend, get requests() { return requests; } };
+  /** gửi danh thiếp (số điện thoại của mình) cho bạn bè */
+  async function sendCard(f) {
+    if (!f) return;
+    try { await send(f.uid, 'chat', { text: `📇 Số của mình: ${PHONE.pretty(PHONE.myNum())}`, card: { name: S().name, num: PHONE.myNum() } }); UI.toast(`📇 Đã gửi số cho ${f.name}`); }
+    catch (er) { UI.toast('⚠️ ' + errText(er), 4500); }
+  }
+  return { init, pull, open, addFriend, openChat, giftPanel, isFriend, sendCard, get requests() { return requests; } };
 })();

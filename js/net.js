@@ -167,6 +167,7 @@ const NET = (() => {
     const out = {};
     for (const k of Object.keys(d)) { if (k === 'avatar' || k === 'phair') continue; out[k] = clean(l[k] ?? d[k], 24); }
     if (/^h[1-9]$/.test(l.phair || '')) out.phair = l.phair;
+    out.wear = typeof WARDROBE !== 'undefined' ? WARDROBE.sanitize(l.wear) : '';
     if (l.avatar === 'boy' || l.avatar === 'girl' || l.avatar === 'custom') out.avatar = l.avatar;
     return out;
   }

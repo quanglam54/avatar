@@ -12,7 +12,10 @@ const PHONE = (() => {
     { id: 'fold7', name: 'Samsung Galaxy Z Fold7', os: 'android', price: 46990000, drain: 0.8, color: '#1b2f48', tag: 'Màn hình gập' },
     { id: 'ip16e', name: 'iPhone 16e', os: 'ios', price: 16990000, drain: 0.9, color: '#f1f3f5', tag: 'iPhone giá tốt' },
     { id: 'ip17', name: 'iPhone 17', os: 'ios', price: 24990000, drain: 0.8, color: '#a5d8ff', tag: 'Màn 120Hz' },
-    { id: 'ip17pm', name: 'iPhone 17 Pro Max', os: 'ios', price: 42990000, drain: 0.6, color: '#ff922b', tag: 'Đỉnh nhất · pin khủng' },
+    { id: 'ip17pm', name: 'iPhone 17 Pro Max', os: 'ios', price: 42990000, drain: 0.6, color: '#ff922b', tag: 'Pin khủng · cam 48MP' },
+    { id: 'ip18', name: 'iPhone 18', os: 'ios', price: 27990000, drain: 0.75, color: '#b197fc', tag: 'MỚI · chip A20' },
+    { id: 'ip18p', name: 'iPhone 18 Pro', os: 'ios', price: 36990000, drain: 0.6, color: '#868e96', tag: 'MỚI · camera 3 ống kính' },
+    { id: 'ip18pm', name: 'iPhone 18 Pro Max', os: 'ios', price: 49990000, drain: 0.5, color: '#c92a2a', tag: 'MỚI · đỉnh nhất · pin trâu nhất' },
   ];
   const STORES = {
     cps: { name: 'CellphoneS', icon: '🔴', disc: 0.97, note: 'Giảm 3% cho thành viên S-Member' },
@@ -25,9 +28,77 @@ const PHONE = (() => {
   const model = () => (S().phone && MODELS.find((m) => m.id === S().phone.model)) || null;
   const hash = (s) => { let h = 2166136261; for (const ch of String(s)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
   /** số điện thoại cố định theo tài khoản: 09xxxxxxxx */
-  const numOf = (uid) => { const h = hash('PHONE|' + uid), h2 = hash('P2|' + uid); return '09' + String(h % 10000).padStart(4, '0') + String(h2 % 10000).padStart(4, '0'); };
-  const myNum = () => numOf(CLOUD.user ? CLOUD.user.id : 'guest|' + S().name);
-  const pretty = (n) => n.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3');
+  /** số của mình = SIM đã mua ('' = chưa có SIM) */
+  const myNum = () => (S().phone && S().phone.sim) || '';
+  const pretty = (n) => String(n || '').replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3');
+  const contacts = () => { const ph = S().phone; if (!ph) return []; return (ph.contacts = ph.contacts || []); };
+  /** lưu / cập nhật 1 số vào danh bạ */
+  function addContact(name, num, uid) {
+    num = String(num || '').replace(/\D/g, '');
+    if (!/^0\d{9}$/.test(num) || !S().phone) return false;
+    const list = contacts(), old = list.find((c) => c.num === num);
+    if (old) { old.name = name || old.name; if (uid) old.uid = uid; } else list.push({ name: String(name || num).slice(0, 24), num, uid: uid || '' });
+    list.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+    if (AV.markChanged) AV.markChanged();
+    return true;
+  }
+  const contactOf = (num) => contacts().find((c) => c.num === num);
+  /** tra số trên máy chủ → { num, user_id, name, username } */
+  async function lookup(num) {
+    if (!CLOUD.client) return null;
+    const { data, error } = await CLOUD.client.from('phone_sims').select('num, user_id, name, username').eq('num', num).maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+  /* ---------- 📶 SIM ---------- */
+  const NETS = [
+    { id: 'viettel', name: 'Viettel', pre: ['086', '096', '097', '098', '032', '033', '035', '037', '039'], col: '#e60012' },
+    { id: 'vina', name: 'Vinaphone', pre: ['088', '091', '094', '081', '083', '085'], col: '#0072bc' },
+    { id: 'mobi', name: 'Mobifone', pre: ['089', '090', '093', '070', '077', '079'], col: '#005baa' },
+  ];
+  const SIM_PRICE = 50000;
+  /** giá số đẹp: lặp đuôi, tiến, lộc phát, thần tài */
+  function simPrice(num) {
+    const t = num.slice(3), last4 = num.slice(-4), last3 = num.slice(-3);
+    if (/^(\d)\1{6}$/.test(t)) return 9000000000;
+    if (/(\d)\1{4}$/.test(num)) return 1500000000;
+    if (/(\d)\1{3}$/.test(num)) return 200000000;
+    if ('0123456789'.includes(last4) || /(\d\d)\1\1$/.test(num)) return 60000000;
+    if (/(\d)\1{2}$/.test(num) || /6868$|8686$|3979$|3939$|7979$/.test(num)) return 20000000;
+    if (/68$|86$|79$|39$/.test(num) || '0123456789'.includes(last3)) return 2000000;
+    return SIM_PRICE;
+  }
+  function simOffers(net) {
+    const out = [], R = () => Math.floor(Math.random() * 10);
+    const pre = () => net.pre[Math.floor(Math.random() * net.pre.length)];
+    for (let k = 0; k < 6; k++) out.push(pre() + Array.from({ length: 7 }, R).join(''));
+    const d = R(), d2 = R(), s = R();
+    out.push(pre() + String(R()) + String(R()) + String(R()) + String(d).repeat(4));
+    out.push(pre() + Array.from({ length: 3 }, R).join('') + ['6868', '3979', '8686', '7979'][Math.floor(Math.random() * 4)]);
+    out.push(pre() + String(R()) + String(R()) + String(s) + String(s + 1 > 9 ? 0 : s + 1) + String((s + 2) % 10) + String((s + 3) % 10) + String((s + 4) % 10));
+    out.push(pre() + String(d2) + String(d).repeat(6));
+    return [...new Set(out)].map((num) => ({ num, price: simPrice(num) })).sort((a, b) => a.price - b.price);
+  }
+  async function buySim(num, price, net) {
+    if (!S().phone) return UI.toast('📱 Mua điện thoại trước rồi mới lắp SIM được');
+    if (!CLOUD.user || !CLOUD.client) return UI.toast('🔐 Đăng nhập tài khoản mới đăng ký SIM được');
+    if (!AV.spend(price)) return false;
+    try {
+      await CLOUD.client.from('phone_sims').delete().eq('user_id', CLOUD.user.id);
+      const { error } = await CLOUD.client.from('phone_sims').insert({ num, user_id: CLOUD.user.id, name: S().name, username: CLOUD.username || '' });
+      if (error) throw error;
+    } catch (e) {
+      AV.earn(price);
+      const m = String((e && e.message) || '');
+      UI.toast('⚠️ ' + (/duplicate|unique/i.test(m) ? 'Số này vừa có người mua mất rồi, chọn số khác nhé' : /phone_sims|does not exist|Could not find/i.test(m) ? 'Chủ game chưa bật SIM (chạy file supabase/13-vietlott-sim-trom.sql)' : m), 5000);
+      return false;
+    }
+    S().phone.sim = num; S().phone.net = net.name;
+    if (AV.markChanged) AV.markChanged();
+    UI.toast(`📶 Đã lắp SIM ${net.name}: ${pretty(num)} — giờ gọi điện, nhắn tin, gửi số kết bạn được rồi!`, 6000);
+    AV.sayMine('📶 Có số mới nè!');
+    return true;
+  }
   const friends = () => (S().friends || []).filter((f) => f.uid);
 
   /* ================= 🛒 CỬA HÀNG ================= */
@@ -37,7 +108,8 @@ const PHONE = (() => {
     const render = () => {
       const cur = model(), ph = S().phone;
       const price = (m) => Math.round(m.price * st.disc / 1000) * 1000;
-      p.body.innerHTML = `<div class="coins-line">💰 ${fmt(S().coins)} xu${cur ? ` · Đang dùng: <b>${cur.name}</b> 🔋${Math.round(ph.bat)}%` : ''}</div>
+      if (st.simTab) return renderSim();
+      p.body.innerHTML = `<div class="coins-line">💰 ${fmt(S().coins)} xu${cur ? ` · Đang dùng: <b>${cur.name}</b> 🔋${Math.round(ph.bat)}%` : ''} · <button class="btn small" data-sim>📶 Mua SIM số${myNum() ? ' (đang dùng ' + pretty(myNum()) + ')' : ''}</button></div>
         <p class="muted">${st.icon} ${st.note}${cur ? ` · Thu cũ đổi mới: máy cũ được trừ <b>${Math.round(TRADE_IN * 100)}%</b> giá` : ''}</p>
         <div class="ph-grid">${MODELS.map((m) => {
           const own = cur && cur.id === m.id, tradeIn = cur && !own ? Math.round(cur.price * TRADE_IN) : 0;
@@ -55,18 +127,34 @@ const PHONE = (() => {
         const cost = price(m) - (old ? Math.round(old.price * TRADE_IN) : 0);
         UI.confirm(`Mua <b>${m.name}</b> giá <b>${fmt(cost)} xu</b>${old ? ` (đã trừ thu cũ ${old.name})` : ''}?`, 'Mua', () => {
           if (!AV.spend(cost)) return;
-          const pb = ((S().phone && S().phone.pb) || 0) + (kind === 'tgdd' ? 1 : 0);
-          S().phone = { model: m.id, bat: 100, pb };
+          const prev = S().phone || {}, pb = (prev.pb || 0) + (kind === 'tgdd' ? 1 : 0);
+          S().phone = { ...prev, model: m.id, bat: 100, pb };
           AV.markChanged && AV.markChanged();
-          UI.toast(`📱 Đã mua ${m.name}! Bấm nút 📱 trên cùng để dùng. Số của bạn: ${pretty(myNum())}${kind === 'tgdd' ? ' · 🎁 Tặng 1 sạc dự phòng' : ''}`, 6000);
+          if (old && S().phone) { /* giữ SIM + danh bạ khi đổi máy */ }
+          UI.toast(`📱 Đã mua ${m.name}! ${myNum() ? 'SIM cũ đã lắp sang máy mới' : 'Mua thêm 📶 SIM ở ngay quầy này để có số điện thoại'}${kind === 'tgdd' ? ' · 🎁 Tặng 1 sạc dự phòng' : ''}`, 6000);
           AV.sayMine('📱 Máy mới nè!');
           updateBtn(); render();
         });
       });
+      p.body.querySelector('[data-sim]').onclick = () => { st.simTab = 1; st.net = st.net || NETS[0]; st.offers = simOffers(st.net); render(); };
       const pbB = p.body.querySelector('[data-pb]');
       if (pbB) pbB.onclick = () => { if (!AV.spend(POWERBANK)) return; S().phone.pb = (S().phone.pb || 0) + 1; UI.toast('🔋 Đã mua sạc dự phòng — mở điện thoại để dùng khi pin yếu'); render(); };
       const ch = p.body.querySelector('[data-charge]');
       if (ch) ch.onclick = () => { charge(100, '🔌 Đã sạc đầy pin ở cửa hàng'); render(); };
+    };
+    const renderSim = () => {
+      p.body.innerHTML = `<div class="coins-line">💰 ${fmt(S().coins)} xu${myNum() ? ` · SIM đang dùng: <b>${pretty(myNum())}</b>` : ''} <button class="btn small ghost" data-back>‹ Về máy</button></div>
+        ${model() ? '' : '<p class="wd-note">⚠️ Bạn chưa có điện thoại — mua máy trước rồi mới lắp SIM được.</p>'}
+        <div class="tabs">${NETS.map((n) => `<button class="chip ${st.net.id === n.id ? 'on' : ''}" data-net="${n.id}">${n.name}</button>`).join('')}<button class="chip" data-more>🔄 Số khác</button></div>
+        <div class="shop-list">${st.offers.map((o) => `<div class="shop-row"><span class="ic">📶</span><div class="info"><b class="ph-simnum">${pretty(o.num)}</b><small>${o.price > SIM_PRICE ? '💎 Số đẹp' : 'Số thường'} · ${st.net.name}</small></div><button class="btn small" data-buysim="${o.num}" ${model() ? '' : 'disabled'}>${fmt(o.price)} xu</button></div>`).join('')}</div>
+        <p class="muted small-note">Mỗi người 1 số, không trùng ai. Mua SIM mới thì số cũ bị thu hồi. Số đẹp (đuôi lặp, sảnh tiến, 68 · 79 · 39) giá cao hơn.</p>`;
+      p.body.querySelector('[data-back]').onclick = () => { st.simTab = 0; render(); };
+      p.body.querySelectorAll('[data-net]').forEach((b) => b.onclick = () => { st.net = NETS.find((n) => n.id === b.dataset.net); st.offers = simOffers(st.net); renderSim(); });
+      p.body.querySelector('[data-more]').onclick = () => { st.offers = simOffers(st.net); renderSim(); };
+      p.body.querySelectorAll('[data-buysim]').forEach((b) => b.onclick = () => {
+        const o = st.offers.find((x) => x.num === b.dataset.buysim);
+        UI.confirm(`Mua SIM <b>${st.net.name} ${pretty(o.num)}</b> giá <b>${fmt(o.price)} xu</b>?${myNum() ? '<br><small>Số cũ ' + pretty(myNum()) + ' sẽ bị thu hồi.</small>' : ''}`, 'Mua SIM', async () => { if (await buySim(o.num, o.price, st.net)) { st.simTab = 0; render(); updateBtn(); } });
+      });
     };
     render();
   }
@@ -107,7 +195,7 @@ const PHONE = (() => {
     { id: 'map', icon: '🗺️', name: 'Bản đồ', bg: 'linear-gradient(#e7f5ff,#74c0fc)' },
     { id: 'bank', icon: '🏦', name: 'QL Bank', bg: 'linear-gradient(#2f9e44,#00502b)' },
     { id: 'quest', icon: '📜', name: 'Nhiệm vụ', bg: 'linear-gradient(#ffe8a3,#f59f00)' },
-    { id: 'lotto', icon: '🎰', name: 'Xổ số', bg: 'linear-gradient(#ff8787,#c92a2a)' },
+    { id: 'lotto', icon: '🎰', name: 'Vietlott', bg: 'linear-gradient(#ff8787,#c92a2a)' },
     { id: 'weather', icon: '🌤️', name: 'Thời tiết', bg: 'linear-gradient(#74c0fc,#1c7ed6)' },
     { id: 'clock', icon: '⏰', name: 'Đồng hồ', bg: 'linear-gradient(#343a40,#000)' },
     { id: 'health', icon: '❤️', name: 'Sức khoẻ', bg: 'linear-gradient(#fff,#f1f3f5)' },
@@ -162,8 +250,8 @@ const PHONE = (() => {
     if (!screen) return;
     const b = Math.round(S().phone.bat), m = model();
     screen.querySelector('.ph-sb').innerHTML = m.os === 'ios'
-      ? `<b>${vnTime()}</b><span class="ph-isl"></span><span>📶 Viettel <i class="ph-bat ${b <= 20 ? 'low' : ''}"><u style="width:${b}%"></u></i> ${b}%</span>`
-      : `<span>${vnTime()} ✉</span><span>📶 ${b}% <i class="ph-bat ${b <= 20 ? 'low' : ''}"><u style="width:${b}%"></u></i></span>`;
+      ? `<b>${vnTime()}</b><span class="ph-isl"></span><span>${myNum() ? '📶' : '<small>Không SIM</small>'} <i class="ph-bat ${b <= 20 ? 'low' : ''}"><u style="width:${b}%"></u></i> ${b}%</span>`
+      : `<span>${vnTime()} ✉</span><span>${myNum() ? (S().phone.net || '') + ' 📶' : 'Không SIM'} ${b}% <i class="ph-bat ${b <= 20 ? 'low' : ''}"><u style="width:${b}%"></u></i></span>`;
   }
   function header(title) { return `<div class="ph-head"><button class="ph-back" data-back>‹ Về</button><b>${title}</b><span></span></div>`; }
 
@@ -184,26 +272,48 @@ const PHONE = (() => {
     }
     const back = () => { const bk = box.querySelector('[data-back]'); if (bk) bk.onclick = () => go('home'); };
     if (app === 'call') {
-      box.innerHTML = header('Điện thoại') + `<div class="ph-dial"><div class="ph-num"></div>
+      box.innerHTML = header('Điện thoại') + `<div class="ph-dial"><div class="ph-num"></div><div class="ph-numname"></div>
         <div class="ph-keys">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map((k) => `<button data-k="${k}">${k}</button>`).join('')}</div>
         <div class="ph-dial-row"><button class="ph-del" data-del>⌫</button><button class="ph-callbtn" data-call>📞</button><button class="ph-del" data-q>115</button></div>
-        <p class="ph-hint">🚑 115 cấp cứu · 🚓 113 · 🚒 114</p></div>`;
+        <button class="ph-addc" data-addc hidden>➕ Thêm vào danh bạ</button>
+        <p class="ph-hint">🚑 115 cấp cứu · 🚓 113 · 🚒 114${myNum() ? '' : '<br>⚠️ Chưa có SIM — chỉ gọi được số khẩn cấp'}</p></div>`;
       back();
-      let num = '';
-      const show = () => { box.querySelector('.ph-num').textContent = num || ' '; };
+      let num = dialPre || ''; dialPre = '';
+      const show = () => {
+        box.querySelector('.ph-num').textContent = num.length === 10 ? pretty(num) : num || ' ';
+        const c = contactOf(num);
+        box.querySelector('.ph-numname').textContent = c ? c.name : '';
+        box.querySelector('[data-addc]').hidden = !(num.length === 10 && /^0/.test(num) && !c && num !== myNum());
+      };
+      box.querySelector('[data-addc]').onclick = () => newContact(num);
       box.querySelectorAll('[data-k]').forEach((b) => b.onclick = () => { if (num.length < 12) num += b.dataset.k; beep(700 + (+b.dataset.k || 0) * 40, 0.06); show(); });
       box.querySelector('[data-del]').onclick = () => { num = num.slice(0, -1); show(); };
       box.querySelector('[data-q]').onclick = () => { num = '115'; show(); };
       box.querySelector('[data-call]').onclick = () => { if (num) dial(num); };
       show();
     } else if (app === 'contacts') {
-      const list = friends();
-      box.innerHTML = header('Danh bạ') + `<div class="ph-me"><b>${esc(S().name)}</b><span>Số của tôi: ${pretty(myNum())}</span></div>
-        <div class="ph-list">${list.length ? list.map((f, i) => `<div class="ph-row"><span class="ph-av">${esc((f.name || f.username || '?')[0].toUpperCase())}</span><div><b>${esc(f.name || f.username)}</b><small>${pretty(numOf(f.uid))}</small></div><button data-dial="${i}">📞</button><button data-sms="${i}">💬</button></div>`).join('')
-        : '<p class="ph-empty">Chưa có ai trong danh bạ.<br>Gặp người chơi khác → bấm vào họ → <b>📱 Gửi số điện thoại</b>.</p>'}</div>`;
+      const list = contacts();
+      box.innerHTML = header('Danh bạ').replace('<span></span>', '<button class="ph-back" data-new>＋</button>') + `<div class="ph-me"><b>${esc(S().name)}</b><span>${myNum() ? 'Số của tôi: ' + pretty(myNum()) : 'Chưa có SIM — mua ở CellphoneS / Thế Giới Di Động'}</span></div>
+        <div class="ph-list">${list.length ? list.map((c, i) => `<div class="ph-row" data-open="${i}"><span class="ph-av">${esc((c.name || '?')[0].toUpperCase())}</span><div><b>${esc(c.name)}</b></div><span class="ph-chev">›</span></div>`).join('')
+        : '<p class="ph-empty">Danh bạ trống.<br>Bấm <b>＋</b> để lưu số, hoặc gặp người chơi khác → bấm vào họ → <b>📱 Gửi số điện thoại</b>.</p>'}</div>`;
       back();
-      box.querySelectorAll('[data-dial]').forEach((b) => b.onclick = () => dial(numOf(list[+b.dataset.dial].uid)));
-      box.querySelectorAll('[data-sms]').forEach((b) => b.onclick = () => { const f = list[+b.dataset.sms]; close(); SOCIAL.openChat(f); });
+      box.querySelector('[data-new]').onclick = () => newContact('');
+      box.querySelectorAll('[data-open]').forEach((b) => b.onclick = () => { contactSel = list[+b.dataset.open]; go('contact'); });
+    } else if (app === 'contact') {
+      const c = contactSel;
+      if (!c) return go('contacts');
+      box.innerHTML = header('Liên hệ').replace("data-back>‹ Về", "data-back2>‹ Danh bạ") + `<div class="ph-card1"><div class="ph-av big">${esc((c.name || '?')[0].toUpperCase())}</div><b>${esc(c.name)}</b>
+        <div class="ph-acts"><button data-c="call">📞<small>gọi</small></button><button data-c="sms">💬<small>nhắn tin</small></button><button data-c="del">🗑️<small>xoá</small></button></div>
+        <div class="ph-row2"><small>di động</small><br><b class="ph-simnum">${pretty(c.num)}</b></div></div>`;
+      box.querySelector('[data-back2]').onclick = () => go('contacts');
+      box.querySelector('[data-c="call"]').onclick = () => { dialPre = c.num; go('call'); };
+      box.querySelector('[data-c="sms"]').onclick = () => smsTo(c.num);
+      box.querySelector('[data-c="del"]').onclick = () => { const l = contacts(); l.splice(l.indexOf(c), 1); if (AV.markChanged) AV.markChanged(); go('contacts'); };
+    } else if (app === 'msg') {
+      box.innerHTML = header('Tin nhắn').replace('<span></span>', '<button class="ph-back" data-compose>✏️</button>') + '<div class="ph-threads"><p class="ph-empty">⏳ Đang tải…</p></div>';
+      back();
+      box.querySelector('[data-compose]').onclick = () => { const n = prompt('Nhắn tin tới số điện thoại:'); if (n) smsTo(n); };
+      loadThreads(box.querySelector('.ph-threads'));
     } else if (app === 'weather') {
       const rain = AV.rainLevel() > 0.05, sea = typeof SEASON !== 'undefined' ? SEASON.now() : null;
       box.innerHTML = header('Thời tiết') + `<div class="ph-wx"><small>Thành phố Zeno</small><div class="ph-wx-big">${rain ? '🌧️' : new Date().getHours() >= 18 || new Date().getHours() < 6 ? '🌙' : '☀️'}</div>
@@ -215,7 +325,7 @@ const PHONE = (() => {
       const mh = typeof EVENTS !== 'undefined' ? EVENTS.merchantHours().map((h) => h + 'h').join(' · ') : '';
       box.innerHTML = header('Đồng hồ') + `<div class="ph-clock"><b>${vnTime()}</b>
         <div class="ph-row2">⏰ Giờ vàng x2: <b>20h–21h</b>${golden ? ' 🔥 ĐANG DIỄN RA' : ''}</div>
-        <div class="ph-row2">🎰 Quay xổ số: <b>18h30</b></div>${mh ? `<div class="ph-row2">🛒 Thương lái: <b>${mh}</b></div>` : ''}</div>`;
+        <div class="ph-row2">🎰 Vietlott quay: <b>mỗi 2 tiếng (giờ chẵn)</b></div>${mh ? `<div class="ph-row2">🛒 Thương lái: <b>${mh}</b></div>` : ''}</div>`;
       back();
     } else if (app === 'health') {
       const sick = AV.isSick(), en = Math.round(AV.energy());
@@ -232,7 +342,7 @@ const PHONE = (() => {
   }
 
   function openApp(id) {
-    if (id === 'msg') { close(); return SOCIAL.open ? SOCIAL.open() : UI.friendsPanel(); }
+
     if (id === 'map') { close(); return UI.cityMap(false); }
     if (id === 'bank') { close(); return BANK.panel('atm'); }
     if (id === 'quest') { close(); return UI.questsPanel(); }
@@ -258,10 +368,67 @@ const PHONE = (() => {
   }
 
   /* ---------- 📞 gọi điện ---------- */
-  let callInfo = null;
+  let callInfo = null, dialPre = '', contactSel = null;
+  /** lưu số mới (hỏi tên) */
+  function newContact(num) {
+    const n = String(num || prompt('Số điện thoại:') || '').replace(/\D/g, '');
+    if (!/^0\d{9}$/.test(n)) return n && UI.toast('Số điện thoại phải có 10 chữ số, bắt đầu bằng 0');
+    const name = prompt('Tên liên hệ:', (contactOf(n) || {}).name || '');
+    if (!name) return;
+    addContact(name.trim(), n);
+    UI.toast(`📇 Đã lưu ${name} · ${pretty(n)} vào danh bạ`);
+    render();
+  }
+  /** mở khung nhắn tin với 1 số */
+  async function smsTo(raw) {
+    const num = String(raw).replace(/\D/g, '');
+    if (!myNum()) return UI.toast('📶 Cần lắp SIM mới nhắn tin được');
+    try {
+      const who = await lookup(num);
+      if (!who) return UI.toast('Số này chưa có ai dùng 📵');
+      if (who.user_id === (CLOUD.user && CLOUD.user.id)) return UI.toast('Đây là số của bạn 😄');
+      const c = contactOf(num); if (c && !c.uid) c.uid = who.user_id;
+      close();
+      SOCIAL.openChat({ uid: who.user_id, username: who.username || '', name: (c && c.name) || who.name || pretty(num) });
+    } catch (e) { UI.toast('⚠️ Chưa bật SIM (chạy file supabase/13-vietlott-sim-trom.sql)', 5000); }
+  }
+  /** danh sách cuộc trò chuyện kiểu iPhone */
+  async function loadThreads(el) {
+    if (!CLOUD.user || !CLOUD.client) { el.innerHTML = '<p class="ph-empty">🔐 Đăng nhập tài khoản để nhắn tin</p>'; return; }
+    const me = CLOUD.user.id;
+    const { data, error } = await CLOUD.client.from('messages').select('id, from_user, to_user, from_name, from_username, kind, body, read, created_at').in('kind', ['chat', 'gift']).or(`from_user.eq.${me},to_user.eq.${me}`).order('created_at', { ascending: false }).limit(300);
+    if (error) { el.innerHTML = '<p class="ph-empty">⚠️ Không tải được tin nhắn</p>'; return; }
+    const th = new Map();
+    (data || []).forEach((m) => {
+      const other = m.from_user === me ? m.to_user : m.from_user;
+      const t = th.get(other) || { uid: other, last: m, unread: 0, name: '', username: '' };
+      if (m.created_at > t.last.created_at) t.last = m;
+      if (m.from_user !== me) { t.name = t.name || m.from_name; t.username = t.username || m.from_username; if (!m.read && m.kind === 'chat') t.unread++; }
+      th.set(other, t);
+    });
+    const list = [...th.values()].sort((a, b) => (a.last.created_at < b.last.created_at ? 1 : -1));
+    let sims = [];
+    try { const r = await CLOUD.client.from('phone_sims').select('num, user_id, name, username').in('user_id', list.map((t) => t.uid)); sims = r.data || []; } catch (e) { /* chưa bật SIM */ }
+    const fr = S().friends || [];
+    list.forEach((t) => {
+      const sim = sims.find((s) => s.user_id === t.uid), f = fr.find((x) => x.uid === t.uid), c = contacts().find((x) => x.uid === t.uid || (sim && x.num === sim.num));
+      t.username = t.username || (sim && sim.username) || (f && f.username) || '';
+      t.title = c ? c.name : sim ? pretty(sim.num) : t.name || (f && f.name) || 'Người chơi';
+      t.name = (c && c.name) || t.name || (f && f.name) || (sim && sim.name) || t.title;
+    });
+    if (!el.isConnected) return;
+    const when = (iso) => { const d = new Date(iso), n = new Date(); return d.toDateString() === n.toDateString() ? d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' }); };
+    const prev = (m) => { const g = m.body || {}; return m.kind === 'gift' ? '🎁 Quà tặng' : g.img ? '📷 Ảnh' : g.st ? '[Nhãn dán]' : String(g.text || ''); };
+    el.innerHTML = list.length ? list.map((t, i) => `<div class="ph-th" data-t="${i}"><i class="ph-dot ${t.unread ? 'on' : ''}"></i><span class="ph-av">👤</span><div class="ph-thb"><div><b>${esc(t.title)}</b><small>${when(t.last.created_at)} ›</small></div><p>${t.last.from_user === me ? 'Bạn: ' : ''}${esc(prev(t.last)).slice(0, 80)}</p></div></div>`).join('')
+      : '<p class="ph-empty">Chưa có tin nhắn nào.<br>Bấm ✏️ để nhắn tới một số điện thoại.</p>';
+    el.querySelectorAll('[data-t]').forEach((b) => b.onclick = () => { const t = list[+b.dataset.t]; close(); SOCIAL.openChat({ uid: t.uid, username: t.username, name: t.name }); });
+  }
   function dial(num) {
     num = String(num).replace(/\D/g, '');
-    const f = friends().find((x) => numOf(x.uid) === num);
+    const emergency = ['115', '113', '114'].includes(num);
+    if (!emergency && !myNum()) { UI.toast('📶 Chưa có SIM — mua SIM ở CellphoneS / Thế Giới Di Động để gọi điện'); return; }
+    const c = contactOf(num);
+    const f = c ? { name: c.name } : null;
     callInfo = { num: num.length === 10 ? pretty(num) : num, name: num === '115' ? 'Cấp cứu 115' : num === '113' ? 'Công an 113' : num === '114' ? 'Cứu hoả 114' : f ? (f.name || f.username) : num === myNum() ? 'Chính bạn' : 'Số lạ', icon: num === '115' ? '🚑' : num === '113' ? '🚓' : num === '114' ? '🚒' : f ? (f.name || '?')[0].toUpperCase() : '📞', state: 'Đang gọi…', cancel: false };
     go('calling');
     S().phone.bat = Math.max(0, S().phone.bat - 1);
@@ -279,15 +446,18 @@ const PHONE = (() => {
       later(2200, () => { stopRing(); say(num === '113' ? '113: Bị hái trộm thì nuôi chó giữ nhà nhé 🐕' : '114: Khu vực của bạn không có cháy 🔥 — cảm ơn đã báo!'); later(3200, () => go('home')); });
     } else if (num === myNum()) {
       later(1200, () => { stopRing(); say('Máy bận — bạn đang gọi chính mình 😅'); later(2500, () => go('home')); });
-    } else if (f) {
-      later(3800, () => {
-        stopRing();
-        say(`${f.name || f.username} không nghe máy — đã gửi thông báo cuộc gọi nhỡ`);
-        if (CLOUD.user) CLOUD.client.from('messages').insert({ to_user: f.uid, from_name: S().name, from_username: CLOUD.username, kind: 'chat', body: { text: `📞 Cuộc gọi nhỡ từ ${S().name} (${pretty(myNum())})` } }).then(() => {}, () => {});
-        later(2500, () => { close(); SOCIAL.openChat(f); });
-      });
     } else {
-      later(1800, () => { stopRing(); say('Số máy quý khách vừa gọi không tồn tại. Xin vui lòng kiểm tra lại.'); later(3200, () => go('home')); });
+      lookup(num).then((who) => {
+        if (!who) { later(1800, () => { stopRing(); say('Số máy quý khách vừa gọi không tồn tại. Xin vui lòng kiểm tra lại.'); later(3200, () => go('home')); }); return; }
+        if (!f) { callInfo.name = who.name || callInfo.num; render(); }
+        later(3800, () => {
+          stopRing();
+          say(`${callInfo.name} không nghe máy — đã gửi thông báo cuộc gọi nhỡ`);
+          CLOUD.client.from('messages').insert({ to_user: who.user_id, from_name: S().name, from_username: CLOUD.username, kind: 'chat', body: { text: `📞 Cuộc gọi nhỡ từ ${S().name} (${pretty(myNum())})` } }).then(() => {}, () => {});
+          if (c && !c.uid) c.uid = who.user_id;
+          later(2500, () => { close(); SOCIAL.openChat({ uid: who.user_id, username: who.username || '', name: callInfo.name }); });
+        });
+      }).catch(() => { later(1500, () => { stopRing(); say('Mạng di động chưa sẵn sàng (chủ game chưa bật SIM)'); later(3000, () => go('home')); }); });
     }
   }
 
@@ -372,5 +542,5 @@ const PHONE = (() => {
     setInterval(battTick, 30000);
     setInterval(() => { if (openNow) statusBar(); }, 15000);
   }
-  return { init, open, close, shop, charge, myNum, numOf, pretty, has: () => !!model(), dial, ambulance };
+  return { init, open, close, shop, charge, myNum, pretty, addContact, has: () => !!model(), hasSim: () => !!myNum(), dial, ambulance };
 })();

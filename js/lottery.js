@@ -1,36 +1,39 @@
-/* 🎰 XỔ SỐ MIỀN BẮC — quầy vé số cạnh quán Mì Cay ở phố trước nông trại.
- * Mua vé 5 số (10.000 xu/vé) đến 18h30 giờ Việt Nam. 18h30 máy chủ quay số ngẫu nhiên (supabase/11-xo-so-va-su-kien.sql),
- * ai đang online xem quay trực tiếp; ai trúng tự nhận xu, cả server được thông báo người trúng.
- * Cơ cấu giải giống vé kiến thiết miền Bắc: so các số cuối của vé với bảng kết quả, mỗi vé lấy giải cao nhất. */
+/* 🎰 VIETLOTT MEGA 6/45 — quầy vé cạnh quán Mì Cay ở phố trước nông trại.
+ * Chọn 6 số từ 01 đến 45, 10.000 xu/vé. Quay cố định mỗi 2 tiếng vào giờ chẵn (0h, 2h, 4h … 22h, giờ Việt Nam).
+ * Máy chủ quay ngẫu nhiên (supabase/13-vietlott-sim-trom.sql); ai đang online xem quay trực tiếp, người trúng tự nhận xu,
+ * cả server được thông báo. Trùng 6 số = Jackpot, 5 số = Giải Nhất, 4 số = Giải Nhì, 3 số = Giải Ba (như Mega 6/45 thật). */
 const LOTTO = (() => {
-  const PRICE = 10000, MAX_DAY = 30, CLOSE = 18 * 60 + 30;
+  const PRICE = 10000, MAX_DRAW = 20, PICK = 6, MAXN = 45;
   const PRIZES = [
-    { k: 'db', name: 'Giải Đặc Biệt', amt: 500000000, n: 1, len: 5 },
-    { k: 'g1', name: 'Giải Nhất', amt: 10000000, n: 1, len: 5 },
-    { k: 'g2', name: 'Giải Nhì', amt: 5000000, n: 2, len: 5 },
-    { k: 'g3', name: 'Giải Ba', amt: 1000000, n: 6, len: 5 },
-    { k: 'g4', name: 'Giải Tư', amt: 400000, n: 4, len: 4 },
-    { k: 'g5', name: 'Giải Năm', amt: 200000, n: 6, len: 4 },
-    { k: 'g6', name: 'Giải Sáu', amt: 100000, n: 3, len: 3 },
-    { k: 'g7', name: 'Giải Bảy', amt: 40000, n: 4, len: 2 },
+    { k: 6, name: 'JACKPOT', amt: 12000000000 },
+    { k: 5, name: 'Giải Nhất', amt: 10000000 },
+    { k: 4, name: 'Giải Nhì', amt: 300000 },
+    { k: 3, name: 'Giải Ba', amt: 30000 },
   ];
   const fmt = (n) => Number(n).toLocaleString('vi-VN');
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const S = () => AV.S;
-  const vn = () => new Date(Date.now() + 7 * 3600e3);
-  const day = () => vn().toISOString().slice(0, 10);
-  const mins = () => { const d = vn(); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
-  const isOpen = () => mins() < CLOSE;
-  const dm = (d) => d.slice(8, 10) + '/' + d.slice(5, 7);
-  const rnd5 = () => String(Math.floor(Math.random() * 100000)).padStart(5, '0');
+  const vn = (t = Date.now()) => new Date(t + 7 * 3600e3);
+  const key = (d, h) => d.toISOString().slice(0, 10) + ' ' + String(h).padStart(2, '0');
+  /** kỳ vừa quay gần nhất (giờ chẵn ≤ bây giờ) */
+  const curKey = () => { const d = vn(); return key(d, d.getUTCHours() - (d.getUTCHours() % 2)); };
+  /** kỳ sắp quay (giờ chẵn kế tiếp) */
+  const nextKey = () => { const d = vn(), h = d.getUTCHours() - (d.getUTCHours() % 2) + 2; return h >= 24 ? key(vn(Date.now() + 86400e3), 0) : key(d, h); };
+  const msToNext = () => { const d = vn(); return (2 - (d.getUTCHours() % 2)) * 3600e3 - (d.getUTCMinutes() * 60e3 + d.getUTCSeconds() * 1e3); };
+  const label = (k) => `${+k.slice(11, 13)}h ${k.slice(8, 10)}/${k.slice(5, 7)}`;
+  const isNew = (k) => /^\d{4}-\d{2}-\d{2} \d{2}$/.test(k || '');
   const db = () => CLOUD.user && CLOUD.client;
-  const missing = (e) => /lottery_|does not exist|Could not find/i.test(String((e && e.message) || ''));
-  const NOT_READY = 'Chủ game chưa bật xổ số (chạy file supabase/11-xo-so-va-su-kien.sql)';
+  const missing = (e) => /lottery_|does not exist|Could not find|violates check/i.test(String((e && e.message) || ''));
+  const NOT_READY = 'Chủ game chưa bật Vietlott (chạy file supabase/13-vietlott-sim-trom.sql)';
+  const quick = () => { const a = []; while (a.length < PICK) { const n = 1 + Math.floor(Math.random() * MAXN); if (!a.includes(n)) a.push(n); } return a.sort((x, y) => x - y); };
+  const toNum = (arr) => arr.map((n) => String(n).padStart(2, '0')).join(' ');
+  const balls = (num, win) => num.split(' ').map((x) => `<i class="vl-ball ${win && win.includes(x) ? 'hit' : ''}">${x}</i>`).join('');
 
-  /** giải cao nhất của 1 vé, hoặc null */
+  /** giải của 1 vé, hoặc null */
   function prizeOf(num, nums) {
-    if (!nums) return null;
-    return PRIZES.find((p) => (nums[p.k] || []).some((x) => num.endsWith(x))) || null;
+    if (!nums || !nums.mega) return null;
+    const hit = num.split(' ').filter((x) => nums.mega.includes(x)).length;
+    return PRIZES.find((p) => p.k === hit) || null;
   }
 
   /* ---------- máy chủ ---------- */
@@ -38,35 +41,34 @@ const LOTTO = (() => {
   async function draw(d) {
     const { data, error } = await CLOUD.client.rpc('lottery_draw', d ? { p_day: d } : {});
     if (error) throw error;
-    if (data) { if (!latest || data.day >= latest.day) latest = data; }
-    return data;
+    if (data && data.nums && data.nums.mega && (!latest || data.day >= latest.day)) latest = data;
+    return data && data.nums && data.nums.mega ? data : null;
   }
   async function loadMine(force) {
     if (!db()) return mine;
     if (!force && Date.now() - mineAt < 15000) return mine;
     mineAt = Date.now();
-    const since = new Date(Date.now() + 7 * 3600e3 - 7 * 86400e3).toISOString().slice(0, 10);
-    const { data, error } = await CLOUD.client.from('lottery_tickets').select('id, day, num, claimed').eq('user_id', CLOUD.user.id).gte('day', since).order('id', { ascending: false }).limit(200);
-    if (!error) mine = data || [];
+    const since = vn(Date.now() - 7 * 86400e3).toISOString().slice(0, 10);
+    const { data, error } = await CLOUD.client.from('lottery_tickets').select('id, day, num, claimed').eq('user_id', CLOUD.user.id).gte('day', since).order('id', { ascending: false }).limit(300);
+    if (!error) mine = (data || []).filter((t) => isNew(t.day));
     return mine;
   }
-  const todayCount = () => mine.filter((t) => t.day === day()).length;
+  const countFor = (k) => mine.filter((t) => t.day === k).length;
 
-  async function buy(nums) {
-    if (!db()) return UI.toast('🔐 Đăng nhập tài khoản mới mua được vé số');
-    if (!isOpen()) return UI.toast('⏰ Đã quá 18h30 — quầy ngừng bán, mai mua tiếp nhé!');
+  async function buy(list) {
+    if (!db()) return UI.toast('🔐 Đăng nhập tài khoản mới mua được vé Vietlott');
+    const k = nextKey();
     await loadMine(true);
-    if (todayCount() + nums.length > MAX_DAY) return UI.toast(`🎟️ Mỗi ngày mua tối đa ${MAX_DAY} vé (bạn đã mua ${todayCount()})`);
-    const cost = PRICE * nums.length;
+    if (countFor(k) + list.length > MAX_DRAW) return UI.toast(`🎟️ Mỗi kỳ mua tối đa ${MAX_DRAW} vé (kỳ ${label(k)} bạn đã mua ${countFor(k)})`);
+    const cost = PRICE * list.length;
     if (!AV.spend(cost)) return;
-    const { error } = await CLOUD.client.from('lottery_tickets').insert(nums.map((num) => ({ day: day(), num, user_id: CLOUD.user.id, name: S().name })));
+    const { error } = await CLOUD.client.from('lottery_tickets').insert(list.map((num) => ({ day: k, num, user_id: CLOUD.user.id, name: S().name })));
     if (error) {
       AV.earn(cost);
-      return UI.toast('⚠️ ' + (missing(error) ? NOT_READY : /row-level|policy/i.test(error.message) ? 'Đã hết giờ bán vé hôm nay' : error.message), 5000);
+      return UI.toast('⚠️ ' + (missing(error) || /row-level|policy/i.test(error.message) ? NOT_READY : error.message), 5000);
     }
-    AV.quest('lotto', nums.length);
-    UI.toast(`🎟️ Đã mua ${nums.length} vé: ${nums.join(', ')} — 18h30 quay số, chúc may mắn!`, 4500);
-    AV.sayMine('🎟️ Mua vé số cầu may~');
+    UI.toast(`🎟️ Đã mua ${list.length} vé Vietlott kỳ ${label(k)} — quay sau ${Math.ceil(msToNext() / 60000)} phút, chúc may mắn!`, 4500);
+    AV.sayMine('🎟️ Mua vé Vietlott cầu may~');
     await loadMine(true);
     return true;
   }
@@ -78,9 +80,9 @@ const LOTTO = (() => {
     settling = true;
     try {
       await loadMine(true);
-      const open = mine.filter((t) => !t.claimed && (t.day < day() || !isOpen()));
-      const days = [...new Set(open.map((t) => t.day))];
-      for (const d of days) {
+      const cur = curKey();
+      const open = mine.filter((t) => !t.claimed && t.day <= cur);
+      for (const d of [...new Set(open.map((t) => t.day))]) {
         const res = await draw(d);
         if (!res) continue;
         const tks = open.filter((t) => t.day === d);
@@ -89,181 +91,164 @@ const LOTTO = (() => {
         const ids = new Set((marked || []).map((r) => r.id));
         const wins = tks.filter((t) => ids.has(t.id)).map((t) => ({ t, p: prizeOf(t.num, res.nums) })).filter((w) => w.p);
         const total = wins.reduce((a, w) => a + w.p.amt, 0);
-        if (total) {
-          AV.earn(total, 30);
-          if (show) winPopup(d, wins, total);
-        } else if (show && ids.size) UI.toast(`🎰 Kỳ ${dm(d)}: ${ids.size} vé của bạn không trúng. ĐB hôm đó là ${res.nums.db[0]} — mai thử lại nhé!`, 5000);
+        if (total) { AV.earn(total, 30); if (show) winPopup(res, wins, total); }
+        else if (show && ids.size) UI.toast(`🎰 Kỳ ${label(d)}: ${ids.size} vé không trúng. Kết quả ${res.nums.mega.join(' ')} — kỳ sau thử lại nhé!`, 5000);
       }
       await loadMine(true);
     } catch (e) { if (missing(e)) console.warn(NOT_READY); }
     finally { settling = false; }
   }
-  function winPopup(d, wins, total) {
-    const p = UI.panel('🎉 TRÚNG XỔ SỐ!', `<div class="xs-win">
+  function winPopup(res, wins, total) {
+    const p = UI.panel('🎉 TRÚNG VIETLOTT!', `<div class="xs-win">
         <div class="tr-chest">🎰💰🎉</div>
-        <p>Kỳ quay <b>${dm(d)}</b> bạn trúng:</p>
-        <div class="shop-list">${wins.map((w) => `<div class="shop-row"><span class="ic">🎟️</span><div class="info"><b class="xs-num">${w.t.num}</b><small>${w.p.name}</small></div><b>+${fmt(w.p.amt)} xu</b></div>`).join('')}</div>
+        <p>Kỳ <b>${label(res.day)}</b> · kết quả <span class="vl-row">${balls(res.nums.mega.join(' '))}</span></p>
+        <div class="shop-list">${wins.map((w) => `<div class="shop-row"><span class="ic">🎟️</span><div class="info"><span class="vl-row">${balls(w.t.num, res.nums.mega)}</span><small>${w.p.name}</small></div><b>+${fmt(w.p.amt)} xu</b></div>`).join('')}</div>
         <h2>+${fmt(total)} xu</h2></div>`);
     setTimeout(() => { if (p.el.isConnected) p.close(); }, 12000);
   }
 
-  /** người vừa quay xong (fresh) báo kết quả + danh sách trúng cho cả server */
+  /** người vừa quay xong (fresh) báo kết quả + người trúng cho cả server */
   async function announce(res) {
-    let line = `🎰 KẾT QUẢ XỔ SỐ MIỀN BẮC ${dm(res.day)}: ĐẶC BIỆT ${res.nums.db[0]}`;
+    let line = `🎰 VIETLOTT kỳ ${label(res.day)}: ${res.nums.mega.join(' - ')}`;
+    NET.sendNews(line); UI.chatLog('', line, true, true);
     try {
-      const { data } = await CLOUD.client.from('lottery_tickets').select('name, num').eq('day', res.day).limit(2000);
+      const { data } = await CLOUD.client.from('lottery_tickets').select('name, num').eq('day', res.day).limit(3000);
       const wins = (data || []).map((t) => ({ name: t.name || 'Ai đó', p: prizeOf(t.num, res.nums) })).filter((w) => w.p).sort((a, b) => b.p.amt - a.p.amt);
-      NET.sendNews(line);
-      UI.chatLog('', line, true, true);
-      if (wins.length) {
-        const top = wins.slice(0, 4).map((w) => `${w.name} (${w.p.name.replace('Giải ', '')} ${fmt(w.p.amt)})`).join(', ');
-        line = `🎉 Chúc mừng ${top}${wins.length > 4 ? ` và ${wins.length - 4} vé khác` : ''} trúng xổ số!`;
-      } else line = '🎰 Kỳ này chưa ai trúng — mai mua vé tiếp nhé!';
+      if (!wins.length) return;
+      const top = wins.slice(0, 4).map((w) => `${w.name} (${w.p.name} ${fmt(w.p.amt)})`).join(', ');
+      line = `🎉 Chúc mừng ${top}${wins.length > 4 ? ` và ${wins.length - 4} vé khác` : ''} trúng Vietlott!`;
       setTimeout(() => { NET.sendNews(line); UI.chatLog('', line, true, true); }, 1500);
-    } catch (e) { NET.sendNews(line); }
+    } catch (e) { /* bỏ qua */ }
   }
 
-  /* ---------- quay trực tiếp lúc 18h30 ---------- */
+  /* ---------- quay trực tiếp ---------- */
   function liveShow(res) {
-    const p = UI.panel(`📺 TRỰC TIẾP XỔ SỐ MIỀN BẮC ${dm(res.day)}`, `<div class="xs-live">${table(res.nums, true)}</div><p class="muted xs-live-note">🎲 Đang quay…</p>`, { wide: true });
-    const cells = [...p.body.querySelectorAll('[data-roll]')].reverse(); // quay từ giải bảy lên đặc biệt
+    const p = UI.panel(`📺 TRỰC TIẾP VIETLOTT MEGA 6/45 · KỲ ${label(res.day)}`, `<div class="vl-live">${res.nums.mega.map((x) => `<i class="vl-ball big" data-roll="${x}">??</i>`).join('')}</div><p class="muted xs-live-note">🎲 Lồng cầu đang quay…</p>`, { wide: true });
+    const cells = [...p.body.querySelectorAll('[data-roll]')];
     let i = 0;
-    const roll = setInterval(() => {
-      if (!p.el.isConnected) return clearInterval(roll);
-      cells.slice(i).forEach((c) => { c.textContent = String(Math.floor(Math.random() * 10 ** c.dataset.len)).padStart(+c.dataset.len, '0'); });
-    }, 70);
+    const roll = setInterval(() => { if (!p.el.isConnected) return clearInterval(roll); cells.slice(i).forEach((c) => { c.textContent = String(1 + Math.floor(Math.random() * 45)).padStart(2, '0'); }); }, 70);
     const next = () => {
       if (!p.el.isConnected) return;
       if (i >= cells.length) {
         clearInterval(roll);
         const note = p.body.querySelector('.xs-live-note');
-        if (note) note.innerHTML = `🎉 Đã quay xong! Giải Đặc Biệt: <b class="xs-num">${res.nums.db[0]}</b> · bấm 🎰 quầy vé số để dò vé`;
+        if (note) note.innerHTML = '🎉 Đã quay xong! Đang dò vé của bạn…';
         settle(true);
         return;
       }
-      const c = cells[i++];
-      c.textContent = c.dataset.roll; c.classList.add('done');
-      setTimeout(next, i >= cells.length - 1 ? 1600 : 380);
+      const c = cells[i++]; c.textContent = c.dataset.roll; c.classList.add('done');
+      setTimeout(next, 1100);
     };
-    setTimeout(next, 1200);
+    setTimeout(next, 1400);
   }
 
-  /* ---------- bảng kết quả kiểu XSMB ---------- */
-  function table(nums, rolling) {
-    return `<table class="xs-table">${PRIZES.map((p) => `<tr class="${p.k}"><th>${p.name.replace('Giải ', '')}</th><td>${(nums[p.k] || []).map((x) => rolling ? `<span data-roll="${x}" data-len="${x.length}">${'?'.repeat(x.length)}</span>` : `<span>${x}</span>`).join('')}</td></tr>`).join('')}</table>`;
-  }
-
-  /* ---------- quầy vé số ---------- */
+  /* ---------- quầy vé ---------- */
   function panel(tab = 'buy') {
-    const p = UI.panel('🎰 Xổ Số Miền Bắc', '', { wide: true });
-    let pick = rnd5();
+    const p = UI.panel('🎰 Vietlott Mega 6/45', '', { wide: true });
+    let pick = [];
     const render = async () => {
-      const left = CLOSE - mins();
+      const left = msToNext();
       const tabs = [['buy', '🎟️ Mua vé'], ['mine', '📋 Vé của tôi'], ['result', '📺 Kết quả'], ['rule', '🏆 Cơ cấu giải']];
-      p.body.innerHTML = `<div class="coins-line">💰 ${fmt(S().coins)} xu · ${isOpen() ? `⏰ Ngừng bán sau <b>${Math.floor(left / 60)}h${String(left % 60).padStart(2, '0')}</b> (18h30 quay số)` : '🔒 Đã quay số hôm nay · mở bán lại lúc 0h'}</div>
+      p.body.innerHTML = `<div class="coins-line">💰 ${fmt(S().coins)} xu · ⏰ Kỳ <b>${label(nextKey())}</b> quay sau <b>${Math.floor(left / 3600e3)}h${String(Math.floor(left / 60e3) % 60).padStart(2, '0')}'</b> · Jackpot <b class="vl-jp">${fmt(PRIZES[0].amt)} xu</b></div>
         <div class="ss-tabs">${tabs.map(([k, l]) => `<button class="${k === tab ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div><div class="ss-box"><p class="muted">⏳ Đang tải…</p></div>`;
       p.body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
       const box = p.body.querySelector('.ss-box');
       if (tab === 'buy') {
-        box.innerHTML = isOpen() ? `<div class="xs-buy">
-            <p>Chọn 1 số <b>5 chữ số</b> (00000 – 99999) · <b>${fmt(PRICE)} xu</b>/vé</p>
-            <div class="xs-pick"><input class="xs-input" inputmode="numeric" maxlength="5" value="${pick}"><button class="btn small ghost" data-rand>🎲 Số ngẫu nhiên</button></div>
-            <div class="row-end" style="justify-content:center;flex-wrap:wrap"><button class="btn" data-one>🎟️ Mua vé này</button><button class="btn ghost" data-five>🎲 Mua 5 vé ngẫu nhiên (${fmt(PRICE * 5)} xu)</button></div>
-            <p class="muted small-note">Tối đa ${MAX_DAY} vé/ngày · Đặc biệt trúng <b>${fmt(PRIZES[0].amt)} xu</b>! Trúng 2 số cuối giải bảy cũng được ${fmt(PRIZES[7].amt)} xu.</p></div>`
-          : `<p class="muted">🔒 Hôm nay đã quay số lúc 18h30. Quầy mở bán lại lúc <b>0h</b> — xem tab 📺 Kết quả để dò vé.</p>`;
-        const inp = box.querySelector('.xs-input');
-        if (inp) {
-          inp.oninput = () => { inp.value = inp.value.replace(/\D/g, '').slice(0, 5); pick = inp.value; };
-          box.querySelector('[data-rand]').onclick = () => { pick = rnd5(); inp.value = pick; };
-          box.querySelector('[data-one]').onclick = async () => {
-            if (!/^\d{5}$/.test(inp.value)) return UI.toast('Nhập đủ 5 chữ số nhé (vd 08386)');
-            if (await buy([inp.value])) { pick = rnd5(); render(); }
-          };
-          box.querySelector('[data-five]').onclick = async () => { if (await buy([rnd5(), rnd5(), rnd5(), rnd5(), rnd5()])) render(); };
-        }
+        const draw6 = () => {
+          box.innerHTML = `<div class="xs-buy"><p>Chọn <b>6 số</b> từ 01 đến 45 · <b>${fmt(PRICE)} xu</b>/vé · đã chọn <b>${pick.length}/6</b></p>
+            <div class="vl-grid">${Array.from({ length: MAXN }, (_, k) => k + 1).map((n) => `<button class="vl-n ${pick.includes(n) ? 'on' : ''}" data-n="${n}">${String(n).padStart(2, '0')}</button>`).join('')}</div>
+            <div class="row-end" style="justify-content:center;flex-wrap:wrap"><button class="btn ghost" data-quick>🎲 Chọn nhanh</button><button class="btn ghost" data-clear>Xoá</button><button class="btn" data-one ${pick.length === PICK ? '' : 'disabled'}>🎟️ Mua vé này</button><button class="btn ghost" data-five>🎲 Mua 5 vé chọn nhanh (${fmt(PRICE * 5)})</button></div>
+            <p class="muted small-note">Quay mỗi 2 tiếng vào giờ chẵn. Tối đa ${MAX_DRAW} vé/kỳ. Không cần online lúc quay — vào game là tự dò vé.</p></div>`;
+          box.querySelectorAll('[data-n]').forEach((b) => b.onclick = () => { const n = +b.dataset.n; if (pick.includes(n)) pick = pick.filter((x) => x !== n); else if (pick.length < PICK) pick.push(n); pick.sort((a, c) => a - c); draw6(); });
+          box.querySelector('[data-quick]').onclick = () => { pick = quick(); draw6(); };
+          box.querySelector('[data-clear]').onclick = () => { pick = []; draw6(); };
+          box.querySelector('[data-one]').onclick = async () => { if (pick.length !== PICK) return; if (await buy([toNum(pick)])) { pick = []; render(); } };
+          box.querySelector('[data-five]').onclick = async () => { if (await buy(Array.from({ length: 5 }, () => toNum(quick())))) render(); };
+        };
+        draw6();
       } else if (tab === 'mine') {
         const list = await loadMine(true);
         if (!p.el.isConnected || tab !== 'mine') return;
-        let res = latest;
-        try { if (!isOpen() || list.some((t) => t.day < day())) res = await draw(); } catch (e) { /* chưa có bảng */ }
+        const res = {};
+        for (const d of [...new Set(list.map((t) => t.day))].filter((d) => d <= curKey()).slice(0, 6)) { try { res[d] = await draw(d); } catch (e) { /* chưa bật */ } }
         if (!p.el.isConnected || tab !== 'mine') return;
         box.innerHTML = list.length ? `<div class="shop-list">${list.slice(0, 60).map((t) => {
-          const drawn = res && res.day === t.day ? res : null;
-          const pr = drawn && prizeOf(t.num, drawn.nums);
-          const st = !drawn ? (t.day === day() && isOpen() ? '⏳ Chờ 18h30' : t.claimed ? '✔️ Đã dò' : '⏳ Chờ dò') : pr ? `🎉 ${pr.name} +${fmt(pr.amt)}` : '😢 Không trúng';
-          return `<div class="shop-row ${pr ? 'quest ready' : ''}"><span class="ic">🎟️</span><div class="info"><b class="xs-num">${t.num}</b><small>Kỳ ${dm(t.day)}</small></div><b>${st}</b></div>`;
+          const r = res[t.day], pr = r && prizeOf(t.num, r.nums);
+          const st = !r ? '⏳ Chờ quay' : pr ? `🎉 ${pr.name} +${fmt(pr.amt)}` : '😢 Không trúng';
+          return `<div class="shop-row ${pr ? 'quest ready' : ''}"><span class="ic">🎟️</span><div class="info"><span class="vl-row">${balls(t.num, r && r.nums.mega)}</span><small>Kỳ ${label(t.day)}</small></div><b>${st}</b></div>`;
         }).join('')}</div>` : '<p class="muted">Bạn chưa mua vé nào. Mua 1 tấm cầu may đi! 🍀</p>';
       } else if (tab === 'result') {
-        let res = null;
-        try { res = await draw(); } catch (e) { box.innerHTML = `<p class="muted">⚠️ ${missing(e) ? NOT_READY : esc(e.message)}</p>`; return; }
+        const rows = [];
+        try {
+          const { data } = await CLOUD.client.from('lottery_results').select('day, nums').like('day', '____-__-__ __').order('day', { ascending: false }).limit(8);
+          (data || []).forEach((r) => { if (r.nums && r.nums.mega) rows.push(r); });
+          if (!rows.length) { const r = await draw(); if (r) rows.push(r); }
+        } catch (e) { box.innerHTML = `<p class="muted">⚠️ ${missing(e) ? NOT_READY : esc(e.message)}</p>`; return; }
         if (!p.el.isConnected || tab !== 'result') return;
-        box.innerHTML = res ? `<p class="xs-day">Kết quả kỳ <b>${dm(res.day)}</b></p>${table(res.nums)}` : '<p class="muted">Chưa có kỳ quay nào. 18h30 hôm nay quay kỳ đầu tiên!</p>';
+        box.innerHTML = rows.length ? `<div class="shop-list">${rows.map((r) => `<div class="shop-row"><span class="ic">🎱</span><div class="info"><b>Kỳ ${label(r.day)}</b><span class="vl-row">${balls(r.nums.mega.join(' '))}</span></div></div>`).join('')}</div>` : '<p class="muted">Chưa có kỳ quay nào — đợi giờ chẵn tới nhé!</p>';
       } else {
-        box.innerHTML = `<div class="shop-list">${PRIZES.map((pz) => `<div class="shop-row"><span class="ic">${pz.k === 'db' ? '👑' : '🏅'}</span><div class="info"><b>${pz.name}</b><small>${pz.n} số · trùng ${pz.len} số cuối của vé</small></div><b>${fmt(pz.amt)} xu</b></div>`).join('')}</div>
-          <p class="muted small-note">Mỗi vé chỉ nhận giải cao nhất. Không cần online lúc 18h30 — lần sau vào game tự dò vé và cộng xu.</p>`;
+        box.innerHTML = `<div class="shop-list">${PRIZES.map((pz) => `<div class="shop-row"><span class="ic">${pz.k === 6 ? '👑' : '🏅'}</span><div class="info"><b>${pz.name}</b><small>Trùng ${pz.k} số với kết quả (không cần đúng thứ tự)</small></div><b>${fmt(pz.amt)} xu</b></div>`).join('')}</div>
+          <p class="muted small-note">Lịch quay cố định: 0h · 2h · 4h · 6h · 8h · 10h · 12h · 14h · 16h · 18h · 20h · 22h (giờ Việt Nam).</p>`;
       }
     };
     render();
   }
 
-  /* ---------- vẽ quầy vé số (2D) ---------- */
+  /* ---------- vẽ quầy (2D) ---------- */
   function kiosk(c, x, y) {
     c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(x, y + 3, 62, 10, 0, 0, Math.PI * 2); c.fill();
-    // ô che nắng đỏ
     c.fillStyle = '#6b4423'; c.fillRect(x + 20, y - 150, 4, 150);
-    const cols = ['#e03131', '#fff', '#e03131', '#fff', '#e03131', '#fff'];
+    const cols = ['#c8102e', '#fff', '#c8102e', '#fff', '#c8102e', '#fff'];
     for (let k = 0; k < 6; k++) { c.fillStyle = cols[k]; c.beginPath(); c.moveTo(x + 22, y - 160); c.arc(x + 22, y - 150, 46, Math.PI + k * Math.PI / 6, Math.PI + (k + 1) * Math.PI / 6); c.closePath(); c.fill(); }
-    // tủ kính bày vé
     c.fillStyle = '#7a4a26'; c.fillRect(x - 54, y - 12, 108, 12);
-    c.fillStyle = '#a0522d'; c.beginPath(); c.roundRect(x - 52, y - 66, 104, 56, 5); c.fill();
-    c.fillStyle = '#dbe9f5'; c.beginPath(); c.roundRect(x - 46, y - 62, 92, 34, 3); c.fill();
-    const tc = ['#ffd43b', '#ff8787', '#74c0fc', '#8ce99a', '#ffa94d', '#e599f7'];
-    for (let r = 0; r < 2; r++) for (let k = 0; k < 6; k++) { c.fillStyle = tc[(k + r * 2) % 6]; c.fillRect(x - 43 + k * 15, y - 59 + r * 15, 12, 12); c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(x - 41 + k * 15, y - 55 + r * 15, 8, 1.5); }
-    c.fillStyle = 'rgba(255,255,255,.35)'; c.fillRect(x - 44, y - 61, 6, 32);
-    // bảng chữ đỏ vàng
-    c.fillStyle = '#c92a2a'; c.beginPath(); c.roundRect(x - 58, y - 104, 116, 36, 6); c.fill();
+    c.fillStyle = '#f8f9fa'; c.beginPath(); c.roundRect(x - 52, y - 66, 104, 56, 5); c.fill();
+    c.strokeStyle = '#c8102e'; c.lineWidth = 3; c.stroke();
+    // màn hình máy in vé
+    c.fillStyle = '#212529'; c.fillRect(x - 44, y - 60, 40, 30); c.fillStyle = '#74c0fc'; c.fillRect(x - 41, y - 57, 34, 24);
+    const bc = ['#ffd43b', '#ff6b6b', '#4dabf7', '#69db7c', '#da77f2', '#ff922b'];
+    for (let k = 0; k < 6; k++) { c.fillStyle = bc[k]; c.beginPath(); c.arc(x + 6 + (k % 3) * 15, y - 52 + Math.floor(k / 3) * 15, 6, 0, 7); c.fill(); }
+    // biển VIETLOTT
+    c.fillStyle = '#c8102e'; c.beginPath(); c.roundRect(x - 58, y - 104, 116, 36, 6); c.fill();
     c.strokeStyle = '#ffd43b'; c.lineWidth = 3; c.stroke();
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillStyle = '#ffd43b'; c.font = '900 13px "Be Vietnam Pro", system-ui'; c.fillText('XỔ SỐ', x, y - 93);
-    c.font = '900 10px "Be Vietnam Pro", system-ui'; c.fillText('MIỀN BẮC', x, y - 79);
-    // cô bán vé ngồi sau quầy
+    c.fillStyle = '#fff'; c.font = '900 16px "Be Vietnam Pro", system-ui'; c.fillText('VIETLOTT', x, y - 93);
+    c.fillStyle = '#ffd43b'; c.font = '900 9px "Be Vietnam Pro", system-ui'; c.fillText('MEGA 6/45', x, y - 78);
     c.fillStyle = '#ffe0c4'; c.beginPath(); c.arc(x + 20, y - 118, 10, 0, Math.PI * 2); c.fill();
     c.fillStyle = '#f3d27a'; c.beginPath(); c.moveTo(x + 4, y - 120); c.lineTo(x + 20, y - 136); c.lineTo(x + 36, y - 120); c.closePath(); c.fill();
     c.fillStyle = '#212529'; c.fillRect(x + 16, y - 119, 2, 2); c.fillRect(x + 23, y - 119, 2, 2);
   }
-  /** bảng đen nhỏ cạnh quầy: giải đặc biệt kỳ gần nhất / giờ quay */
+  /** bảng nhỏ cạnh quầy: jackpot + giờ quay tới */
   function board(c, x, y) {
     c.fillStyle = '#6b4423'; c.fillRect(x - 2, y - 52, 4, 52);
-    c.fillStyle = '#2b3a2e'; c.beginPath(); c.roundRect(x - 34, y - 84, 68, 40, 5); c.fill();
-    c.strokeStyle = '#8a5a32'; c.lineWidth = 3; c.stroke();
+    c.fillStyle = '#1b2f48'; c.beginPath(); c.roundRect(x - 36, y - 86, 72, 42, 5); c.fill();
+    c.strokeStyle = '#ffd43b'; c.lineWidth = 3; c.stroke();
     c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#fff';
-    c.font = '800 8px "Be Vietnam Pro", system-ui'; c.fillText(latest ? `KQ ${dm(latest.day)} · ĐB` : 'QUAY LÚC', x, y - 74);
-    c.fillStyle = '#ffd43b'; c.font = '900 14px "Be Vietnam Pro", system-ui'; c.fillText(latest ? latest.nums.db[0] : '18:30', x, y - 57);
+    c.font = '800 8px "Be Vietnam Pro", system-ui'; c.fillText(`JACKPOT · KỲ ${+nextKey().slice(11, 13)}H`, x, y - 76);
+    c.fillStyle = '#ffd43b'; c.font = '900 14px "Be Vietnam Pro", system-ui'; c.fillText('12 TỈ', x, y - 58);
   }
 
-  /* ---------- nhắc giờ + quay lúc 18h30 ---------- */
-  let wasOpen = isOpen(), warned = {};
+  /* ---------- nhắc giờ + quay mỗi giờ chẵn ---------- */
+  let lastCur = curKey(), warned = {};
   function tick() {
-    const m = mins(), d = day();
-    if (m === CLOSE - 30 && !warned[d + 30]) { warned[d + 30] = 1; UI.toast('🎰 Còn 30 phút nữa quầy xổ số ngừng bán (18h30 quay số) — mua vé ở phố trước nông trại!', 5000); }
-    if (m === CLOSE - 5 && !warned[d + 5]) { warned[d + 5] = 1; UI.toast('🎰 Còn 5 phút ngừng bán vé số!', 4000); }
-    const open = isOpen();
-    if (wasOpen && !open && db()) {
+    const left = msToNext(), nk = nextKey();
+    if (left < 5 * 60e3 && !warned[nk]) { warned[nk] = 1; if (countFor(nk)) UI.toast(`🎰 Còn 5 phút nữa quay Vietlott kỳ ${label(nk)} — bạn có ${countFor(nk)} vé!`, 5000); }
+    const cur = curKey();
+    if (cur !== lastCur && db()) {
+      lastCur = cur;
       setTimeout(async () => {
         try {
-          const res = await draw(d);
+          const res = await draw(cur);
           if (!res) return;
           if (res.fresh) announce(res);
           await loadMine(true);
-          if (todayCount() || AV.currentMap() === 'farm') liveShow(res); else settle(true);
+          if (countFor(cur)) liveShow(res); else settle(false);
         } catch (e) { /* chưa bật */ }
       }, 1500 + Math.random() * 4000);
     }
-    wasOpen = open;
   }
   function init() {
     setInterval(tick, 5000);
-    setTimeout(async () => { if (!db()) return; try { await draw(); } catch (e) { /* chưa bật */ } settle(true); }, 7000);
+    setTimeout(async () => { if (!db()) return; try { await draw(); } catch (e) { /* chưa bật */ } loadMine(true); settle(true); }, 7000);
   }
-  return { init, panel, kiosk, board, prizeOf, settle, PRIZES };
+  return { init, panel, kiosk, board, prizeOf, settle, PRIZES, nextKey, curKey };
 })();

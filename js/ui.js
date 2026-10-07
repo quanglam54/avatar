@@ -316,7 +316,7 @@ const UI = (() => {
   function boutique() {
     const S = AV.S;
     const p = panel('👗 Tiệm Thời Trang', '', { wide: true });
-    const TABS = [['set', '🧥 Bộ đồ'], ['shirt', '👗 Váy & áo'], ['hat', '🎩 Mũ'], ['acc', '💍 Trang sức']];
+    const TABS = [['wear', '✨ Thời trang 4 mùa'], ['set', '🧥 Bộ đồ'], ['shirt', '👗 Váy & áo'], ['hat', '🎩 Mũ'], ['acc', '💍 Trang sức']];
     const tabsHtml = () => `<div class="tabs">${TABS.map(([k, l]) => `<button class="chip ${tab === k ? 'on' : ''}" data-btab="${k}">${l}</button>`).join('')}</div>`;
     /** Tab bộ đồ: mỗi bộ có độ hiếm (viền màu), xem trước trên nhân vật của bạn */
     const renderSets = () => {
@@ -338,9 +338,14 @@ const UI = (() => {
       p.body.querySelectorAll('[data-obuy]').forEach((b) => b.onclick = () => { if (AV.buyOutfit(b.dataset.obuy)) render(); });
       p.body.querySelectorAll('[data-owear]').forEach((b) => b.onclick = () => { AV.wearOutfit(b.dataset.owear); render(); });
     };
-    let tab = 'set';
+    let tab = typeof WARDROBE !== 'undefined' ? 'wear' : 'set';
     const render = () => {
       if (tab === 'set') return renderSets();
+      if (tab === 'wear') {
+        p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>${tabsHtml()}<div class="wd-box"></div>`;
+        p.body.querySelectorAll('[data-btab]').forEach((b) => b.onclick = () => { tab = b.dataset.btab; render(); });
+        return WARDROBE.shop(p.body.querySelector('.wd-box'), render);
+      }
       const card = (kind, it) => {
         const KEY = { hat: ['hats', 'hat'], shirt: ['shirtStyles', 'shirtStyle'], acc: ['accs', 'acc'] }[kind];
         const owned = (S.owned[KEY[0]] || ['none']).includes(it.id);
@@ -672,10 +677,10 @@ const UI = (() => {
     const leftH = act ? Math.ceil((h.until - Date.now()) / 3600000) : 0;
     const p = panel('🧑‍🌾 Thuê giúp việc', `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
       ${act ? `<p class="game-msg">✅ Cô giúp việc đang làm · còn <b>${leftH >= 24 ? Math.floor(leftH / 24) + ' ngày ' + (leftH % 24) + ' giờ' : leftH + ' giờ'}</b></p>` : ''}
-      <p class="muted">Cô giúp việc sẽ tự <b>thu hoạch</b> (nông sản vào túi bạn), <b>tưới nước</b>, <b>xịt sâu</b>, <b>bón phân</b> và <b>gieo hạt</b> vào ô trống — dùng 🌱 hạt giống, 🧪 phân bón, 🧴 thuốc trừ sâu <b>có sẵn trong túi của bạn</b>. Làm cả khi bạn ở khu khác (cần mở game).</p>
-      <p class="muted small-note">Trong túi: 🌱 ${Object.keys(DATA.CROPS).reduce((a, c) => a + (S.inv['seed_' + c] || 0), 0)} hạt · 🧪 ${S.inv.fertilizer || 0} phân bón · 🧴 ${S.inv.pesticide || 0} thuốc</p>
+      <p class="muted">Cô giúp việc sẽ tự <b>cho gà, bò, cừu, heo ăn</b> (bằng 🌾 lúa mì trong túi) và <b>thu trứng, sữa, len, thịt</b>, <b>hái quả chín</b> trong vườn, <b>thu hoạch</b> (nông sản vào túi bạn), <b>tưới nước</b>, <b>xịt sâu</b>, <b>bón phân</b> và <b>gieo hạt</b> vào ô trống — dùng 🌱 hạt giống, 🧪 phân bón, 🧴 thuốc trừ sâu <b>có sẵn trong túi của bạn</b>. Làm cả khi bạn ở khu khác (cần mở game).</p>
+      <p class="muted small-note">Trong túi: 🌱 ${Object.keys(DATA.CROPS).reduce((a, c) => a + (S.inv['seed_' + c] || 0), 0)} hạt · 🧪 ${S.inv.fertilizer || 0} phân bón · 🧴 ${S.inv.pesticide || 0} thuốc · 🌾 ${S.inv.wheat || 0} lúa mì</p>
       <div class="shop-list">${DATA.HELPER_PLANS.map((pl, i) => `<div class="shop-row"><span class="ic">🧑‍🌾</span><div class="info"><b>Thuê ${pl.label}</b><small>${Math.round(pl.price / pl.days).toLocaleString('vi-VN')} xu/ngày</small></div><button class="btn small" data-plan="${i}">${act ? 'Gia hạn' : 'Thuê'} · ${pl.price.toLocaleString('vi-VN')} xu</button></div>`).join('')}</div>
-      ${st.harvest || st.water ? `<p class="muted small-note">Đã làm: thu ${st.harvest || 0} · tưới ${st.water || 0} · diệt sâu ${st.spray || 0} · bón phân ${st.fert || 0} · gieo ${st.plant || 0}</p>` : ''}`);
+      ${st.harvest || st.water || st.animal ? `<p class="muted small-note">Đã làm: cho ăn ${st.feed || 0} · thu chuồng ${st.animal || 0} · hái cây ${st.tree || 0} · thu ${st.harvest || 0} · tưới ${st.water || 0} · diệt sâu ${st.spray || 0} · bón phân ${st.fert || 0} · gieo ${st.plant || 0}</p>` : ''}`);
     p.body.querySelectorAll('[data-plan]').forEach((b) => b.onclick = () => { const pl = DATA.HELPER_PLANS[+b.dataset.plan]; confirm(`Thuê giúp việc <b>${pl.label}</b> giá <b>${pl.price.toLocaleString('vi-VN')} xu</b>?`, 'Thuê', () => { if (AV.hireHelper(pl)) { p.close(); helperPanel(); } }); });
   }
 
@@ -684,9 +689,9 @@ const UI = (() => {
     const S = AV.S, cur = AV.houseLv();
     const p = panel('🏗️ Nâng cấp nhà', '');
     p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Nhà hiện tại: <b>${DATA.HOUSE_LEVELS[cur - 1].icon} ${DATA.HOUSE_LEVELS[cur - 1].name}</b></div>
-      <div class="shop-list">${DATA.HOUSE_LEVELS.map((h) => `<div class="shop-row ${h.lv <= cur ? 'owned' : ''}"><span class="ic">${h.icon}</span><div class="info"><b>${h.name}</b><small>${h.desc}</small></div>
+      <div class="shop-list">${DATA.HOUSE_LEVELS.filter((h) => h.lv >= cur - 1 && h.lv <= cur + 6).map((h) => `<div class="shop-row ${h.lv <= cur ? 'owned' : ''}"><span class="ic">${h.icon}</span><div class="info"><b>${h.name}</b><small>${h.desc}</small></div>
         ${h.lv <= cur ? '<button class="btn small ghost" disabled>✅ Đã có</button>' : h.lv === cur + 1 ? `<button class="btn small" data-up>${h.price.toLocaleString('vi-VN')} xu</button>` : `<button class="btn small ghost" disabled>🔒 ${h.price.toLocaleString('vi-VN')}</button>`}</div>`).join('')}</div>
-      <p class="muted small-note">Nâng cấp lần lượt từng cấp. Lên tầng bằng 🪜 cầu thang (từ nhà 2 tầng) hoặc 🛗 thang máy (từ nhà phố 3 tầng) ở phòng cầu thang bên phải phòng bếp.</p>`;
+      <p class="muted small-note">Nhà xây được tối đa <b>50 tầng</b> (🗼 Siêu tháp). Nâng cấp lần lượt từng cấp. Lên tầng bằng 🪜 cầu thang (từ nhà 2 tầng) hoặc 🛗 thang máy (từ nhà phố 3 tầng) ở phòng cầu thang bên phải phòng bếp.</p>`;
     const up = p.body.querySelector('[data-up]');
     if (up) up.onclick = () => { const n = DATA.HOUSE_LEVELS[cur]; confirm(`Nâng cấp lên <b>${n.icon} ${n.name}</b> với giá <b>${n.price.toLocaleString('vi-VN')} xu</b>?`, '🏗️ Xây ngay', () => { if (AV.upgradeHouse()) { p.close(); houseUpgrade(); } }); };
   }
@@ -694,7 +699,7 @@ const UI = (() => {
   function elevator() {
     const f = AV.floor(), top = AV.houseLv();
     const p = panel('🛗 Thang máy', `<p class="muted">Bạn đang ở tầng <b>${f}</b>. Chọn tầng muốn tới:</p>
-      <div class="lift-pad">${Array.from({ length: top }, (_, i) => top - i).map((n) => `<button class="lift-btn ${n === f ? 'on' : ''}" data-f="${n}" ${n === f ? 'disabled' : ''}>${n}<small>${['Tầng trệt', 'Phòng ngủ · làm việc', 'Karaoke · rạp phim · gym', 'Sân thượng · hồ bơi'][n - 1]}</small></button>`).join('')}</div>`);
+      <div class="lift-pad ${top > 6 ? 'many' : ''}">${Array.from({ length: top }, (_, i) => top - i).map((n) => `<button class="lift-btn ${n === f ? 'on' : ''}" data-f="${n}" ${n === f ? 'disabled' : ''}>${n}<small>${n <= 4 ? ['Tầng trệt', 'Phòng ngủ · làm việc', 'Karaoke · rạp phim · gym', 'Sân thượng · hồ bơi'][n - 1] : DATA.floorTheme(n).icon + ' ' + DATA.floorTheme(n).name}</small></button>`).join('')}</div>`);
     p.body.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { p.close(); AV.goFloor(+b.dataset.f, 'lift'); });
   }
   function stairsPick(f, top) {
@@ -1029,7 +1034,7 @@ const UI = (() => {
         <button class="btn ghost" data-wave>👋 Vẫy tay</button>
         ${r.id && r.kind === 'remote' ? '<button class="btn" data-rps>✊ Oẳn tù tì</button>' : ''}
         ${r.id && r.kind === 'remote' && AV.currentMap() === 'boxing' ? '<button class="btn" data-box>🥊 Thách đấu võ đài</button>' : ''}
-        ${r.user && CLOUD.user && r.user !== CLOUD.username ? (SOCIAL.isFriend(r.user) ? '<button class="btn" data-dm>💬 Nhắn tin</button>' : '<button class="btn" data-add>➕ Kết bạn</button>' + (typeof PHONE !== 'undefined' ? '<button class="btn ghost" data-phone>📱 Gửi số điện thoại</button>' : '')) : ''}
+        ${r.user && CLOUD.user && r.user !== CLOUD.username ? (SOCIAL.isFriend(r.user) ? '<button class="btn" data-dm>💬 Nhắn tin</button>' : '<button class="btn" data-add>➕ Kết bạn</button>') + (typeof PHONE !== 'undefined' ? '<button class="btn ghost" data-phone>📱 Gửi số điện thoại</button>' : '') : ''}
         ${r.user ? '<button class="btn" data-visit>🏡 Thăm nông trại</button>' : ''}
       </div>
       ${r.user ? '' : '<p class="muted small-note">Người này chưa có tài khoản nên chưa thăm nông trại được.</p>'}`);
@@ -1040,7 +1045,10 @@ const UI = (() => {
     const ph = p.body.querySelector('[data-phone]');
     if (ph) ph.onclick = () => {
       if (!PHONE.has()) return toast('📱 Bạn chưa có điện thoại — mua ở CellphoneS / Thế Giới Di Động cạnh VinFast');
-      p.close(); SOCIAL.addFriend(r.user, { phone: PHONE.myNum() });
+      if (!PHONE.hasSim()) return toast('📶 Điện thoại chưa có SIM — mua SIM ở CellphoneS / Thế Giới Di Động để có số');
+      p.close();
+      if (SOCIAL.isFriend(r.user)) { SOCIAL.sendCard((AV.S.friends || []).find((f) => f.username === r.user)); return; }
+      SOCIAL.addFriend(r.user, { phone: PHONE.myNum() });
       toast(`📱 Đã gửi số ${PHONE.pretty(PHONE.myNum())} cho ${r.name} — họ đồng ý là thành bạn bè, nhắn tin được ngay`, 5000);
     };
     const dm = p.body.querySelector('[data-dm]');

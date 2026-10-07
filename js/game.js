@@ -11,7 +11,7 @@
   function defaultState() {
     return {
       name: '',
-      look: { skin: DATA.SKINS[0], hair: 'short', hairColor: DATA.HAIR_COLORS[0], shirt: DATA.SHIRT_COLORS[5], shirtStyle: 'plain', pants: DATA.PANTS_COLORS[0], hat: 'none', pet: 'none', acc: 'none', stick: '' },
+      look: { skin: DATA.SKINS[0], hair: 'short', hairColor: DATA.HAIR_COLORS[0], shirt: DATA.SHIRT_COLORS[5], shirtStyle: 'plain', pants: DATA.PANTS_COLORS[0], hat: 'none', pet: 'none', acc: 'none', stick: '', wear: '' },
       coins: 50, xp: 0, level: 1,
       inv: { seed_wheat: 6, seed_carrot: 3, wheat: 3, fertilizer: 5 },
       owned: { hats: ['none'], shirtStyles: ['plain'], pets: ['none'], accs: ['none'], guards: ['none'] },
@@ -100,6 +100,12 @@
 
   const maps = {};
   Object.keys(MAPS).forEach((id) => { maps[id] = MAPS[id](); });
+  // tầng 5 → 50: chỉ dựng khi bước vào (đỡ tốn bộ nhớ), ra khỏi thì bỏ
+  for (let n = 5; n <= 50; n++) {
+    let built = null;
+    Object.defineProperty(maps, 'home' + n, { configurable: true, enumerable: false, get: () => (built = built || MAPS.floorN(n)), set: (v) => { built = v; } });
+    maps['_drop' + n] = () => { built = null; };
+  }
   let map = maps.farm;
 
   function saveNow() {
@@ -163,6 +169,7 @@
 
   function enterMap(id, x, y) {
     camOff.x = 0; camOff.y = 0;
+    if (map && map.id !== id && /^home\d+$/.test(map.id) && +map.id.slice(4) >= 5 && maps['_drop' + map.id.slice(4)]) { const old = map.id.slice(4); setTimeout(() => { if (!map || map.id !== 'home' + old) maps['_drop' + old](); }, 0); }
     if (map && map.id !== id) { map.ground = null; if (swingRide) { swingRide.s.a = 0; swingRide = null; player.seated = false; } }
     player.path = [];
     map = maps[id];
@@ -2694,7 +2701,7 @@
   }
 
   /* ---------- 🏠 Nâng cấp nhà nhiều tầng ---------- */
-  AV.houseLv = () => Math.max(1, Math.min(4, S.house || 1));
+  AV.houseLv = () => Math.max(1, Math.min(DATA.HOUSE_LEVELS.length, S.house || 1));
   AV.upgradeHouse = () => {
     const next = DATA.HOUSE_LEVELS[AV.houseLv()];
     if (!next) { UI.toast('🏰 Nhà bạn đã là biệt thự cao cấp nhất rồi!'); return false; }
@@ -2713,7 +2720,7 @@
     const lift = via === 'lift';
     AV.teleport(id, false, lift ? 1730 : 1700, lift ? 935 : 640, lift ? `🛗 Ting! Tầng ${n}` : `🪜 ${n > AV.floor() ? 'Lên' : 'Xuống'} tầng ${n}…`);
   };
-  AV.floor = () => (map.id === 'home' ? 1 : /^home\d$/.test(map.id) ? +map.id.slice(4) : 0);
+  AV.floor = () => (map.id === 'home' ? 1 : /^home\d+$/.test(map.id) ? +map.id.slice(4) : 0);
   AV.useStairs = () => {
     const f = AV.floor(), top = AV.houseLv();
     if (top < 2) return UI.houseUpgrade();
@@ -2979,7 +2986,28 @@
   function helperTick() {
     if (!AV.helperActive()) return;
     now = Date.now();
-    const r = { harvest: 0, water: 0, spray: 0, fert: 0, plant: 0 }, got = {};
+    if (VISIT) return;
+    const r = { harvest: 0, water: 0, spray: 0, fert: 0, plant: 0, feed: 0, animal: 0, tree: 0 }, got = {};
+    const add = (id, n) => { got[id] = (got[id] || 0) + n; };
+    /* chuồng trại: thu trứng / sữa / len / thịt rồi cho ăn lại bằng lúa mì trong túi */
+    let noWheat = false;
+    const barn = (st, cfg, collect) => {
+      if (!st) return;
+      if (st.fedAt && now - st.fedAt >= cfg.time * 1000) { collect(st.took || {}); st.took = null; st.fedAt = 0; r.animal++; }
+      if (!st.fedAt) { if ((S.inv.wheat || 0) >= cfg.feed) { S.inv.wheat -= cfg.feed; st.fedAt = now; r.feed++; } else noWheat = true; }
+    };
+    S.coop = S.coop || { fedAt: 0 };
+    barn(S.coop, DATA.COOP, (took) => add('egg', Math.max(1, DATA.COOP.eggs - (took.egg || 0))));
+    S.pen = normPen(S.pen);
+    Object.keys(DATA.PENS).forEach((k) => barn(S.pen[k], DATA.PENS[k], (took) => Object.entries(DATA.PENS[k].out).forEach(([id, n]) => add(id, Math.max(1, n - (took[id] || 0))))));
+    if (noWheat && Date.now() - (S.helper.noWheatAt || 0) > 1800000) { S.helper.noWheatAt = Date.now(); UI.toast('🧑‍🌾 Cô giúp việc: hết lúa mì 🌾 để cho gà, bò, cừu, heo ăn rồi — trồng thêm lúa mì nhé!', 5000); }
+    /* vườn cây ăn quả: hái quả chín */
+    (S.trees || []).forEach((tr, i) => {
+      const st = treeState(i);
+      if (!st.ripe) return;
+      add(DATA.ORCHARD[i], Math.max(1, st.f.yield - (tr.stolen || 0)));
+      tr.at = now; tr.stolen = 0; r.tree++;
+    });
     for (let b = 0; b < DATA.BED_COUNT; b++) {
       if (!S.beds[b]) continue;
       const tiles = S.tiles.slice(b * TPB, b * TPB + TPB);
@@ -3021,10 +3049,10 @@
     if (!any) return;
     changed();
     S.helper.stats = S.helper.stats || { harvest: 0, water: 0, spray: 0, fert: 0, plant: 0 };
-    Object.keys(r).forEach((k) => { S.helper.stats[k] += r[k]; });
+    Object.keys(r).forEach((k) => { S.helper.stats[k] = (S.helper.stats[k] || 0) + r[k]; });
     if (Date.now() - helperSaid > 180000) {
       helperSaid = Date.now();
-      const parts = [r.harvest && `thu ${r.harvest} ô`, r.water && `tưới ${r.water}`, r.spray && `diệt sâu ${r.spray}`, r.fert && `bón phân ${r.fert}`, r.plant && `gieo ${r.plant}`].filter(Boolean);
+      const parts = [r.animal && `thu hoạch ${r.animal} chuồng`, r.feed && `cho ăn ${r.feed} chuồng`, r.tree && `hái ${r.tree} cây`, r.harvest && `thu ${r.harvest} ô`, r.water && `tưới ${r.water}`, r.spray && `diệt sâu ${r.spray}`, r.fert && `bón phân ${r.fert}`, r.plant && `gieo ${r.plant}`].filter(Boolean);
       UI.toast(`🧑‍🌾 Cô giúp việc: ${parts.join(' · ')}`, 4000);
     }
   }
