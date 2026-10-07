@@ -640,6 +640,7 @@
       });
       return;
     }
+    if (typeof FARMLIFE !== 'undefined' && FARMLIFE.pull(i)) return;
     const t = S.tiles[i];
     const st = tileState(t);
     if (st.stage === 2 || (st.stage >= 0 && bedTiles(bed).some((x) => tileState(x).stage === 2))) { if (AV.useEnergy(2)) harvestBed(bed); return; }
@@ -652,6 +653,7 @@
   function plantTile(i, crop) {
     const key = 'seed_' + crop;
     if (!S.inv[key] || S.tiles[i].crop || !AV.cropAllowed(i, crop)) return false;
+    if (S.weeds && S.weeds[i]) { if (helperBusy) delete S.weeds[i]; else return false; }
     if (typeof SEASON !== 'undefined' && !SEASON.inSeason(crop)) { UI.toast(`${DATA.CROPS[crop].icon} ${DATA.CROPS[crop].name} chỉ gieo được vào mùa ${SEASON.seasonsOf(crop)}`, 3500); return false; }
     S.inv[key]--;
     // có khả năng bị sâu ở giữa chừng (khác mốc khát nước)
@@ -3000,8 +3002,12 @@
     return true;
   };
   let helperSaid = 0;
+  let helperBusy = false;
   function helperTick() {
     if (!AV.helperActive()) return;
+    // cô giúp việc nhổ hết cỏ dại
+    if (S.weeds && Object.keys(S.weeds).length) { S.weeds = {}; changed(); }
+    helperBusy = true; setTimeout(() => { helperBusy = false; }, 0);
     now = Date.now();
     if (VISIT) return;
     const r = { harvest: 0, water: 0, spray: 0, fert: 0, plant: 0, feed: 0, animal: 0, tree: 0 }, got = {};
@@ -3799,6 +3805,7 @@
   if (typeof LOTTO !== 'undefined') LOTTO.init();
   if (typeof PHONE !== 'undefined') PHONE.init();
   if (typeof RANCH !== 'undefined') RANCH.init();
+  if (typeof FARMLIFE !== 'undefined') FARMLIFE.init();
   MUSIC.init(S.settings || {});
   SOCIAL.init();
   VOICE.init();

@@ -471,6 +471,7 @@ DATA.QUESTS = [
   { id: 'mine', icon: '⛏️', text: 'Đập {n} khối đá ở Hầm mỏ', n: 15, coins: 50, xp: 30 },
   { id: 'eat', icon: '🍜', text: 'Ăn {n} món cho no bụng', n: 2, coins: 25, xp: 16 },
   { id: 'gift', icon: '🎁', text: 'Tặng quà cho {n} người dân (NPC)', n: 1, coins: 40, xp: 24 },
+  { id: 'weed', icon: '🌿', text: 'Nhổ {n} bụi cỏ dại ở ruộng', n: 3, coins: 30, xp: 18 },
 ];
 
 /** Cây ăn quả trong vườn: tự ra quả, không cần trồng, quả chín để lâu không hỏng */

@@ -9,7 +9,7 @@ const TABLE = (() => {
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  const fresh = () => ({ host: null, seats: [null, null, null, null], bet: 20, bots: true, game: null, lastWinner: null, v: 0 });
+  const fresh = () => ({ host: null, seats: [null, null, null, null], bet: 20, bots: false, game: null, lastWinner: null, v: 0 });
   let st = fresh();
   let myHand = [];
   const selected = new Set();
@@ -57,8 +57,10 @@ const TABLE = (() => {
 
   function hostStart() {
     if (gameOn()) return;
-    if (st.bots) st.seats = st.seats.map((s, i) => s || { id: 'bot' + i, name: BOT_NAMES[i], bot: true });
-    if (st.seats.filter(Boolean).length < 2) { UI.toast('Cần ít nhất 2 người — hoặc bật "Máy chơi cùng"'); return; }
+    // không còn máy chơi cùng: chỉ người thật mời nhau vào bàn
+    st.bots = false;
+    st.seats = st.seats.map((s) => (s && s.bot ? null : s));
+    if (st.seats.filter(Boolean).length < 2) { UI.toast('Cần ít nhất 2 người — mời bạn bè ngồi vào bàn rồi bấm Bắt đầu nhé', 4000); broadcast(); return; }
     const hands = TL.deal();
     H = { hands: st.seats.map((s, i) => (s ? hands[i] : [])) };
     const first = st.lastWinner != null && st.seats[st.lastWinner] ? st.lastWinner : lowestHolder();
@@ -429,7 +431,6 @@ const TABLE = (() => {
     return `<div class="lobby">
       ${end}
       <div class="lrow">Mức cược: ${host ? [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000].map((b) => `<button class="chip ${b === st.bet ? 'on' : ''}" data-bet="${b}">🪙 ${b.toLocaleString('vi-VN')}</button>`).join('') + '<input class="field bet-in" type="number" min="1" placeholder="Tự nhập" data-betin><button class="chip" data-betset>Đặt</button>' : `<b>🪙 ${st.bet.toLocaleString('vi-VN')} xu</b>`}</div>
-      ${host ? `<label class="lrow toggle-in"><input type="checkbox" data-bots ${st.bots ? 'checked' : ''}> Máy chơi cùng khi thiếu người</label>` : ''}
       ${seated() ? (host ? `<button class="btn big" data-start>▶ ${g && g.end ? 'Ván mới' : 'Bắt đầu'}</button>` : '<div class="muted">⏳ Chờ chủ bàn bắt đầu…</div>') : '<div class="muted">Chọn một ghế trống để ngồi chơi</div>'}
       ${seated() && nearby.length ? `<div class="invite"><b>Mời người chơi:</b>${nearby.map((r) => `<button class="chip" data-invite="${r.id}">✉️ ${esc(r.name)}</button>`).join('')}</div>` : ''}
       ${!seated() ? '<button class="btn small ghost" data-solo>🃏 Chơi Bài cào một mình với nhà cái</button>' : ''}

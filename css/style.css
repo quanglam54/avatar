@@ -1236,3 +1236,29 @@ html, body, button, .btn, .panel, .panel-back, a, input, select, textarea, label
   .lobby .btn.big { font-size: 18px; padding: 8px 18px; }
   .lobby .toggle-in { font-size: 12px; }
 }
+
+/* 📱 ZenoGram · ZenoFood · ZenoCar */
+.ap-note { padding: 8px 12px; font-size: 12px; color: #495057; background: #fff; border-bottom: 1px solid #f1f3f5; }
+.ap-list { display: grid; gap: 6px; padding: 8px; }
+.ap-shop { background: #fff; border-radius: 12px; padding: 8px; display: grid; gap: 4px; }
+.ap-shop > b { font-size: 13px; }
+.ap-item { display: flex; align-items: center; gap: 8px; border: 0; background: #f8f9fa; border-radius: 10px; padding: 7px 8px; font: inherit; font-size: 13px; cursor: pointer; text-align: left; width: 100%; }
+.ap-item:active { background: #e7f5ff; }
+.ap-nm { flex: 1; } .ap-pr { color: #e8590c; font-weight: 800; font-size: 12px; white-space: nowrap; }
+.ap-rides { display: flex; gap: 6px; padding: 8px; }
+.ap-ride { flex: 1; border: 2px solid #dee2e6; background: #fff; border-radius: 12px; padding: 6px 2px; display: grid; justify-items: center; font: inherit; cursor: pointer; }
+.ap-ride span { font-size: 26px; } .ap-ride b { font-size: 11px; } .ap-ride small { font-size: 11px; color: #2b8a3e; font-weight: 800; }
+.ap-ride.on { border-color: #2b8a3e; background: #ebfbee; }
+.zg-feed { display: grid; gap: 8px; padding: 8px; }
+.zg-post { background: #fff; border-radius: 14px; padding: 8px; display: grid; gap: 6px; }
+.zg-head { display: flex; align-items: center; gap: 8px; } .zg-head > div { flex: 1; display: grid; } .zg-head small { color: #868e96; font-size: 11px; }
+.zg-head .ph-av { background: linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7); }
+.zg-del { border: 0; background: none; cursor: pointer; }
+.zg-text { margin: 0; font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+.zg-img { width: 100%; border-radius: 10px; max-height: 260px; object-fit: cover; cursor: zoom-in; }
+.zg-acts { display: flex; gap: 6px; } .zg-acts button { border: 0; background: #f1f3f5; border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.zg-acts button.on { background: #ffe3e3; }
+.zg-cm { font-size: 12px; background: #f8f9fa; border-radius: 8px; padding: 3px 8px; } .zg-cm b { color: #1c7ed6; }
+.zg-cf { display: flex; gap: 4px; } .zg-cf[hidden] { display: none; } .zg-cf input { flex: 1; min-width: 0; border: 1px solid #dee2e6; border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 13px; } .zg-cf button { border: 0; background: #1c7ed6; color: #fff; border-radius: 999px; padding: 4px 10px; font: inherit; font-weight: 800; cursor: pointer; }
+.zg-new { display: grid; gap: 8px; padding: 10px; } .zg-new textarea { min-height: 90px; border: 1px solid #dee2e6; border-radius: 12px; padding: 8px; font: inherit; font-size: 14px; resize: vertical; }
+.zg-row { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }

@@ -173,15 +173,44 @@ const PHONE = (() => {
     const renderSim = () => {
       p.body.innerHTML = `<div class="coins-line">💰 ${fmt(S().coins)} xu${myNum() ? ` · SIM đang dùng: <b>${pretty(myNum())}</b>` : ''} <button class="btn small ghost" data-back>‹ Về máy</button></div>
         ${model() ? '' : '<p class="wd-note">⚠️ Bạn chưa có điện thoại — mua máy trước rồi mới lắp SIM được.</p>'}
+        <form class="fsearch" data-simq><input class="field" name="q" inputmode="numeric" maxlength="10" placeholder="🔍 Tìm số: nhập cả số (vd 0948988888) hoặc đuôi (vd 8888)" value="${esc(st.q || '')}"><button class="btn small">Tìm</button></form>
         <div class="tabs">${NETS.map((n) => `<button class="chip ${st.net.id === n.id ? 'on' : ''}" data-net="${n.id}">${n.name}</button>`).join('')}<button class="chip" data-more>🔄 Số khác</button></div>
-        <div class="shop-list">${st.offers.map((o) => `<div class="shop-row"><span class="ic">📶</span><div class="info"><b class="ph-simnum">${pretty(o.num)}</b><small>${o.price > SIM_PRICE ? '💎 Số đẹp' : 'Số thường'} · ${st.net.name}</small></div><button class="btn small" data-buysim="${o.num}" ${model() ? '' : 'disabled'}>${fmt(o.price)} xu</button></div>`).join('')}</div>
+        <div class="shop-list">${st.offers.map((o) => { const nt = o.net || st.net; return `<div class="shop-row"><span class="ic">📶</span><div class="info"><b class="ph-simnum">${pretty(o.num)}</b><small>${o.price > SIM_PRICE ? '💎 Số đẹp' : 'Số thường'} · ${nt.name}</small></div>${o.taken ? '<button class="btn small ghost" disabled>Đã có người dùng</button>' : `<button class="btn small" data-buysim="${o.num}" ${model() ? '' : 'disabled'}>${fmt(o.price)} xu</button>`}</div>`; }).join('') || '<p class="muted">Không có số nào khớp.</p>'}</div>
         <p class="muted small-note">Mỗi người 1 số, không trùng ai. Mua SIM mới thì số cũ bị thu hồi. Số đẹp (đuôi lặp, sảnh tiến, 68 · 79 · 39) giá cao hơn.</p>`;
       p.body.querySelector('[data-back]').onclick = () => { st.simTab = 0; render(); };
       p.body.querySelectorAll('[data-net]').forEach((b) => b.onclick = () => { st.net = NETS.find((n) => n.id === b.dataset.net); st.offers = simOffers(st.net); renderSim(); });
-      p.body.querySelector('[data-more]').onclick = () => { st.offers = simOffers(st.net); renderSim(); };
+      p.body.querySelector('[data-more]').onclick = () => { st.q = ''; st.offers = simOffers(st.net); renderSim(); };
+      p.body.querySelector('[data-simq]').onsubmit = async (e) => {
+        e.preventDefault();
+        const q = e.target.q.value.replace(/\D/g, '');
+        st.q = q;
+        if (q.length < 2) return UI.toast('Nhập ít nhất 2 chữ số (đuôi số) hoặc cả 10 số');
+        let list;
+        if (q.length === 10) {
+          if (!/^0/.test(q)) return UI.toast('Số điện thoại phải bắt đầu bằng 0');
+          const net = NETS.find((n) => n.pre.includes(q.slice(0, 3)));
+          if (!net) return UI.toast(`Đầu số ${q.slice(0, 3)} không thuộc Viettel / Vinaphone / Mobifone — thử đầu số khác`, 4500);
+          list = [{ num: q, price: simPrice(q), net }];
+        } else {
+          // đuôi số: ghép với các đầu số của nhà mạng đang chọn
+          const tail = q.slice(-7), seen = new Set();
+          list = [];
+          for (const pre of st.net.pre) {
+            for (let k = 0; k < 2 && list.length < 10; k++) {
+              const mid = Array.from({ length: 7 - tail.length }, () => Math.floor(Math.random() * 10)).join('');
+              const num = pre + mid + tail;
+              if (!seen.has(num)) { seen.add(num); list.push({ num, price: simPrice(num), net: st.net }); }
+            }
+          }
+        }
+        // số nào đã có người mua thì báo
+        try { const { data } = await CLOUD.client.from('phone_sims').select('num').in('num', list.map((o) => o.num)); const used = new Set((data || []).map((r) => r.num)); list.forEach((o) => { o.taken = used.has(o.num); }); } catch (er) { /* bỏ qua */ }
+        st.offers = list.sort((a, b) => a.price - b.price);
+        renderSim();
+      };
       p.body.querySelectorAll('[data-buysim]').forEach((b) => b.onclick = () => {
-        const o = st.offers.find((x) => x.num === b.dataset.buysim);
-        UI.confirm(`Mua SIM <b>${st.net.name} ${pretty(o.num)}</b> giá <b>${fmt(o.price)} xu</b>?${myNum() ? '<br><small>Số cũ ' + pretty(myNum()) + ' sẽ bị thu hồi.</small>' : ''}`, 'Mua SIM', async () => { if (await buySim(o.num, o.price, st.net)) { st.simTab = 0; render(); updateBtn(); } });
+        const o = st.offers.find((x) => x.num === b.dataset.buysim), nt = o.net || st.net;
+        UI.confirm(`Mua SIM <b>${nt.name} ${pretty(o.num)}</b> giá <b>${fmt(o.price)} xu</b>?${myNum() ? '<br><small>Số cũ ' + pretty(myNum()) + ' sẽ bị thu hồi.</small>' : ''}`, 'Mua SIM', async () => { if (await buySim(o.num, o.price, nt)) { st.simTab = 0; render(); updateBtn(); } });
       });
     };
     render();
@@ -221,6 +250,9 @@ const PHONE = (() => {
     { id: 'contacts', icon: '👤', name: 'Danh bạ', bg: 'linear-gradient(#dee2e6,#adb5bd)' },
     { id: 'camera', icon: '📷', name: 'Máy ảnh', bg: 'linear-gradient(#868e96,#343a40)' },
     { id: 'map', icon: '🗺️', name: 'Bản đồ', bg: 'linear-gradient(#e7f5ff,#74c0fc)' },
+    { id: 'gram', icon: '📸', name: 'ZenoGram', bg: 'linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7)' },
+    { id: 'food', icon: '🛵', name: 'ZenoFood', bg: 'linear-gradient(#ff8a3d,#e8590c)' },
+    { id: 'car', icon: '🚕', name: 'ZenoCar', bg: 'linear-gradient(#69db7c,#2b8a3e)' },
     { id: 'bank', icon: '🏦', name: 'QL Bank', bg: 'linear-gradient(#2f9e44,#00502b)' },
     { id: 'quest', icon: '📜', name: 'Nhiệm vụ', bg: 'linear-gradient(#ffe8a3,#f59f00)' },
     { id: 'lotto', icon: '🎰', name: 'Vietlott', bg: 'linear-gradient(#ff8787,#c92a2a)' },
@@ -326,6 +358,13 @@ const PHONE = (() => {
       return;
     }
     const back = () => { const bk = box.querySelector('[data-back]'); if (bk) bk.onclick = () => go('home'); };
+    box.onclick = (e) => { if (e.target.closest('[data-back]')) go('home'); };
+    if (typeof ZAPPS !== 'undefined') {
+      if (app === 'gram') return ZAPPS.gram(box, header);
+      if (app === 'gramNew') { const im = pendingImg; pendingImg = ''; return ZAPPS.compose(box, header, im); }
+      if (app === 'food') return ZAPPS.food(box, header);
+      if (app === 'car') return ZAPPS.ride(box, header);
+    }
     if (app === 'call') {
       box.innerHTML = header('Điện thoại') + `<div class="ph-dial"><div class="ph-num"></div><button class="ph-paste" data-paste>📋 Dán số</button><div class="ph-numname"></div>
         <div class="ph-keys">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map((k) => `<button data-k="${k}">${k}</button>`).join('')}</div>
@@ -428,7 +467,10 @@ const PHONE = (() => {
     }
   }
 
-  function openApp(id) {
+  let pendingImg = '';
+  function openApp(id, img) {
+    if (id === 'gram' && img) { pendingImg = img; return go('gramNew'); }
+    if ((id === 'food' || id === 'car') && !myNum()) return UI.toast('📶 Cần SIM có 4G để dùng ứng dụng này — mua SIM ở cửa hàng điện thoại');
 
     if (id === 'map') { close(); return UI.cityMap(false); }
     if (id === 'bank') { close(); return BANK.panel('atm'); }
@@ -449,7 +491,9 @@ const PHONE = (() => {
     try { url = cv.toDataURL('image/jpeg', 0.85); } catch (e) { return UI.toast('Không chụp được màn hình này'); }
     close();
     const p = UI.panel('📷 Ảnh vừa chụp', `<div class="ci-full"><img src="${url}" alt="ảnh chụp"></div>
-      <div class="row-end" style="justify-content:center;flex-wrap:wrap"><a class="btn ghost" href="${url}" download="avatar-${Date.now()}.jpg">💾 Lưu về máy</a>${typeof CHATIMG !== 'undefined' ? '<button class="btn" data-send>📤 Gửi vào chat khu vực</button>' : ''}</div>`, { wide: true });
+      <div class="row-end" style="justify-content:center;flex-wrap:wrap"><a class="btn ghost" href="${url}" download="avatar-${Date.now()}.jpg">💾 Lưu về máy</a>${typeof CHATIMG !== 'undefined' ? '<button class="btn" data-send>📤 Gửi vào chat khu vực</button><button class="btn" data-gram>📸 Đăng ZenoGram</button>' : ''}</div>`, { wide: true });
+    const gb = p.body.querySelector('[data-gram]');
+    if (gb) gb.onclick = async () => { const blob = await (await fetch(url)).blob(); p.close(); CHATIMG.pickAndSend(new File([blob], 'chup.jpg', { type: 'image/jpeg' }), (u) => { open(); setTimeout(() => openApp('gram', u), 100); }, '📸 Ảnh cho ZenoGram'); };
     const sb = p.body.querySelector('[data-send]');
     if (sb) sb.onclick = async () => { const blob = await (await fetch(url)).blob(); p.close(); CHATIMG.pickAndSend(new File([blob], 'chup.jpg', { type: 'image/jpeg' }), (u) => AV.sayImage(u)); };
   }
@@ -639,5 +683,5 @@ const PHONE = (() => {
     beep(1568, 0.12, 0.08); setTimeout(() => beep(1318, 0.12, 0.08), 140); setTimeout(() => beep(1046, 0.22, 0.08), 280);
     if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
   }
-  return { init, open, close, shop, smsTone, charge, myNum, pretty, addContact, has: () => !!model(), hasSim: () => !!myNum(), dial, ambulance };
+  return { openApp, init, open, close, shop, smsTone, charge, myNum, pretty, addContact, has: () => !!model(), hasSim: () => !!myNum(), dial, ambulance };
 })();
