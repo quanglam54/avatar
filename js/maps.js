@@ -983,10 +983,10 @@ const MAPS = (() => {
 
     sobj(m, 940, 640, (c) => ART.gameTable(c, 940, 640, 'baicao', 0));
     col(m, 840, 590, 200, 50);
-    inter(m, { x: 810, y: 520, w: 260, h: 170, ax: 940, ay: 700, name: 'Bàn Tiến lên (ngồi chơi với mọi người)', use: () => TABLE.openView(), arrow: { x: 940, y: 505, text: 'Chơi bài' } });
+    inter(m, { x: 810, y: 520, w: 260, h: 170, ax: 940, ay: 700, name: 'Bàn Tiến lên (ngồi chơi với mọi người)', use: () => CARDLOBBY.pick('tl'), arrow: { x: 940, y: 505, text: 'Chơi bài' } });
 
     /* 🃏 bàn 3 Cây + 🀄 bàn Phỏm (chơi với người thật, chưa có ai thì máy chơi cùng) */
-    [[440, 860, '3 Cây', () => CARDROOM.bacay.openView(), 'Bàn 3 Cây (Bài cào)', 'bacay'], [1240, 860, 'Phỏm', () => CARDROOM.phom.openView(), 'Bàn Phỏm (Tá lả)', 'phom']].forEach(([x, y, label, use, name, kind]) => {
+    [[440, 860, '3 Cây', () => CARDLOBBY.pick('bc'), 'Bàn 3 Cây (Bài cào)', 'bacay'], [1240, 860, 'Phỏm', () => CARDLOBBY.pick('ph'), 'Bàn Phỏm (Tá lả)', 'phom']].forEach(([x, y, label, use, name, kind]) => {
       sobj(m, x, y, (c) => ART.gameTable(c, x, y, kind, 0));
       col(m, x - 100, y - 50, 200, 50);
       inter(m, { x: x - 130, y: y - 120, w: 260, h: 140, ax: x, ay: y + 40, name: name + ' — chơi với mọi người', use: () => (typeof CARDROOM !== 'undefined' ? use() : UI.toast('Bàn đang chuẩn bị, tải lại trang nhé')), arrow: { x, y: y - 135, text: label } });

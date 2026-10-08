@@ -149,7 +149,7 @@ const CARDROOM = (() => {
         case 'hand': if (m.to === me()) { myHand = m.cards.map(Number); [...sel].forEach((c) => { if (!myHand.includes(c)) sel.delete(c); }); render(); } break;
         case 'start': lastHostMsg = Date.now(); setTimeout(() => payStart(m.round, m.bet), 50); break;
         case 'cancel': refund(m.round, m.reason); break;
-        case 'invite': if (m.to === me() && !seated() && !anySeated()) UI.confirm(`✉️ <b>${esc(m.name)}</b> mời bạn vào bàn <b>${cfg.title}</b>!`, 'Vào bàn', () => openView()); break;
+        // case 'invite': lời mời do CARDLOBBY xử lý (mời được cả bàn khác bàn đang xem)
         case 'reject': if (m.to === me()) UI.toast('⚠️ ' + m.msg); break;
         case 'req': if (isHost()) broadcast(); break;
         case 'sit': if (isHost() && hostSit(m.seat, { id: from, name: String(m.name).slice(0, 16) })) broadcast(); break;
@@ -238,13 +238,12 @@ const CARDROOM = (() => {
     }
     function lobbyHtml() {
       const g = st.game, host = isHost();
-      const nearby = NET.players().filter((r) => !st.seats.some((s) => s && s.id === r.id));
       return `<div class="lobby">
         ${g && g.end ? `<div class="endbox">🏆 <b>${esc(seatName(g.end.winner))}</b> thắng! <small>${esc(g.end.reason || '')}</small></div>` : ''}
         <div class="lrow">Mức cược: ${host ? [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 200000].map((b) => `<button class="chip ${b === st.bet ? 'on' : ''}" data-bet="${b}">🪙 ${fmt(b)}</button>`).join('') : `<b>🪙 ${fmt(st.bet)} xu</b>`}</div>
         ${seated() ? (host ? `<button class="btn big" data-start>▶ ${g && g.end ? 'Ván mới' : 'Bắt đầu'}</button>` : '<div class="muted">⏳ Chờ chủ bàn bắt đầu…</div>') : '<div class="muted">Chọn một ghế để ngồi chơi</div>'}
         <div class="muted cr-note">🤖 Chỉ có mình bạn thì máy vào chơi cùng · có bạn bè ngồi là máy tự rời bàn</div>
-        ${seated() && nearby.length ? `<div class="invite"><b>Mời người chơi:</b>${nearby.map((r) => `<button class="chip" data-invite="${r.id}">✉️ ${esc(r.name)}</button>`).join('')}</div>` : ''}
+        ${seated() ? CARDLOBBY.inviteHtml(st) : ''}
         <div class="muted cr-note">${cfg.howto}</div>
       </div>`;
     }
@@ -260,7 +259,7 @@ const CARDROOM = (() => {
       const q = (s) => view.querySelector(s);
       view.querySelectorAll('[data-sit]').forEach((b) => b.onclick = () => sit(+b.dataset.sit));
       view.querySelectorAll('[data-bet]').forEach((b) => b.onclick = () => { st.bet = +b.dataset.bet; broadcast(); });
-      view.querySelectorAll('[data-invite]').forEach((b) => b.onclick = () => { send({ a: 'invite', to: b.dataset.invite, name: AV.S.name }); UI.toast('Đã gửi lời mời ✉️'); b.disabled = true; });
+      CARDLOBBY.bindInvites(view, cfg.id, st.bet);
       if (q('[data-start]')) q('[data-start]').onclick = hostStart;
       if (q('[data-leave]')) q('[data-leave]').onclick = () => (gameOn() ? UI.confirm('Rời bàn giữa ván sẽ mất tiền cược. Vẫn rời?', 'Rời bàn', () => leave()) : leave());
       q('[data-close]').onclick = closeView;
@@ -273,7 +272,29 @@ const CARDROOM = (() => {
       const cd = view.querySelector('[data-cd]');
       if (cd && dl) cd.textContent = Math.max(0, Math.ceil((dl - Date.now()) / 1000));
     }
-    const room = { cfg, onNet, tick, onMapChange, openView, closeView, seated, isOpen: () => viewOpen, _start: hostStart, _sit: sit, get state() { return st; }, get hand() { return myHand; }, R };
+    /* ---------- 🪑 nhiều bàn (CARDLOBBY): đổi sang bàn khác khi chưa ngồi, tạo bàn mới, vào bàn được mời ---------- */
+    function switchTo(id) {
+      if (seated() || cfg.id === id) return;
+      cfg.id = id; st = fresh(); H = null; myHand = []; sel.clear(); lastHostMsg = 0;
+      send({ a: 'req' });
+    }
+    /** tạo bàn mới làm chủ bàn ở ghế 0 với mức cược bet (auto = bắt đầu luôn với máy) */
+    function create(id, bet, auto) {
+      if (seated()) return openView();
+      switchTo(id);
+      st = fresh(); st.host = me(); st.bet = bet;
+      hostSit(0, { id: me(), name: AV.S.name });
+      broadcast(); openView();
+      UI.toast(`🪑 Đã tạo ${cfg.short} · Bàn ${id.slice(2)} · cược ${fmt(bet)} xu — mời bạn bè hoặc chơi với máy 🤖`, 4000);
+      if (auto) setTimeout(() => { if (isHost() && !gameOn()) hostStart(); }, 700);
+    }
+    /** vào xem bàn id, autoSit = tự ngồi ghế trống / ghế máy đầu tiên */
+    function joinAt(id, autoSit) {
+      if (seated()) return openView();
+      switchTo(id); openView();
+      if (autoSit) setTimeout(() => { if (seated()) return; const i = st.seats.findIndex((s) => !s || s.bot); if (i >= 0) sit(i); else UI.toast('Bàn đã đủ người, bạn đang xem'); }, 1500);
+    }
+    const room = { cfg, onNet, tick, onMapChange, openView, closeView, seated, isHost, create, joinAt, get tableId() { return cfg.id; }, isOpen: () => viewOpen, _start: hostStart, _sit: sit, get state() { return st; }, get hand() { return myHand; }, R };
     rooms.push(room);
     return room;
   }

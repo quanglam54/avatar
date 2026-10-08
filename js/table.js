@@ -264,9 +264,7 @@ const TABLE = (() => {
       case 'cancel':
         refund(m.round, m.reason);
         break;
-      case 'invite':
-        if (m.to === me() && !seated()) UI.tableInvite(m.name);
-        break;
+      // case 'invite': lời mời do CARDLOBBY xử lý (mời được cả bàn khác bàn đang xem)
       case 'reject':
         if (m.to === me()) UI.toast('⚠️ ' + m.msg);
         break;
@@ -292,6 +290,29 @@ const TABLE = (() => {
   }
 
   function hostStale() { return !st.host || (st.host !== me() && Date.now() - lastHostMsg > 9000); }
+
+  /* ---------- 🪑 nhiều bàn (CARDLOBBY): đổi sang bàn khác khi chưa ngồi, tạo bàn mới, vào bàn được mời ---------- */
+  function switchTo(id) {
+    if (seated() || T.id === id) return;
+    T.id = id; st = fresh(); H = null; myHand = []; selected.clear(); lastHostMsg = 0;
+    send({ a: 'req' });
+  }
+  /** tạo bàn mới làm chủ bàn ở ghế 0 với mức cược bet (auto = bắt đầu luôn với máy) */
+  function create(id, bet, auto) {
+    if (seated()) return openView();
+    switchTo(id);
+    st = fresh(); st.host = me(); st.bet = bet;
+    hostSit(0, { id: me(), name: AV.S.name });
+    broadcast(); openView();
+    UI.toast(`🪑 Đã tạo Tiến lên · Bàn ${id.slice(2)} · cược ${bet.toLocaleString('vi-VN')} xu — mời bạn bè hoặc chơi với máy 🤖`, 4000);
+    if (auto) setTimeout(() => { if (isHost() && !gameOn()) hostStart(); }, 700);
+  }
+  /** vào xem bàn id, autoSit = tự ngồi ghế trống / ghế máy đầu tiên */
+  function joinAt(id, autoSit) {
+    if (seated()) return openView();
+    switchTo(id); openView();
+    if (autoSit) setTimeout(() => { if (seated()) return; const i = st.seats.findIndex((s) => !s || s.bot); if (i >= 0) sit(i); else UI.toast('Bàn đã đủ người, bạn đang xem'); }, 1500);
+  }
 
   function sit(seat) {
     if (seated() || (st.seats[seat] && !st.seats[seat].bot)) return;
@@ -433,14 +454,13 @@ const TABLE = (() => {
         <div class="msg">${esc(g.msg || '')}</div></div>`;
     }
     const host = isHost();
-    const nearby = NET.players().filter((r) => !st.seats.some((s) => s && s.id === r.id));
     const end = g && g.end ? `<div class="endbox">🏆 <b>${esc(seatName(g.end.winner))}</b> thắng! <small>${esc(g.end.reason)}</small></div>` : '';
     return `<div class="lobby">
       ${end}
       <div class="lrow">Mức cược: ${host ? [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000].map((b) => `<button class="chip ${b === st.bet ? 'on' : ''}" data-bet="${b}">🪙 ${b.toLocaleString('vi-VN')}</button>`).join('') + '<input class="field bet-in" type="number" min="1" placeholder="Tự nhập" data-betin><button class="chip" data-betset>Đặt</button>' : `<b>🪙 ${st.bet.toLocaleString('vi-VN')} xu</b>`}</div>
       ${seated() ? (host ? `<button class="btn big" data-start>▶ ${g && g.end ? 'Ván mới' : 'Bắt đầu'}</button>` : '<div class="muted">⏳ Chờ chủ bàn bắt đầu…</div>') : '<div class="muted">Chọn một ghế trống để ngồi chơi</div>'}
       <div class="muted" style="font-size:12px">🤖 Chỉ có mình bạn thì máy vào chơi cùng · có bạn bè ngồi là máy tự rời bàn</div>
-      ${seated() && nearby.length ? `<div class="invite"><b>Mời người chơi:</b>${nearby.map((r) => `<button class="chip" data-invite="${r.id}">✉️ ${esc(r.name)}</button>`).join('')}</div>` : ''}
+      ${seated() ? CARDLOBBY.inviteHtml(st) : ''}
       ${!seated() ? '<button class="btn small ghost" data-solo>🃏 Chơi Bài cào một mình với nhà cái</button>' : ''}
     </div>`;
   }
@@ -488,7 +508,7 @@ const TABLE = (() => {
       st.bet = Math.min(v, 100000000);
       broadcast();
     };
-    root.querySelectorAll('[data-invite]').forEach((b) => b.onclick = () => { send({ a: 'invite', to: b.dataset.invite, name: AV.S.name }); UI.toast('Đã gửi lời mời ✉️'); b.disabled = true; });
+    CARDLOBBY.bindInvites(root, T.id, st.bet);
     const q = (s) => root.querySelector(s);
     if (q('[data-bots]')) q('[data-bots]').onchange = (e) => { st.bots = e.target.checked; broadcast(); };
     if (q('[data-start]')) q('[data-start]').onclick = hostStart;
@@ -511,7 +531,7 @@ const TABLE = (() => {
   }
 
   return {
-    init, onNet, tick, onMapChange, openView, closeView, seated, isOpen: () => viewOpen,
+    init, onNet, tick, onMapChange, openView, closeView, seated, isHost, create, joinAt, get tableId() { return T.id; }, isOpen: () => viewOpen,
     get state() { return st; }, get hand() { return myHand; }, _sit: sit, _leave: leave, _start: hostStart, _play: (cards) => { selected.clear(); cards.forEach((c) => selected.add(c)); play(); }, _pass: pass,
   };
 })();

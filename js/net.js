@@ -237,6 +237,7 @@ const NET = (() => {
     } else if (m.t === 'kart') {
       if (typeof RACECUP !== 'undefined') RACECUP.onNet(m);
     } else if (m.t === 'tbl') {
+      if (typeof CARDLOBBY !== 'undefined') CARDLOBBY.onTbl(m);
       TABLE.onNet(m);
       BIL.onNet(m);
       if (typeof CARDROOM !== 'undefined') CARDROOM.onNet(m);
@@ -290,6 +291,7 @@ const NET = (() => {
       else if (m.t === 'bye') where.delete(m.id);
       else if (m.t === 'call' && typeof CALL !== 'undefined') CALL.onSignal(m);
       else if (m.t === 'pb' && typeof BOOTH !== 'undefined') BOOTH.onNet(m);
+      else if (m.t === 'cinv' && typeof CARDLOBBY !== 'undefined') CARDLOBBY.onInvite(m);
       else if (m.t === 'news' && m.text) { if (typeof TREASURE !== 'undefined') TREASURE.onNews(String(m.text).slice(0, 160)); }
       else if ((m.t === 'farmrev' || m.t === 'farmhit' || m.t === 'saverev' || m.t === 'dm') && m.u) AV.onFarmPing(m.t, String(m.u));
     });
@@ -310,6 +312,10 @@ const NET = (() => {
   /** 📸 phòng chụp photobooth: gửi kèm tên, tài khoản, trang phục */
   function sendBooth(p) {
     if (lobby) lobby.send({ t: 'pb', id: pid, name: AV.S.name, user: (typeof CLOUD !== 'undefined' && CLOUD.username) || '', look: AV.S.look, ...p });
+  }
+  /** 🃏 mời bạn bè (theo tên đăng nhập) vào bàn bài ở casino — đi qua kênh chung nên mời được người ở khu khác */
+  function sendCardInv(p) {
+    if (lobby) lobby.send({ t: 'cinv', id: pid, name: AV.S.name, ...p });
   }
   function sendCall(p) {
     if (lobby) lobby.send({ t: 'call', id: pid, ...p });
@@ -426,7 +432,7 @@ const NET = (() => {
   }
 
   return {
-    sendBooth, lobbyPeers: () => [...where].filter(([, w]) => Date.now() - w.seen < 30000).map(([id, w]) => ({ id, user: w.user, map: w.map })),
+    sendBooth, sendCardInv, lobbyPeers: () => [...where].filter(([, w]) => Date.now() - w.seen < 30000).map(([id, w]) => ({ id, user: w.user, map: w.map })),
     init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, sendKart, remotes, zoneCounts, announce, farmPing, sendNews, sendCall, sendFirework, sendBite, sendVoice, sendRps, sendBox, sendRide, sendArena, sendHorse,
     get mode() { return mode; },
     get pid() { return pid; },
