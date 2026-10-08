@@ -1,7 +1,7 @@
 /* 🏴‍☠️ Sự kiện Halloween: SĂN RƯƠNG BÃI BIỂN — mỗi ngày cả server có 3 rương chôn ở bãi biển, ai đào trước người đó được.
  * Vị trí rương sinh theo ngày (mọi máy giống nhau). Nhận rương ghi vào bảng treasure_claims (supabase/10-san-kho-bau.sql),
  * khoá chính (ngày, số rương) → không 2 người cùng nhận. Gom 10 💠 Ngọc Halloween đổi 1.000.000 xu ở Thuyền trưởng Râu Đỏ.
- * Cần 🪏 xẻng để đào; 📡 máy dò kêu bíp nhanh dần khi lại gần rương. */
+ * Cần 🪏 xẻng để đào; 📡 máy dò nháy đèn nhanh dần khi lại gần rương. */
 const TREASURE = (() => {
   // mỗi WAVE_H giờ chôn thêm PER_WAVE rương mới (rương đợt trước chưa ai đào vẫn còn đó) → 8 đợt × 3 = 24 rương / ngày
   const PER_WAVE = 3, WAVE_H = 3, NEED = 10, REWARD = 10000000, SHOVEL = 80000, DETECTOR = 200000, DIG_R = 60, DIG_MS = 1300;
@@ -117,10 +117,8 @@ const TREASURE = (() => {
   }
 
   /* ---------- máy dò ---------- */
-  let ac = null, beepAt = 0;
-  function beep(f) {
-    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = f; g.gain.value = 0.05; o.connect(g); g.connect(ac.destination); o.start(); g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.12); o.stop(ac.currentTime + 0.13); } catch (e) { /* bỏ qua */ }
-  }
+  // máy dò không kêu (bỏ tiếng bíp) — chỉ nháy đèn theo nhịp, gần rương nháy nhanh hơn
+  let beepAt = 0;
   let hud = null;
   function ensureHud() {
     if (hud) return;
@@ -148,7 +146,7 @@ const TREASURE = (() => {
     meter.querySelector('b').textContent = '📡 ' + lab;
     const gi = meter.querySelector('i'); gi.style.width = Math.round(heat * 100) + '%'; gi.style.background = heat > 0.8 ? '#fa5252' : heat > 0.5 ? '#fd7e14' : heat > 0.3 ? '#fcc419' : '#74c0fc';
     const gap = 1600 - heat * 1450;
-    if (Date.now() - beepAt > gap) { beepAt = Date.now(); beep(500 + heat * 900); }
+    if (Date.now() - beepAt > Math.max(320, gap)) beepAt = Date.now(); // nhịp nháy đèn máy dò
   }
   setInterval(tick, 200);
 
@@ -195,7 +193,7 @@ const TREASURE = (() => {
       c.fillStyle = 'rgba(0,0,0,.15)'; c.beginPath(); c.ellipse(dx, 3, 14, 4, 0, 0, Math.PI * 2); c.fill();
       c.fillStyle = '#343a40'; c.beginPath(); c.ellipse(dx, dy, 13, 4.5, 0, 0, Math.PI * 2); c.fill();
       c.fillStyle = '#ced4da'; c.beginPath(); c.ellipse(dx, dy - 1, 9, 2.6, 0, 0, Math.PI * 2); c.fill();
-      // đèn nháy theo tiếng bíp
+      // đèn nháy theo nhịp máy dò
       if (heatNow > 0.3 && (Date.now() - beepAt) < 140) { c.fillStyle = lit; c.globalAlpha = 0.5; c.beginPath(); c.arc(dx, dy, 18, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1; }
     }
     c.restore();
@@ -239,7 +237,7 @@ const TREASURE = (() => {
       if (tab === 'shop') {
         body = `<div class="shop-list">
           <div class="shop-row"><span class="ic">🪏</span><div class="info"><b>Xẻng hải tặc</b><small>Bắt buộc để đào rương · dùng mãi mãi</small></div>${inv.tool_shovel ? '<button class="btn small ghost" disabled>✅ Đã có</button>' : `<button class="btn small" data-buy="tool_shovel">${fmt(SHOVEL)} xu</button>`}</div>
-          <div class="shop-row"><span class="ic">📡</span><div class="info"><b>Máy dò kim loại</b><small>Kêu bíp nhanh dần, báo Lạnh → Nóng khi lại gần rương</small></div>${inv.tool_detector ? '<button class="btn small ghost" disabled>✅ Đã có</button>' : `<button class="btn small" data-buy="tool_detector">${fmt(DETECTOR)} xu</button>`}</div>
+          <div class="shop-row"><span class="ic">📡</span><div class="info"><b>Máy dò kim loại</b><small>Đèn nháy nhanh dần, báo Lạnh → Nóng khi lại gần rương</small></div>${inv.tool_detector ? '<button class="btn small ghost" disabled>✅ Đã có</button>' : `<button class="btn small" data-buy="tool_detector">${fmt(DETECTOR)} xu</button>`}</div>
         </div><p class="muted small-note">Mỗi lần đào tốn 3 ⚡. Đứng đúng chỗ rương (máy dò báo 🔥🔥) rồi bấm 🪏 Đào.</p>`;
       } else if (tab === 'trade') {
         body = `<div class="tr-bar big"><i style="width:${Math.min(100, have / NEED * 100)}%"></i><span>${have}/${NEED} 💠 Ngọc Halloween</span></div>
