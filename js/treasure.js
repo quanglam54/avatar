@@ -3,19 +3,20 @@
  * khoá chính (ngày, số rương) → không 2 người cùng nhận. Gom 10 💠 Ngọc Halloween đổi 1.000.000 xu ở Thuyền trưởng Râu Đỏ.
  * Cần 🪏 xẻng để đào; 📡 máy dò nháy đèn nhanh dần khi lại gần rương. */
 const TREASURE = (() => {
-  // mỗi WAVE_H giờ chôn thêm PER_WAVE rương mới (rương đợt trước chưa ai đào vẫn còn đó) → 8 đợt × 3 = 24 rương / ngày
-  const PER_WAVE = 3, WAVE_H = 3, NEED = 10, REWARD = 10000000, SHOVEL = 80000, DETECTOR = 200000, DIG_R = 60, DIG_MS = 1300;
+  // mỗi WAVE_MIN phút chôn thêm PER_WAVE rương mới (rương đợt trước chưa ai đào vẫn còn đó) → 48 đợt × 3 = 144 rương / ngày
+  const PER_WAVE = 3, WAVE_MIN = 30, NEED = 10, REWARD = 10000000, SHOVEL = 80000, DETECTOR = 200000, DIG_R = 60, DIG_MS = 1300;
   const fmt = (n) => Number(n).toLocaleString('vi-VN');
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const S = () => AV.S;
   /** ngày / giờ theo giờ Việt Nam (khớp với kiểm tra trên máy chủ) */
   const vn = () => new Date(Date.now() + 7 * 3600e3);
   const day = () => vn().toISOString().slice(0, 10);
-  const wave = () => Math.floor(vn().getUTCHours() / WAVE_H);
+  const minOfDay = () => { const v = vn(); return v.getUTCHours() * 60 + v.getUTCMinutes(); };
+  const wave = () => Math.floor(minOfDay() / WAVE_MIN);
   /** số rương đã chôn tới giờ này trong ngày */
   const slots = () => (wave() + 1) * PER_WAVE;
   /** phút còn lại tới đợt rương mới (null = hết đợt trong ngày) */
-  const nextWaveMin = () => { const v = vn(), w = wave(); if ((w + 1) * WAVE_H >= 24) return null; return Math.ceil(((w + 1) * WAVE_H * 60) - (v.getUTCHours() * 60 + v.getUTCMinutes())); };
+  const nextWaveMin = () => { const w = wave(); if ((w + 1) * WAVE_MIN >= 1440) return null; return Math.max(1, (w + 1) * WAVE_MIN - minOfDay()); };
   let claims = {}, claimsDay = '', lastFetch = 0, digging = false, digAt = 0, heatNow = 0;
 
   /* ---------- vị trí rương trong ngày ---------- */
@@ -33,7 +34,7 @@ const TREASURE = (() => {
       for (let tries = 0; mine.length < PER_WAVE && tries < 3000; tries++) {
         const x = 180 + rnd() * 1640, y = 575 + rnd() * 240;
         if (AVOID.some(([ax, ay]) => Math.hypot(ax - x, ay - y) < 90)) continue;
-        if (mine.some((p) => Math.hypot(p.x - x, p.y - y) < 300) || out.some((p) => Math.hypot(p.x - x, p.y - y) < DIG_R * 1.5)) continue;
+        if (mine.some((p) => Math.hypot(p.x - x, p.y - y) < 300) || out.slice(-PER_WAVE * 3).some((p) => Math.hypot(p.x - x, p.y - y) < DIG_R * 1.5)) continue;
         mine.push({ x: Math.round(x), y: Math.round(y), slot: w * PER_WAVE + mine.length });
       }
       out.push(...mine);
@@ -66,7 +67,7 @@ const TREASURE = (() => {
     if (!error) return true;
     const m = String(error.message || '');
     if (/duplicate key|unique/i.test(m)) return false;
-    if (/check constraint|row-level security/i.test(m) && slot >= 3) throw new Error('Chủ game chưa bật rương theo đợt (chạy file supabase/18-ruong-theo-dot.sql)');
+    if (/check constraint|row-level security/i.test(m) && slot >= 3) throw new Error('Chủ game chưa bật rương 30 phút / đợt (chạy file supabase/19-ruong-30-phut.sql)');
     if (/treasure_claims|does not exist|Could not find/i.test(m)) throw new Error('Chủ game chưa bật sự kiện săn rương (chạy file supabase/10-san-kho-bau.sql)');
     throw new Error(m);
   }
@@ -280,7 +281,7 @@ const TREASURE = (() => {
     const p = UI.panel('🎃 SỰ KIỆN HALLOWEEN', `<div class="tr-pop">
         <div class="tr-chest">🏴‍☠️🧰🎃</div>
         <h2>SĂN RƯƠNG BÃI BIỂN</h2>
-        <p>Cứ <b>${WAVE_H} tiếng</b> lại chôn thêm <b>${PER_WAVE} rương</b> ở 🏖️ Bãi biển cho <b>cả server</b> — <b>ai đào trước người đó được!</b></p>
+        <p>Cứ <b>${WAVE_MIN} phút</b> lại chôn thêm <b>${PER_WAVE} rương</b> ở 🏖️ Bãi biển cho <b>cả server</b> — <b>ai đào trước người đó được!</b></p>
         <p>Đang còn: <b class="tr-left">${n}</b> rương chưa ai đào · ${nextNote()}</p>
         <p>Gom <b>${NEED} 💠 Ngọc Halloween</b> đổi <b>${fmt(REWARD)} xu</b> tại 🦜 Thuyền trưởng Râu Đỏ.</p>
         <p class="muted small-note">Cần 🪏 xẻng (${fmt(SHOVEL)} xu) · 📡 máy dò (${fmt(DETECTOR)} xu) giúp tìm nhanh hơn.</p>
