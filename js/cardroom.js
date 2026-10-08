@@ -241,7 +241,7 @@ const CARDROOM = (() => {
       const nearby = NET.players().filter((r) => !st.seats.some((s) => s && s.id === r.id));
       return `<div class="lobby">
         ${g && g.end ? `<div class="endbox">🏆 <b>${esc(seatName(g.end.winner))}</b> thắng! <small>${esc(g.end.reason || '')}</small></div>` : ''}
-        <div class="lrow">Mức cược: ${host ? [10, 50, 100, 500, 1000, 5000, 10000, 50000].map((b) => `<button class="chip ${b === st.bet ? 'on' : ''}" data-bet="${b}">🪙 ${fmt(b)}</button>`).join('') : `<b>🪙 ${fmt(st.bet)} xu</b>`}</div>
+        <div class="lrow">Mức cược: ${host ? [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 200000].map((b) => `<button class="chip ${b === st.bet ? 'on' : ''}" data-bet="${b}">🪙 ${fmt(b)}</button>`).join('') : `<b>🪙 ${fmt(st.bet)} xu</b>`}</div>
         ${seated() ? (host ? `<button class="btn big" data-start>▶ ${g && g.end ? 'Ván mới' : 'Bắt đầu'}</button>` : '<div class="muted">⏳ Chờ chủ bàn bắt đầu…</div>') : '<div class="muted">Chọn một ghế để ngồi chơi</div>'}
         <div class="muted cr-note">🤖 Chỉ có mình bạn thì máy vào chơi cùng · có bạn bè ngồi là máy tự rời bàn</div>
         ${seated() && nearby.length ? `<div class="invite"><b>Mời người chơi:</b>${nearby.map((r) => `<button class="chip" data-invite="${r.id}">✉️ ${esc(r.name)}</button>`).join('')}</div>` : ''}

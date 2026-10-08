@@ -3,7 +3,7 @@
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const SAVE_KEY = 'avatar_farm_save_v1';
-  const SPEED = 335;
+  const SPEED = 440;
   const BUS_Y = 985;
   let W = 0, H = 0, DPR = 1, ZOOM = 1;
 
@@ -605,7 +605,7 @@
     changed();
   };
 
-  function harvestBed(bed) {
+  function harvestBed(bed, agg) {
     const got = {};
     let xp = 0;
     bedTiles(bed).forEach((t) => {
@@ -622,10 +622,40 @@
     AV.quest('harvest', keys.reduce((a, k) => a + got[k], 0));
     if (typeof RANCH !== 'undefined') RANCH.onHarvest(keys);
     addXP(xp);
-    float(keys.map((k) => `+${got[k]} ${DATA.CROPS[k].icon}`).join('  '), player.x, player.y - 110);
+    if (agg) keys.forEach((k) => { agg[k] = (agg[k] || 0) + got[k]; });
+    else float(keys.map((k) => `+${got[k]} ${DATA.CROPS[k].icon}`).join('  '), player.x, player.y - 110);
     changed();
     return true;
   }
+  /* 🧺 thu hoạch tất cả luống đang chín (mỗi luống tốn 2 ⚡ như gặt tay) */
+  const ripeBeds = () => (VISIT || map.id !== 'farm' ? [] : Object.keys(S.beds || {}).filter((b) => S.beds[b] && bedTiles(+b).some((t) => tileState(t).stage === 2)).map(Number));
+  AV.harvestAll = () => {
+    const beds = ripeBeds();
+    if (!beds.length) return UI.toast('Chưa có luống nào chín 🌱');
+    const agg = {};
+    let done = 0;
+    for (const b of beds) { if (!AV.useEnergy(2, done > 0)) break; if (harvestBed(b, agg)) done++; }
+    if (!done) return;
+    const keys = Object.keys(agg);
+    float(keys.map((k) => `+${agg[k]} ${DATA.CROPS[k].icon}`).join('  '), player.x, player.y - 110);
+    say(player, `🧺 Thu hoạch ${done} luống!`);
+    UI.toast(`🧺 Đã thu hoạch ${done}/${beds.length} luống: ${keys.map((k) => `${agg[k]} ${DATA.CROPS[k].icon}`).join(' · ')}${done < beds.length ? ' — hết năng lượng, ăn gì đó rồi thu tiếp nhé' : ''}`, 4500);
+    updateHarvestBtn();
+  };
+  let hvBtn = null;
+  function updateHarvestBtn() {
+    if (!hvBtn) {
+      hvBtn = document.createElement('button');
+      hvBtn.className = 'harvest-all-btn';
+      hvBtn.style.cssText = 'position:fixed;right:12px;bottom:150px;z-index:20;border:3px solid #2b1a10;border-radius:16px;padding:8px 14px;font:800 15px "Be Vietnam Pro",system-ui;color:#fff;background:linear-gradient(#69db7c,#2f9e44);box-shadow:0 4px 0 #2b1a10;cursor:pointer;display:none';
+      hvBtn.onclick = () => AV.harvestAll();
+      document.body.appendChild(hvBtn);
+    }
+    const n = ripeBeds().length;
+    hvBtn.style.display = n >= 2 && !player.hidden ? 'block' : 'none';
+    hvBtn.textContent = `🧺 Thu hoạch tất cả (${n} luống)`;
+  }
+  setInterval(() => { try { updateHarvestBtn(); } catch (e) { /* bỏ qua */ } }, 1000);
 
   AV.useTile = (i) => {
     if (VISIT) return VISIT.data.beds[bedOf(i)] && tileState(VISIT.data.tiles[i]).stage === 2 ? AV.stealTile(i) : AV.helpWater();

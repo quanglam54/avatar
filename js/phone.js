@@ -758,10 +758,33 @@ const PHONE = (() => {
     setInterval(() => { if (openNow) statusBar(); }, 15000);
   }
   /** 🔔 chuông tin nhắn kiểu iPhone (tri-tone) */
+  /* 🔔 chuông tin nhắn: bài YouTube (trình phát ẩn), chưa sẵn sàng thì dùng tiếng tri-tone tự tạo */
+  const SMS_YT = 'BzOWJ7276Ls';
+  let smsP = null, smsReady = false, smsStop = 0;
+  function prepSms() {
+    if (smsP) return;
+    smsP = 'loading';
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:-9999px;top:0;width:200px;height:200px;opacity:0;pointer-events:none';
+    box.innerHTML = '<div id="smsYt"></div>';
+    document.body.appendChild(box);
+    const make = () => { smsP = new window.YT.Player('smsYt', { width: 200, height: 200, videoId: SMS_YT, playerVars: { playsinline: 1, controls: 0 }, events: { onReady: () => { smsReady = true; } } }); };
+    if (window.YT && window.YT.Player) make();
+    else {
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => { if (prev) prev(); make(); };
+      if (!document.getElementById('ytApi')) { const sc = document.createElement('script'); sc.id = 'ytApi'; sc.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(sc); }
+    }
+  }
+  ['pointerdown', 'keydown'].forEach((ev) => window.addEventListener(ev, prepSms, { once: true, passive: true }));
   function smsTone() {
     if (!model() || (AV.S.settings && AV.S.settings.sfx === false)) return;
-    beep(1568, 0.12, 0.08); setTimeout(() => beep(1318, 0.12, 0.08), 140); setTimeout(() => beep(1046, 0.22, 0.08), 280);
     if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
+    if (typeof CALL !== 'undefined' && CALL.busy()) return;
+    if (smsReady) {
+      try { smsP.seekTo(0, true); smsP.unMute(); smsP.setVolume(100); smsP.playVideo(); clearTimeout(smsStop); smsStop = setTimeout(() => { try { smsP.pauseVideo(); } catch (e) { /* bỏ qua */ } }, 4000); return; } catch (e) { /* dùng tiếng tự tạo */ }
+    }
+    beep(1568, 0.12, 0.08); setTimeout(() => beep(1318, 0.12, 0.08), 140); setTimeout(() => beep(1046, 0.22, 0.08), 280);
   }
   return { logCall, openApp, init, open, close, shop, smsTone, charge, myNum, pretty, addContact, has: () => !!model(), hasSim: () => !!myNum(), dial, ambulance };
 })();

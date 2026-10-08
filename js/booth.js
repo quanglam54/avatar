@@ -93,11 +93,96 @@ const BOOTH = (() => {
   }
 
   /* ================= 🖼️ vẽ ảnh ================= */
+  /* ---------- 👥 phòng chụp chung: chủ phòng trả tiền, mời bạn bè (đã kết bạn) vào chụp cùng ---------- */
+  /** room = { host: pid chủ phòng, members: [pid…] } — chỉ người trong phòng mới có mặt trong ảnh */
+  let room = null;
+  const openRooms = new Map(); // phòng của người khác đang mở gần đây: host → { name, at, members }
+  const myId = () => (typeof NET !== 'undefined' && NET.pid) || 'me';
+  const isHost = () => !!room && room.host === myId();
+  const isMember = () => !!room && !isHost() && room.members.includes(myId());
+  /** tin phòng chụp đi qua kênh chung toàn server (mỗi người có nông trại riêng nên không chung bản đồ),
+   *  mỗi tin kèm tên + tài khoản + trang phục người gửi */
+  const send = (p) => { if (typeof NET !== 'undefined' && NET.sendBooth) NET.sendBooth(p); };
+  const peers = new Map(); // pid → { name, user, look, at }
+  const remote = (id) => peers.get(id) || null;
+  const isFriendPid = (id) => { const r = remote(id); return !!(r && r.user && typeof SOCIAL !== 'undefined' && SOCIAL.isFriend(r.user)); };
   function people() {
-    const me = { id: 'me', name: AV.S.name, look: AV.S.look };
-    const others = (typeof NET !== 'undefined' ? NET.players() : []).filter((r) => !r.hidden && r.look && Math.hypot((r.rx ?? r.x) - BX, (r.ry ?? r.y) - BY) < NEAR)
-      .map((r) => ({ id: 'p' + (r.id || r.name), name: r.name || 'Bạn', look: r.look }));
-    return [me, ...others].slice(0, MAX_PEOPLE);
+    const me = { id: myId(), me: true, name: AV.S.name, look: AV.S.look };
+    if (!room) return [me];
+    return room.members.map((id) => {
+      if (id === myId()) return me;
+      const r = remote(id) || (room.info && room.info[id]);
+      return r && r.look ? { id, name: r.name || 'Bạn', look: r.look } : null;
+    }).filter(Boolean).slice(0, MAX_PEOPLE);
+  }
+  function hostSync() {
+    if (!isHost() || !live()) return;
+    const info = {};
+    room.members.forEach((id) => { const r = id === myId() ? { name: AV.S.name, look: AV.S.look } : remote(id); if (r) info[id] = { name: r.name, look: r.look }; });
+    send({ a: 'room', host: myId(), hname: AV.S.name, members: room.members, info, s: { until: sess.until, dress: sess.dress, bg: sess.bg, frame: sess.frame, layout: sess.layout, pose: sess.pose, skip: [...sess.skip] } });
+  }
+  /** bạn bè đang online (ở bất kỳ khu nào) chưa vào phòng — để mời */
+  const onlineFriends = () => {
+    if (typeof NET === 'undefined' || !NET.lobbyPeers || typeof SOCIAL === 'undefined') return [];
+    const fl = AV.S.friends || [];
+    return NET.lobbyPeers().filter((p) => p.user && SOCIAL.isFriend(p.user) && !(room && room.members.includes(p.id)))
+      .map((p) => ({ id: p.id, name: (remote(p.id) || {}).name || (fl.find((f) => f.username === p.user) || {}).name || p.user }));
+  };
+  setInterval(hostSync, 2500);
+  let shooting = false;
+  const rerender = () => { if (!shooting && panelRef && panelRef._render && panelRef.body.querySelector('.pb-wrap')) panelRef._render(); };
+  function onNet(m) {
+    const from = m.id;
+    if (from && m.look) peers.set(from, { name: String(m.name || 'Bạn').slice(0, 16), user: String(m.user || ''), look: m.look, at: Date.now() });
+    switch (m.a) {
+      case 'room': {
+        if (m.host !== from || !Array.isArray(m.members)) return;
+        openRooms.set(from, { name: String(m.hname || 'Bạn').slice(0, 16), at: Date.now(), members: m.members });
+        const mine = m.members.includes(myId());
+        if (mine && !isHost()) {
+          const st = m.s || {};
+          room = { host: from, members: m.members.map(String).slice(0, MAX_PEOPLE), info: m.info || {} };
+          const rent = sess && sess.member ? sess.rent : new Set(['studio']);
+          sess = { member: true, rent, until: Math.min(+st.until || 0, Date.now() + SESSION_MIN * 60000), dress: st.dress || {}, bg: BACKDROPS.some((b) => b.id === st.bg) ? st.bg : 'studio', frame: FRAMES.some((f) => f.id === st.frame) ? st.frame : 'pink', layout: st.layout === 'one' ? 'one' : 'strip', pose: POSES.some((x) => x.id === st.pose) ? st.pose : 'v', skip: new Set(st.skip || []) };
+          if (pendingJoin === from) { pendingJoin = null; UI.toast(`📸 Đã vào phòng chụp của ${openRooms.get(from).name}!`); if (panelRef) studio(panelRef); else open(); }
+          else rerender();
+        } else if (room && room.host === from && !mine) { room = null; sess = null; UI.toast('Bạn đã rời phòng chụp'); if (panelRef) panelRef.close(); }
+        break;
+      }
+      case 'close': if (room && room.host === from && !isHost()) { room = null; sess = null; UI.toast('📸 Chủ phòng đã đóng phòng chụp'); if (panelRef) panelRef.close(); } openRooms.delete(from); break;
+      case 'invite': if (m.to === myId() && !isHost()) UI.confirm(`📸 <b>${esc(m.name)}</b> mời bạn vào phòng chụp <b>Quang Lâm Photobooth</b> chụp ảnh cùng nhau!`, 'Vào chụp', () => join(from)); break;
+      case 'join':
+        if (!isHost() || m.to !== myId()) return;
+        if (!isFriendPid(from)) { send({ a: 'reject', to: from, msg: 'Chỉ bạn bè (đã kết bạn) mới vào chung phòng chụp được' }); return; }
+        if (room.members.length >= MAX_PEOPLE) { send({ a: 'reject', to: from, msg: 'Phòng chụp đã đủ người' }); return; }
+        if (!room.members.includes(from)) { room.members.push(from); UI.toast(`📸 ${esc((remote(from) || {}).name || 'Bạn')} đã vào phòng chụp`); }
+        hostSync(); rerender();
+        break;
+      case 'leave': if (isHost() && room.members.includes(from)) { room.members = room.members.filter((x) => x !== from); delete sess.dress[from]; hostSync(); rerender(); } break;
+      case 'dress':
+        if (!isHost() || !room.members.includes(from) || !m.d) return;
+        sess.dress[from] = { hat: PROPS.some((p) => p.id === m.d.hat) ? m.d.hat : '', eye: PROPS.some((p) => p.id === m.d.eye) ? m.d.eye : '', hand: PROPS.some((p) => p.id === m.d.hand) ? m.d.hand : '' };
+        hostSync(); rerender();
+        break;
+      case 'shoot':
+        if (!isMember() || room.host !== from) return;
+        if (!panelRef) open();
+        setTimeout(() => { if (panelRef && sess) { if (!panelRef.body.querySelector('.pb-wrap')) studio(panelRef); shoot(panelRef); } }, 150);
+        break;
+      case 'reject': if (m.to === myId()) { pendingJoin = null; UI.toast('⚠️ ' + m.msg, 4000); } break;
+      default:
+    }
+  }
+  let pendingJoin = null;
+  function join(host) {
+    if (isHost() && live()) return UI.toast('Bạn đang là chủ phòng chụp rồi');
+    pendingJoin = host;
+    send({ a: 'join', to: host, name: AV.S.name });
+    UI.toast('📸 Đang vào phòng chụp…');
+  }
+  function leaveRoom() {
+    if (isMember()) send({ a: 'leave', to: room.host });
+    room = null; sess = null;
   }
   function backdrop(g, w, h, id, t) {
     const lin = (a, b, c3) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, a); if (c3) { gr.addColorStop(0.6, b); gr.addColorStop(1, c3); } else gr.addColorStop(1, b); g.fillStyle = gr; g.fillRect(0, 0, w, h); };
@@ -231,59 +316,72 @@ const BOOTH = (() => {
     if (panelRef) return;
     const p = UI.panel('📸 Quang Lâm Photobooth', '', { wide: true, onClose: () => { cancelAnimationFrame(raf); panelRef = null; } });
     panelRef = p;
-    if (!live()) return intro(p);
+    if (!live()) { if (room && isHost()) { send({ a: 'close' }); room = null; } return intro(p); }
     studio(p);
   }
   function intro(p) {
-    const ppl = people();
+    const fr = [...openRooms].filter(([h, o]) => Date.now() - o.at < 8000 && h !== myId() && isFriendPid(h) && o.members.length < MAX_PEOPLE);
     p.body.innerHTML = `<div class="pb-intro"><div class="pb-hero">📸</div>
       <h3>Quang Lâm Photobooth</h3>
       <p>Chụp ảnh nhân vật cùng bạn bè · phối đồ · thuê phụ kiện xinh xắn.</p>
+      ${fr.length ? `<div class="pb-join">${fr.map(([h, o]) => `<button class="btn" data-join="${esc(h)}">🎉 Vào phòng chụp của ${esc(o.name)} (${o.members.length} người) — miễn phí</button>`).join('')}</div>` : ''}
       <div class="pb-price"><b>${fmt(PRICE)} xu</b> / lượt · chụp <b>thoải mái</b> trong ${SESSION_MIN} phút</div>
-      <p class="muted">Sẽ có mặt trong ảnh (đứng gần quầy): <b>${ppl.map((x) => esc(x.name)).join(', ')}</b>${ppl.length < 2 ? '<br>💡 Rủ bạn bè đứng cạnh quầy để chụp chung nhé!' : ''}</p>
+      <p class="muted">👥 Mở phòng xong bấm <b>✉️ Mời</b> để bạn bè (đã kết bạn) đang online vào chụp chung — chỉ người trong phòng mới có mặt trong ảnh.</p>
       <p class="muted">🎨 Phông nền & 👑 phụ kiện thuê riêng từng món (500 – 3.000 xu) · 🖼️ khung ảnh miễn phí</p>
       <button class="btn" data-pay>💳 Trả ${fmt(PRICE)} xu & vào chụp</button></div>`;
+    p.body.querySelectorAll('[data-join]').forEach((b) => b.onclick = () => join(b.dataset.join));
     p.body.querySelector('[data-pay]').onclick = () => {
       if (!AV.spend(PRICE)) return UI.toast(`Cần ${fmt(PRICE)} xu để chụp 😢`);
+      if (isMember()) leaveRoom();
       sess = { until: Date.now() + SESSION_MIN * 60000, rent: new Set(['studio']), dress: {}, bg: 'studio', frame: 'pink', layout: 'strip', pose: 'v', skip: new Set() };
+      room = { host: myId(), members: [myId()] };
+      hostSync();
       UI.toast('📸 Chào mừng tới Quang Lâm Photobooth! Chụp thoải mái nhé ✨', 3500);
       studio(p);
     };
   }
   function studio(p) {
-    let tab = 'pose', who = 'me';
+    let tab = 'pose', who = myId();
     const list = () => people().filter((x) => !sess.skip.has(x.id));
     const render = () => {
-      if (!live()) { sess = null; UI.toast('⌛ Hết lượt chụp rồi — trả thêm để chụp tiếp nhé'); return intro(p); }
+      if (!live()) { if (isHost()) send({ a: 'close' }); room = null; sess = null; UI.toast('⌛ Hết lượt chụp rồi — trả thêm để chụp tiếp nhé'); return intro(p); }
+      const host = isHost(), member = isMember();
+      if (member) { who = myId(); if (['pose', 'bg', 'frame'].includes(tab)) tab = 'hat'; }
+      p._render = render;
+      const friendsNear = host ? onlineFriends() : [];
       const all = people(), left = Math.max(0, sess.until - Date.now()), mm = Math.floor(left / 60000), ss = Math.floor(left / 1000) % 60;
       const items = tab === 'bg' ? BACKDROPS : tab === 'frame' ? FRAMES : PROPS.filter((x) => x.slot === tab);
       const d = sess.dress[who] || {};
       p.body.innerHTML = `<div class="pb-wrap">
         <div class="pb-left"><canvas class="pb-prev" width="640" height="480"></canvas><div class="pb-flash"></div><div class="pb-count"></div>
-          <div class="pb-ppl">${all.map((x) => `<button class="${sess.skip.has(x.id) ? 'off' : ''} ${who === x.id ? 'sel' : ''}" data-who="${esc(x.id)}">${x.id === 'me' ? '🙋' : '🧑'} ${esc(x.name)}</button>`).join('')}</div>
-          <small class="muted">Bấm tên để chọn người đeo phụ kiện · bấm lần nữa để ẩn/hiện người đó trong ảnh</small></div>
+          <div class="pb-ppl">${all.map((x) => `<button class="${sess.skip.has(x.id) ? 'off' : ''} ${who === x.id ? 'sel' : ''}" data-who="${esc(x.id)}">${x.id === room.host ? '👑' : x.me ? '🙋' : '🧑'} ${esc(x.name)}</button>`).join('')}</div>
+          ${host ? (friendsNear.length ? `<div class="pb-inv"><b>👥 Mời bạn bè:</b>${friendsNear.map((r) => `<button class="chip" data-inv="${esc(r.id)}">✉️ ${esc(r.name)}</button>`).join('')}</div>` : '<small class="muted">👥 Bạn bè (đã kết bạn) đang online sẽ hiện ở đây để mời vào chụp chung</small>') : `<small class="muted">👑 Phòng của ${esc((openRooms.get(room.host) || {}).name || 'chủ phòng')} · bạn tự chọn phụ kiện cho mình, chủ phòng chọn dáng / phông / khung và bấm chụp</small>`}
+          <small class="muted">${host ? 'Bấm tên để chọn người đeo phụ kiện · bấm lần nữa để ẩn/hiện người đó trong ảnh' : ''}</small></div>
         <div class="pb-right">
           <div class="pb-time">⏳ Còn <b>${mm}:${String(ss).padStart(2, '0')}</b> · 💰 ${fmt(AV.S.coins)} xu</div>
-          <div class="pb-tabs">${[['pose', '🤸 Dáng'], ['bg', '🎨 Phông'], ...SLOTS.map((s) => [s[0], s[1].split(' ')[0] + ' ' + s[1].split(' ')[1]]), ['frame', '🖼️ Khung']].map((t) => `<button class="${tab === t[0] ? 'on' : ''}" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div>
+          <div class="pb-tabs">${[...(member ? [] : [['pose', '🤸 Dáng'], ['bg', '🎨 Phông']]), ...SLOTS.map((s) => [s[0], s[1].split(' ')[0] + ' ' + s[1].split(' ')[1]]), ...(member ? [] : [['frame', '🖼️ Khung']])].map((t) => `<button class="${tab === t[0] ? 'on' : ''}" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div>
           <div class="pb-items">${tab === 'pose' ? POSES.map((x) => `<button class="pb-it ${sess.pose === x.id ? 'on' : ''}" data-pose="${x.id}"><span>${x.icon}</span><b>${x.name}</b><small>${sess.pose === x.id ? 'Đang chọn' : 'Miễn phí'}</small></button>`).join('') + `<small class="muted" style="grid-column:1/-1">${sess.layout === 'strip' ? '🎞️ Dải 4 tấm: ' + stripPoses().map((id) => POSES.find((x) => x.id === id).icon).join(' → ') : '🖼️ 1 tấm lớn theo dáng đang chọn'} · 🤝🤜 Bắt tay / đấm nhau: ghép từng cặp</small>` : tab === 'frame' ? items.map((f) => `<button class="pb-it ${sess.frame === f.id ? 'on' : ''}" data-frame="${f.id}"><span style="background:${f.bg};border:2px solid ${f.ink}" class="pb-sw"></span><b>${f.name}</b><small>Miễn phí</small></button>`).join('')
             : (tab !== 'bg' ? `<button class="pb-it ${!d[tab] ? 'on' : ''}" data-off="${tab}"><span>🚫</span><b>Không đeo</b><small>&nbsp;</small></button>` : '')
               + items.map((it) => { const has = it.price === 0 || sess.rent.has(it.id), on = tab === 'bg' ? sess.bg === it.id : d[tab] === it.id; return `<button class="pb-it ${on ? 'on' : ''} ${has ? '' : 'lock'}" data-item="${it.id}"><span>${it.icon}</span><b>${it.name}</b><small>${has ? (on ? 'Đang dùng' : 'Đã thuê ✓') : 'Thuê ' + fmt(it.price) + ' xu'}</small></button>`; }).join('')}</div>
-          <div class="pb-opts"><span>Kiểu ảnh:</span><button class="${sess.layout === 'strip' ? 'on' : ''}" data-lay="strip">🎞️ Dải 4 tấm</button><button class="${sess.layout === 'one' ? 'on' : ''}" data-lay="one">🖼️ 1 tấm lớn</button></div>
-          <div class="pb-acts"><button class="btn ghost" data-wear>👗 Phối đồ</button><button class="btn" data-shoot>📸 Chụp!</button></div>
+          <div class="pb-opts" ${member ? 'hidden' : ''}><span>Kiểu ảnh:</span><button class="${sess.layout === 'strip' ? 'on' : ''}" data-lay="strip">🎞️ Dải 4 tấm</button><button class="${sess.layout === 'one' ? 'on' : ''}" data-lay="one">🖼️ 1 tấm lớn</button></div>
+          <div class="pb-acts"><button class="btn ghost" data-wear>👗 Phối đồ</button>${member ? '<button class="btn ghost" data-leaveroom>🚪 Rời phòng</button><span class="wait">⏳ Chờ chủ phòng bấm chụp…</span>' : '<button class="btn" data-shoot>📸 Chụp!</button>'}</div>
         </div></div>`;
       p.body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
+      p.body.querySelectorAll('[data-inv]').forEach((b) => b.onclick = () => { send({ a: 'invite', to: b.dataset.inv, name: AV.S.name }); UI.toast('✉️ Đã gửi lời mời chụp chung'); b.disabled = true; });
+      const lr = p.body.querySelector('[data-leaveroom]'); if (lr) lr.onclick = () => { leaveRoom(); p.close(); UI.toast('Đã rời phòng chụp'); };
       p.body.querySelectorAll('[data-who]').forEach((b) => b.onclick = () => {
         const id = b.dataset.who;
+        if (member) return UI.toast('Bạn chỉ chọn phụ kiện cho mình thôi nhé');
         if (who === id) { if (sess.skip.has(id)) sess.skip.delete(id); else if (list().length > 1) sess.skip.add(id); else UI.toast('Ảnh phải có ít nhất 1 người'); }
         who = id; render();
       });
       p.body.querySelectorAll('[data-frame]').forEach((b) => b.onclick = () => { sess.frame = b.dataset.frame; render(); });
       p.body.querySelectorAll('[data-pose]').forEach((b) => b.onclick = () => { sess.pose = b.dataset.pose; render(); });
-      p.body.querySelectorAll('[data-off]').forEach((b) => b.onclick = () => { const dd = sess.dress[who] || (sess.dress[who] = {}); delete dd[b.dataset.off]; render(); });
+      p.body.querySelectorAll('[data-off]').forEach((b) => b.onclick = () => { const dd = sess.dress[who] || (sess.dress[who] = {}); delete dd[b.dataset.off]; if (member) send({ a: 'dress', to: room.host, d: dd }); render(); });
       p.body.querySelectorAll('[data-lay]').forEach((b) => b.onclick = () => { sess.layout = b.dataset.lay; render(); });
       p.body.querySelectorAll('[data-item]').forEach((b) => b.onclick = () => {
         const it = (tab === 'bg' ? BACKDROPS : PROPS).find((x) => x.id === b.dataset.item);
-        const use = () => { if (tab === 'bg') sess.bg = it.id; else { const dd = sess.dress[who] || (sess.dress[who] = {}); dd[tab] = dd[tab] === it.id ? '' : it.id; } render(); };
+        const use = () => { if (tab === 'bg') sess.bg = it.id; else { const dd = sess.dress[who] || (sess.dress[who] = {}); dd[tab] = dd[tab] === it.id ? '' : it.id; if (member) send({ a: 'dress', to: room.host, d: dd }); } render(); };
         if (it.price === 0 || sess.rent.has(it.id)) return use();
         UI.confirm(`Thuê <b>${it.icon} ${it.name}</b> giá <b>${fmt(it.price)} xu</b> cho lượt chụp này?`, 'Thuê', () => {
           if (!AV.spend(it.price)) return UI.toast('Không đủ xu 😢');
@@ -291,7 +389,8 @@ const BOOTH = (() => {
         });
       });
       p.body.querySelector('[data-wear]').onclick = () => { if (typeof WARDROBE !== 'undefined' && WARDROBE.mine) WARDROBE.mine(); };
-      p.body.querySelector('[data-shoot]').onclick = () => shoot(p, render);
+      const sb = p.body.querySelector('[data-shoot]'); if (sb) sb.onclick = () => { send({ a: 'shoot' }); shoot(p, render); };
+      if (host) hostSync();
       loop(p);
     };
     render();
@@ -307,6 +406,11 @@ const BOOTH = (() => {
   }
   /** đếm ngược 3-2-1, đèn flash, chụp (dải 4 tấm thì nháy 4 lần) rồi hiện ảnh */
   async function shoot(p, back) {
+    if (shooting) return;
+    shooting = true;
+    try { await shootRun(p, back); } finally { shooting = false; }
+  }
+  async function shootRun(p, back) {
     const btn = p.body.querySelector('[data-shoot]'); if (btn) btn.disabled = true;
     const cnt = p.body.querySelector('.pb-count'), fl = p.body.querySelector('.pb-flash');
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -329,7 +433,7 @@ const BOOTH = (() => {
       <button class="btn" data-dl>💾 Tải ảnh về máy</button><button class="btn ghost" data-gram>📲 Đăng ZenoGram</button><button class="btn ghost" data-again>🔁 Chụp tiếp</button></div>
       <small class="muted">Lượt chụp còn hiệu lực — chụp bao nhiêu tấm cũng được 😉</small></div>`;
     p.body.querySelector('[data-dl]').onclick = () => { const a = document.createElement('a'); a.href = url; a.download = `quanglam-photobooth-${Date.now()}.png`; document.body.appendChild(a); a.click(); a.remove(); };
-    p.body.querySelector('[data-again]').onclick = () => studio(p);
+    p.body.querySelector('[data-again]').onclick = () => (sess ? studio(p) : intro(p));
     p.body.querySelector('[data-gram]').onclick = () => {
       if (typeof CHATIMG === 'undefined' || typeof PHONE === 'undefined') return UI.toast('Chưa đăng được lúc này');
       if (!PHONE.has()) return UI.toast('📱 Cần có điện thoại để đăng ZenoGram');
@@ -356,6 +460,7 @@ const BOOTH = (() => {
 .pb-flash.on { animation: pbFlash .45s ease-out; } @keyframes pbFlash { 0% { opacity: 1; } 100% { opacity: 0; } }
 .pb-count { position: absolute; left: 0; top: 0; width: 100%; aspect-ratio: 4 / 3; display: grid; place-items: center; font: 900 90px "Be Vietnam Pro", system-ui; color: #fff; text-shadow: 0 4px 18px rgba(0,0,0,.5); opacity: 0; pointer-events: none; }
 .pb-count.on { opacity: 1; }
+.pb-join { display: grid; gap: 6px; width: 100%; } .pb-inv { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 12px; }
 .pb-ppl { display: flex; flex-wrap: wrap; gap: 5px; } .pb-ppl button { border: 2px solid #e9ecef; background: #fff; border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; }
 .pb-ppl button.sel { border-color: #e64980; background: #fff0f6; font-weight: 800; } .pb-ppl button.off { opacity: .45; text-decoration: line-through; }
 .pb-right { display: grid; gap: 8px; align-content: start; min-width: 0; }
@@ -376,5 +481,5 @@ const BOOTH = (() => {
 `;
     document.head.appendChild(st);
   }
-  return { open, addTo, drawKiosk, PRICE, gesture, POSES };
+  return { open, addTo, drawKiosk, PRICE, gesture, POSES, onNet };
 })();

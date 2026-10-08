@@ -311,7 +311,7 @@ const SOCIAL = (() => {
         <div class="dm-stks" hidden></div>
       </div>
       <form class="dm-form" data-dm><button type="button" class="dm-emo-btn" title="Emote">😊</button><button type="button" class="dm-emo-btn dm-img-btn" title="Gửi ảnh (hoặc Ctrl+V dán ảnh)">📷</button><input class="field" name="t" maxlength="200" placeholder="Nhắn cho ${esc(f.name)}…" autocomplete="off"><button class="btn">Gửi</button></form>
-      <div class="row-end"><button class="btn small ghost" data-g>🎁 Tặng quà</button></div>`, { onClose: () => { if (chatPanel === me) { chatWith = null; chatPanel = null; } } });
+      <div class="row-end dm-acts" style="margin-top:22px;padding-top:12px;border-top:1px dashed #dee2e6"><button class="btn small ghost" data-g>🎁 Tặng quà</button></div>`, { onClose: () => { if (chatPanel === me) { chatWith = null; chatPanel = null; } } });
     const me = chatPanel;
     replyTo = null;
     const form = chatPanel.body.querySelector('[data-dm]');
