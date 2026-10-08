@@ -60,7 +60,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .chatbar .send { border: 0; border-radius: 12px; padding: 0 16px; font-weight: 700; color: #fff; background: linear-gradient(135deg, var(--brand), #7048e8); }
 .emo-toggle { border: 0; background: var(--paper-2); border-radius: 12px; width: 42px; font-size: 20px; }
 .emotes {
-  display: none; gap: 4px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px;
+  display: none; gap: 4px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px; max-height: 220px; overflow-y: auto;
   background: rgba(255, 255, 255, 0.95); border-radius: 16px; padding: 6px; box-shadow: var(--shadow);
 }
 .emotes.open { display: flex; }

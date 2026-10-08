@@ -125,7 +125,7 @@ const DATA = {
   PEST: { id: 'pesticide', name: 'Thuốc trừ sâu', icon: '🧴', price: 8, chance: 0.04 },
   /** XP cần để lên cấp tiếp: cấp càng cao càng cần nhiều (tăng theo bình phương) */
   xpNeed: (lvl) => 30 + lvl * 30 + lvl * lvl * 5,
-  EMOTES: ['😀', '😂', '😍', '😎', '👋', '❤️', '😴', '😡'],
+  EMOTES: ['😀', '😂', '🤣', '😍', '🥰', '😘', '😎', '😒', '🙄', '😏', '🤨', '👀', '😭', '😱', '🤔', '😴', '😡', '🤬', '🤡', '💀', '👋', '👍', '🙏', '❤️', '💔', '🔥', '🎉', '💩'],
   NPC_LINES: [
     'Hôm nay trời đẹp quá!', 'Chợ ở Khu mua sắm đó, đi xe buýt là tới!', 'Nón lá ở tiệm Thời Trang xinh lắm đó.', 'Ra Bãi biển nhặt vỏ sò đi, có cả ngọc trai đấy!', 'Khu giải trí có bầu cua vui lắm 🎲', 'Công viên câu được cá vàng hiếm đó 🐡',
     'Bí ngô bán được giá nhất đấy!', 'Mình đang đợi xe buýt nè.', 'Ai muốn làm bạn với mình không?',
