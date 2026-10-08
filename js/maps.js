@@ -800,10 +800,10 @@ const MAPS = (() => {
 
   /* ---------- Khu giải trí ---------- */
   function fun() {
-    const m = base('fun', 'Khu giải trí', 5100, 1070);
+    const m = base('fun', 'Khu giải trí', 5700, 1070);
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 53);
-      paintPaved(g, 120, 370, 4860, 460, '#f6e3d0');
+      paintPaved(g, 120, 370, 5460, 460, '#f6e3d0');
       g.fillStyle = 'rgba(112,72,232,.12)'; g.beginPath(); g.roundRect(1960, 420, 600, 340, 30); g.fill();
       paintStreet(g, m.w, 870, 1000);
     });
@@ -883,6 +883,11 @@ const MAPS = (() => {
     aobj(m, BX, BY, (c, t) => BOX.building(c, BX, BY, t), { l: -235, t: -330, w: 470, h: 360 });
     col(m, BX - 210, BY - 60, 140, 56); col(m, BX + 70, BY - 60, 140, 56); col(m, BX - 70, BY - 60, 140, 24);
     inter(m, { x: BX - 60, y: BY - 120, w: 120, h: 122, ax: BX, ay: BY + 40, name: 'Võ Đài (đấm nhau ăn xu)', use: () => AV.enterBoxing(), arrow: { x: BX, y: BY - 140, text: 'Vào Võ Đài' } });
+    /* 🦖 Cổng Đảo Khủng Long (cuối khu): mua khủng long, ra đảo nuôi lớn */
+    const DX = 5260, DY = 790;
+    aobj(m, DX, DY, (c, t) => (typeof DINO !== 'undefined' ? DINO.gate(c, DX, DY, t) : null), { l: -240, t: -350, w: 480, h: 450 });
+    col(m, DX - 125, DY - 30, 36, 28); col(m, DX + 89, DY - 30, 36, 28);
+    inter(m, { x: DX - 94, y: DY - 140, w: 188, h: 140, ax: DX, ay: DY + 40, name: 'Đảo Khủng Long (mua khủng long, nuôi lớn, sinh tồn)', use: () => (typeof DINO !== 'undefined' ? DINO.panel() : UI.toast('Đảo đang chuẩn bị, tải lại trang nhé')), arrow: { x: DX, y: DY - 260, text: 'Ra đảo' } });
     m.spawn = { x: 1050, y: 875 };
     m.bounds = { l: 20, t: 380, r: m.w - 20, b: m.h - 40 };
     return m;
