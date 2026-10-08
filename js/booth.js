@@ -51,7 +51,6 @@ const BOOTH = (() => {
     { id: 'sky', name: 'Xanh trời', bg: '#d0ebff', ink: '#1864ab' },
   ];
   const SLOTS = [['hat', '👑 Mũ & cài tóc'], ['eye', '🕶️ Kính'], ['hand', '💐 Đồ cầm tay']];
-  const POSE_STICKERS = ['✌️', '😘', '🤪', '💖', '✨', '😎'];
 
   /** lượt chụp hiện tại: { until, rent: Set(id), dress: { pid: { hat, eye, hand } }, bg, frame, layout, skip: Set(pid) } */
   let sess = null;
@@ -148,24 +147,61 @@ const BOOTH = (() => {
     }
     g.restore();
   }
-  /** 1 khung ảnh: phông + mọi người + phụ kiện + sticker theo dáng */
+  /* ---------- 🤸 dáng chụp / động tác (dùng chung cho ảnh và khi gặp nhau ngoài đường) ---------- */
+  const POSES = [
+    { id: 'v', name: 'Tạo dáng', icon: '✌️' },
+    { id: 'heart', name: 'Bắn tim', icon: '🫶' },
+    { id: 'wave', name: 'Xin chào', icon: '👋' },
+    { id: 'shake', name: 'Bắt tay', icon: '🤝' },
+    { id: 'fist', name: 'Đấm nhau', icon: '🤜' },
+    { id: 'jump', name: 'Nhảy lên', icon: '🤸' },
+  ];
+  const PAIR = { shake: 1, fist: 1 };
+  /** vẽ động tác của 1 nhân vật đứng ở (x, y chân), cao 100·k, quay mặt dir; mate = toạ độ x người đối diện (bắt tay / đấm tay) */
+  function gesture(g, kind, x, y, k, dir, t, mateX) {
+    const top = y - 100 * k;
+    const emoji = (ch, px, py, size, rot = 0) => { g.save(); g.globalAlpha = 1; g.fillStyle = '#000'; g.shadowBlur = 0; g.translate(px, py); g.rotate(rot); g.font = `${size}px system-ui, "Segoe UI Emoji"`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, 0, 0); g.restore(); };
+    const mid = mateX != null ? (x + mateX) / 2 : null;
+    switch (kind) {
+      case 'v': emoji('✌️', x + dir * 30 * k, top + 34 * k, 28 * k, -0.25 * dir); break;
+      case 'heart': emoji('🫶', x + dir * 6 * k, top + 66 * k, 28 * k); emoji('💗', x + dir * 22 * k, top - 4 * k - ((t * 30) % 24) * k, 16 * k); break;
+      case 'wave': emoji('👋', x - dir * 32 * k, top + 26 * k, 30 * k, Math.sin(t * 12) * 0.4); break;
+      case 'jump': emoji('✨', x - 22 * k, y + 2 * k, 18 * k); emoji('✨', x + 22 * k, y - 6 * k, 14 * k); break;
+      case 'shake': emoji('🤝', mid ?? x + dir * 32 * k, top + 64 * k, 30 * k); break;
+      case 'fist': {
+        const c = mid ?? x + dir * 44 * k, hit = 1 + 0.25 * Math.abs(Math.sin(t * 8));
+        if (mid != null) { emoji('🤜', c - 14 * k, top + 62 * k, 26 * k); emoji('🤛', c + 14 * k, top + 62 * k, 26 * k); }
+        else emoji(dir > 0 ? '🤜' : '🤛', x + dir * 30 * k, top + 62 * k, 26 * k);
+        emoji('💥', c + (mid != null ? 0 : dir * 18 * k), top + 46 * k, 20 * k * hit);
+        break;
+      }
+      default:
+    }
+  }
+  /** 1 khung ảnh: phông + mọi người + phụ kiện + động tác theo dáng */
   function drawShot(g, w, h, list, pose, t) {
     backdrop(g, w, h, sess.bg, t);
     const n = list.length, k = Math.min(3.2, (h * 0.62) / 100, (w / Math.max(1, n)) / 62), base = h * 0.9;
+    const xs = list.map((p, i) => w / 2 + (i - (n - 1) / 2) * Math.min(w / (n + 0.3), 70 * k));
     list.forEach((p, i) => {
-      const x = w / 2 + (i - (n - 1) / 2) * Math.min(w / (n + 0.3), 70 * k);
+      const x = xs[i];
+      // bắt tay / đấm tay: ghép từng cặp đứng quay mặt vào nhau
+      const mate = PAIR[pose] ? (i % 2 === 0 ? (i + 1 < n ? i + 1 : -1) : i - 1) : -1;
       let dir = 1, dy = 0;
-      if (pose === 1) dir = x < w / 2 ? 1 : -1;
-      if (pose === 3) dy = -Math.abs(Math.sin(i * 1.7 + 1)) * 16 * k;
-      if (pose === 2 && i % 2) dir = -1;
+      if (mate >= 0) dir = xs[mate] > x ? 1 : -1;
+      else if (pose === 'heart' || pose === 'v') dir = n > 1 && x > w / 2 ? -1 : 1;
+      if (pose === 'jump') dy = -(14 + Math.abs(Math.sin(i * 1.7 + 1)) * 16) * k;
       const y = base + dy, top = y - 100 * k;
-      try { ART.character(g, x, y, p.look, { scale: 1.18 * k, t: pose === 2 ? t + i : 0, dir, dance: pose === 2, hires: Math.min(4, Math.ceil(k * 1.2)) }); } catch (e) { /* bỏ qua */ }
+      try { ART.character(g, x, y, p.look, { scale: 1.18 * k, t: 0, dir, hires: Math.min(4, Math.ceil(k * 1.2)) }); } catch (e) { /* bỏ qua */ }
       g.globalAlpha = 1; g.shadowBlur = 0;
       const d = (sess.dress[p.id]) || {};
       ['hat', 'eye', 'hand'].forEach((s) => { if (d[s]) drawProp(g, d[s], x, top, k, dir); });
-      if (pose >= 1) { g.fillStyle = '#000'; g.font = `${18 * k}px system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(POSE_STICKERS[(pose * 3 + i) % POSE_STICKERS.length], x + 30 * k, top + 4 * k); }
+      if (mate < 0 || i % 2 === 0) gesture(g, pose, x, y, k, dir, t, mate >= 0 ? xs[mate] : null);
     });
+    if (pose === 'heart' && n >= 2) { g.save(); g.font = `${46 * k}px system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#000'; g.globalAlpha = 0.9; g.fillText('💖', w / 2, base - 128 * k); g.restore(); }
   }
+  /** dải 4 tấm: dáng đang chọn trước, rồi 3 dáng khác */
+  const stripPoses = () => [sess.pose, ...['v', 'heart', 'wave', 'fist', 'shake', 'jump'].filter((x) => x !== sess.pose)].slice(0, 4);
   /** ảnh hoàn chỉnh có khung: layout 'one' (1 ảnh) | 'strip' (dải 4 ảnh) */
   function compose(list) {
     const fr = FRAMES.find((f) => f.id === sess.frame) || FRAMES[0], P = 26, FOOT = 74;
@@ -176,7 +212,7 @@ const BOOTH = (() => {
     g.fillStyle = fr.bg; g.fillRect(0, 0, cv.width, cv.height);
     for (let i = 0; i < n; i++) {
       const sc = document.createElement('canvas'); sc.width = sw; sc.height = sh;
-      drawShot(sc.getContext('2d'), sw, sh, list, strip ? i : (sess.pose || 0), 0.4 + i);
+      drawShot(sc.getContext('2d'), sw, sh, list, strip ? stripPoses()[i] : sess.pose, 0.4 + i);
       const y = P + i * (sh + 16);
       g.save(); g.beginPath(); g.roundRect(P, y, sw, sh, 10); g.clip(); g.drawImage(sc, P, y); g.restore();
     }
@@ -209,13 +245,13 @@ const BOOTH = (() => {
       <button class="btn" data-pay>💳 Trả ${fmt(PRICE)} xu & vào chụp</button></div>`;
     p.body.querySelector('[data-pay]').onclick = () => {
       if (!AV.spend(PRICE)) return UI.toast(`Cần ${fmt(PRICE)} xu để chụp 😢`);
-      sess = { until: Date.now() + SESSION_MIN * 60000, rent: new Set(['studio']), dress: {}, bg: 'studio', frame: 'pink', layout: 'strip', pose: 0, skip: new Set() };
+      sess = { until: Date.now() + SESSION_MIN * 60000, rent: new Set(['studio']), dress: {}, bg: 'studio', frame: 'pink', layout: 'strip', pose: 'v', skip: new Set() };
       UI.toast('📸 Chào mừng tới Quang Lâm Photobooth! Chụp thoải mái nhé ✨', 3500);
       studio(p);
     };
   }
   function studio(p) {
-    let tab = 'bg', who = 'me';
+    let tab = 'pose', who = 'me';
     const list = () => people().filter((x) => !sess.skip.has(x.id));
     const render = () => {
       if (!live()) { sess = null; UI.toast('⌛ Hết lượt chụp rồi — trả thêm để chụp tiếp nhé'); return intro(p); }
@@ -228,8 +264,8 @@ const BOOTH = (() => {
           <small class="muted">Bấm tên để chọn người đeo phụ kiện · bấm lần nữa để ẩn/hiện người đó trong ảnh</small></div>
         <div class="pb-right">
           <div class="pb-time">⏳ Còn <b>${mm}:${String(ss).padStart(2, '0')}</b> · 💰 ${fmt(AV.S.coins)} xu</div>
-          <div class="pb-tabs">${[['bg', '🎨 Phông'], ...SLOTS.map((s) => [s[0], s[1].split(' ')[0] + ' ' + s[1].split(' ')[1]]), ['frame', '🖼️ Khung']].map((t) => `<button class="${tab === t[0] ? 'on' : ''}" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div>
-          <div class="pb-items">${tab === 'frame' ? items.map((f) => `<button class="pb-it ${sess.frame === f.id ? 'on' : ''}" data-frame="${f.id}"><span style="background:${f.bg};border:2px solid ${f.ink}" class="pb-sw"></span><b>${f.name}</b><small>Miễn phí</small></button>`).join('')
+          <div class="pb-tabs">${[['pose', '🤸 Dáng'], ['bg', '🎨 Phông'], ...SLOTS.map((s) => [s[0], s[1].split(' ')[0] + ' ' + s[1].split(' ')[1]]), ['frame', '🖼️ Khung']].map((t) => `<button class="${tab === t[0] ? 'on' : ''}" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div>
+          <div class="pb-items">${tab === 'pose' ? POSES.map((x) => `<button class="pb-it ${sess.pose === x.id ? 'on' : ''}" data-pose="${x.id}"><span>${x.icon}</span><b>${x.name}</b><small>${sess.pose === x.id ? 'Đang chọn' : 'Miễn phí'}</small></button>`).join('') + `<small class="muted" style="grid-column:1/-1">${sess.layout === 'strip' ? '🎞️ Dải 4 tấm: ' + stripPoses().map((id) => POSES.find((x) => x.id === id).icon).join(' → ') : '🖼️ 1 tấm lớn theo dáng đang chọn'} · 🤝🤜 Bắt tay / đấm nhau: ghép từng cặp</small>` : tab === 'frame' ? items.map((f) => `<button class="pb-it ${sess.frame === f.id ? 'on' : ''}" data-frame="${f.id}"><span style="background:${f.bg};border:2px solid ${f.ink}" class="pb-sw"></span><b>${f.name}</b><small>Miễn phí</small></button>`).join('')
             : (tab !== 'bg' ? `<button class="pb-it ${!d[tab] ? 'on' : ''}" data-off="${tab}"><span>🚫</span><b>Không đeo</b><small>&nbsp;</small></button>` : '')
               + items.map((it) => { const has = it.price === 0 || sess.rent.has(it.id), on = tab === 'bg' ? sess.bg === it.id : d[tab] === it.id; return `<button class="pb-it ${on ? 'on' : ''} ${has ? '' : 'lock'}" data-item="${it.id}"><span>${it.icon}</span><b>${it.name}</b><small>${has ? (on ? 'Đang dùng' : 'Đã thuê ✓') : 'Thuê ' + fmt(it.price) + ' xu'}</small></button>`; }).join('')}</div>
           <div class="pb-opts"><span>Kiểu ảnh:</span><button class="${sess.layout === 'strip' ? 'on' : ''}" data-lay="strip">🎞️ Dải 4 tấm</button><button class="${sess.layout === 'one' ? 'on' : ''}" data-lay="one">🖼️ 1 tấm lớn</button></div>
@@ -242,6 +278,7 @@ const BOOTH = (() => {
         who = id; render();
       });
       p.body.querySelectorAll('[data-frame]').forEach((b) => b.onclick = () => { sess.frame = b.dataset.frame; render(); });
+      p.body.querySelectorAll('[data-pose]').forEach((b) => b.onclick = () => { sess.pose = b.dataset.pose; render(); });
       p.body.querySelectorAll('[data-off]').forEach((b) => b.onclick = () => { const dd = sess.dress[who] || (sess.dress[who] = {}); delete dd[b.dataset.off]; render(); });
       p.body.querySelectorAll('[data-lay]').forEach((b) => b.onclick = () => { sess.layout = b.dataset.lay; render(); });
       p.body.querySelectorAll('[data-item]').forEach((b) => b.onclick = () => {
@@ -264,7 +301,7 @@ const BOOTH = (() => {
       const cv = pp.body.querySelector('.pb-prev');
       if (!cv) return;
       const g = cv.getContext('2d');
-      const frame = (now) => { if (!cv.isConnected || !sess) return; g.clearRect(0, 0, 640, 480); drawShot(g, 640, 480, list(), 0, now / 1000); raf = requestAnimationFrame(frame); };
+      const frame = (now) => { if (!cv.isConnected || !sess) return; g.clearRect(0, 0, 640, 480); drawShot(g, 640, 480, list(), sess.pose, now / 1000); raf = requestAnimationFrame(frame); };
       raf = requestAnimationFrame(frame);
     }
   }
@@ -332,9 +369,12 @@ const BOOTH = (() => {
 .pb-opts { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; font-size: 12px; } .pb-opts button { border: 2px solid #e9ecef; background: #fff; border-radius: 10px; padding: 4px 8px; font: inherit; font-size: 12px; cursor: pointer; } .pb-opts button.on { border-color: #ae3ec9; background: #f8f0fc; font-weight: 800; }
 .pb-acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; } .pb-acts .btn { flex: 1; min-width: 120px; }
 .pb-result { display: grid; justify-items: center; gap: 10px; } .pb-result img { max-width: 100%; max-height: 62vh; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+.gest-row { grid-column: 1 / -1; flex-basis: 100%; width: 100%; display: flex; gap: 4px; flex-wrap: wrap; padding-bottom: 4px; margin-bottom: 2px; border-bottom: 1px dashed rgba(0,0,0,.15); }
+.gest-row button { flex: 1; min-width: 52px; display: grid; justify-items: center; font-size: 20px !important; line-height: 1.1; padding: 3px 2px !important; }
+.gest-row button small { font-size: 9px; font-weight: 800; }
 @media (max-width: 720px) { .pb-wrap { grid-template-columns: 1fr; } .pb-items { max-height: 180px; } }
 `;
     document.head.appendChild(st);
   }
-  return { open, addTo, drawKiosk, PRICE };
+  return { open, addTo, drawKiosk, PRICE, gesture, POSES };
 })();

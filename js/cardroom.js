@@ -281,17 +281,17 @@ const CARDROOM = (() => {
 
   /* =============================== 🃏 3 CÂY (Bài cào) =============================== */
   const BC_MS = 15000;
-  /** điểm: Ba Tây (3 lá J Q K) = 10 là to nhất, còn lại tổng điểm lấy hàng đơn vị (A = 1, 10 J Q K = 10 → 0) */
+  /** bộ bài 36 lá A → 9 (bỏ 10 J Q K) · Sáp (3 lá cùng số) to nhất, Sáp A to nhất rồi 9, 8 … 2 · còn lại cộng điểm lấy hàng đơn vị, 9 nút cao nhất */
   function bcScore(h) {
-    if (h.every((c) => rk(c) >= 11)) return { pts: 10, text: '👑 Ba Tây' };
-    const p = h.reduce((a, c) => a + Math.min(10, rk(c)), 0) % 10;
+    if (h.length === 3 && h.every((c) => rk(c) === rk(h[0]))) { const r = rk(h[0]); return { pts: 100 + (r === 1 ? 14 : r), text: `🔥 Sáp ${RL[r]}` }; }
+    const p = h.reduce((a, c) => a + rk(c), 0) % 10;
     return { pts: p, text: p === 0 ? 'Bù (0 nút)' : `${p} nút` };
   }
   /** so lá to nhất khi bằng nút: chất ♦ > ♥ > ♠ > ♣, rồi số (A to nhất) */
   const bcKey = (h) => Math.max(...h.map((c) => su(c) * 20 + (rk(c) === 1 ? 14 : rk(c))));
   const BACAY = {
     start(R) {
-      const d = newDeck();
+      const d = shuffle([...Array(36).keys()]);
       R.H = { hands: [[], [], [], []] };
       R.players().forEach((i, k) => { R.H.hands[i] = d.slice(k * 3, k * 3 + 3); });
       return { kind: 'bacay', ends: Date.now() + BC_MS, ready: [0, 0, 0, 0], msg: 'Nặn bài đi nào! Hết giờ là lật bài so điểm' };
@@ -552,7 +552,7 @@ const CARDROOM = (() => {
 
   /* =============================== hai bàn trong Casino =============================== */
   const BC_ROOM = makeRoom({ id: 'bc1', zone: 'casino', x: 440, y: 860, title: '🃏 3 Cây (Bài cào)', short: '3 Cây', bet: 50, turnMs: BC_MS, rules: BACAY,
-    howto: 'Mỗi người 3 lá · cộng điểm lấy hàng đơn vị (10, J, Q, K = 0) · 👑 Ba Tây (3 lá J Q K) to nhất · bằng nút so lá to nhất (♦ > ♥ > ♠ > ♣). Người thắng ăn hết tiền cược.' });
+    howto: 'Bộ 36 lá từ A đến 9 (không có 10 J Q K) · mỗi người 3 lá, cộng điểm lấy hàng đơn vị, 9 nút cao nhất · 🔥 Sáp (3 lá cùng số) to nhất, Sáp A to nhất · bằng nút so chất lá to nhất (♦ Rô > ♥ Cơ > ♠ Bích > ♣ Tép), cùng chất so số (A to nhất). Người thắng ăn hết tiền cược.' });
   const PH_ROOM = makeRoom({ id: 'ph1', zone: 'casino', x: 1240, y: 860, title: '🀄 Phỏm (Tá lả)', short: 'Phỏm', bet: 50, turnMs: PH_MS, rules: PHOM,
     howto: 'Mỗi người 9 lá (người đầu 10) · tới lượt: ăn lá người trước vừa đánh (nếu thành phỏm) hoặc bốc nọc, rồi đánh 1 lá · đánh đủ 4 lá thì hạ theo thứ tự, người hạ sau tự GỬI lá rác vào phỏm người hạ trước · ít điểm rác nhất về nhất (Nhì −1, Ba −2, Bét −3, Móm −4 lần cược) · bị ăn 1 cây −1, bị ĂN CHỐT (lá thứ 4) đền −4 · 🎉 Ù (10 lá đều là phỏm) ăn mỗi người 5 lần cược.' });
 

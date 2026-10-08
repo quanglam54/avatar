@@ -1912,8 +1912,9 @@ const UI = (() => {
     $('#btnMap').onclick = () => cityMap(false);
     $('#btnChat').onclick = () => (typeof PHONE !== 'undefined' ? PHONE.open() : ($('#chatLog').classList.add('active'), $('#chatInput').focus()));
     const emo = $('#emotes');
-    emo.innerHTML = DATA.EMOTES.map((e) => `<button data-e="${e}">${e}</button>`).join('');
+    emo.innerHTML = (typeof BOOTH !== 'undefined' ? `<div class="gest-row">${BOOTH.POSES.map((p) => `<button data-g="${p.id}" title="${p.name}">${p.icon}<small>${p.name}</small></button>`).join('')}</div>` : '') + DATA.EMOTES.map((e) => `<button data-e="${e}">${e}</button>`).join('');
     emo.querySelectorAll('[data-e]').forEach((b) => b.onclick = () => AV.say(b.dataset.e));
+    emo.querySelectorAll('[data-g]').forEach((b) => b.onclick = () => { AV.gesture(b.dataset.g); emo.classList.remove('open'); });
     $('#emoToggle').onclick = () => emo.classList.toggle('open');
     $('#chatForm').onsubmit = (e) => {
       e.preventDefault();

@@ -26,12 +26,15 @@ const TREASURE = (() => {
     }
     return out;
   }
-  const left = () => SLOTS - Object.keys(claimsDay === day() ? claims : {}).length;
+  /** rương đã bị đào HÔM NAY (dữ liệu ngày cũ không tính) — máy dò, nút đào, bảng thông báo đều dùng chung */
+  const today = () => (claimsDay === day() ? claims : {});
+  const left = () => SLOTS - spots().filter((s) => today()[s.slot]).length;
 
   /* ---------- máy chủ ---------- */
   async function refresh(force) {
     if (!CLOUD.user || !CLOUD.client) return;
-    if (!force && Date.now() - lastFetch < 20000) return;
+    if (!force && claimsDay === day() && Date.now() - lastFetch < 20000) return;
+    if (!force && Date.now() - lastFetch < 3000) return;
     lastFetch = Date.now();
     const d = day();
     try {
@@ -64,10 +67,10 @@ const TREASURE = (() => {
     setTimeout(async () => {
       try {
         await refresh(true);
-        const target = spots().find((s) => !claims[s.slot] && Math.hypot(s.x - p.x, s.y - p.y) < DIG_R);
+        const target = spots().find((s) => !today()[s.slot] && Math.hypot(s.x - p.x, s.y - p.y) < DIG_R);
         if (!target) {
           const near = spots().find((s) => Math.hypot(s.x - p.x, s.y - p.y) < DIG_R);
-          if (near && claims[near.slot]) { UI.toast(`🕳️ Chỗ này ${esc(claims[near.slot])} đào mất rồi!`); return; }
+          if (near && today()[near.slot]) { UI.toast(`🕳️ Chỗ này ${esc(today()[near.slot])} đào mất rồi!`); return; }
           if (Math.random() < 0.18) { AV.addItem('shell', 1); UI.toast('🐚 Chỉ đào được vỏ sò thôi…'); } else UI.toast('Chỉ có cát… thử chỗ khác xem 🏝️');
           return;
         }
@@ -118,8 +121,8 @@ const TREASURE = (() => {
     const meter = hud.querySelector('.tr-meter');
     if (!S().inv.tool_detector) { meter.style.display = 'none'; return; }
     meter.style.display = 'block';
-    const p = AV.player, open = spots().filter((s) => !claims[s.slot]);
-    if (!open.length) { meter.querySelector('b').textContent = '📡 Hết rương hôm nay'; meter.querySelector('i').style.width = '0%'; return; }
+    const p = AV.player, open = spots().filter((s) => !today()[s.slot]);
+    if (!open.length) { if (claimsDay !== day()) { refresh(true); return; } meter.querySelector('b').textContent = '📡 Hết rương hôm nay'; meter.querySelector('i').style.width = '0%'; return; }
     const d = Math.min(...open.map((s) => Math.hypot(s.x - p.x, s.y - p.y)));
     const heat = Math.max(0, Math.min(1, 1 - d / 900));
     const lab = d < DIG_R ? '🔥🔥 ĐÀO NGAY ĐÂY!' : heat > 0.8 ? '🔥 Rất nóng' : heat > 0.55 ? '♨️ Nóng' : heat > 0.3 ? '🌤️ Ấm' : '❄️ Lạnh';
@@ -203,11 +206,11 @@ const TREASURE = (() => {
       banner.onclick = () => (AV.currentMap() === 'beach' ? panel() : popup());
       document.body.appendChild(banner);
     }
-    const n = claimsDay === day() ? left() : SLOTS;
+    const n = left();
     banner.innerHTML = `<span>🎃 SỰ KIỆN HALLOWEEN · Săn rương ở 🏖️ Bãi biển · Hôm nay còn <b>${n}/${SLOTS}</b> rương · Gom ${NEED} 💠 đổi ${fmt(REWARD)} xu</span>`;
   }
   function popup() {
-    const n = claimsDay === day() ? left() : SLOTS;
+    const n = left();
     const p = UI.panel('🎃 SỰ KIỆN HALLOWEEN', `<div class="tr-pop">
         <div class="tr-chest">🏴‍☠️🧰🎃</div>
         <h2>SĂN RƯƠNG BÃI BIỂN</h2>

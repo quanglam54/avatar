@@ -869,6 +869,22 @@
   };
   AV.addItem = (id, n) => { addItem(id, n); changed(); };
   AV.sayMine = (text) => say(player, text);
+  /* 🙋 động tác khi gặp nhau: vẫy chào, bắt tay, đấm tay, tạo dáng, bắn tim, nhảy — quay mặt về người gần nhất */
+  const GEST_TXT = {
+    wave: (n) => (n ? `👋 Chào ${n}!` : '👋 Xin chào mọi người!'), shake: (n) => (n ? `🤝 Rất vui được gặp ${n}!` : '🤝 Bắt tay nào!'),
+    fist: (n) => (n ? `🤜 Cụng tay cái nào ${n}!` : '🤜 Đấm nhẹ cái nè!'), v: () => '✌️ Yeah~', heart: (n) => (n ? `🫶 Quý ${n} ghê!` : '🫶 Thương cả nhà!'), jump: () => '🤸 Hú hú!',
+  };
+  AV.gesture = (kind) => {
+    if (player.hidden || !GEST_TXT[kind]) return;
+    const near = NET.players().filter((r) => !r.hidden).map((r) => ({ r, d: Math.hypot(r.rx - player.x, r.ry - player.y) })).filter((o) => o.d < 240).sort((a, b) => a.d - b.d)[0];
+    const r = near && near.r;
+    if (r && Math.abs(r.rx - player.x) > 4) player.dir = r.rx > player.x ? 1 : -1;
+    player.target = null;
+    player.gest = { k: kind, until: Date.now() + 2600, to: r ? r.id : '' };
+    if (kind === 'jump') player.bounceUntil = Date.now() + 900;
+    say(player, GEST_TXT[kind](r ? r.name : ''));
+    NET.sendState();
+  };
   /* đồ rơi của sự kiện (sao băng, túi tiền, rồng con, mưa tiền): on(p) chạy khi nhặt thay cho cộng đồ */
   AV.pickups = () => map.pickups;
   /** làn đường cho xe chạy (khu có đường phố + trạm xe buýt), không có thì null */
@@ -3428,6 +3444,17 @@
       charDraw(r.rx, r.ry, r.look, { t: r.t, dir: r.dir, moving: r.walking, dance: r.dance }, r);
       if (r.pet && r.look.pet && r.look.pet !== 'none') petDraw(r.pet, r.look.pet);
     });
+    // 🙋 động tác đang làm: vẽ bàn tay / hiệu ứng trên nhân vật (bắt tay, đấm tay thì vẽ giữa 2 người)
+    if (typeof BOOTH !== 'undefined') {
+      const mateX = (ge, x, y) => {
+        if (!ge.to) return null;
+        const m = ge.to === NET.pid ? (player.hidden ? null : { x: player.x, y: player.y }) : (NET.remotes.get(ge.to) ? { x: NET.remotes.get(ge.to).rx, y: NET.remotes.get(ge.to).ry } : null);
+        return m && Math.hypot(m.x - x, m.y - y) < 260 ? m.x : null;
+      };
+      const gestDraw = (ge, x, y, dir) => { if (ge && ge.until > now) { const mx = mateX(ge, x, y); list.push({ y: y + 2, draw: () => BOOTH.gesture(g, ge.k, x, y, 1.3, dir, clock, mx) }); } };
+      others.forEach((r) => gestDraw(r.gest, r.rx, r.ry, r.dir));
+      if (!player.hidden) gestDraw(player.gest, player.x, player.y, player.dir);
+    }
     const rodDraw = (x, y, f) => list.push({ y: y + 1, draw: () => ART.fishingRod(g, x, y, f.bx, f.by, clock, f.state === 'bite' || f.bite) });
     others.forEach((r) => { if (r.fish) rodDraw(r.rx, r.ry, r.fish); });
     if (player.fishing && !player.hidden) rodDraw(player.x, player.y, player.fishing);

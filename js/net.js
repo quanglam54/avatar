@@ -87,9 +87,23 @@ const NET = (() => {
       x: Math.round(player.x), y: Math.round(player.y), dir: player.dir, moving: player.moving, hidden: player.hidden,
       dance: player.dancing > Date.now(),
       fish: fishMsg(),
+      gest: gestMsg(),
     };
   }
 
+  /** động tác đang làm (chào, bắt tay, đấm tay…) */
+  const GK = ['wave', 'shake', 'fist', 'v', 'heart', 'jump'];
+  const gestMsg = () => (player && player.gest && player.gest.until > Date.now() ? [player.gest.k, player.gest.to || ''] : 0);
+  function readGest(r, v) {
+    const old = r.gest && r.gest.until > Date.now() ? r.gest : null;
+    if (!Array.isArray(v) || !GK.includes(v[0])) { r.gest = old; return; }
+    if (old && old.k === v[0]) return;
+    r.gest = { k: v[0], to: String(v[1] || '').slice(0, 40), until: Date.now() + 2600 };
+    if (r.gest.to === pid) {
+      const T = { wave: '👋 vẫy tay chào bạn', shake: '🤝 bắt tay bạn', fist: '🤜 cụng tay với bạn', v: '✌️ tạo dáng với bạn', heart: '🫶 bắn tim cho bạn', jump: '🤸 nhảy cẫng lên với bạn' };
+      UI.toast(`${r.name || 'Ai đó'} ${T[v[0]]}! Bấm 😀 → động tác để đáp lại nhé`, 3500);
+    }
+  }
   function fishMsg() {
     const f = player && player.fishing;
     return f ? [Math.round(f.bx), Math.round(f.by), f.state === 'bite' ? 1 : 0] : 0;
@@ -193,6 +207,7 @@ const NET = (() => {
     r.hidden = !!m.hidden;
     r.dance = !!m.dance;
     r.fish = readFish(m.fish);
+    readGest(r, m.gest);
     r.seen = Date.now();
     if (isNew) renderStatus();
     return isNew;
@@ -215,6 +230,7 @@ const NET = (() => {
       r.hidden = !!m.hidden;
       r.dance = !!m.dance;
       r.fish = readFish(m.fish);
+      readGest(r, m.gest);
       r.seen = Date.now();
     } else if (m.t === 'race') {
       RACE.onNet(m);
@@ -343,7 +359,7 @@ const NET = (() => {
     const d = Math.hypot(player.x - last.x, player.y - last.y);
     const changed = d > 1.5 || player.moving !== last.moving || player.hidden !== last.hidden || player.dir !== last.dir;
     if (changed && sinceMove > 0.11) {
-      send('move', { x: Math.round(player.x), y: Math.round(player.y), dir: player.dir, moving: player.moving, hidden: player.hidden, dance: player.dancing > Date.now(), fish: fishMsg() });
+      send('move', { x: Math.round(player.x), y: Math.round(player.y), dir: player.dir, moving: player.moving, hidden: player.hidden, dance: player.dancing > Date.now(), fish: fishMsg(), gest: gestMsg() });
       Object.assign(last, { x: player.x, y: player.y, dir: player.dir, moving: player.moving, hidden: player.hidden });
       sinceMove = 0;
     }
