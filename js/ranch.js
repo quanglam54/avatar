@@ -301,6 +301,33 @@ const RANCH = (() => {
     bridge: { name: 'Cầu gỗ qua ao', icon: '🌉', cost: 200000 }, lanterns: { name: 'Dãy đèn lồng', icon: '🏮', cost: 120000 },
     flowerfence: { name: 'Hàng rào hoa', icon: '🌷', cost: 100000 }, scarecrow: { name: 'Bù nhìn đuổi quạ', icon: '🎃', cost: 80000, use: 'Ít quạ phá ruộng hơn' },
   };
+  /** 📖 hướng dẫn lên cấp trang trại: XP kiếm ở đâu, mỗi cấp mở công trình gì, đang cấp mấy */
+  function guideHtml() {
+    const lv = level(), xp = R().xp, next = LV_XP[lv];
+    const unlock = (l) => Object.values(FAC).filter((f) => f.lv === l).map((f) => `${f.icon} ${f.name}`).join(' · ');
+    const WAYS = [
+      ['🏗️', 'Xây công trình mới ở các ô "Đất trống"', '+40 XP mỗi công trình'],
+      ['🚚', 'Giao đơn xe tải (3 đơn mỗi ngày)', '+20 XP trở lên mỗi đơn — lên cấp nhanh nhất!'],
+      ['🦆', 'Cho vịt / dê ăn rồi thu trứng vịt, sữa dê', '+8 / +10 XP mỗi lần thu'],
+      ['🐝', 'Lấy mật ở tổ ong', '+4 XP + số hũ mật'],
+      ['🐟', 'Thu cá ở ao nuôi cá', '+20 XP'],
+      ['⚙️', 'Chế biến ở máy: xay bột, nướng bánh, ép nước, phô mai, dệt len', '+6 XP trở lên (món làm càng lâu càng nhiều XP)'],
+      ['🫙', 'Muối dưa trong hũ', '+20 XP mỗi hũ'],
+      ['🌾', 'Gặt lúa nước · phơi thóc thành gạo', '+5 XP · +1 XP mỗi phần gạo'],
+      ['🌳', 'Hái quả ở vườn cây lâu năm', '+15 XP'],
+      ['🏡', 'Thu hoạch trong nhà kính', '+XP theo loại cây'],
+      ['🏆', 'Mang nông sản đi thi hội chợ tuần', '+10 XP'],
+    ];
+    return `<div class="rg-now">🏅 Trang trại đang <b>cấp ${lv}</b>${next ? ` · còn <b>${fmt(next - xp)} XP</b> nữa lên cấp ${lv + 1}${unlock(lv + 1) ? ` → mở <b>${unlock(lv + 1)}</b>` : ''}` : ' · đã đạt cấp tối đa 🎉'}</div>
+      <h4>① Làm việc ở trang trại để kiếm XP</h4>
+      <div class="shop-list">${WAYS.map(([ic, t, x]) => `<div class="shop-row"><span class="ic">${ic}</span><div class="info"><b>${t}</b><small>${x}</small></div></div>`).join('')}</div>
+      <h4>② Đủ XP thì trang trại lên cấp, mở thêm công trình</h4>
+      <div class="shop-list">${LV_XP.map((need, i) => `<div class="shop-row" style="${i + 1 <= lv ? 'opacity:.6' : ''}"><span class="ic">${i + 1 <= lv ? '✅' : '🔒'}</span><div class="info"><b>Cấp ${i + 1}${i + 1 === lv ? ' (đang ở đây)' : ''}</b><small>Cần ${fmt(need)} XP · mở: ${unlock(i + 1) || '—'}</small></div></div>`).join('')}</div>
+      <h4>③ Xây công trình đã mở</h4>
+      <p class="muted">Đi tới các ô <b>"Đất trống"</b> có biển gỗ trên bản đồ (hoặc tab 🏗️ Xây dựng ở 📋 Bảng quản lý). Đủ cấp và đủ xu là xây được ngay. Có công trình mới thì làm ra nhiều đồ hơn → giao được nhiều đơn → lên cấp nhanh hơn.</p>
+      <p class="muted small-note">💡 Mẹo: bắt đầu bằng 🦆 Ao vịt và ⚙️ Máy xay xát (mở sẵn ở cấp 1), rồi mỗi ngày giao đủ 3 đơn xe tải 🚚. Thiếu đồ thì xem đơn cần gì để trồng / nuôi / chế biến.</p>`;
+  }
+  function guide() { const p = UI.panel('📖 Hướng dẫn nâng cấp Trang Trại', guideHtml(), { wide: true }); R().guided = 1; changed(); return p; }
   let mainP = null;
   function refreshPanels() { if (mainP && mainP.el.isConnected) mainP.render(); }
   function panel(tab = 'build') {
@@ -308,12 +335,13 @@ const RANCH = (() => {
     mainP = p;
     const render = async () => {
       const lv = level(), xp = R().xp, nextXp = LV_XP[lv] || null;
-      const TABS = [['build', '🏗️ Xây dựng'], ['orders', '📦 Đơn xe tải'], ['fair', '🏆 Hội chợ'], ['deco', '🎨 Trang trí'], ['ride', '🐎 Xe & đồ']];
+      const TABS = [['guide', '📖 Hướng dẫn'], ['build', '🏗️ Xây dựng'], ['orders', '📦 Đơn xe tải'], ['fair', '🏆 Hội chợ'], ['deco', '🎨 Trang trí'], ['ride', '🐎 Xe & đồ']];
       p.body.innerHTML = `<div class="coins-line">💰 ${fmt(S().coins)} xu · 🏅 Trang trại <b>cấp ${lv}</b>${nextXp ? ` · ${fmt(xp)}/${fmt(nextXp)} XP` : ' (tối đa)'}</div>
         <div class="qbar"><i style="width:${nextXp ? Math.min(100, (xp - LV_XP[lv - 1]) / (nextXp - LV_XP[lv - 1]) * 100) : 100}%"></i></div>
         <div class="ss-tabs">${TABS.map(([k, l]) => `<button class="${k === tab ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div><div class="ss-box"></div>`;
       p.body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
       const box = p.body.querySelector('.ss-box');
+      if (tab === 'guide') { box.innerHTML = guideHtml(); return; }
       if (tab === 'build') {
         box.innerHTML = `<div class="shop-list">${Object.entries(FAC).map(([k, f]) => {
           const n = R().built[k] || 0, max = f.multi || 1;
@@ -391,6 +419,7 @@ const RANCH = (() => {
   function tick() {
     if (!AV.S || !AV.currentMap) return;
     const r = R(), mapId = AV.currentMap(), vis = AV.visiting && AV.visiting();
+    if (mapId === 'ranch' && !vis && !r.guided && !UI.isBlocking()) { r.guided = 1; setTimeout(guide, 1200); }
     // mountFx bám theo người chơi
     if (mountFx) { mountFx.x = AV.player.x; mountFx.y = AV.player.y - 0.5; }
     // 🚜 gặt khi lái qua luống chín
@@ -508,6 +537,17 @@ const RANCH = (() => {
     inter(m, { x: 336, y: 1110, w: 168, h: 150, ax: 420, ay: 1300, name: 'Bảng quản lý trang trại', use: () => panel('build'), arrow: { x: 420, y: 1095, text: 'Quản lý' } });
     sobj(m, 720, 1270, (c) => { em(c, '🚚', 720, 1270, 120); c.fillStyle = '#fff'; c.beginPath(); c.roundRect(660, 1120, 120, 26, 6); c.fill(); c.fillStyle = '#c92a2a'; c.font = '900 12px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('📦 ĐƠN HÀNG', 720, 1133); }, { l: -80, t: -160, w: 160, h: 170 });
     col(m, 660, 1240, 120, 26);
+    sobj(m, 580, 1265, (c) => {
+      c.fillStyle = '#6b4423'; c.fillRect(530, 1175, 8, 90); c.fillRect(622, 1175, 8, 90);
+      c.fillStyle = '#c92a2a'; c.beginPath(); c.roundRect(516, 1100, 128, 92, 10); c.fill();
+      c.fillStyle = '#fff8e1'; c.beginPath(); c.roundRect(522, 1106, 116, 80, 7); c.fill();
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.font = '26px system-ui, "Segoe UI Emoji"'; c.fillText('📖', 580, 1126);
+      c.fillStyle = '#c92a2a'; c.font = '900 13px "Be Vietnam Pro", system-ui'; c.fillText('HƯỚNG DẪN', 580, 1150);
+      c.fillStyle = '#5c3a1e'; c.font = '800 10px "Be Vietnam Pro", system-ui'; c.fillText('LÊN CẤP TRANG TRẠI', 580, 1167);
+    }, { l: -70, t: -170, w: 140, h: 175 });
+    col(m, 525, 1255, 110, 10);
+    inter(m, { x: 516, y: 1100, w: 128, h: 165, ax: 580, ay: 1300, name: 'Biển hướng dẫn: làm gì để nâng cấp trang trại', use: () => guide(), arrow: { x: 580, y: 1085, text: 'Hướng dẫn' }, indicator: () => (R().guided ? null : '❓'), ix: 580, iy: 1092 });
     inter(m, { x: 650, y: 1150, w: 140, h: 120, ax: 720, ay: 1310, name: 'Xe tải giao hàng (đơn hàng mỗi ngày)', use: () => panel('orders'), indicator: () => (orders().some((o) => !o.done && has(o.need)) ? '📦' : null), ix: 720, iy: 1120 });
     // cúp hội chợ + tượng vàng
     obj(m, 1260, (c) => { const n = R().trophies || 0; if (!n) return; em(c, '🏆', 960, 1260, 54); c.fillStyle = '#5c3a1e'; c.font = '900 13px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.fillText(`×${n} vô địch hội chợ`, 960, 1280); }, [900, 1180, 1020, 1290]);
@@ -602,5 +642,5 @@ const RANCH = (() => {
   }
 
   function init() { setInterval(tick, 500); }
-  return { init, buildMap, panel, onHarvest, level, mount: () => mount };
+  return { init, buildMap, panel, guide, onHarvest, level, mount: () => mount };
 })();

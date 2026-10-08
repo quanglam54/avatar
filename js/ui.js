@@ -1358,11 +1358,12 @@ const UI = (() => {
   function seedShop(tab = 'seed') {
     const S = AV.S;
     const p = panel('🌱 Cửa hàng nông trại', '', { wide: true });
+    p.el.classList.add('ss3d'); // quầy gỗ: gói hạt giống trên kệ, thùng gỗ đựng đồ
     let sel = null, qty = 1;
     const tabs = [['seed', 'Giống'], ['item', 'Vật Phẩm'], ['store', '💰 Bán đồ'], ['seeds', 'Kho Giống']];
     const entries = () => {
-      if (tab === 'seed') return Object.entries(DATA.CROPS).map(([id, c]) => ({ id, icon: c.icon, kind: 'seed', c, locked: S.level < (c.lvl || 1) }));
-      if (tab === 'item') return [DATA.FERT, DATA.PEST, DATA.PETMED, DATA.PETFOOD].map((P) => ({ id: P.id || (P === DATA.FERT ? 'fertilizer' : 'pesticide'), icon: P.icon, kind: 'item' }));
+      if (tab === 'seed') return Object.entries(DATA.CROPS).map(([id, c]) => ({ id, icon: c.icon, kind: 'seed', c, price: c.seed, locked: S.level < (c.lvl || 1) }));
+      if (tab === 'item') return [DATA.FERT, DATA.PEST, DATA.PETMED, DATA.PETFOOD].map((P) => ({ id: P.id || (P === DATA.FERT ? 'fertilizer' : 'pesticide'), icon: P.icon, kind: 'item', price: P.price }));
       if (tab === 'store') return Object.entries(S.inv).filter(([id, n]) => n > 0 && DATA.ITEMS[id] && DATA.ITEMS[id].sell > 0 && !id.startsWith('seed_')).map(([id, n]) => ({ id, icon: DATA.ITEMS[id].icon, kind: 'sell', n }));
       return Object.entries(S.inv).filter(([id, n]) => n > 0 && (id.startsWith('seed_') || id === 'fertilizer' || id === 'pesticide' || id === 'pet_med' || id === 'pet_food')).map(([id, n]) => ({ id, icon: id.startsWith('seed_') ? DATA.CROPS[id.slice(5)].icon : DATA.ITEMS[id].icon, kind: 'own', n }));
     };
@@ -1391,7 +1392,7 @@ const UI = (() => {
       qty = Math.max(1, Math.min(qty, max));
       p.body.innerHTML = `<div class="ss-tabs">${tabs.map(([k, l]) => `<button class="${k === tab ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
         <div class="ss-box">
-          <div class="ss-grid">${list.length ? list.map((x) => `<button class="ss-cell ${x.id === sel ? 'sel' : ''} ${x.locked ? 'locked' : ''}" data-id="${x.id}"><span>${x.icon}</span>${x.n ? `<i>${x.n}</i>` : ''}${x.locked ? '<em>🔒</em>' : ''}</button>`).join('') : '<p class="muted">Trống</p>'}</div>
+          <div class="ss-grid">${list.length ? list.map((x) => `<button class="ss-cell ${x.kind === 'sell' || x.kind === 'own' ? 'crate' : 'pack'} ${x.id === sel ? 'sel' : ''} ${x.locked ? 'locked' : ''}" data-id="${x.id}"><span>${x.icon}</span>${x.price ? `<b class="pt">${x.price.toLocaleString('vi-VN')} xu</b>` : ''}${x.n ? `<i>${x.n}</i>` : ''}${x.locked ? '<em>🔒</em>' : ''}</button>`).join('') : '<p class="muted">Trống</p>'}</div>
           <div class="ss-info"><div class="ss-text">${detail(e)}</div>
             ${canAct ? `<div class="ss-buy"><div class="qty-row"><button class="qbtn" data-q="-1">−</button><input class="qin" type="number" min="1" max="${max}" value="${qty}"><button class="qbtn" data-q="1">+</button></div>
               <button class="btn ss-go" data-go>${e.kind === 'sell' ? 'Bán' : 'Mua'} · ${(price * qty).toLocaleString('vi-VN')} xu</button>
