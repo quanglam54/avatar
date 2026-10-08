@@ -83,7 +83,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
     <h1>🦖 Đảo Khủng Long</h1>
     <p id="sIntro"></p>
     <div class="keys">
-      🖱️ <b>Máy tính:</b> W A S D để đi · kéo chuột để xoay camera, lăn chuột để zoom · <b>Shift</b> chạy · <b>Space</b> cắn · giữ <b>E</b> ăn / uống · <b>R</b> nằm nghỉ · <b>Q</b> gầm gọi<br>
+      🖱️ <b>Máy tính:</b> bấm vào màn hình rồi <b>di chuột để xoay khủng long</b> (Esc thả chuột) · W A S D để đi · lăn chuột để zoom · <b>Shift</b> chạy · <b>chuột trái / Space</b> cắn · giữ <b>E</b> ăn / uống · <b>R</b> nằm nghỉ · <b>Q</b> gầm gọi<br>
       📱 <b>Điện thoại:</b> kéo nửa trái màn hình để đi · kéo nửa phải để xoay camera · nút bên phải để cắn, ăn uống, chạy
     </div>
     <p>🍖 Ăn đủ, 💧 uống đủ thì lớn dần: <b>Con non → Thiếu niên → Trưởng thành</b>. Chết là phải làm lại từ con non!</p>
@@ -817,12 +817,20 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
   addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); keys.delete(k); if (k === 'e') holdEat = false; });
   addEventListener('blur', () => { keys.clear(); holdEat = false; look = null; });
   const joyEl = $('joy');
+  // 🖱️ máy tính: bấm vào màn hình để khoá chuột → di chuột là khủng long + camera xoay theo, chuột trái = cắn, Esc = thả chuột
+  const mouseLocked = () => document.pointerLockElement === cv;
+  document.addEventListener('pointerlockchange', () => { if (started) say(mouseLocked() ? '🖱️ Di chuột để xoay khủng long · chuột trái cắn · Esc để thả chuột' : '🖱️ Đã thả chuột — bấm vào màn hình để xoay bằng chuột tiếp'); });
   cv.addEventListener('pointerdown', (e) => {
     unlockAudio();
     if (e.pointerType === 'touch' && e.clientX < innerWidth * 0.5 && !joy) { joy = { id: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, dy: 0 }; joyEl.style.left = e.clientX + 'px'; joyEl.style.top = e.clientY + 'px'; joyEl.classList.remove('hidden'); return; }
+    if (e.pointerType === 'mouse') {
+      if (mouseLocked()) { if (e.button === 0) act('bite'); return; }
+      if (started && !P.dead && cv.requestPointerLock) { try { const r = cv.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (er) { /* trình duyệt không cho khoá chuột → kéo chuột như cũ */ } }
+    }
     if (!look) look = { id: e.pointerId, x: e.clientX, y: e.clientY };
   });
   addEventListener('pointermove', (e) => {
+    if (mouseLocked()) { camera.alpha -= (e.movementX || 0) * 0.0035; camBeta = clamp(camBeta - (e.movementY || 0) * 0.0028, 0.6, 1.5); camDragAt = performance.now(); return; }
     if (joy && e.pointerId === joy.id) { let dx = e.clientX - joy.x, dy = e.clientY - joy.y; const m = Math.hypot(dx, dy); if (m > 50) { dx *= 50 / m; dy *= 50 / m; } joy.dx = dx / 50; joy.dy = dy / 50; joyEl.firstElementChild.style.transform = `translate(${dx}px,${dy}px)`; }
     else if (look && e.pointerId === look.id) { camera.alpha -= (e.clientX - look.x) * 0.006; camBeta = clamp(camBeta - (e.clientY - look.y) * 0.004, 0.6, 1.5); look.x = e.clientX; look.y = e.clientY; camDragAt = performance.now(); }
   });
@@ -999,6 +1007,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
       if (mag > 0.1) P.rest = false;
       player.resting = P.rest;
       steer(player, dt, mag > 0.1 ? Math.atan2(mx, mz) : player.a, P.rest ? 0 : speed);
+      // khoá chuột: đứng yên cũng quay mặt theo hướng chuột (camera)
+      if (mouseLocked() && mag < 0.1 && !P.rest) { const want = Math.atan2(fx, fz), da = clamp(wrap(want - player.a), -3.2 * dt, 3.2 * dt); player.a = wrap(player.a + da); player.turnV = lerp(player.turnV, da / Math.max(dt, 1e-4), Math.min(1, dt * 6)); }
       const deep = wdAt(player.x, player.z) < -10;
       P.st = clamp(P.st + (wantRun ? -22 : deep ? -9 : P.rest ? 20 : 12) * dt, 0, 100);
       P.food = Math.max(0, P.food - dt * (100 / 360) * (wantRun ? 1.6 : 1));
@@ -1095,7 +1105,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
   $('loading').classList.add('hidden');
   $('start').classList.remove('hidden');
   $('sIntro').innerHTML = `Bạn là <b>${DEFS[SP].icon} ${DEFS[SP].name}</b> (${DEFS[SP].diet === 'herb' ? '🌿 ăn cỏ — gặm dương xỉ, bụi quả, tránh xa kẻ săn mồi' : '🥩 ăn thịt — săn Dryosaurus, ăn xác'}) · đang là <b>${STAGES[stageOf(P.g)]}</b> (${Math.floor(P.g * 100)}%). Cẩn thận 🐊 cá sấu rình ở mép nước!`;
-  const begin = () => { if (started) return; unlockAudio(); started = true; $('start').classList.add('hidden'); ['hud', 'mini', 'clock', 'btns', 'packBtn'].forEach((id) => $(id).classList.remove('hidden')); say('🛡️ 60 giây đầu được bảo vệ ở bãi xuất phát — đi tìm ăn uống nào!'); sendState(true); cv.focus(); };
+  const begin = () => { if (started) return; unlockAudio(); started = true; $('start').classList.add('hidden'); ['hud', 'mini', 'clock', 'btns', 'packBtn'].forEach((id) => $(id).classList.remove('hidden')); say('🛡️ 60 giây đầu được bảo vệ ở bãi xuất phát — đi tìm ăn uống nào!'); sendState(true); cv.focus(); if (matchMedia('(pointer: fine)').matches && cv.requestPointerLock) { try { const r = cv.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (er) { /* bỏ qua */ } } };
   $('goBtn').onclick = begin;
   if (Q.get('autostart')) begin();
   const HIDE = (Q.get('hide') || '').split(',');

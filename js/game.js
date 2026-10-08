@@ -3260,7 +3260,7 @@
       n.nextTalk -= dt;
       if (n.nextTalk <= 0) {
         n.nextTalk = 10 + Math.random() * 14;
-        if (!n.bubble || n.bubble.until < now) say(n, DATA.NPC_LINES[Math.floor(Math.random() * DATA.NPC_LINES.length)]);
+        if (!n.bubble || n.bubble.until < now) { const L = n.lines || DATA.NPC_LINES; say(n, L[Math.floor(Math.random() * L.length)]); }
       }
       if (n.look.pet && n.look.pet !== 'none') {
         n.petState = n.petState || { x: n.x - 30, y: n.y, dir: 1, t: 0, moving: false };

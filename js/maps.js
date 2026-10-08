@@ -561,7 +561,7 @@ const MAPS = (() => {
       sobj(m, x, y, (c) => ART.foodShop(c, x, y, e), { l: -125, t: -165, w: 260, h: 172 });
       m.objects[m.objects.length - 1].b3d = { w: 236, h: 160, roof: e.trim, wall: e.wall, stools: e.deco === 'stools' };
       col(m, x - 105, y - 46, 210, 44);
-      inter(m, { x: x - 105, y: y - 160, w: 210, h: 160, ax: x - 40, ay: y + 28, name: `${e.name} (ăn uống +XP)`, use: () => UI.eateryPanel(e.id) });
+      inter(m, { x: x - 105, y: y - 160, w: 210, h: 160, ax: x - 40, ay: y + 28, name: `${e.name} (ăn uống +XP)`, use: () => (typeof EATERY !== 'undefined' ? AV.teleport('eat_' + e.id, false, 800, 930, `${e.logo} Vào ${e.name}…`) : UI.eateryPanel(e.id)), arrow: { x: x - 40, y: y - 172, text: 'Vào quán' } });
     });
     addPot(m, 1750, 1360, 'dao');
     /* ----- 🎰 Quầy QL Lotto cạnh quán Mì Cay ----- */
@@ -2601,6 +2601,8 @@ const MAPS = (() => {
   Object.defineProperty(floorN, 'hidden', { value: true });
   const ranch = () => RANCH.buildMap({ base, ground, obj, sobj, col, inter, paintGrass, addTree, edges });
   const all = { apt_han: () => airport('han'), apt_hph: () => airport('hph'), apt_vdo: () => airport('vdo'), apt_sgn: () => airport('sgn'), apt_pqc: () => airport('pqc'), apt_dad: () => airport('dad'), ranch, mine, hospital, clinic, home2: () => floorMap(2), home3: () => floorMap(3), home4: () => floorMap(4), farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
+  // 🍜 bên trong các quán ăn / cà phê ở phố trước nông trại (js/eatery.js)
+  DATA.EATERIES.forEach((e) => { all['eat_' + e.id] = () => EATERY.buildMap({ base, ground, obj, sobj, aobj, col, inter, npc }, e.id); });
   Object.defineProperty(all, 'moveGroup', { value: moveGroup, enumerable: false });
   Object.defineProperty(all, 'floorN', { value: (n) => { const m = floorN(n); halloween(m); return m; }, enumerable: false });
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
