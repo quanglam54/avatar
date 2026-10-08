@@ -56,7 +56,7 @@ const UI = (() => {
     if (p && !p.locked) p.close();
   }
 
-  const isBlocking = () => stack.length > 0 || (typeof TABLE !== 'undefined' && TABLE.isOpen()) || (typeof BIL !== 'undefined' && BIL.isOpen()) || (typeof RACE !== 'undefined' && RACE.isOpen()) || !!document.querySelector('#arcadeView.show');
+  const isBlocking = () => stack.length > 0 || (typeof TABLE !== 'undefined' && TABLE.isOpen()) || (typeof CARDROOM !== 'undefined' && CARDROOM.isOpen()) || (typeof BIL !== 'undefined' && BIL.isOpen()) || (typeof RACE !== 'undefined' && RACE.isOpen()) || !!document.querySelector('#arcadeView.show');
 
   function confirm(text, okText, onOk) {
     const p = panel('Xác nhận', `<p class="confirm-text">${text}</p>
@@ -1761,6 +1761,7 @@ const UI = (() => {
       <label class="toggle">🎃 Halloween <select data-hw><option value="auto">Tự động (tháng 10)</option><option value="on">Luôn bật</option><option value="off">Tắt</option></select></label>
       <label class="toggle">🌙 Ngày / đêm <select data-time><option value="real">Theo giờ thật</option><option value="day">Luôn ban ngày</option><option value="night">Luôn ban đêm</option></select></label>
       <label class="toggle">🌧️ Thời tiết <select data-weather><option value="auto">☀️ Nắng, thỉnh thoảng mưa (mặc định)</option><option value="season">🍂 Theo mùa (xuân hoa đào, thu lá vàng, đông tuyết)</option><option value="rain">🌧️ Luôn mưa</option><option value="snow">❄️ Tuyết rơi</option><option value="petals">🌸 Hoa đào rơi</option><option value="leaves">🍁 Lá vàng rơi</option><option value="off">🌤️ Trời quang (không mưa)</option></select></label>
+      <label class="toggle">🧊 Kiểu hình <select data-r3d><option value="2d">🖼️ 2D</option><option value="3d">🧊 3D (thử nghiệm · Nông trại)</option></select></label>
       <label class="toggle">📱 Đồ hoạ <select data-gfx><option value="auto">Tự động (điện thoại: tiết kiệm pin)</option><option value="saver">Tiết kiệm pin — mát máy</option><option value="high">Đẹp nhất — nét, mượt hơn</option></select></label>
       <label class="toggle"><input type="checkbox" data-music ${MUSIC.on ? 'checked' : ''}> 🎵 Nhạc nền <input type="range" data-vol min="0" max="100" value="${Math.round(MUSIC.volume * 100)}" style="flex:1;min-width:90px"></label>
       <label class="toggle"><input type="checkbox" data-sfx ${!(S.settings && S.settings.sfx === false) ? "checked" : ""}> 🔔 Âm thanh game (chuông, tin nhắn, hiệu ứng)</label><p class="muted small-note" style="margin:-4px 0 6px">Tắt 🎵 nhạc nền vẫn nghe chuông điện thoại, tin nhắn, tiếng game.</p>
@@ -1774,6 +1775,9 @@ const UI = (() => {
       <div class="row-end"><button class="btn small ghost" data-restore>🕘 Khôi phục bản lưu cũ</button></div>
       <p class="muted">Dữ liệu được lưu tự động trên trình duyệt này.</p>
       <div class="row-end"><button class="btn danger" data-reset>🗑 Chơi lại từ đầu</button></div>`);
+    const r3 = p.body.querySelector('[data-r3d]');
+    if (typeof R3D === 'undefined') r3.closest('label').remove();
+    else { r3.value = R3D.wanted() ? '3d' : '2d'; r3.onchange = () => { if ((r3.value === '3d') !== R3D.wanted()) R3D.cycle(); }; }
     const hs = p.body.querySelector('[data-hw]');
     hs.value = (S.settings && S.settings.halloween) || 'auto';
     hs.onchange = () => { S.settings = { ...(S.settings || {}), halloween: hs.value }; AV.markChanged(); updateEventBtn(); };

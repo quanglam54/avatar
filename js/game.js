@@ -189,6 +189,7 @@
     UI.updateVisitBar(VISIT);
     joinRoom();
     TABLE.onMapChange();
+    if (typeof CARDROOM !== 'undefined') CARDROOM.onMapChange();
     BIL.onMapChange();
     // khu có nhạc riêng (H-Club): vào mới nghe, ra thì trả lại nhạc của bạn
     if (typeof MUSIC !== 'undefined' && MUSIC.zone) MUSIC.zone(map.music || null);
@@ -2791,7 +2792,7 @@
     document.body.appendChild(bar);
   }
   /** đang bận (ngồi bàn bài, đua xe, gọi điện, giải đua…) thì không tự tải lại trang */
-  const busyNow = () => (typeof TABLE !== 'undefined' && TABLE.seated && TABLE.seated()) || (UI.arcadeOpen && UI.arcadeOpen()) || (typeof CALL !== 'undefined' && CALL.busy()) || (typeof RACECUP !== 'undefined' && RACECUP.active) || (typeof RACE !== 'undefined' && RACE.inRace && RACE.inRace());
+  const busyNow = () => (typeof TABLE !== 'undefined' && TABLE.seated && TABLE.seated()) || (typeof CARDROOM !== 'undefined' && CARDROOM.seatedAny()) || (UI.arcadeOpen && UI.arcadeOpen()) || (typeof CALL !== 'undefined' && CALL.busy()) || (typeof RACECUP !== 'undefined' && RACECUP.active) || (typeof RACE !== 'undefined' && RACE.inRace && RACE.inRace());
   async function applyUpdate() {
     if (UPD.applying) return;
     UPD.applying = true;
@@ -3208,6 +3209,7 @@
     if (map.busStop) updateBus(dt);
     updateSwings(dt);
     TABLE.tick(dt);
+    if (typeof CARDROOM !== 'undefined') CARDROOM.tick(dt);
     VOICE.tick(dt, player);
     BIL.tick(dt);
     NET.tick(dt);
@@ -3641,6 +3643,7 @@
     if (EDIT.on) return;
     if (player.fishing && player.fishing.state === 'bite') { AV.pullRod(); return; }
     if (TABLE.seated()) { TABLE.openView(); return; }
+    if (typeof CARDROOM !== 'undefined' && CARDROOM.seatedAny()) { CARDROOM.openMine(); return; }
     if (BIL.seated()) { BIL.openView(); return; }
     clickWorld(toWorld(e.clientX, e.clientY));
   }

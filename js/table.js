@@ -36,17 +36,24 @@ const TABLE = (() => {
   }
 
   function hostSit(seat, who) {
-    if (gameOn() || st.seats[seat]) return false;
+    if (gameOn() || (st.seats[seat] && !st.seats[seat].bot)) return false;
     st.seats = st.seats.map((s) => (s && s.id === who.id ? null : s));
     st.seats[seat] = { id: who.id, name: who.name };
+    fixBots();
     return true;
+  }
+  /** máy chỉ ngồi khi bàn có đúng 1 người thật; từ 2 người thật trở lên thì máy rời bàn */
+  function fixBots() {
+    if (gameOn()) return;
+    const h = st.seats.filter((s) => s && !s.bot).length;
+    st.seats = h === 1 ? st.seats.map((s, i) => s || { id: 'bot' + i, name: BOT_NAMES[i], bot: true }) : st.seats.map((s) => (s && s.bot ? null : s));
   }
 
   function hostRemove(id) {
     const i = st.seats.findIndex((s) => s && s.id === id);
     if (i < 0) return;
     if (gameOn()) st.seats[i] = { id: 'bot' + i, name: BOT_NAMES[i], bot: true };
-    else st.seats[i] = null;
+    else { st.seats[i] = null; fixBots(); }
   }
 
   function lowestHolder() {
@@ -57,10 +64,8 @@ const TABLE = (() => {
 
   function hostStart() {
     if (gameOn()) return;
-    // không còn máy chơi cùng: chỉ người thật mời nhau vào bàn
-    st.bots = false;
-    st.seats = st.seats.map((s) => (s && s.bot ? null : s));
-    if (st.seats.filter(Boolean).length < 2) { UI.toast('Cần ít nhất 2 người — mời bạn bè ngồi vào bàn rồi bấm Bắt đầu nhé', 4000); broadcast(); return; }
+    fixBots();
+    if (st.seats.filter(Boolean).length < 2) { UI.toast('Cần ít nhất 2 người chơi', 4000); broadcast(); return; }
     const hands = TL.deal();
     H = { hands: st.seats.map((s, i) => (s ? hands[i] : [])) };
     const first = st.lastWinner != null && st.seats[st.lastWinner] ? st.lastWinner : lowestHolder();
@@ -289,7 +294,8 @@ const TABLE = (() => {
   function hostStale() { return !st.host || (st.host !== me() && Date.now() - lastHostMsg > 9000); }
 
   function sit(seat) {
-    if (seated() || st.seats[seat]) return;
+    if (seated() || (st.seats[seat] && !st.seats[seat].bot)) return;
+    if (typeof CARDROOM !== 'undefined' && CARDROOM.seatedAny()) return UI.toast('Bạn đang ngồi bàn khác rồi');
     if (gameOn()) return UI.toast('Ván đang chơi, đợi ván sau nhé');
     if (AV.S.coins < st.bet) return UI.toast(`Cần ít nhất ${st.bet} xu để ngồi bàn này`);
     if (hostStale()) {
@@ -297,7 +303,7 @@ const TABLE = (() => {
       st.host = me();
       hostSit(seat, { id: me(), name: AV.S.name });
       broadcast();
-      UI.toast('Bạn là chủ bàn — mời bạn bè rồi bấm Bắt đầu nhé!');
+      UI.toast('Bạn là chủ bàn — chưa có ai thì máy 🤖 chơi cùng, bấm Bắt đầu nhé!');
     } else {
       send({ a: 'sit', seat, name: AV.S.name });
       UI.toast('Đang vào ghế…');
@@ -312,7 +318,7 @@ const TABLE = (() => {
       st.seats[i] = null;
       const next = st.seats.find((s) => s && !s.bot);
       st.host = next ? next.id : null;
-      if (!next) st = fresh();
+      if (!next) st = fresh(); else fixBots();
       broadcast();
     } else {
       send({ a: 'leave' });
@@ -404,6 +410,7 @@ const TABLE = (() => {
       const canSit = !seated() && !gameOn();
       return `<div class="seat ${pos} empty">${canSit ? `<button class="btn small" data-sit="${i}">🪑 Ngồi đây</button>` : '<span>Ghế trống</span>'}</div>`;
     }
+    if (s.bot && !seated() && !gameOn()) return `<div class="seat ${pos}"><div class="who"><span class="ava">🤖</span><b>${esc(s.name)}</b></div><button class="btn small" data-sit="${i}">🪑 Ngồi thay máy</button></div>`;
     const turn = g && !g.end && g.turn === i;
     const count = g ? g.counts[i] : 0;
     const passed = g && !g.end && g.passed[i];
@@ -432,6 +439,7 @@ const TABLE = (() => {
       ${end}
       <div class="lrow">Mức cược: ${host ? [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000].map((b) => `<button class="chip ${b === st.bet ? 'on' : ''}" data-bet="${b}">🪙 ${b.toLocaleString('vi-VN')}</button>`).join('') + '<input class="field bet-in" type="number" min="1" placeholder="Tự nhập" data-betin><button class="chip" data-betset>Đặt</button>' : `<b>🪙 ${st.bet.toLocaleString('vi-VN')} xu</b>`}</div>
       ${seated() ? (host ? `<button class="btn big" data-start>▶ ${g && g.end ? 'Ván mới' : 'Bắt đầu'}</button>` : '<div class="muted">⏳ Chờ chủ bàn bắt đầu…</div>') : '<div class="muted">Chọn một ghế trống để ngồi chơi</div>'}
+      <div class="muted" style="font-size:12px">🤖 Chỉ có mình bạn thì máy vào chơi cùng · có bạn bè ngồi là máy tự rời bàn</div>
       ${seated() && nearby.length ? `<div class="invite"><b>Mời người chơi:</b>${nearby.map((r) => `<button class="chip" data-invite="${r.id}">✉️ ${esc(r.name)}</button>`).join('')}</div>` : ''}
       ${!seated() ? '<button class="btn small ghost" data-solo>🃏 Chơi Bài cào một mình với nhà cái</button>' : ''}
     </div>`;

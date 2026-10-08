@@ -839,7 +839,7 @@ const MAPS = (() => {
     obj(m, CY, (ctx, t) => ART.casinoBulbs(ctx, CX, CY, t), [CX - 190, CY - 420, CX + 190, CY - 290]);
     col(m, CX - 280, CY - 70, 190, 64); col(m, CX + 90, CY - 70, 190, 64);
     col(m, CX - 90, CY - 70, 180, 30);
-    inter(m, { x: CX - 80, y: CY - 160, w: 160, h: 170, ax: CX, ay: CY + 46, name: 'Nhà Casino (Bầu Cua, Tiến lên, máy game)', use: () => AV.enterCasino(), arrow: { x: CX, y: CY - 180, text: 'Vào Casino' } });
+    inter(m, { x: CX - 80, y: CY - 160, w: 160, h: 170, ax: CX, ay: CY + 46, name: 'Nhà Casino (Bầu Cua, Tiến lên, 3 Cây, Phỏm, máy game)', use: () => AV.enterCasino(), arrow: { x: CX, y: CY - 180, text: 'Vào Casino' } });
     addLamp(m, 1940, 790); addLamp(m, 2580, 790);
     /* ----- H-Club: quán bar, DJ, sàn nhảy (nhạc riêng chỉ nghe trong quán) ----- */
     const QX = 2820, QY = 770;
@@ -969,7 +969,7 @@ const MAPS = (() => {
       g.strokeStyle = 'rgba(255,212,59,.14)'; g.lineWidth = 2;
       for (let k = -720; k < 1920; k += 60) { g.beginPath(); g.moveTo(40 + k, 960); g.lineTo(40 + k + 720, 240); g.moveTo(40 + k + 720, 960); g.lineTo(40 + k, 240); g.stroke(); }
       // thảm xanh dưới các bàn chơi
-      [[180, 470, 520, 300], [700, 470, 480, 300], [1260, 290, 640, 260]].forEach(([x, y, w, h]) => {
+      [[180, 470, 520, 300], [700, 470, 480, 300], [1260, 290, 640, 260], [250, 790, 380, 160], [1050, 790, 380, 160]].forEach(([x, y, w, h]) => {
         g.fillStyle = '#ffd43b'; g.beginPath(); g.roundRect(x - 6, y - 6, w + 12, h + 12, 26); g.fill();
         g.fillStyle = '#1b5e3b'; g.beginPath(); g.roundRect(x, y, w, h, 22); g.fill();
       });
@@ -985,6 +985,12 @@ const MAPS = (() => {
     col(m, 840, 590, 200, 50);
     inter(m, { x: 810, y: 520, w: 260, h: 170, ax: 940, ay: 700, name: 'Bàn Tiến lên (ngồi chơi với mọi người)', use: () => TABLE.openView(), arrow: { x: 940, y: 505, text: 'Chơi bài' } });
 
+    /* 🃏 bàn 3 Cây + 🀄 bàn Phỏm (chơi với người thật, chưa có ai thì máy chơi cùng) */
+    [[440, 860, '3 Cây', () => CARDROOM.bacay.openView(), 'Bàn 3 Cây (Bài cào)', 'bacay'], [1240, 860, 'Phỏm', () => CARDROOM.phom.openView(), 'Bàn Phỏm (Tá lả)', 'phom']].forEach(([x, y, label, use, name, kind]) => {
+      sobj(m, x, y, (c) => ART.gameTable(c, x, y, kind, 0));
+      col(m, x - 100, y - 50, 200, 50);
+      inter(m, { x: x - 130, y: y - 120, w: 260, h: 140, ax: x, ay: y + 40, name: name + ' — chơi với mọi người', use: () => (typeof CARDROOM !== 'undefined' ? use() : UI.toast('Bàn đang chuẩn bị, tải lại trang nhé')), arrow: { x, y: y - 135, text: label } });
+    });
     m.labels.push({ text: '🕹️ Máy Game', x: 1580, y: 545 });
     // bàn bi-a 2 người
     sobj(m, 1580, 724, (c) => ART.billiardTable(c, 1580, 724), { l: -170, t: -140, w: 340, h: 150 });
@@ -1004,7 +1010,7 @@ const MAPS = (() => {
     col(m, 1685, 805, 230, 36);
     [[90, 330], [1910, 330], [90, 900], [1910, 900], [640, 330]].forEach(([x, y]) => { sobj(m, x, y, (c) => ART.plantPot(c, x, y), { l: -30, t: -95, w: 60, h: 100 }); col(m, x - 17, y - 12, 34, 14); });
 
-    npc(m, 'Chú Lộc', { skin: '#f1c27d', hair: 'short', hairColor: '#222', shirt: '#212529', shirtStyle: 'plain', pants: '#212529', hat: 'cowboy' }, { l: 200, t: 760, r: 1200, b: 900 }, 600, 820, 'none');
+    npc(m, 'Chú Lộc', { skin: '#f1c27d', hair: 'short', hairColor: '#222', shirt: '#212529', shirtStyle: 'plain', pants: '#212529', hat: 'cowboy' }, { l: 680, t: 740, r: 1000, b: 860 }, 820, 790, 'none');
 
     sobj(m, 1000, 962, (c) => ART.homeDoor(c, 1000, 962), { l: -50, t: -22, w: 100, h: 28 });
     inter(m, { x: 940, y: 900, w: 120, h: 70, ax: 1000, ay: 930, name: 'Ra Khu giải trí', use: () => AV.leaveCasino(), arrow: { x: 1000, y: 905, text: 'Ra ngoài' } });

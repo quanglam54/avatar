@@ -372,7 +372,7 @@ Object.assign(ART, (() => {
     ctx.fillRect(x - 60, y - 30, 8, 30); ctx.fillRect(x + 52, y - 30, 8, 30);
     ctx.fillStyle = '#8b5a2b';
     ctx.beginPath(); ctx.ellipse(x, y - 30, 92, 34, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = kind === 'baucua' ? '#c92a2a' : '#2b8a3e';
+    ctx.fillStyle = kind === 'baucua' ? '#c92a2a' : kind === 'bacay' ? '#1864ab' : kind === 'phom' ? '#5f3dc4' : '#2b8a3e';
     ctx.beginPath(); ctx.ellipse(x, y - 34, 84, 28, 0, 0, Math.PI * 2); ctx.fill();
     ctx.font = '17px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     if (kind === 'baucua') {
@@ -398,8 +398,8 @@ Object.assign(ART, (() => {
     // biển hiệu
     ctx.fillStyle = '#fff';
     rr(ctx, x - 62, y - 112, 124, 30, 10); ctx.fill();
-    ctx.fillStyle = kind === 'baucua' ? '#c92a2a' : '#2b8a3e'; ctx.font = '800 14px "Be Vietnam Pro", system-ui';
-    ctx.fillText(kind === 'baucua' ? '🎲 BẦU CUA' : '🃏 TIẾN LÊN', x, y - 97);
+    ctx.fillStyle = kind === 'baucua' ? '#c92a2a' : kind === 'bacay' ? '#1864ab' : kind === 'phom' ? '#5f3dc4' : '#2b8a3e'; ctx.font = '800 14px "Be Vietnam Pro", system-ui';
+    ctx.fillText(kind === 'baucua' ? '🎲 BẦU CUA' : kind === 'bacay' ? '🃏 3 CÂY' : kind === 'phom' ? '🀄 PHỎM' : '🃏 TIẾN LÊN', x, y - 97);
     ctx.fillStyle = '#868e96'; ctx.fillRect(x - 2, y - 82, 4, 14);
   }
 
