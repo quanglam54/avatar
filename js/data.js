@@ -103,12 +103,12 @@ const DATA = {
     wool: { name: 'Len cừu', icon: '🧶', sell: 22 },
     pork: { name: 'Thịt heo', icon: '🥩', sell: 32 },
   },
-  COOP: { time: 900, feed: 3, eggs: 10, xp: 16 },
-  /** 3 chuồng riêng: bò cho sữa, cừu cho len, heo cho thịt */
+  COOP: { time: 900, feed: 3, eggs: 10, xp: 16, price: 100, herd: 'đàn gà 🐔' },
+  /** 3 chuồng riêng: bò cho sữa, cừu cho len, heo cho thịt. price = giá mua đàn con giống (người mới chuồng trống) */
   PENS: {
-    cow: { name: 'Chuồng bò', icon: '🐄', time: 1800, feed: 2, out: { milk: 8 }, xp: 12, fedMsg: 'Đã cho bò ăn! 🐄', waitMsg: 'Bò đang làm sữa…' },
-    sheep: { name: 'Chuồng cừu', icon: '🐑', time: 1800, feed: 1, out: { wool: 4 }, xp: 8, fedMsg: 'Đã cho cừu ăn! 🐑', waitMsg: 'Cừu đang mọc len…' },
-    pig: { name: 'Chuồng heo', icon: '🐖', time: 2400, feed: 2, out: { pork: 3 }, xp: 10, fedMsg: 'Đã đổ cám cho heo! 🐖', waitMsg: 'Heo đang ăn no ngủ kỹ…' },
+    cow: { name: 'Chuồng bò', icon: '🐄', price: 800, herd: 'đàn bò 🐄', time: 1800, feed: 2, out: { milk: 8 }, xp: 12, fedMsg: 'Đã cho bò ăn! 🐄', waitMsg: 'Bò đang làm sữa…' },
+    sheep: { name: 'Chuồng cừu', icon: '🐑', price: 400, herd: 'đàn cừu 🐑', time: 1800, feed: 1, out: { wool: 4 }, xp: 8, fedMsg: 'Đã cho cừu ăn! 🐑', waitMsg: 'Cừu đang mọc len…' },
+    pig: { name: 'Chuồng heo', icon: '🐖', price: 600, herd: 'đàn heo 🐖', time: 2400, feed: 2, out: { pork: 3 }, xp: 10, fedMsg: 'Đã đổ cám cho heo! 🐖', waitMsg: 'Heo đang ăn no ngủ kỹ…' },
   },
   PLOT_PRICES: [0, 0, 0, 0, 0, 0, 40, 80, 120, 200],
   BED_PRICES: [0, 150, 400, 900, 1500, 2200, 3000, 4000, 0, 300, 800, 1500, 4500, 5000, 5500, 6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000],

@@ -22,6 +22,7 @@
       storage: {},
       coop: { fedAt: 0 },
       pen: normPen(),
+      animals: {}, // con giống đã mua: { coop, cow, sheep, pig } — người mới chuồng trống
       map: 'farm', x: null, y: null,
       settings: { pixelArt: false },
     };
@@ -51,6 +52,8 @@
     while (s.beds.length < d.beds.length) s.beds.push(false);
     s.trees = s.trees || [];
     while (s.trees.length < DATA.ORCHARD.length) s.trees.push({ at: 0 });
+    // bản lưu cũ (trước khi phải mua con giống) → giữ nguyên đủ gà, bò, cừu, heo như trước
+    if (!s.animals) s.animals = { coop: true, cow: true, sheep: true, pig: true };
     const out = { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned }, settings: { ...d.settings, ...s.settings } };
     out.guard = normTeam(s.guard, s.owned && s.owned.guards);
     out.pen = normPen(s.pen);
@@ -768,11 +771,32 @@
     return prog >= 1 ? null : { p: prog, left: cfg.time - (now - st.fedAt) / 1000 };
   }
 
-  AV.useCoop = () => VISIT ? AV.stealBarn('coop') : farmBuilding(S.coop, DATA.COOP, {
+  /* ---------- 🛒 Con giống: người mới chuồng trống, phải mua gà / bò / cừu / heo ---------- */
+  const HERD_OF = { chicken: 'coop', cow: 'cow', sheep: 'sheep', pig: 'pig' };
+  const herdCfg = (k) => (k === 'coop' ? DATA.COOP : DATA.PENS[k]);
+  /** chuồng k của nông trại d đã có con chưa (bản lưu cũ / khách xem nhà chưa có dữ liệu → coi như có) */
+  function hasHerd(k, d = FD()) { return !d.animals || !!d.animals[k]; }
+  AV.hasHerd = hasHerd;
+  /** con vật có hiện trên bản đồ không: ở nông trại chỉ hiện chuồng đã mua */
+  const animalShown = (a) => map.id !== 'farm' || !HERD_OF[a.kind] || hasHerd(HERD_OF[a.kind]);
+  function buyHerd(k) {
+    const cfg = herdCfg(k);
+    UI.confirm(`Chuồng đang trống! Mua <b>${cfg.herd}</b> về nuôi với giá <b>${cfg.price.toLocaleString('vi-VN')} xu</b>?<br><small>Cho ăn bằng 🌾 lúa mì để thu ${k === 'coop' ? '🥚 trứng' : Object.keys(cfg.out).map((id) => DATA.ITEMS[id].icon + ' ' + DATA.ITEMS[id].name.toLowerCase()).join(', ')}.</small>`, '🛒 Mua', () => {
+      if (hasHerd(k, S) || !AV.spend(cfg.price)) return;
+      S.animals = { ...(S.animals || {}), [k]: true };
+      map.animals.filter((a) => HERD_OF[a.kind] === k).forEach((a) => { a.bubble = { text: '❤️', until: Date.now() + 2500, big: true }; });
+      UI.toast(`🎉 Đã mua ${cfg.herd}! Cho ăn 🌾 lúa mì để bắt đầu thu hoạch nhé.`, 4000);
+      changed();
+    });
+  }
+  const noHerd = (k) => { if (hasHerd(k)) return false; if (VISIT) UI.toast(`${herdCfg(k).name || 'Chuồng gà'} nhà ${VISIT.data.name} còn trống, chưa nuôi con nào`, 3000); else buyHerd(k); return true; };
+
+  AV.useCoop = () => noHerd('coop') ? undefined : VISIT ? AV.stealBarn('coop') : farmBuilding(S.coop, DATA.COOP, {
     kinds: ['chicken'], fedMsg: 'Đã cho gà ăn! 🐔', waitMsg: 'Gà đang đẻ trứng…',
     collect: (took) => { const n = Math.max(1, DATA.COOP.eggs - (took.egg || 0)); addItem('egg', n); float(`+${n} 🥚`, player.x, player.y - 100); },
   });
   AV.coopIndicator = () => {
+    if (!hasHerd('coop')) return VISIT ? undefined : '🛒';
     const r = buildingIndicator(FD().coop || { fedAt: 0 }, DATA.COOP);
     return r === null ? '🥚' : r;
   };
@@ -780,7 +804,7 @@
   /** Chuồng bò / cừu / heo: mỗi chuồng cho ăn và thu hoạch riêng */
   AV.usePen = (kind = 'cow') => {
     const P = DATA.PENS[kind];
-    if (!P) return;
+    if (!P || noHerd(kind)) return;
     if (VISIT) return AV.stealBarn(kind);
     if (!AV.useEnergy(2)) return;
     S.pen = normPen(S.pen);
@@ -795,6 +819,7 @@
   };
   AV.penIndicator = (kind = 'cow') => {
     const P = DATA.PENS[kind];
+    if (!hasHerd(kind)) return VISIT ? undefined : '🛒';
     const r = buildingIndicator((FD().pen || {})[kind] || { fedAt: 0 }, P);
     return r === null ? DATA.ITEMS[Object.keys(P.out)[0]].icon : r;
   };
@@ -1038,7 +1063,9 @@
     const key = todayKey();
     if (S.quests && S.quests.date === key) return;
     const r = ART.srand([...key].reduce((a, c) => a * 31 + c.charCodeAt(0), 7) % 2147483646);
-    const others = DATA.QUESTS.filter((q) => q.id !== 'quiz');
+    // chưa mua con giống nào thì khỏi giao nhiệm vụ thu trứng / sữa
+    const noBarn = !['coop', ...Object.keys(DATA.PENS)].some((k) => hasHerd(k, S));
+    const others = DATA.QUESTS.filter((q) => q.id !== 'quiz' && !(noBarn && q.id === 'collect'));
     const picks = [DATA.QUESTS.find((q) => q.id === 'quiz')];
     while (picks.length < 4) picks.push(others.splice(Math.floor(r() * others.length), 1)[0]);
     S.quests = { date: key, list: picks.map((q) => ({ id: q.id, n: q.n, prog: 0, claimed: false })) };
@@ -1517,7 +1544,7 @@
       tiles: pad(f.tiles, d.tiles.length, () => ({ crop: null, plantedAt: 0, watered: false })),
       beds: pad(f.beds, d.beds.length, () => false).map((b, i) => b === true || i === 0 || i === DATA.FIELD_BEDS),
       trees: pad(f.trees, d.trees.length, () => ({ at: 0 })),
-      coop: f.coop || { fedAt: 0 }, pen: normPen(f.pen),
+      coop: f.coop || { fedAt: 0 }, pen: normPen(f.pen), animals: f.animals,
       guard: normTeam(f.guard),
       guardHurt: Array.isArray(f.guardHurt) ? f.guardHurt : [],
       house: Math.max(1, Math.min(DATA.HOUSE_LEVELS.length, f.house | 0 || 1)),
@@ -3072,9 +3099,9 @@
       if (!st.fedAt) { if ((S.inv.wheat || 0) >= cfg.feed) { S.inv.wheat -= cfg.feed; st.fedAt = now; r.feed++; } else noWheat = true; }
     };
     S.coop = S.coop || { fedAt: 0 };
-    barn(S.coop, DATA.COOP, (took) => add('egg', Math.max(1, DATA.COOP.eggs - (took.egg || 0))));
+    if (hasHerd('coop', S)) barn(S.coop, DATA.COOP, (took) => add('egg', Math.max(1, DATA.COOP.eggs - (took.egg || 0))));
     S.pen = normPen(S.pen);
-    Object.keys(DATA.PENS).forEach((k) => barn(S.pen[k], DATA.PENS[k], (took) => Object.entries(DATA.PENS[k].out).forEach(([id, n]) => add(id, Math.max(1, n - (took[id] || 0))))));
+    Object.keys(DATA.PENS).forEach((k) => hasHerd(k, S) && barn(S.pen[k], DATA.PENS[k], (took) => Object.entries(DATA.PENS[k].out).forEach(([id, n]) => add(id, Math.max(1, n - (took[id] || 0))))));
     if (noWheat && Date.now() - (S.helper.noWheatAt || 0) > 1800000) { S.helper.noWheatAt = Date.now(); UI.toast('🧑‍🌾 Cô giúp việc: hết lúa mì 🌾 để cho gà, bò, cừu, heo ăn rồi — trồng thêm lúa mì nhé!', 5000); }
     for (let b = 0; b < DATA.BED_COUNT; b++) {
       if (!S.beds[b]) continue;
@@ -3226,7 +3253,7 @@
     clock += dt;
     now = Date.now();
     updatePlayer(dt);
-    map.animals.forEach((a) => wander(a, dt, ANIMAL_SPEED[a.kind], false));
+    map.animals.forEach((a) => animalShown(a) && wander(a, dt, ANIMAL_SPEED[a.kind], false));
     map.npcs.forEach((n) => {
       if (n.helper) { if (n.show && !n.show()) return; wander(n, dt, 110, false); return; }
       wander(n, dt, 60, true);
@@ -3431,7 +3458,7 @@
     const list = map.objects.filter((o) => !o.bb || (o.bb[0] < vr && o.bb[2] > vl && o.bb[1] < vb && o.bb[3] > vt));
     const ABX = { chicken: FX.BOX.chicken, cow: FX.BOX.cow, sheep: FX.BOX.sheep, pig: FX.BOX.pig, dog: { l: -55, t: -80, w: 110, h: 86 } };
     const bbOf = (x, y, b) => [x + b.l - 4, y + b.t - 4, x + b.l + b.w + 4, y + b.t + b.h + 4];
-    map.animals.forEach((a) => inView(a.x, a.y) && list.push({ y: a.y, key: a, ent: true, bb: bbOf(a.x, a.y, ABX[a.kind] || FX.BOX.pig), draw: () => {
+    map.animals.forEach((a) => animalShown(a) && inView(a.x, a.y) && list.push({ y: a.y, key: a, ent: true, bb: bbOf(a.x, a.y, ABX[a.kind] || FX.BOX.pig), draw: () => {
       if (a.kind === 'chicken') out((c) => ART.chicken(c, a.x, a.y, a.dir, a.t, a.moving, a.peck), a.x, a.y, FX.BOX.chicken, a);
       else if (a.kind === 'cow') out((c) => ART.cow(c, a.x, a.y, a.dir, a.t, a.moving, a.seed), a.x, a.y, FX.BOX.cow, a);
       else if (a.kind === 'sheep') out((c) => ART.sheep(c, a.x, a.y, a.dir, a.t, a.moving), a.x, a.y, FX.BOX.sheep, a);
@@ -3598,7 +3625,7 @@
         at(e.x, e.y, top, () => ART.bubble(ctx, e.bubble.text, e.x, e.y - top, e.bubble.big));
       }
     };
-    map.animals.forEach(bubbleOf);
+    map.animals.filter(animalShown).forEach(bubbleOf);
     if (map.id === 'farm') guards.forEach((gd) => { if (gd.bubble && gd.bubble.until > now) at(gd.x, gd.y, 78, () => ART.bubble(ctx, gd.bubble.text, gd.x, gd.y - 78, gd.bubble.big)); });
     map.npcs.forEach(bubbleOf);
     others.forEach((r) => {
@@ -3679,7 +3706,7 @@
   function entityAt(x, y) {
     const remote = NET.players().find((r) => !r.hidden && Math.abs(x - r.rx) < 26 && y < r.ry + 6 && y > r.ry - 100);
     if (remote) return remote;
-    return [...map.npcs.filter((n) => !n.show || n.show()), ...map.animals].find((e) => {
+    return [...map.npcs.filter((n) => !n.show || n.show()), ...map.animals.filter(animalShown)].find((e) => {
       const h = e.kind === 'npc' ? 100 : e.kind === 'chicken' ? 34 : 54;
       const w = e.kind === 'npc' ? 26 : e.kind === 'chicken' ? 18 : 34;
       return Math.abs(x - e.x) < w && y < e.y + 6 && y > e.y - h;

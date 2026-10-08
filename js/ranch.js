@@ -412,8 +412,8 @@ const RANCH = (() => {
       }
       if (built('feeder')) {
         const feed = (st, cfg) => { if (st && !st.fedAt && (inv().wheat || 0) >= cfg.feed) { inv().wheat -= cfg.feed; st.fedAt = now(); return 1; } return 0; };
-        let n = feed(S().coop, DATA.COOP);
-        Object.keys(DATA.PENS).forEach((k) => { n += feed((S().pen || {})[k], DATA.PENS[k]); });
+        let n = AV.hasHerd('coop', S()) ? feed(S().coop, DATA.COOP) : 0;
+        Object.keys(DATA.PENS).forEach((k) => { if (AV.hasHerd(k, S())) n += feed((S().pen || {})[k], DATA.PENS[k]); });
         if (n) changed();
       }
     }
