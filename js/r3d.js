@@ -394,11 +394,14 @@ const R3D = (() => {
       if (it.hide3d) continue;
       if (it.b3d) { const G = building(it); G.visible = true; G.userData.seen = frameNo; }
       if (!it.bb) continue;
-      const bb = it.bb, s = Math.min(2, DPR * ZOOM, 2048 / Math.max(1, bb[2] - bb[0]), 2048 / Math.max(1, bb[3] - bb[1]));
+      // tấm hình vẽ ở ×1,5 (×2 thì mỗi lần tải lên card đồ hoạ nặng gần gấp đôi)
+      const bb = it.bb, s = Math.min(1.5, DPR * ZOOM, 2048 / Math.max(1, bb[2] - bb[0]), 2048 / Math.max(1, bb[3] - bb[1]));
       const w = Math.max(2, Math.ceil((bb[2] - bb[0]) * s)), h = Math.max(2, Math.ceil((bb[3] - bb[1]) * s));
       const key = it.key || it;
       const b = bill(key, w, h);
-      const due = !b.painted || it.repaint || (!it.s && (it.ent || frameNo - b.last >= 4));
+      // vẽ lại + tải lên card đồ hoạ thưa thôi (đây là phần làm nóng máy nhất): người / con vật đang đi 2 hình/lần, đứng yên 6 hình/lần, đồ vật chuyển động 8 hình/lần
+      const mv = it.ent && it.key && (it.key.moving || it.key === AV.player);
+      const due = !b.painted || it.repaint || (!it.s && frameNo - b.last >= (it.ent ? (mv ? 2 : 6) : 8));
       if (it.repaint) it.repaint = false;
       if (due) {
         b.c.setTransform(1, 0, 0, 1, 0, 0);

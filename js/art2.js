@@ -635,7 +635,8 @@ Object.assign(ART, (() => {
     [[0, 6, 22], [24, 2, 26], [50, 8, 20], [14, -10, 20], [36, -12, 22]].forEach(([dx, dy, r]) => circle(ctx, x + dx * s, y + dy * s, r * s, '#fff'));
   }
 
-  function backdrop(ctx, w, hz, camX, t, sea) {
+  /** vw = bề ngang vùng đang nhìn (chỉ vẽ đồi / bụi / ruộng trong vùng này cho nhẹ máy) */
+  function backdrop(ctx, w, hz, camX, t, sea, vw = w + 1800) {
     const g = ctx.createLinearGradient(0, 0, 0, hz);
     g.addColorStop(0, '#4fb0f0'); g.addColorStop(1, '#c6ebff');
     ctx.fillStyle = g; ctx.fillRect(-800, -200, w + 1600, hz + 200);
@@ -646,12 +647,16 @@ Object.assign(ART, (() => {
     }
     if (sea) return;
     const par = (f, fn) => { ctx.save(); ctx.translate((camX - w / 2) * f, 0); fn(); ctx.restore(); };
+    // khoảng x cần vẽ của từng lớp (đã trừ độ trượt thị sai), bám theo lưới gốc để hình không đổi
+    const span = (f, step, pad) => { const off = (camX - w / 2) * f, a = Math.max(-900, camX - vw / 2 - off - pad), b = Math.min(w + 900, camX + vw / 2 - off + pad); return [-900 + Math.floor((a + 900) / step) * step, b]; };
     par(0.6, () => {
       ctx.fillStyle = '#a5dc8c';
-      for (let x = -900; x < w + 900; x += 240) { ctx.beginPath(); ctx.ellipse(x, hz - 30, 190, 80, 0, Math.PI, 0); ctx.fill(); }
+      const [a, b] = span(0.6, 240, 200);
+      for (let x = a; x < b; x += 240) { ctx.beginPath(); ctx.ellipse(x, hz - 30, 190, 80, 0, Math.PI, 0); ctx.fill(); }
     });
     par(0.45, () => {
-      for (let x = -900; x < w + 900; x += 44) {
+      const [a, b] = span(0.45, 44, 40);
+      for (let x = a; x < b; x += 44) {
         const yy = hz - 52 + ((x / 44) % 3) * 4, r = 22 + ((x / 44) % 4) * 3;
         circle(ctx, x, yy + 4, r, '#3c9a3c');
         circle(ctx, x, yy, r, '#57b84a');
@@ -660,7 +665,8 @@ Object.assign(ART, (() => {
     });
     par(0.25, () => {
       const cols = ['#c9e47f', '#9fd468', '#e3d27a', '#b4dc6e'];
-      for (let x = -900, i = 0; x < w + 900; x += 200, i++) {
+      const [a, b] = span(0.25, 200, 10);
+      for (let x = a, i = (a + 900) / 200; x < b; x += 200, i++) {
         ctx.fillStyle = cols[i % 4];
         ctx.fillRect(x, hz - 34, 198, 34);
         ctx.strokeStyle = 'rgba(80,120,40,.35)'; ctx.lineWidth = 2;

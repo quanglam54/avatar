@@ -3443,7 +3443,7 @@
     }
     const night = map.indoor ? 0 : nightFactor();
     if (!use3d) {
-      if (!map.indoor) ART.backdrop(g, map.w, map.hz, cam.x, clock, map.id === 'beach');
+      if (!map.indoor) ART.backdrop(g, map.w, map.hz, cam.x, clock, map.id === 'beach', VW);
       ART.nightSky(g, map.w, map.hz, night, clock);
     }
 
@@ -3541,7 +3541,7 @@
     list.sort((a, b) => a.y - b.y);
     if (use3d) {
       // bầu trời + đồi xa: 1 tấm hình động phía sau cùng
-      if (!map.indoor) list.unshift({ y: 0, key: 'sky', bb: [Math.max(0, cam.x - VW / 2 - 80), -40, Math.min(map.w, cam.x + VW / 2 + 80), map.hz + 4], draw: (c) => { ART.backdrop(c, map.w, map.hz, cam.x, clock, map.id === 'beach'); ART.nightSky(c, map.w, map.hz, night, clock); } });
+      if (!map.indoor) list.unshift({ y: 0, key: 'sky', bb: [Math.max(0, cam.x - VW / 2 - 80), -40, Math.min(map.w, cam.x + VW / 2 + 80), map.hz + 4], draw: (c) => { ART.backdrop(c, map.w, map.hz, cam.x, clock, map.id === 'beach', VW); ART.nightSky(c, map.w, map.hz, night, clock); } });
       R3D.render({ map, cx: cam.x, cy: cam.y, W, H, ZOOM, DPR, night, items: list.filter((o) => o.bb || o.bed),
         paint: (it, c) => { const og = g; g = c; try { it.draw(c, clock); } finally { g = og; } } });
       list.filter((o) => !o.bb && !o.bed).forEach((o) => at(player.x, player.y, 0, () => o.draw(g, clock)));
@@ -3681,7 +3681,8 @@
   AV.applyGfx = () => { resize(); FX.setSlow(saver() ? 1.8 : 1); };
 
   function resize() {
-    DPR = Math.min(saver() ? 2 : 2.5, window.devicePixelRatio || 1);
+    // tiết kiệm pin (điện thoại): vẽ ×1,6 thay vì ×2 — bớt ~36% điểm ảnh, chữ vẫn nét
+    DPR = Math.min(saver() ? 1.6 : 2.5, window.devicePixelRatio || 1);
     // kích thước layout (không đổi khi lỡ chụm 2 ngón phóng to cả trang) → khung vẽ luôn phủ kín màn hình
     const de = document.documentElement;
     W = de.clientWidth || window.innerWidth;

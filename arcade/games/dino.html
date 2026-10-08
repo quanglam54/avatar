@@ -183,7 +183,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
   /* ---------- cảnh 3D ---------- */
   const cv = $('c');
   const engine = new B.Engine(cv, true, { stencil: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' }, true);
-  engine.setHardwareScalingLevel(1 / Math.min(1.5, devicePixelRatio || 1));
+  // điện thoại: vẽ ở độ phân giải thường, tắt bóng đổ, bớt cỏ cho mát máy, đỡ tốn pin
+  const PHONE = matchMedia('(pointer: coarse)').matches;
+  engine.setHardwareScalingLevel(1 / Math.min(PHONE ? 1 : 1.5, devicePixelRatio || 1));
   const scene = new B.Scene(engine);
   scene.skipPointerMovePicking = true;
   scene.clearColor = new B.Color4(0.62, 0.78, 0.86, 1);
@@ -191,7 +193,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
   const hemi = new B.HemisphericLight('hemi', new V3(0.2, 1, 0.1), scene); hemi.intensity = 0.75; hemi.groundColor = new C3(0.28, 0.3, 0.22);
   const sun = new B.DirectionalLight('sun', new V3(-0.45, -1, -0.32), scene); sun.intensity = 1.15; sun.diffuse = new C3(1, 0.96, 0.86);
   sun.position = new V3(SAFE.x + 40, 90, SAFE.z + 30); sun.shadowMinZ = 1; sun.shadowMaxZ = 200;
-  const sg = new B.ShadowGenerator(1024, sun);
+  const sg = new B.ShadowGenerator(PHONE ? 512 : 1024, sun);
   sg.bias = 0.004; sg.normalBias = 0.02; sg.usePercentageCloserFiltering = true; sg.filteringQuality = B.ShadowGenerator.QUALITY_LOW; sg.setDarkness(0.35);
   const camera = new B.ArcRotateCamera('cam', -Math.PI / 2, 1.22, 9, new V3(SAFE.x, 2, SAFE.z), scene);
   camera.minZ = 0.2; camera.maxZ = 400; camera.fov = 0.9;
@@ -333,7 +335,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
     }
     for (let i = 0; i < 16; i++) { const a = R() * TAU, d = 10 + R() * (SAFE.r - 14); const pl = { x: SAFE.x + Math.cos(a) * d, z: SAFE.z + Math.sin(a) * d, kind: R() < 0.5 ? 'fern' : 'berry', food: 100, max: 100, s: 0.85 + R() * 0.4, regrow: 0 }; plants.push(pl); gridAdd(plantGrid, pl.x, pl.z, pl); }
     // cỏ lơ thơ
-    for (let n = 0; n < 9000; n++) { const x = R() * WS, z = R() * WS, t = tyAt(x, z); if (t === 0 || t === 6 || (t === 1 && R() < 0.4)) chunkOf(x, z).lists.tuft.push(mat(x, heightAt(x, z), z, 0.7 + R() * 0.8, R() * TAU)); }
+    for (let n = 0; n < (PHONE ? 3500 : 9000); n++) { const x = R() * WS, z = R() * WS, t = tyAt(x, z); if (t === 0 || t === 6 || (t === 1 && R() < 0.4)) chunkOf(x, z).lists.tuft.push(mat(x, heightAt(x, z), z, 0.7 + R() * 0.8, R() * TAU)); }
     chunks.forEach((c, ci) => Object.entries(c.lists).forEach(([kind, arr]) => {
       if (!arr.length || (Q.get('nokind') || '').split(',').includes(kind)) return;
       // mỗi ô 1 khung hình riêng (dùng chung thì danh sách vị trí của ô này đè lên ô kia → hình bị kéo dài)
@@ -1062,7 +1064,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
       if (c.kind === 'croc') { const v = c.sub < 0.6 || d < 6 ? 1 : 0.2; if (c.vis !== v) { c.vis = v; c.m.meshes.forEach((mm) => { mm.visibility = v; }); } }
     }
     if (frame % 15 === 0) {
-      chunks.forEach((ch) => { const v = dist(ch.x, ch.z, player.x, player.z) < 200; ch.meshes.forEach((m) => { if (m.isEnabled() !== v) m.setEnabled(v); }); });
+      chunks.forEach((ch) => { const v = dist(ch.x, ch.z, player.x, player.z) < (PHONE ? 165 : 200); ch.meshes.forEach((m) => { if (m.isEnabled() !== v) m.setEnabled(v); }); });
       plants.forEach((p) => { const v = dist(p.x, p.z, player.x, player.z) < 150; if (p.m.isEnabled() !== v) p.m.setEnabled(v); });
     }
   }
@@ -1081,9 +1083,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
     const nf = night();
     hemi.intensity = lerp(0.75, 0.2, nf); sun.intensity = lerp(1.15, 0.12, nf);
     scene.clearColor.set(lerp(SKY_DAY.r, SKY_NIGHT.r, nf), lerp(SKY_DAY.g, SKY_NIGHT.g, nf), lerp(SKY_DAY.b, SKY_NIGHT.b, nf), 1);
-    scene.fogColor = C3.Lerp(FOG_DAY, FOG_NIGHT, nf); scene.fogEnd = lerp(175, 95, nf);
+    scene.fogColor = C3.Lerp(FOG_DAY, FOG_NIGHT, nf); scene.fogEnd = lerp(PHONE ? 140 : 175, 95, nf);
     sun.position.set(player.x + 40, player.y + 90, player.z + 30);
     shadowT -= dt;
+    if (shadowT <= 0 && PHONE) { shadowT = 1e9; sg.getShadowMap().renderList = []; }
     if (shadowT <= 0) { shadowT = 0.5; const list = []; creatures.forEach((c) => { if (dist(c.x, c.z, player.x, player.z) < 35 && c.m.root.isEnabled()) list.push(...c.m.meshes); }); sg.getShadowMap().renderList = list; }
     wm.bumpTexture.uOffset += dt * 0.004; wm.bumpTexture.vOffset += dt * 0.003;
   }

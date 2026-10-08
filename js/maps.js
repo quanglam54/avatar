@@ -493,7 +493,9 @@ const MAPS = (() => {
         obj(m, y + 2, (ctx, t) => { const st = AV.treeState(i); if (st.ripe) for (let k = 0; k < 4; k++) { const a = t * 2 + k * 1.6; ART.circle(ctx, x + Math.cos(a) * 46, y - 100 + Math.sin(a * 1.3) * 34, 2.6 + Math.sin(t * 6 + k) * 1.2, 'rgba(255,255,200,.95)'); } });
       } else {
         addTree(m, x, y, fr === DATA.FRUITS.peach ? 'pink' : 'green');
-        obj(m, y + 1, (ctx, t) => { const st = AV.treeState(i); ART.treeFruits(ctx, x, y, fr.color, st.p, st.ripe, t); });
+        // quả trên cây: vẽ sẵn, 0,4 giây vẽ lại 1 lần (quả lớn chậm) cho đỡ nóng máy
+        const fk = {};
+        obj(m, y + 1, (ctx, t) => { const st = AV.treeState(i); FX.drawCached(ctx, fk, (c) => ART.treeFruits(c, x, y, fr.color, st.p, st.ripe, t), x, y, { l: -110, t: -230, w: 220, h: 240 }, 400); });
       }
       inter(m, {
         x: x - 62, y: y - 180, w: 124, h: 186, ax: x, ay: y + 30, name: `Cây ${fr.name.toLowerCase()} (hái quả)`,
@@ -2573,7 +2575,8 @@ const MAPS = (() => {
       const magic = i % 4 === 0;
       const idx = m.hwMagic.length;
       if (magic) m.hwMagic.push({ x, y });
-      obj(m, y, (ctx, t) => { if (AV.hw()) ART.jackLantern(ctx, x, y, t, magic && !AV.hwFound(m.id, idx)); });
+      const jk = {};
+      obj(m, y, (ctx, t) => { if (AV.hw()) FX.drawCached(ctx, jk, (c) => ART.jackLantern(c, x, y, t, magic && !AV.hwFound(m.id, idx)), x, y, { l: -45, t: -80, w: 90, h: 86 }, 140); });
       (m.lights = m.lights || []).push([x, y - 16, 36, 'hw']);
       if (magic) inter(m, { x: x - 26, y: y - 40, w: 52, h: 46, ax: x, ay: y + 22, name: '✨ Bí ngô ma (nhặt kẹo)', use: () => AV.hwPickPumpkin(m.id, idx), hw: true });
     });
@@ -2582,7 +2585,8 @@ const MAPS = (() => {
         const x = b.l + 80 + r() * (b.r - b.l - 160), y = b.t + 60 + r() * (Math.min(b.b, 840) - b.t - 60);
         if (!free(x, y, 50) || spots.some((p) => Math.hypot(p[0] - x, p[1] - y) < 90)) continue;
         const kk = k++;
-        obj(m, y, (ctx) => { if (AV.hw()) ART.gravestone(ctx, x, y, kk); });
+        const gk = {};
+        obj(m, y, (ctx) => { if (AV.hw()) FX.drawCached(ctx, gk, (c) => ART.gravestone(c, x, y, kk), x, y, { l: -45, t: -90, w: 90, h: 96 }, 600000); });
       }
     }
   }
