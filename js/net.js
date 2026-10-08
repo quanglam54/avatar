@@ -236,6 +236,8 @@ const NET = (() => {
       RACE.onNet(m);
     } else if (m.t === 'kart') {
       if (typeof RACECUP !== 'undefined') RACECUP.onNet(m);
+    } else if (m.t === 'dino') {
+      if (typeof DINO !== 'undefined') DINO.onNet(m);
     } else if (m.t === 'tbl') {
       if (typeof CARDLOBBY !== 'undefined') CARDLOBBY.onTbl(m);
       TABLE.onNet(m);
@@ -316,6 +318,10 @@ const NET = (() => {
   /** 🃏 mời bạn bè (theo tên đăng nhập) vào bàn bài ở casino — đi qua kênh chung nên mời được người ở khu khác */
   function sendCardInv(p) {
     if (lobby) lobby.send({ t: 'cinv', id: pid, name: AV.S.name, ...p });
+  }
+  /** 🦖 Đảo Khủng Long: vị trí / cắn / lập đàn giữa những người đang ở đảo (kênh của khu hiện tại) */
+  function sendDino(d) {
+    send('dino', d);
   }
   function sendCall(p) {
     if (lobby) lobby.send({ t: 'call', id: pid, ...p });
@@ -432,7 +438,7 @@ const NET = (() => {
   }
 
   return {
-    sendBooth, sendCardInv, lobbyPeers: () => [...where].filter(([, w]) => Date.now() - w.seen < 30000).map(([id, w]) => ({ id, user: w.user, map: w.map })),
+    sendBooth, sendCardInv, sendDino, lobbyPeers: () => [...where].filter(([, w]) => Date.now() - w.seen < 30000).map(([id, w]) => ({ id, user: w.user, map: w.map })),
     init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, sendKart, remotes, zoneCounts, announce, farmPing, sendNews, sendCall, sendFirework, sendBite, sendVoice, sendRps, sendBox, sendRide, sendArena, sendHorse,
     get mode() { return mode; },
     get pid() { return pid; },

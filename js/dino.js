@@ -49,7 +49,7 @@ const DINO = (() => {
     sess = { sid: Date.now().toString(36), sp, fos: 0, kills: 0 };
     const v = document.getElementById('arcadeView');
     v.innerHTML = `<div class="arc-bar"><b>🦖 Đảo Khủng Long</b><span>Ăn uống đủ để lớn · 🦴 hoá thạch đổi ra xu khi thoát</span><button class="tv-x" data-close>✕ Thoát</button></div>
-      <iframe src="arcade/games/dino.html?sp=${sp}&g=${(o.g || 0).toFixed(4)}&sid=${sess.sid}&v=${Date.now().toString(36)}" title="Đảo Khủng Long" allow="autoplay; fullscreen"></iframe>`;
+      <iframe src="arcade/games/dino.html?sp=${sp}&g=${(o.g || 0).toFixed(4)}&sid=${sess.sid}&pid=${encodeURIComponent(NET.pid || '')}&name=${encodeURIComponent(S().name || 'Bạn')}&v=${Date.now().toString(36)}" title="Đảo Khủng Long" allow="autoplay; fullscreen"></iframe>`;
     v.classList.add('show');
     v.querySelector('[data-close]').onclick = () => { UI.closeArcade(); finish(); };
     setTimeout(() => { const f = v.querySelector('iframe'); if (f) f.focus(); }, 300);
@@ -71,14 +71,23 @@ const DINO = (() => {
   function finish() {
     if (!sess) return;
     const s = sess;
+    NET.sendDino({ k: 'bye' });
     // chờ tin lưu cuối (game gửi lúc đóng khung) tới rồi mới kết thúc lượt
     setTimeout(() => { if (sess === s) sess = null; if (s.fos > 0) UI.toast(`🦖 Rời đảo: ${s.fos} 🦴 hoá thạch → +${fmt(s.fos * FOSSIL_XU)} xu${s.kills ? ` · 🎯 hạ ${s.kills} con` : ''}`, 5000); }, 400);
   }
   window.addEventListener('message', (e) => {
     const m = e.data || {};
     if (m.type === 'dino-save') onSave(m);
+    else if (m.type === 'dino-net' && sess && m.d && typeof m.d === 'object') NET.sendDino(m.d);
     else if (m.type === 'arcade-close' && sess) finish();
   });
+
+  /** tin của người chơi khác trên đảo → chuyển vào game (đang mở) */
+  function onNet(m) {
+    if (!sess) return;
+    const f = document.querySelector('#arcadeView iframe');
+    if (f && f.contentWindow) f.contentWindow.postMessage({ type: 'dino-in', d: m }, '*');
+  }
 
   /** cổng gỗ vào đảo (vẽ trên bản đồ Khu giải trí) */
   function gate(c, x, y, t) {
@@ -115,5 +124,5 @@ const DINO = (() => {
     s.textContent = '.dn-bar { height: 7px; border-radius: 4px; background: #e9ecef; overflow: hidden; margin-top: 3px; } .dn-bar i { display: block; height: 100%; background: linear-gradient(90deg, #7048e8, #b197fc); }';
     document.head.appendChild(s);
   }
-  return { panel, play, gate };
+  return { panel, play, gate, onNet };
 })();
