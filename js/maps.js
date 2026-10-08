@@ -606,15 +606,15 @@ const MAPS = (() => {
     col(m, HX2 - 56, HY2 - 10, 112, 10);
     inter(m, { x: HX2 - 85, y: HY2 - 200, w: 170, h: 200, ax: HX2, ay: HY2 + 26, name: 'Biển thuê giúp việc (chăm nông trại hộ)', use: () => UI.helperPanel(), arrow: { x: HX2, y: HY2 - 218, text: 'Thuê giúp việc' } });
     /* QuangLamBank + cây ATM cạnh trạm xe buýt (vẽ sẵn 1 lần → nhẹ cho điện thoại) */
-    const BX = 2345, BY = 1428, BK = 0.56; // thấp vừa để không che luống đất trong tường
+    const BX = 2490, BY = 1428, BK = 0.56; // thấp vừa để không che luống đất trong tường
     sobj(m, BX, BY, (c) => { c.save(); c.translate(BX, BY); c.scale(BK, BK); BANK.building(c, 0, 0); c.restore(); }, { l: -150, t: -235, w: 300, h: 255 });
     m.objects[m.objects.length - 1].b3d = { w: 256, h: 190, roof: '#00502b', wall: '#efe6d2', depth: 45 };
     col(m, BX - 128, BY - 42, 90, 40); col(m, BX + 38, BY - 42, 90, 40); col(m, BX - 38, BY - 42, 76, 14);
     inter(m, { x: BX - 40, y: BY - 84, w: 80, h: 86, ax: BX, ay: BY + 30, name: 'QuangLamBank (mở tài khoản, gửi / rút xu)', use: () => BANK.panel('counter'), arrow: { x: BX, y: BY - 70, text: 'Ngân hàng' } });
-    pic(m, 'img/mall/atm.png', 2555, 1440, 86, { h: 124 });
+    pic(m, 'img/mall/atm.png', 2700, 1440, 86, { h: 124 });
     m.objects[m.objects.length - 1].b3d = { w: 70, h: 112, roof: '#2b8a3e', wall: '#e9ecef' };
-    col(m, 2518, 1412, 74, 28);
-    inter(m, { x: 2510, y: 1318, w: 90, h: 124, ax: 2555, ay: 1470, name: 'Cây ATM QuangLamBank', use: () => BANK.panel('atm'), arrow: { x: 2555, y: 1300, text: 'ATM' } });
+    col(m, 2663, 1412, 74, 28);
+    inter(m, { x: 2655, y: 1318, w: 90, h: 124, ax: 2700, ay: 1470, name: 'Cây ATM QuangLamBank', use: () => BANK.panel('atm'), arrow: { x: 2700, y: 1300, text: 'ATM' } });
     /* ----- 🧋 Quán trà đá vỉa hè cạnh bến xe buýt ----- */
     const TX = 2100, TY = 1428;
     sobj(m, TX, TY, (c) => teaStall(c, TX, TY), { l: -95, t: -150, w: 190, h: 165 });
@@ -622,22 +622,24 @@ const MAPS = (() => {
     inter(m, { x: TX, y: TY - 120, w: 80, h: 120, ax: TX + 40, ay: TY + 30, name: 'Quán trà đá (trà đá, hướng dương, lạc rang)', use: () => UI.eateryPanel('trada'), arrow: { x: TX + 40, y: TY - 140, text: 'Trà đá' } });
     inter(m, { x: TX - 90, y: TY - 40, w: 80, h: 50, ax: TX - 50, ay: TY + 26, name: 'Ghế nhựa (ngồi uống trà đá)', use: () => AV.sitSeat(TX - 75, TX - 33, TY + 8, '🧋 Ngồi uống trà đá vỉa hè, ngắm phố', () => {}) });
     addBusStop(m, GATE + 140, 1432, 1);
+    /* ----- 📸 Quang Lâm Photobooth ngay cạnh quán trà đá ----- */
+    if (typeof BOOTH !== 'undefined') BOOTH.addTo(m, { sobj, col, inter }, TX + 185, TY);
     /* ----- 🚗 VinFast Showroom + 🔌 trạm sạc V-GREEN cạnh ATM ----- */
-    const VX = 2790, VY = 1430;
+    const VX = 2935, VY = 1430;
     const VK = 0.72; // thấp vừa để không che luống đất
     sobj(m, VX, VY, (c) => { c.save(); c.translate(VX, VY); c.scale(VK, VK); c.translate(-VX, -VY); vinfast(c, VX, VY); c.restore(); }, { l: -170, t: -220, w: 340, h: 240 });
     m.objects[m.objects.length - 1].b3d = { w: 316, h: 198, roof: '#1b2f48', wall: '#495057', depth: 45 };
     col(m, VX - 152, VY - 38, 108, 36); col(m, VX + 44, VY - 38, 108, 36); col(m, VX - 44, VY - 38, 88, 12);
     inter(m, { x: VX - 44, y: VY - 110, w: 88, h: 110, ax: VX, ay: VY + 30, name: 'VinFast Showroom (mua ô tô điện)', use: () => UI.carShop(), arrow: { x: VX, y: VY - 124, text: 'VinFast' } });
     /* ----- 📱 CellphoneS + Thế Giới Di Động ngay cạnh VinFast ----- */
-    [['cps', 3040, 'CellphoneS'], ['tgdd', 3290, 'Thế Giới Di Động']].forEach(([k, SX, nm]) => {
+    [['cps', 3185, 'CellphoneS'], ['tgdd', 3435, 'Thế Giới Di Động']].forEach(([k, SX, nm]) => {
       const SY = 1430;
       sobj(m, SX, SY, (c) => phoneStore(c, SX, SY, k), { l: -126, t: -206, w: 252, h: 218 });
       m.objects[m.objects.length - 1].b3d = { w: 226, h: 150, roof: k === 'cps' ? '#d70018' : '#ffd400', wall: '#f8f9fa' };
       col(m, SX - 113, SY - 34, 80, 32); col(m, SX + 33, SY - 34, 80, 32); col(m, SX - 33, SY - 34, 66, 10);
       inter(m, { x: SX - 40, y: SY - 130, w: 80, h: 132, ax: SX, ay: SY + 30, name: `${nm} (mua điện thoại iPhone / Android)`, use: () => PHONE.shop(k), arrow: { x: SX, y: SY - 215, text: nm } });
     });
-    const CX2 = 3545, CY2 = 1430;
+    const CX2 = 3690, CY2 = 1430;
     sobj(m, CX2, CY2, (c) => charger(c, CX2, CY2), { l: -80, t: -200, w: 160, h: 215 });
     m.objects[m.objects.length - 1].b3d = { w: 160, h: 196, roof: '#0ca678', wall: '#dee2e6', canopy: 1 };
     col(m, CX2 - 60, CY2 - 34, 120, 32);

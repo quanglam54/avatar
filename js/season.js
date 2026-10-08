@@ -19,7 +19,8 @@ const SEASON = (() => {
     const i = Math.floor(days / 7) % 4;
     return { i, ...LIST[i], day: (days % 7) + 1 };
   }
-  const inSeason = (crop) => !CROP[crop] || CROP[crop].includes(now().i);
+  /** trồng gì cũng được quanh năm (mùa chỉ đổi cảnh vật) */
+  const inSeason = () => true;
   const seasonsOf = (crop) => (CROP[crop] || [0, 1, 2, 3]).map((i) => LIST[i].icon + ' ' + LIST[i].name).join(', ');
   return { LIST, CROP, now, inSeason, seasonsOf };
 })();

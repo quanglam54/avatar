@@ -115,8 +115,8 @@ const ART = (() => {
   const PAINT_H = 100;
   /** Ảnh nhân vật dựng sẵn: thu lùn thân + viền nâu đậm, ở độ phân giải k (chiều cao PAINT_H) */
   const spriteCache = new Map();
-  function paintedSprite(look, im) {
-    const p = paintedSrc(look), k = Math.min(3, Math.max(1, (typeof FX !== 'undefined' && FX.scale) || 1));
+  function paintedSprite(look, im, hires) {
+    const p = paintedSrc(look), k = hires || Math.min(3, Math.max(1, (typeof FX !== 'undefined' && FX.scale) || 1));
     const wear = typeof WARDROBE !== 'undefined' && WARDROBE.active(look) ? look.wear : '';
     const key = p.src + '|' + k + '|' + wear;
     let e = spriteCache.get(key);
@@ -147,7 +147,7 @@ const ART = (() => {
     const im = paintedImg(look);
     if (!im) return false;
     const s = (o.scale ?? 1.18) / 1.18, t = o.t || 0;
-    const sp = paintedSprite(look, im);
+    const sp = paintedSprite(look, im, o.hires);
     let bob = 0, tilt = 0, sq = 1;
     if (o.dance) { bob = Math.abs(Math.sin(t * 7)) * 9 * s; tilt = Math.sin(t * 4) * 0.12; }
     else if (o.moving) { bob = Math.abs(Math.sin(t * 12)) * 3 * s; tilt = Math.sin(t * 12) * 0.045; }

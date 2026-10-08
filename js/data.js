@@ -191,7 +191,7 @@ DATA.FURNITURE = [
 ];
 
 /** Dãy quán ăn uống trước cổng nông trại: ăn uống tốn xu, được XP (no bụng thì phải đợi tiêu bớt) */
-DATA.BELLY = { max: 6, digestMin: 4 };
+DATA.BELLY = { max: 6, digestMin: 2 };
 DATA.EATERIES = [
   { id: 'com', name: 'Cơm Tấm', sub: 'CƠM BÌNH DÂN · CƠM GÀ', logo: '🍛', wall: '#fff3bf', trim: '#e67700', awn: ['#fd7e14', '#fff'], signBg: '#e8590c', signFg: '#fff', items: ['🍛', '🍗', '🥚'], deco: 'stools',
     menu: [{ id: 'com_suon', name: 'Cơm tấm sườn bì chả', icon: '🍛', price: 25, xp: 12 }, { id: 'com_ga', name: 'Cơm gà xối mỡ', icon: '🍗', price: 22, xp: 10 }, { id: 'com_rang', name: 'Cơm rang dưa bò', icon: '🍳', price: 18, xp: 8 }] },

@@ -1463,9 +1463,9 @@ const UI = (() => {
     const S = AV.S;
     const p = panel(`${e.logo} ${e.name}`, '', { wide: true });
     const render = () => {
-      const b = AV.belly(), full = b >= DATA.BELLY.max;
+      const b = AV.belly(), full = !AV.canEat();
       p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · Cấp ${S.level}</div>
-        <div class="belly"><span>🍽️ No bụng</span><div class="qbar"><i style="width:${Math.min(100, b / DATA.BELLY.max * 100)}%;background:${full ? '#e03131' : '#40c057'}"></i></div><small>${full ? 'No rồi, đợi tiêu bớt' : 'Còn ăn được'}</small></div>
+        <div class="belly"><span>🍽️ No bụng</span><div class="qbar"><i style="width:${Math.min(100, b / DATA.BELLY.max * 100)}%;background:${full ? '#e03131' : '#40c057'}"></i></div><small>${full ? 'No rồi, đợi tiêu bớt' : b >= DATA.BELLY.max ? 'No nhưng đang đói sức — vẫn ăn được' : 'Còn ăn được'}</small></div>
         <div class="shop-list">${e.menu.map((it) => `<div class="shop-row"><span class="ic">${it.icon}</span>
           <div class="info"><b>${it.name}</b><small>+${it.xp} XP</small></div>
           <button class="btn small" data-eat="${it.id}" ${full ? 'disabled' : ''}>${it.price} xu</button></div>`).join('')}</div>

@@ -361,7 +361,7 @@ const ZAPPS = (() => {
         if (!to) return UI.toast('📍 Không tìm thấy địa chỉ — chọn trong danh sách gợi ý nhé');
         if (!name) return UI.toast('👤 Nhập tên người nhận');
         if (!/^0\d{9}$/.test(num)) return UI.toast('📞 Số điện thoại phải đủ 10 số (VD 09xx xxx xxx)');
-        if (AV.belly() >= DATA.BELLY.max) return UI.toast('😵 Bạn đang no căng bụng, đặt sau nhé');
+        if (AV.canEat && !AV.canEat()) return UI.toast('😵 Bạn đang no căng bụng, đặt sau nhé');
         const fee = shipFee(), sum = cartSum(), items = cartList();
         if (S().coins < sum + fee) return UI.toast('Không đủ xu 😢');
         if (fee && !AV.spend(fee)) return;

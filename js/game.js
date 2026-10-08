@@ -654,7 +654,7 @@
     const key = 'seed_' + crop;
     if (!S.inv[key] || S.tiles[i].crop || !AV.cropAllowed(i, crop)) return false;
     if (S.weeds && S.weeds[i]) { if (helperBusy) delete S.weeds[i]; else return false; }
-    if (typeof SEASON !== 'undefined' && !SEASON.inSeason(crop)) { UI.toast(`${DATA.CROPS[crop].icon} ${DATA.CROPS[crop].name} chỉ gieo được vào mùa ${SEASON.seasonsOf(crop)}`, 3500); return false; }
+    if (false) { UI.toast(`${DATA.CROPS[crop].icon} ${DATA.CROPS[crop].name} chỉ gieo được vào mùa ${SEASON.seasonsOf(crop)}`, 3500); return false; }
     S.inv[key]--;
     // có khả năng bị sâu ở giữa chừng (khác mốc khát nước)
     const pestAt = Math.random() < DATA.PEST.chance ? Math.round((0.15 + Math.random() * 0.55) * 1000) / 1000 : 0;
@@ -2550,13 +2550,15 @@
     return b;
   }
   AV.belly = () => belly().v;
+  /** no bụng chỉ chặn khi còn sức; đói lả (⚡ dưới 50) thì lúc nào cũng ăn được */
+  AV.canEat = () => belly().v < DATA.BELLY.max || enOf() < 50;
   AV.eat = (shopId, itemId) => {
     const shop = [...DATA.EATERIES, ...(DATA.STREET_FOOD || []), ...(DATA.CLUB_MENU || []), ...(DATA.CAMP_MENU || []), ...(DATA.CGV_MENU || []), ...(DATA.TEA_MENU || [])].find((e) => e.id === shopId), it = shop && shop.menu.find((x) => x.id === itemId);
     if (!it) return false;
     const b = belly();
-    if (b.v >= DATA.BELLY.max) { UI.toast(`😵 No căng bụng rồi! Đợi khoảng ${DATA.BELLY.digestMin} phút cho tiêu bớt nhé`, 3500); say(player, '🥴 No quá…'); return false; }
+    if (!AV.canEat()) { UI.toast(`😵 No căng bụng rồi! Đợi khoảng ${DATA.BELLY.digestMin} phút cho tiêu bớt nhé`, 3500); say(player, '🥴 No quá…'); return false; }
     if (!AV.spend(it.price)) return false;
-    b.v += it.price >= 15 ? 1 : 0.5;
+    b.v = Math.min(DATA.BELLY.max, b.v + (it.price >= 15 ? 1 : 0.5));
     addXP(it.xp);
     const en = Math.max(10, Math.min(60, Math.round(it.price * 0.8) + 8));
     S.energy = Math.min(100, enOf() + en); UI.updateHud();
@@ -3789,7 +3791,7 @@
     const chip = document.createElement('div'); chip.className = 'season-chip'; document.body.appendChild(chip);
     const upd = () => { const sn = SEASON.now(); chip.textContent = `${sn.icon} Mùa ${sn.name} · ngày ${sn.day}/7`; chip.title = 'Mỗi mùa 7 ngày · cây chỉ gieo được trong mùa của nó'; };
     upd(); setInterval(upd, 60000);
-    chip.onclick = () => { const sn = SEASON.now(); UI.toast(`${sn.icon} Mùa ${sn.name} (ngày ${sn.day}/7) · gieo được: ${Object.keys(DATA.CROPS).filter((c) => SEASON.inSeason(c)).map((c) => DATA.CROPS[c].icon).join(' ')}`, 6000); };
+    chip.onclick = () => { const sn = SEASON.now(); UI.toast(`${sn.icon} Mùa ${sn.name} (ngày ${sn.day}/7) · 🌱 Trồng cây gì cũng được, không cần đúng mùa`, 6000); };
   }
   window.addEventListener('resize', resize);
   enterMap(maps[S.map] ? S.map : 'farm', S.x, S.y);
