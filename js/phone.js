@@ -760,7 +760,8 @@ const PHONE = (() => {
   /** 🔔 chuông tin nhắn kiểu iPhone (tri-tone) */
   /* 🔔 chuông tin nhắn: bài YouTube (trình phát ẩn), chưa sẵn sàng thì dùng tiếng tri-tone tự tạo */
   const SMS_YT = 'BzOWJ7276Ls';
-  let smsP = null, smsReady = false, smsStop = 0;
+  const SMS_FROM = 0, SMS_LEN = 1300, SMS_FADE = 300; // chỉ phát 1 tiếng "ting" (ms), nhỏ dần ở cuối cho khỏi cụt
+  let smsP = null, smsReady = false, smsStop = 0, smsFade = 0, smsAt = 0;
   function prepSms() {
     if (smsP) return;
     smsP = 'loading';
@@ -777,12 +778,34 @@ const PHONE = (() => {
     }
   }
   ['pointerdown', 'keydown'].forEach((ev) => window.addEventListener(ev, prepSms, { once: true, passive: true }));
+  /** tạm vặn nhạc nền về 0 lúc chuông kêu rồi trả lại (không dừng hẳn để bài không phát lại từ đầu) */
+  let duckVol = null, duckT = 0;
+  function duckMusic() {
+    if (typeof MUSIC === 'undefined' || !MUSIC.on) return;
+    if (duckVol === null) { duckVol = MUSIC.volume; MUSIC.setVolume(0); }
+    clearTimeout(duckT);
+    duckT = setTimeout(() => { if (duckVol !== null) { MUSIC.setVolume(duckVol); duckVol = null; } }, SMS_LEN + 300);
+  }
   function smsTone() {
     if (!model() || (AV.S.settings && AV.S.settings.sfx === false)) return;
     if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
     if (typeof CALL !== 'undefined' && CALL.busy()) return;
+    if (Date.now() - smsAt < SMS_LEN + 200) return; // tin tới dồn dập: đang kêu thì thôi, khỏi kêu chồng
+    smsAt = Date.now();
+    duckMusic();
     if (smsReady) {
-      try { smsP.seekTo(0, true); smsP.unMute(); smsP.setVolume(100); smsP.playVideo(); clearTimeout(smsStop); smsStop = setTimeout(() => { try { smsP.pauseVideo(); } catch (e) { /* bỏ qua */ } }, 4000); return; } catch (e) { /* dùng tiếng tự tạo */ }
+      try {
+        clearTimeout(smsStop); clearInterval(smsFade);
+        smsP.seekTo(SMS_FROM / 1000, true); smsP.unMute(); smsP.setVolume(100); smsP.playVideo();
+        smsStop = setTimeout(() => {
+          let v = 100;
+          smsFade = setInterval(() => {
+            v -= 100 / (SMS_FADE / 30);
+            try { if (v > 0) smsP.setVolume(v); else { clearInterval(smsFade); smsP.pauseVideo(); smsP.setVolume(100); } } catch (e) { clearInterval(smsFade); }
+          }, 30);
+        }, SMS_LEN - SMS_FADE);
+        return;
+      } catch (e) { /* dùng tiếng tự tạo */ }
     }
     beep(1568, 0.12, 0.08); setTimeout(() => beep(1318, 0.12, 0.08), 140); setTimeout(() => beep(1046, 0.22, 0.08), 280);
   }
