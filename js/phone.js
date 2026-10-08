@@ -672,39 +672,83 @@ const PHONE = (() => {
       setTimeout(() => { stop(); P.hidden = true; toHospital(); }, 5000);
       return;
     }
-    UI.toast('🚑 Xe cấp cứu 115 đang chạy tới chỗ bạn!', 4000);
-    const fx = { x: P.x - 1100, y: P.y + 30, dir: 1, t: 0, phase: 'come' };
+    UI.toast('🚑 Xe cấp cứu 115 đang chạy tới — nằm yên đợi bác sĩ nhé!', 4500);
+    // xe chạy dọc làn đường, dừng ở đoạn đường gần bệnh nhân nhất; 2 bác sĩ khiêng cáng vào đón
+    const roadY = AV.roadY ? AV.roadY() : null, W = AV.mapW ? AV.mapW() : 3000, mapId = AV.currentMap();
+    const laneY = roadY != null ? roadY : P.y + 30;
+    const stopX = Math.max(200, Math.min(W - 200, P.x)), fromLeft = stopX > W / 2 ? Math.random() < 0.35 : true;
+    const fx = { x: fromLeft ? -260 : W + 260, y: laneY, w: 260, dir: fromLeft ? 1 : -1, t: 0, phase: 'come' };
+    const DOC = [
+      { skin: '#f1c27d', hair: 'short', hairColor: '#2b2b33', shirt: '#f8f9fa', shirtStyle: 'plain', pants: '#4dabf7', hat: 'none', acc: 'glasses', pet: 'none', npc: true },
+      { skin: '#e3a979', hair: 'bun', hairColor: '#3b2414', shirt: '#f8f9fa', shirtStyle: 'plain', pants: '#4dabf7', hat: 'none', acc: 'none', pet: 'none', npc: true },
+    ];
+    const crew = { x: 0, y: 0, w: 140, on: false, patient: false, moving: false };
+    const rear = () => ({ x: fx.x - fx.dir * 120, y: laneY + 16 });
     fx.draw = (g, clock) => {
-      g.save(); g.translate(fx.x, fx.y);
+      if (AV.currentMap() !== mapId) return;
+      g.save(); g.translate(fx.x, fx.y); g.scale(fx.dir, 1);
       ART.ambulance(g, 0, 0);
+      if (fx.phase === 'out' || fx.phase === 'lift' || fx.phase === 'back') { g.fillStyle = '#dee2e6'; g.fillRect(-104, -80, 10, 66); }
       const on = Math.floor(clock * 6) % 2;
       g.fillStyle = on ? '#ff3b3b' : '#3fa9ff'; g.beginPath(); g.arc(-12, -96, 7, 0, Math.PI * 2); g.fill();
       g.globalAlpha = 0.35; g.beginPath(); g.arc(-12, -96, 22, 0, Math.PI * 2); g.fill();
       g.restore();
     };
-    AV.worldFx.push(fx);
-    const stopSiren = siren(14, () => Math.max(0.15, 1 - Math.abs(fx.x - P.x) / 1300));
-    const end = () => { const i = AV.worldFx.indexOf(fx); if (i >= 0) AV.worldFx.splice(i, 1); stopSiren(); };
+    crew.draw = (g, clock) => {
+      if (!crew.on || AV.currentMap() !== mapId) return;
+      const { x, y } = crew, d = crew.face || 1;
+      const doc = (k, dx) => { try { ART.character(g, x + dx, y, DOC[k], { scale: 1, dir: d, moving: crew.moving, t: clock + k }); } catch (e) { /* bỏ qua */ } };
+      doc(0, -62 * d);
+      // cáng: khung + đệm, bệnh nhân nằm trên cáng
+      g.save();
+      g.strokeStyle = '#495057'; g.lineWidth = 4; g.beginPath(); g.moveTo(x - 70, y - 44); g.lineTo(x + 70, y - 44); g.stroke();
+      g.fillStyle = '#e7f5ff'; g.strokeStyle = '#1c7ed6'; g.lineWidth = 2; g.beginPath(); g.roundRect(x - 52, y - 54, 104, 12, 5); g.fill(); g.stroke();
+      if (crew.patient) {
+        g.translate(x, y - 56); g.rotate(-Math.PI / 2 * d);
+        try { ART.character(g, 0, 34, AV.S.look, { scale: 0.62, dir: 1 }); } catch (e) { /* bỏ qua */ }
+      }
+      g.restore();
+      doc(1, 62 * d);
+    };
+    AV.worldFx.push(fx, crew);
+    const stopSiren = siren(40, () => (fx.phase === 'come' || fx.phase === 'go' ? Math.max(0.15, 1 - Math.abs(fx.x - P.x) / 1300) : 0.12));
+    const end = () => { [fx, crew].forEach((o) => { const i = AV.worldFx.indexOf(o); if (i >= 0) AV.worldFx.splice(i, 1); }); stopSiren(); };
+    const walkTo = (tx, ty, dt) => {
+      const dx = tx - crew.x, dy = ty - crew.y, dd = Math.hypot(dx, dy), sp = 190 * dt;
+      crew.moving = dd > 2;
+      if (Math.abs(dx) > 4) crew.face = dx > 0 ? 1 : -1;
+      if (dd <= sp) { crew.x = tx; crew.y = ty; return true; }
+      crew.x += dx / dd * sp; crew.y += dy / dd * sp; return false;
+    };
     let last = performance.now();
     const step = (now) => {
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      fx.t += dt;
+      if (fx.phase !== 'go') { P.target = null; if (P.path) P.path = []; }
       if (fx.phase === 'come') {
-        const tx = P.x - 110;
-        fx.x += Math.min(520 * dt, tx - fx.x);
-        fx.y += (P.y + 30 - fx.y) * Math.min(1, dt * 3);
-        if (tx - fx.x < 2) { fx.phase = 'load'; fx.t = 0; AV.sayMine('🤒 Cứu với…'); }
+        const d = stopX - fx.x;
+        fx.x += Math.sign(d) * Math.min(Math.abs(d), (Math.abs(d) < 180 ? 160 : Math.abs(d) > 900 ? 950 : 520) * dt);
+        if (Math.abs(stopX - fx.x) < 2) { fx.phase = 'open'; fx.t = 0; AV.sayMine('🤒 Bác sĩ ơi cứu với…'); }
+      } else if (fx.phase === 'open') {
+        if (fx.t > 0.8) { const r = rear(); crew.x = r.x; crew.y = r.y; crew.on = true; fx.phase = 'out'; fx.t = 0; }
+      } else if (fx.phase === 'out') {
+        if (walkTo(P.x, P.y + 4, dt)) { fx.phase = 'lift'; fx.t = 0; crew.moving = false; }
+      } else if (fx.phase === 'lift') {
+        if (fx.t > 0.7 && !crew.patient) { crew.patient = true; P.hidden = true; }
+        if (fx.t > 1.4) { fx.phase = 'back'; fx.t = 0; }
+      } else if (fx.phase === 'back') {
+        const r = rear();
+        if (walkTo(r.x, r.y, dt)) { fx.phase = 'load'; fx.t = 0; crew.moving = false; }
       } else if (fx.phase === 'load') {
-        fx.t += dt;
-        if (fx.t > 1.2 && !P.hidden) P.hidden = true;
-        if (fx.t > 1.8) fx.phase = 'go';
+        if (fx.t > 0.8) { crew.on = false; fx.phase = 'go'; fx.t = 0; }
       } else {
-        fx.x += 600 * dt;
-        if (fx.x > P.x + 1000) { end(); toHospital(); return; }
+        fx.x += fx.dir * Math.min(650, 80 + fx.t * 500) * dt;
+        if (fx.x < -300 || fx.x > W + 300 || fx.t > 5) { end(); toHospital(); return; }
       }
       requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
-    setTimeout(() => { if (busy && fx.phase !== 'go') { end(); P.hidden = true; toHospital(); } }, 20000);
+    setTimeout(() => { if (busy && fx.phase !== 'go') { end(); P.hidden = true; toHospital(); } }, 60000);
   }
 
   function init() {

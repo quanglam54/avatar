@@ -410,8 +410,9 @@ const CARDROOM = (() => {
           card = g.last.card;
           g.disc[g.last.seat].pop();
           g.eaten[seat].push(card);
-          g.eatU[seat] += 1; g.eatU[g.last.seat] -= 1;
-          g.msg = `🍽️ ${R.seatName(seat)} ĂN ${RL[rk(card)]}${SUITS[su(card)]} của ${R.seatName(g.last.seat)}!`;
+          const chot = g.nDisc[g.last.seat] >= 4, u = chot ? 4 : 1;
+          g.eatU[seat] += u; g.eatU[g.last.seat] -= u;
+          g.msg = chot ? `💥 ${R.seatName(seat)} ĂN CHỐT ${RL[rk(card)]}${SUITS[su(card)]} — ${R.seatName(g.last.seat)} đền 4 lần cược!` : `🍽️ ${R.seatName(seat)} ĂN ${RL[rk(card)]}${SUITS[su(card)]} của ${R.seatName(g.last.seat)}!`;
         } else {
           if (!R.H.deck.length) { PHOM.finish(R, null); return null; }
           card = R.H.deck.pop();
@@ -450,6 +451,7 @@ const CARDROOM = (() => {
         res[i] = { melds: bm.melds, left: bm.left, points: bm.points, mom: !bm.melds.length };
         net[i] = g.eatU[i] * bet;
       });
+      if (u == null) PHOM.sendCards(g, res);
       let winner, reason;
       if (u != null) {
         winner = u; reason = '🎉 Ù — cả bài đều là phỏm!';
@@ -463,6 +465,34 @@ const CARDROOM = (() => {
         res[winner].place = 1;
       }
       R.end(net, { winner, reason, res, hands: R.H.hands });
+    },
+    /** lá c gửi được vào phỏm m: bộ cùng số (chưa đủ 4) hoặc nối đầu / cuối sảnh cùng chất */
+    fits(m, c) {
+      if (m.every((x) => rk(x) === rk(m[0]))) return m.length < 4 && rk(c) === rk(m[0]);
+      const lo = Math.min(...m.map(rk)), hi = Math.max(...m.map(rk));
+      return su(c) === su(m[0]) && (rk(c) === lo - 1 || rk(c) === hi + 1);
+    },
+    sendCards(g, res) {
+      const laid = [];
+      g.order.forEach((i) => {
+        const r = res[i];
+        if (laid.length && !r.mom) {
+          let moved = true;
+          while (moved) {
+            moved = false;
+            for (const c of [...r.left]) {
+              const j = laid.find((x) => res[x].melds.some((m) => PHOM.fits(m, c)));
+              if (j == null) continue;
+              const m = res[j].melds.find((mm) => PHOM.fits(mm, c));
+              m.push(c); res[j].melds[res[j].melds.indexOf(m)] = sortRS(m);
+              r.left = r.left.filter((x) => x !== c); r.points -= rk(c);
+              (r.sent = r.sent || []).push(c); (res[j].got = res[j].got || []).push(c);
+              moved = true;
+            }
+          }
+        }
+        laid.push(i);
+      });
     },
     botSeat: (R) => R.g.turn,
     bot(R, seat) {
@@ -481,7 +511,8 @@ const CARDROOM = (() => {
       if (g.end) {
         const r = g.end.res[i];
         if (!r) return '';
-        return `<div class="reveal">${r.melds.map((m) => `<span class="cr-grp">${m.map((c) => cardHtml(c, { small: true, meld: 1 })).join('')}</span>`).join('')}${r.left.map((c) => cardHtml(c, { small: true })).join('')}</div>
+        const sent = new Set(Object.values(g.end.res).flatMap((x) => x.sent || []));
+        return `<div class="reveal">${r.melds.map((m) => `<span class="cr-grp">${m.map((c) => cardHtml(c, { small: true, meld: 1, eat: sent.has(c) })).join('')}</span>`).join('')}${r.left.map((c) => cardHtml(c, { small: true })).join('')}</div>${r.sent ? `<div class="tag">📤 Gửi ${r.sent.length} lá</div>` : ''}
           <div class="tag cr-lbl">${r.u ? '🎉 Ù' : r.mom ? '😵 Móm' : `${r.points} điểm${r.place ? ' · ' + (r.place === 1 ? 'Nhất' : r.place === 2 ? 'Nhì' : r.place === 3 ? 'Ba' : 'Bét') : ''}`}</div>`;
       }
       return `<div class="cnt"><span class="back"></span>× ${g.counts[i]}</div>
@@ -523,7 +554,7 @@ const CARDROOM = (() => {
   const BC_ROOM = makeRoom({ id: 'bc1', zone: 'casino', x: 440, y: 860, title: '🃏 3 Cây (Bài cào)', short: '3 Cây', bet: 50, turnMs: BC_MS, rules: BACAY,
     howto: 'Mỗi người 3 lá · cộng điểm lấy hàng đơn vị (10, J, Q, K = 0) · 👑 Ba Tây (3 lá J Q K) to nhất · bằng nút so lá to nhất (♦ > ♥ > ♠ > ♣). Người thắng ăn hết tiền cược.' });
   const PH_ROOM = makeRoom({ id: 'ph1', zone: 'casino', x: 1240, y: 860, title: '🀄 Phỏm (Tá lả)', short: 'Phỏm', bet: 50, turnMs: PH_MS, rules: PHOM,
-    howto: 'Mỗi người 9 lá (người đầu 10) · tới lượt: ăn lá người trước vừa đánh (nếu thành phỏm) hoặc bốc nọc, rồi đánh 1 lá · đánh đủ 4 lá thì hạ: ít điểm rác nhất về nhất (Nhì −1, Ba −2, Bét −3, Móm −4 lần cược) · bị ăn mất 1 cây −1 · 🎉 Ù (10 lá đều là phỏm) ăn mỗi người 5 lần cược.' });
+    howto: 'Mỗi người 9 lá (người đầu 10) · tới lượt: ăn lá người trước vừa đánh (nếu thành phỏm) hoặc bốc nọc, rồi đánh 1 lá · đánh đủ 4 lá thì hạ theo thứ tự, người hạ sau tự GỬI lá rác vào phỏm người hạ trước · ít điểm rác nhất về nhất (Nhì −1, Ba −2, Bét −3, Móm −4 lần cược) · bị ăn 1 cây −1, bị ĂN CHỐT (lá thứ 4) đền −4 · 🎉 Ù (10 lá đều là phỏm) ăn mỗi người 5 lần cược.' });
 
   if (!document.getElementById('cr-css')) {
     const s = document.createElement('style'); s.id = 'cr-css';
@@ -541,7 +572,7 @@ const CARDROOM = (() => {
   }
 
   return {
-    rooms, bacay: BC_ROOM, phom: PH_ROOM, bestMelds, bcScore,
+    rooms, bacay: BC_ROOM, phom: PH_ROOM, bestMelds, bcScore, _phom: PHOM,
     onNet: (m) => rooms.forEach((r) => r.onNet(m)),
     tick: (dt) => rooms.forEach((r) => r.tick(dt)),
     onMapChange: () => rooms.forEach((r) => r.onMapChange()),
