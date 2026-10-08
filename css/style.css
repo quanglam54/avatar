@@ -865,7 +865,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .dm-emo button:hover { background: #f1f3f5; }
 .dm-emo-btn { border: 2px solid #dee2e6; background: #fff; border-radius: 12px; font-size: 20px; padding: 0 8px; cursor: pointer; }
 
-/* 🚗 VinFast + trạm sạc */
+/* 🚗 Quang Lâm Fast + trạm sạc */
 .ride-bat { position: absolute; right: 14px; top: calc(max(12px, env(safe-area-inset-top)) + 54px); background: rgba(27,47,72,.85); color: #b2f2bb; font-weight: 900; padding: 6px 12px; border-radius: 12px; border: 2px solid #fff; z-index: 3; }
 .ride-bat.low { color: #ffc9c9; background: rgba(201,42,42,.9); animation: batBlink 1s infinite; }
 @keyframes batBlink { 50% { opacity: .55; } }
@@ -1144,7 +1144,7 @@ html, body, button, .btn, .panel, .panel-back, a, input, select, textarea, label
 .ph-thb small { color: #868e96; font-size: 11px; white-space: nowrap; }
 .ph-thb p { margin: 2px 0 0; color: #868e96; font-size: 12px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .ph-dial { overflow-y: auto; }
-/* 🎰 Vietlott */
+/* 🎰 QL Lotto */
 .vl-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 5px; margin: 10px auto; max-width: 420px; }
 .vl-n { aspect-ratio: 1; border-radius: 50%; border: 2px solid #ced4da; background: #fff; font: 800 13px "Be Vietnam Pro", system-ui; cursor: pointer; padding: 0; }
 .vl-n.on { background: #c8102e; border-color: #c8102e; color: #fff; }
@@ -1264,3 +1264,12 @@ html, body, button, .btn, .panel, .panel-back, a, input, select, textarea, label
 .zg-row { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
 
 .ph-vbtn { background: #1c7ed6 !important; }
+
+/* 🕘 lịch sử cuộc gọi */
+.ph-tabs { position: sticky; bottom: 0; display: flex; justify-content: space-around; background: rgba(248,249,250,.96); border-top: 1px solid #dee2e6; padding: 6px 0 4px; margin-top: auto; }
+.ph-tabs button { border: 0; background: none; display: grid; justify-items: center; font-size: 18px; color: #868e96; cursor: pointer; }
+.ph-tabs button small { font-size: 10px; } .ph-tabs button.on { color: #1c7ed6; }
+.ph-recents { flex: 1; }
+.ph-rc { cursor: pointer; } .ph-rc.missed b { color: #e03131; }
+.ph-rc-ic { width: 22px; text-align: center; } .ph-rc-t { color: #868e96; font-size: 11px; white-space: nowrap; }
+.ph-app.recent, .ph-app.call, .ph-app.contacts { display: flex; flex-direction: column; }

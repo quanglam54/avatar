@@ -195,7 +195,7 @@ const ZAPPS = (() => {
   }
   const readNum = (box) => box.querySelector('[data-num]').value.replace(/\D/g, '');
   const noSim = (box, back, title, what) => {
-    box.innerHTML = back(title) + `<div class="zx-nosim"><div>📵</div><b>Chưa có SIM nên chưa ${what} được</b><p>Tài xế cần gọi vào số điện thoại của bạn khi tới nơi.<br>Mua SIM ở <b>CellphoneS</b> hoặc <b>Thế Giới Di Động</b> (khu mua sắm) rồi quay lại nhé.</p></div>`;
+    box.innerHTML = back(title) + `<div class="zx-nosim"><div>📵</div><b>Chưa có SIM nên chưa ${what} được</b><p>Tài xế cần gọi vào số điện thoại của bạn khi tới nơi.<br>Mua SIM ở <b>ZenoPhone</b> hoặc <b>Thế Giới Dế Yêu</b> (khu mua sắm) rồi quay lại nhé.</p></div>`;
   };
 
   const FIRST = ['Nguyễn Văn', 'Trần Minh', 'Lê Hoàng', 'Phạm Đức', 'Vũ Quang', 'Đỗ Thành', 'Bùi Anh', 'Hoàng Văn', 'Lưu'];

@@ -3,32 +3,48 @@
  * khoá chính (ngày, số rương) → không 2 người cùng nhận. Gom 10 💠 Ngọc Halloween đổi 1.000.000 xu ở Thuyền trưởng Râu Đỏ.
  * Cần 🪏 xẻng để đào; 📡 máy dò kêu bíp nhanh dần khi lại gần rương. */
 const TREASURE = (() => {
-  const SLOTS = 3, NEED = 10, REWARD = 10000000, SHOVEL = 80000, DETECTOR = 200000, DIG_R = 60;
+  // mỗi WAVE_H giờ chôn thêm PER_WAVE rương mới (rương đợt trước chưa ai đào vẫn còn đó) → 8 đợt × 3 = 24 rương / ngày
+  const PER_WAVE = 3, WAVE_H = 3, NEED = 10, REWARD = 10000000, SHOVEL = 80000, DETECTOR = 200000, DIG_R = 60, DIG_MS = 1300;
   const fmt = (n) => Number(n).toLocaleString('vi-VN');
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const S = () => AV.S;
-  /** ngày theo giờ Việt Nam (khớp với kiểm tra trên máy chủ) */
-  const day = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
-  let claims = {}, claimsDay = '', lastFetch = 0, digging = false;
+  /** ngày / giờ theo giờ Việt Nam (khớp với kiểm tra trên máy chủ) */
+  const vn = () => new Date(Date.now() + 7 * 3600e3);
+  const day = () => vn().toISOString().slice(0, 10);
+  const wave = () => Math.floor(vn().getUTCHours() / WAVE_H);
+  /** số rương đã chôn tới giờ này trong ngày */
+  const slots = () => (wave() + 1) * PER_WAVE;
+  /** phút còn lại tới đợt rương mới (null = hết đợt trong ngày) */
+  const nextWaveMin = () => { const v = vn(), w = wave(); if ((w + 1) * WAVE_H >= 24) return null; return Math.ceil(((w + 1) * WAVE_H * 60) - (v.getUTCHours() * 60 + v.getUTCMinutes())); };
+  let claims = {}, claimsDay = '', lastFetch = 0, digging = false, digAt = 0, heatNow = 0;
 
   /* ---------- vị trí rương trong ngày ---------- */
   const AVOID = [[220, 640], [1780, 600], [1500, 820], [520, 820], [650, 650], [1000, 610], [1340, 690], [300, 820], [1640, 600]];
+  const spotCache = {};
   function spots(d = day()) {
-    let h = 2166136261; for (const ch of 'TRE|' + d) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
-    let a = h >>> 0;
-    const rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const key = d + '|' + slots();
+    if (spotCache.key === key) return spotCache.list;
     const out = [];
-    for (let tries = 0; out.length < SLOTS && tries < 500; tries++) {
-      const x = 180 + rnd() * 1640, y = 575 + rnd() * 240;
-      if (AVOID.some(([ax, ay]) => Math.hypot(ax - x, ay - y) < 90)) continue;
-      if (out.some((p) => Math.hypot(p.x - x, p.y - y) < 300)) continue;
-      out.push({ x: Math.round(x), y: Math.round(y), slot: out.length });
+    for (let w = 0; w * PER_WAVE < slots(); w++) {
+      let h = 2166136261; for (const ch of 'TRE|' + d + (w ? '|' + w : '')) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+      let a = h >>> 0;
+      const rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+      const mine = [];
+      for (let tries = 0; mine.length < PER_WAVE && tries < 3000; tries++) {
+        const x = 180 + rnd() * 1640, y = 575 + rnd() * 240;
+        if (AVOID.some(([ax, ay]) => Math.hypot(ax - x, ay - y) < 90)) continue;
+        if (mine.some((p) => Math.hypot(p.x - x, p.y - y) < 300) || out.some((p) => Math.hypot(p.x - x, p.y - y) < DIG_R * 1.5)) continue;
+        mine.push({ x: Math.round(x), y: Math.round(y), slot: w * PER_WAVE + mine.length });
+      }
+      out.push(...mine);
     }
+    spotCache.key = key; spotCache.list = out;
     return out;
   }
   /** rương đã bị đào HÔM NAY (dữ liệu ngày cũ không tính) — máy dò, nút đào, bảng thông báo đều dùng chung */
   const today = () => (claimsDay === day() ? claims : {});
-  const left = () => SLOTS - spots().filter((s) => today()[s.slot]).length;
+  const left = () => spots().filter((s) => !today()[s.slot]).length;
+  const nextNote = () => { const m = nextWaveMin(); return m == null ? 'rương mới chôn lúc 0h' : `${PER_WAVE} rương mới sau ${m >= 60 ? Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0') : m + ' phút'}`; };
 
   /* ---------- máy chủ ---------- */
   async function refresh(force) {
@@ -50,6 +66,7 @@ const TREASURE = (() => {
     if (!error) return true;
     const m = String(error.message || '');
     if (/duplicate key|unique/i.test(m)) return false;
+    if (/check constraint|row-level security/i.test(m) && slot >= 3) throw new Error('Chủ game chưa bật rương theo đợt (chạy file supabase/18-ruong-theo-dot.sql)');
     if (/treasure_claims|does not exist|Could not find/i.test(m)) throw new Error('Chủ game chưa bật sự kiện săn rương (chạy file supabase/10-san-kho-bau.sql)');
     throw new Error(m);
   }
@@ -61,10 +78,11 @@ const TREASURE = (() => {
     if (!S().inv.tool_shovel) return UI.toast('🪏 Cần xẻng để đào — mua ở Thuyền trưởng Râu Đỏ', 3500);
     if (!CLOUD.user) return UI.toast('🔐 Đăng nhập tài khoản mới đào rương được');
     if (!AV.useEnergy(3)) return;
-    digging = true;
+    digging = true; digAt = Date.now();
     const p = AV.player;
     AV.sayMine('🪏 Đào đào…');
     setTimeout(async () => {
+      digAt = 0;
       try {
         await refresh(true);
         const target = spots().find((s) => !today()[s.slot] && Math.hypot(s.x - p.x, s.y - p.y) < DIG_R);
@@ -86,8 +104,8 @@ const TREASURE = (() => {
         UI.chatLog('', msg, true, true);
         updateBanner();
       } catch (e) { UI.toast('⚠️ ' + e.message, 5000); }
-      finally { digging = false; }
-    }, 1300);
+      finally { digging = false; digAt = 0; }
+    }, DIG_MS);
   }
   function showChest() {
     const have = S().inv.hw_gem || 0;
@@ -122,9 +140,10 @@ const TREASURE = (() => {
     if (!S().inv.tool_detector) { meter.style.display = 'none'; return; }
     meter.style.display = 'block';
     const p = AV.player, open = spots().filter((s) => !today()[s.slot]);
-    if (!open.length) { if (claimsDay !== day()) { refresh(true); return; } meter.querySelector('b').textContent = '📡 Hết rương hôm nay'; meter.querySelector('i').style.width = '0%'; return; }
+    if (!open.length) { heatNow = 0; if (claimsDay !== day()) { refresh(true); return; } meter.querySelector('b').textContent = '📡 Hết rương · ' + nextNote(); meter.querySelector('i').style.width = '0%'; return; }
     const d = Math.min(...open.map((s) => Math.hypot(s.x - p.x, s.y - p.y)));
     const heat = Math.max(0, Math.min(1, 1 - d / 900));
+    heatNow = heat;
     const lab = d < DIG_R ? '🔥🔥 ĐÀO NGAY ĐÂY!' : heat > 0.8 ? '🔥 Rất nóng' : heat > 0.55 ? '♨️ Nóng' : heat > 0.3 ? '🌤️ Ấm' : '❄️ Lạnh';
     meter.querySelector('b').textContent = '📡 ' + lab;
     const gi = meter.querySelector('i'); gi.style.width = Math.round(heat * 100) + '%'; gi.style.background = heat > 0.8 ? '#fa5252' : heat > 0.5 ? '#fd7e14' : heat > 0.3 ? '#fcc419' : '#74c0fc';
@@ -132,6 +151,55 @@ const TREASURE = (() => {
     if (Date.now() - beepAt > gap) { beepAt = Date.now(); beep(500 + heat * 900); }
   }
   setInterval(tick, 200);
+
+  /* ---------- vẽ dụng cụ trên tay: 🪏 xẻng lúc đào, 📡 máy dò quét cát khi đi trên bãi biển ---------- */
+  /** dụng cụ đang cầm ('dig' | 'detector' | null) */
+  function tool() {
+    if (AV.currentMap() !== 'beach') return null;
+    if (digAt) return 'dig';
+    return S().inv.tool_detector ? 'detector' : null;
+  }
+  function drawTool(c, x, y, dir, t) {
+    const k = tool();
+    if (!k) return;
+    c.save(); c.translate(x, y); c.scale(dir < 0 ? -1 : 1, 1);
+    if (k === 'dig') {
+      const prog = Math.min(1, (Date.now() - digAt) / DIG_MS), ph = (prog * 3) % 1; // 3 nhát xẻng
+      const down = Math.sin(ph * Math.PI); // 0 → cắm xuống → hất lên
+      // hố cát to dần
+      c.fillStyle = 'rgba(120,80,30,.55)'; c.beginPath(); c.ellipse(38, 2, 8 + prog * 16, 3 + prog * 5, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = 'rgba(214,176,108,.95)'; c.beginPath(); c.ellipse(62, 0, 4 + prog * 10, 2 + prog * 4, 0, 0, Math.PI * 2); c.fill();
+      // xẻng: cán gỗ từ tay xuống lưỡi sắt
+      const bx = 36 + (1 - down) * 6, by = -4 - (1 - down) * 18;
+      c.lineCap = 'round';
+      c.strokeStyle = '#7a4a22'; c.lineWidth = 4; c.beginPath(); c.moveTo(10, -44 + down * 6); c.lineTo(bx, by); c.stroke();
+      c.strokeStyle = '#3d2b1f'; c.lineWidth = 6; c.beginPath(); c.moveTo(6, -48 + down * 6); c.lineTo(15, -42 + down * 6); c.stroke();
+      c.save(); c.translate(bx, by); c.rotate(-0.5 + down * 0.4);
+      c.fillStyle = '#adb5bd'; c.strokeStyle = '#495057'; c.lineWidth = 1.5;
+      c.beginPath(); c.moveTo(-6, -2); c.lineTo(6, -2); c.lineTo(5, 10); c.quadraticCurveTo(0, 16, -5, 10); c.closePath(); c.fill(); c.stroke();
+      c.restore();
+      // cát văng lúc hất xẻng lên
+      if (ph > 0.55) {
+        const f = (ph - 0.55) / 0.45;
+        c.fillStyle = '#e0b878';
+        for (let i = 0; i < 6; i++) { const a = -1.9 + i * 0.22; c.beginPath(); c.arc(40 + Math.cos(a) * 30 * f + i * 3, -6 + Math.sin(a) * 34 * f + f * f * 20, 2.6 - f, 0, Math.PI * 2); c.fill(); }
+      }
+    } else {
+      // máy dò: cán dài chéo xuống, đĩa dò lắc qua lại sát mặt cát, đèn đỏ dần khi lại gần rương
+      const sw = Math.sin(t * 3.2) * 8, dx = 44 + sw, dy = -3;
+      c.lineCap = 'round';
+      c.strokeStyle = '#495057'; c.lineWidth = 3; c.beginPath(); c.moveTo(12, -40); c.lineTo(dx - 4, dy - 4); c.stroke();
+      c.fillStyle = '#212529'; c.beginPath(); c.roundRect(14, -36, 12, 8, 2); c.fill(); // hộp màn hình
+      const lit = heatNow > 0.8 ? '#ff4d4f' : heatNow > 0.5 ? '#ff922b' : heatNow > 0.3 ? '#fcc419' : '#74c0fc';
+      c.fillStyle = lit; c.fillRect(16, -34, 8 * Math.max(0.2, heatNow), 4);
+      c.fillStyle = 'rgba(0,0,0,.15)'; c.beginPath(); c.ellipse(dx, 3, 14, 4, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#343a40'; c.beginPath(); c.ellipse(dx, dy, 13, 4.5, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#ced4da'; c.beginPath(); c.ellipse(dx, dy - 1, 9, 2.6, 0, 0, Math.PI * 2); c.fill();
+      // đèn nháy theo tiếng bíp
+      if (heatNow > 0.3 && (Date.now() - beepAt) < 140) { c.fillStyle = lit; c.globalAlpha = 0.5; c.beginPath(); c.arc(dx, dy, 18, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1; }
+    }
+    c.restore();
+  }
 
   /* ---------- vẽ ở bãi biển: hố đã đào ---------- */
   function drawSpots(c) {
@@ -179,7 +247,7 @@ const TREASURE = (() => {
       } else {
         body = '<p class="muted">⏳ Đang tải…</p>';
       }
-      p.body.innerHTML = `<div class="coins-line">💰 ${fmt(S().coins)} xu · 💠 ${have} · Hôm nay còn <b>${left()}/${SLOTS}</b> rương</div>
+      p.body.innerHTML = `<div class="coins-line">💰 ${fmt(S().coins)} xu · 💠 ${have} · Đang còn <b>${left()}</b> rương chưa ai đào · ${nextNote()}</div>
         <div class="ss-tabs">${[['shop', '🛒 Đồ đi săn'], ['trade', '💰 Đổi ngọc'], ['rank', '🏆 Xếp hạng tuần']].map(([k, l]) => `<button class="${k === tab ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div><div class="ss-box">${body}</div>`;
       p.body.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
       p.body.querySelectorAll('[data-buy]').forEach((b) => b.onclick = () => {
@@ -207,15 +275,15 @@ const TREASURE = (() => {
       document.body.appendChild(banner);
     }
     const n = left();
-    banner.innerHTML = `<span>🎃 SỰ KIỆN HALLOWEEN · Săn rương ở 🏖️ Bãi biển · Hôm nay còn <b>${n}/${SLOTS}</b> rương · Gom ${NEED} 💠 đổi ${fmt(REWARD)} xu</span>`;
+    banner.innerHTML = `<span>🎃 SỰ KIỆN HALLOWEEN · Săn rương ở 🏖️ Bãi biển · Đang còn <b>${n}</b> rương · ${nextNote()} · Gom ${NEED} 💠 đổi ${fmt(REWARD)} xu</span>`;
   }
   function popup() {
     const n = left();
     const p = UI.panel('🎃 SỰ KIỆN HALLOWEEN', `<div class="tr-pop">
         <div class="tr-chest">🏴‍☠️🧰🎃</div>
         <h2>SĂN RƯƠNG BÃI BIỂN</h2>
-        <p>Mỗi ngày có <b>${SLOTS} rương</b> chôn ở 🏖️ Bãi biển cho <b>cả server</b> — <b>ai đào trước người đó được!</b></p>
-        <p>Hôm nay còn: <b class="tr-left">${n}/${SLOTS}</b> rương</p>
+        <p>Cứ <b>${WAVE_H} tiếng</b> lại chôn thêm <b>${PER_WAVE} rương</b> ở 🏖️ Bãi biển cho <b>cả server</b> — <b>ai đào trước người đó được!</b></p>
+        <p>Đang còn: <b class="tr-left">${n}</b> rương chưa ai đào · ${nextNote()}</p>
         <p>Gom <b>${NEED} 💠 Ngọc Halloween</b> đổi <b>${fmt(REWARD)} xu</b> tại 🦜 Thuyền trưởng Râu Đỏ.</p>
         <p class="muted small-note">Cần 🪏 xẻng (${fmt(SHOVEL)} xu) · 📡 máy dò (${fmt(DETECTOR)} xu) giúp tìm nhanh hơn.</p>
       </div>
@@ -233,5 +301,5 @@ const TREASURE = (() => {
     setTimeout(async () => { await refresh(true); popup(); }, 4500);
     setInterval(() => refresh(), 60000);
   }
-  return { init, dig, panel, popup, onNews, drawSpots, booth, spots, refresh };
+  return { init, dig, panel, popup, onNews, drawSpots, drawTool, tool, booth, spots, refresh };
 })();

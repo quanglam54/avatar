@@ -22,7 +22,7 @@
       storage: {},
       coop: { fedAt: 0 },
       pen: normPen(),
-      animals: {}, // con giống đã mua: { coop, cow, sheep, pig } — người mới chuồng trống
+      animals: {}, herdReset1: true, // con giống đã mua: { coop, cow, sheep, pig } — người mới chuồng trống
       map: 'farm', x: null, y: null,
       settings: { pixelArt: false },
     };
@@ -31,7 +31,7 @@
   /** Ghép bản lưu (trong máy hoặc trên mạng) với dữ liệu mặc định, nâng cấp dữ liệu cũ */
   function mergeSave(s) {
     const d = defaultState();
-    // ô tô VinFast từng lưu nhầm vào S.cars (trùng danh sách xe đua) → tách sang S.evs
+    // ô tô Quang Lâm Fast từng lưu nhầm vào S.cars (trùng danh sách xe đua) → tách sang S.evs
     if (typeof s.energy !== 'number') s.energy = 100;
     if (Array.isArray(s.guard) && s.guard.length && !Array.isArray(s.guardExp)) s.guardExp = s.guard.map(() => Date.now() + DATA.GUARD_DAYS * 86400000);
     if (s.cars && !Array.isArray(s.cars) && typeof s.cars === 'object') { s.evs = { ...(s.evs || {}), ...s.cars }; s.cars = ['basic']; }
@@ -52,8 +52,8 @@
     while (s.beds.length < d.beds.length) s.beds.push(false);
     s.trees = s.trees || [];
     while (s.trees.length < DATA.ORCHARD.length) s.trees.push({ at: 0 });
-    // bản lưu cũ (trước khi phải mua con giống) → giữ nguyên đủ gà, bò, cừu, heo như trước
-    if (!s.animals) s.animals = { coop: true, cow: true, sheep: true, pig: true };
+    // phải mua con giống: mọi người (cả người chơi cũ) về chuồng trống 1 lần, trứng / sữa trong kho giữ nguyên
+    if (!s.herdReset1) { s.herdReset1 = true; s.animals = {}; s.coop = { fedAt: 0 }; s.pen = null; }
     const out = { ...d, ...s, look: { ...d.look, ...s.look }, owned: { ...d.owned, ...s.owned }, settings: { ...d.settings, ...s.settings } };
     out.guard = normTeam(s.guard, s.owned && s.owned.guards);
     out.pen = normPen(s.pen);
@@ -774,8 +774,8 @@
   /* ---------- 🛒 Con giống: người mới chuồng trống, phải mua gà / bò / cừu / heo ---------- */
   const HERD_OF = { chicken: 'coop', cow: 'cow', sheep: 'sheep', pig: 'pig' };
   const herdCfg = (k) => (k === 'coop' ? DATA.COOP : DATA.PENS[k]);
-  /** chuồng k của nông trại d đã có con chưa (bản lưu cũ / khách xem nhà chưa có dữ liệu → coi như có) */
-  function hasHerd(k, d = FD()) { return !d.animals || !!d.animals[k]; }
+  /** chuồng k của nông trại d đã mua con giống chưa */
+  function hasHerd(k, d = FD()) { return !!(d.animals && d.animals[k]); }
   AV.hasHerd = hasHerd;
   /** con vật có hiện trên bản đồ không: ở nông trại chỉ hiện chuồng đã mua */
   const animalShown = (a) => map.id !== 'farm' || !HERD_OF[a.kind] || hasHerd(HERD_OF[a.kind]);
@@ -1417,7 +1417,7 @@
     return true;
   };
 
-  /** 🚗 Mua ô tô VinFast (pin đầy 100%) */
+  /** 🚗 Mua ô tô Quang Lâm Fast (pin đầy 100%) */
   AV.buyCar = (id) => {
     const c = (DATA.CARS || []).find((x) => x.id === id);
     if (!c) return false;
@@ -1430,7 +1430,7 @@
     UI.toast(`🚗 Chúc mừng! Bạn đã sở hữu ${c.name} (pin 100%). Chọn khu trên bản đồ → chọn xe để tự lái nhé`, 5000);
     return true;
   };
-  /** 🔌 Sạc pin tới 100% ở trạm V-GREEN */
+  /** 🔌 Sạc pin tới 100% ở trạm QL-GREEN */
   AV.chargeCar = (id) => {
     const st = (S.evs || {})[id], c = (DATA.CARS || []).find((x) => x.id === id);
     if (!st || !c) return 0;
@@ -2525,13 +2525,13 @@
   AV.leaveClass = () => AV.teleport('school', false, 420, 590, '🌳 Ra sân trường…');
   AV.enterCasino = () => AV.teleport('casino', false, 1000, 880, '🎰 Vào Nhà Casino…');
   AV.enterArena = () => AV.teleport('arena', false, 1000, 990, '⚔️ Vào Đấu Trường MMA…');
-  /** Rạp CGV: vé 60 xu dùng cả ngày */
+  /** Rạp QL Cinema: vé 60 xu dùng cả ngày */
   AV.enterBoxing = () => AV.teleport('boxing', false, 1000, 1000, '🥊 Vào Võ Đài…');
   AV.enterCgv = () => {
     const today = new Date().toDateString();
-    const go = () => AV.teleport('cgv', false, 1000, 1150, '🎬 Vào rạp CGV…');
+    const go = () => AV.teleport('cgv', false, 1000, 1150, '🎬 Vào rạp QL Cinema…');
     if (S.cgv === today) return go();
-    UI.confirm('🎟️ Mua vé xem phim CGV <b>60 xu</b> (xem cả ngày hôm nay)?', 'Mua vé', () => { if (!AV.spend(60)) return; S.cgv = today; changed(); go(); });
+    UI.confirm('🎟️ Mua vé xem phim QL Cinema <b>60 xu</b> (xem cả ngày hôm nay)?', 'Mua vé', () => { if (!AV.spend(60)) return; S.cgv = today; changed(); go(); });
   };
   AV.enterClub = () => AV.teleport('club', false, 1000, 1000, '🪩 Vào H-Club…');
   AV.leaveClub = () => AV.teleport('fun', false, 2820, 830, '🎡 Ra Khu giải trí…');
@@ -3515,6 +3515,8 @@
     const rodDraw = (x, y, f) => list.push({ y: y + 1, draw: () => ART.fishingRod(g, x, y, f.bx, f.by, clock, f.state === 'bite' || f.bite) });
     others.forEach((r) => { if (r.fish) rodDraw(r.rx, r.ry, r.fish); });
     if (player.fishing && !player.hidden) rodDraw(player.x, player.y, player.fishing);
+    // 🪏 xẻng lúc đào / 📡 máy dò trên tay ở bãi biển săn rương
+    if (map.id === 'beach' && !player.hidden && !player.fishing && typeof TREASURE !== 'undefined' && TREASURE.tool()) list.push({ y: player.y + 1, draw: () => TREASURE.drawTool(g, player.x, player.y, player.dir, clock) });
     if (pose && !player.hidden) {
       const p = pose;
       list.push({ y: p.sortY, draw: () => {

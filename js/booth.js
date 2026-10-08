@@ -11,6 +11,14 @@ const BOOTH = (() => {
 
   /* ---------- 🎨 phông nền ---------- */
   const BACKDROPS = [
+    // 🏠 phòng chụp 3D (vẽ phối cảnh: tường sau, 2 tường bên, sàn, trần) — xem drawRoom
+    { id: 'r_studio', name: 'Studio đèn flash', icon: '💡', price: 0 },
+    { id: 'r_pink', name: 'Phòng hồng Hàn Quốc', icon: '🎀', price: 1500 },
+    { id: 'r_cafe', name: 'Góc cà phê gỗ', icon: '☕', price: 1500 },
+    { id: 'r_balloon', name: 'Phòng bóng bay', icon: '🎈', price: 2000 },
+    { id: 'r_neon', name: 'Phòng neon', icon: '🌃', price: 2500 },
+    { id: 'r_royal', name: 'Sảnh hoàng gia', icon: '👑', price: 3000 },
+    // phông phẳng
     { id: 'studio', name: 'Studio trắng', icon: '⬜', price: 0 },
     { id: 'pastel', name: 'Pastel kẹo ngọt', icon: '🍬', price: 1000 },
     { id: 'sakura', name: 'Hoa anh đào', icon: '🌸', price: 2000 },
@@ -109,16 +117,18 @@ const BOOTH = (() => {
   function people() {
     const me = { id: myId(), me: true, name: AV.S.name, look: AV.S.look };
     if (!room) return [me];
+    // 1 tài khoản chỉ hiện 1 lần (giữ mã kết nối mới nhất — đứng sau trong danh sách)
+    const seen = new Set([typeof CLOUD !== 'undefined' && CLOUD.username ? 'u:' + CLOUD.username : 'me']);
     return room.members.map((id) => {
       if (id === myId()) return me;
       const r = remote(id) || (room.info && room.info[id]);
-      return r && r.look ? { id, name: r.name || 'Bạn', look: r.look } : null;
-    }).filter(Boolean).slice(0, MAX_PEOPLE);
+      return r && r.look ? { id, name: r.name || 'Bạn', look: r.look, key: r.user ? 'u:' + r.user : 'n:' + (r.name || id) } : null;
+    }).filter(Boolean).reverse().filter((x) => { if (x.me) return true; if (seen.has(x.key)) return false; seen.add(x.key); return true; }).reverse().slice(0, MAX_PEOPLE);
   }
   function hostSync() {
     if (!isHost() || !live()) return;
     const info = {};
-    room.members.forEach((id) => { const r = id === myId() ? { name: AV.S.name, look: AV.S.look } : remote(id); if (r) info[id] = { name: r.name, look: r.look }; });
+    room.members.forEach((id) => { const r = id === myId() ? { name: AV.S.name, look: AV.S.look, user: typeof CLOUD !== 'undefined' ? CLOUD.username : '' } : remote(id); if (r) info[id] = { name: r.name, look: r.look, user: r.user || '' }; });
     send({ a: 'room', host: myId(), hname: AV.S.name, members: room.members, info, s: { until: sess.until, dress: sess.dress, bg: sess.bg, frame: sess.frame, layout: sess.layout, pose: sess.pose, skip: [...sess.skip] } });
   }
   /** bạn bè đang online (ở bất kỳ khu nào) chưa vào phòng — để mời */
@@ -154,6 +164,8 @@ const BOOTH = (() => {
       case 'join':
         if (!isHost() || m.to !== myId()) return;
         if (!isFriendPid(from)) { send({ a: 'reject', to: from, msg: 'Chỉ bạn bè (đã kết bạn) mới vào chung phòng chụp được' }); return; }
+        // cùng 1 tài khoản tải lại trang / mở tab khác → mã kết nối mới: bỏ mã cũ để không hiện 2 lần
+        { const u = (remote(from) || {}).user; if (u) room.members.filter((id) => id !== from && id !== myId() && (remote(id) || {}).user === u).forEach((old) => { room.members = room.members.filter((x) => x !== old); delete sess.dress[old]; sess.skip.delete(old); }); }
         if (room.members.length >= MAX_PEOPLE) { send({ a: 'reject', to: from, msg: 'Phòng chụp đã đủ người' }); return; }
         if (!room.members.includes(from)) { room.members.push(from); UI.toast(`📸 ${esc((remote(from) || {}).name || 'Bạn')} đã vào phòng chụp`); }
         hostSync(); rerender();
@@ -184,7 +196,164 @@ const BOOTH = (() => {
     if (isMember()) send({ a: 'leave', to: room.host });
     room = null; sess = null;
   }
+  /* ---------- 🏠 phòng chụp 3D ----------
+   * Phối cảnh 1 điểm tụ: tường sau là hình chữ nhật ở giữa, 2 tường bên + sàn + trần là hình thang nối ra 4 góc ảnh.
+   * d = độ sâu (0 = mép trước, 1 = sát tường sau), u = ngang (0 trái → 1 phải), v = dọc (0 trên → 1 dưới). */
+  function drawRoom(g, w, h, id, t) {
+    const s = w / 640, X0 = w * 0.2, X1 = w * 0.8, Y0 = h * 0.07, Y1 = h * 0.6;
+    const L = (a, b, k) => a + (b - a) * k;
+    const back = (u, v) => [L(X0, X1, u), L(Y0, Y1, v)];
+    const wl = (d, v) => [L(0, X0, d), L(L(0, Y0, d), L(h, Y1, d), v)];
+    const wr = (d, v) => [L(w, X1, d), L(L(0, Y0, d), L(h, Y1, d), v)];
+    const fl = (d, u) => [L(L(0, X0, d), L(w, X1, d), u), L(h, Y1, d)];
+    const ce = (d, u) => [L(L(0, X0, d), L(w, X1, d), u), L(0, Y0, d)];
+    const poly = (pts, fill) => { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.fillStyle = fill; g.fill(); };
+    const line = (a, b, col, lw) => { g.strokeStyle = col; g.lineWidth = lw * s; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); };
+    const lg = (x0, y0, x1, y1, stops) => { const gr = g.createLinearGradient(x0, y0, x1, y1); stops.forEach(([o, c]) => gr.addColorStop(o, c)); return gr; };
+    const emoji = (ch, [x, y], size) => { g.font = `${Math.round(size * s)}px system-ui, "Segoe UI Emoji"`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, x, y); };
+    /** các mốc độ sâu dày dần về phía xa (giống gạch thật nhỏ dần) */
+    const DEP = (n) => Array.from({ length: n + 1 }, (_, k) => (1 - Math.pow(0.8, k)) / (1 - Math.pow(0.8, n)));
+    let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const shell = (o) => {
+      poly([[0, 0], [w, 0], back(1, 0), back(0, 0)], o.ceil);
+      poly([[0, 0], back(0, 0), back(0, 1), [0, h]], lg(0, 0, X0, 0, [[0, o.sideA], [1, o.sideB]]));
+      poly([[w, 0], back(1, 0), back(1, 1), [w, h]], lg(w, 0, X1, 0, [[0, o.sideA], [1, o.sideB]]));
+      poly([back(0, 0), back(1, 0), back(1, 1), back(0, 1)], o.back);
+      poly([back(0, 1), back(1, 1), [w, h], [0, h]], lg(0, Y1, 0, h, [[0, o.floorB], [1, o.floorA]]));
+    };
+    /** ốp gạch vuông nửa dưới 3 bức tường (từ v = vt xuống chân tường) */
+    const tiles = (vt, fill, col, rows, cols) => {
+      poly([back(0, vt), back(1, vt), back(1, 1), back(0, 1)], fill);
+      for (let r = 1; r < rows; r++) line(back(0, L(vt, 1, r / rows)), back(1, L(vt, 1, r / rows)), col, 1.2);
+      for (let c = 1; c < cols; c++) line(back(c / cols, vt), back(c / cols, 1), col, 1.2);
+      [wl, wr].forEach((f) => {
+        poly([f(0, vt), f(1, vt), f(1, 1), f(0, 1)], fill);
+        for (let r = 1; r < rows; r++) line(f(0, L(vt, 1, r / rows)), f(1, L(vt, 1, r / rows)), col, 1.2);
+        DEP(Math.round(cols * 0.8)).forEach((d) => line(f(d, vt), f(d, 1), col, 1.2));
+        line(f(0, vt), f(1, vt), 'rgba(255,255,255,.85)', 3);
+      });
+      line(back(0, vt), back(1, vt), 'rgba(255,255,255,.85)', 3);
+    };
+    const floorGrid = (n, col, lw = 1.2) => { for (let i = 0; i <= n; i++) line(fl(0, i / n), fl(1, i / n), col, lw); DEP(n).forEach((d) => line(fl(d, 0), fl(d, 1), col, lw)); };
+    const checker = (n, a, b) => { const ds = DEP(n); for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) poly([fl(ds[j], i / n), fl(ds[j], (i + 1) / n), fl(ds[j + 1], (i + 1) / n), fl(ds[j + 1], i / n)], (i + j) % 2 ? a : b); };
+    /** kệ gắn tường bên (f = wl | wr) từ độ sâu d0 → d1 ở độ cao v, bày đồ emoji */
+    const shelf = (f, d0, d1, v, items) => {
+      const a = f(d0, v), b = f(d1, v), a2 = f(d0, v + 0.025), b2 = f(d1, v + 0.025);
+      poly([a, b, b2, a2], '#fff'); line(a2, b2, 'rgba(0,0,0,.12)', 2);
+      g.save(); g.shadowColor = 'rgba(255,240,250,.9)'; g.shadowBlur = 10 * s; line(a2, b2, 'rgba(255,255,255,.9)', 1.5); g.restore();
+      items.forEach((ch, i) => { const d = L(d0, d1, (i + 0.5) / items.length), p = f(d, v); emoji(ch, [p[0], p[1] - 16 * s * (1 - d * 0.55)], 30 * (1 - d * 0.55)); });
+    };
+    /** khung treo tường sau */
+    const frame = (u0, v0, u1, v1, border, inner) => { const [x0, y0] = back(u0, v0), [x1, y1] = back(u1, v1); g.fillStyle = border; g.fillRect(x0, y0, x1 - x0, y1 - y0); g.fillStyle = inner; g.fillRect(x0 + 5 * s, y0 + 5 * s, x1 - x0 - 10 * s, y1 - y0 - 10 * s); return [x0 + 5 * s, y0 + 5 * s, x1 - x0 - 10 * s, y1 - y0 - 10 * s]; };
+    const glowText = (txt, [x, y], size, col, glow, font = '900') => { g.save(); g.font = `${font} ${Math.round(size * s)}px "Be Vietnam Pro", system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.shadowColor = glow; g.shadowBlur = 18 * s; g.fillStyle = col; g.fillText(txt, x, y); g.fillText(txt, x, y); g.restore(); };
+    const balloon = (x, y, r, col) => { const gr = g.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r); gr.addColorStop(0, '#fff'); gr.addColorStop(0.25, col); gr.addColorStop(1, col); g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, r * 0.86, r, 0, 0, 7); g.fill(); };
+
+    if (id === 'r_pink') {
+      shell({ ceil: '#fffafb', sideA: '#fff0f4', sideB: '#fff8fa', back: '#fffdfd', floorA: '#efe4df', floorB: '#f8f1ee' });
+      // sàn đá mài (terrazzo): hạt màu nhỏ dần về phía xa
+      for (let k = 0; k < 260; k++) { const d = Math.pow(rnd(), 0.7), p = fl(d, rnd()); g.fillStyle = ['#c9b8b0', '#f4a7b9', '#9fb7c9', '#d8cfc8', '#e8a87c'][k % 5]; g.beginPath(); g.ellipse(p[0], p[1], (1 - d * 0.7) * 3.4 * s, (1 - d * 0.7) * 1.6 * s, rnd() * 3, 0, 7); g.fill(); }
+      tiles(0.58, '#f6c3d1', '#fff', 6, 12);
+      // cửa vòm có rèm xanh (phòng thay đồ)
+      const [ax0, ay0] = back(0.6, 0.18), [ax1, ay1] = back(0.86, 1), r = (ax1 - ax0) / 2;
+      g.fillStyle = '#fff'; g.beginPath(); g.moveTo(ax0 - 6 * s, ay1); g.lineTo(ax0 - 6 * s, ay0 + r); g.arc(ax0 + r, ay0 + r, r + 6 * s, Math.PI, 0); g.lineTo(ax1 + 6 * s, ay1); g.fill();
+      g.fillStyle = '#3d4b5c'; g.beginPath(); g.moveTo(ax0, ay1); g.lineTo(ax0, ay0 + r); g.arc(ax0 + r, ay0 + r, r, Math.PI, 0); g.lineTo(ax1, ay1); g.fill();
+      g.fillStyle = lg(ax0, 0, ax1, 0, [[0, '#5b8ec9'], [0.5, '#8fb8e8'], [1, '#5b8ec9']]); g.fillRect(ax0 + 4 * s, ay0 + r * 0.9, (ax1 - ax0) * 0.62, ay1 - ay0 - r * 0.9);
+      g.strokeStyle = 'rgba(30,50,90,.25)'; g.lineWidth = 2 * s; for (let k = 1; k < 6; k++) { const x = ax0 + 4 * s + k * (ax1 - ax0) * 0.1; g.beginPath(); g.moveTo(x, ay0 + r); g.quadraticCurveTo(x + 4 * s, (ay0 + ay1) / 2, x, ay1); g.stroke(); }
+      // gương đứng + đồng hồ ON AIR
+      const [mx, my, mw, mh] = frame(0.06, 0.12, 0.26, 0.98, '#fff', '#dbe4ea');
+      g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.moveTo(mx + mw * 0.2, my); g.lineTo(mx + mw * 0.45, my); g.lineTo(mx + mw * 0.1, my + mh); g.lineTo(mx, my + mh * 0.75); g.fill();
+      const [cx, cy] = back(0.42, 0.2); g.fillStyle = '#fff'; g.beginPath(); g.arc(cx, cy, 16 * s, 0, 7); g.fill(); g.strokeStyle = '#dee2e6'; g.lineWidth = 2 * s; g.stroke();
+      g.fillStyle = '#495057'; g.font = `800 ${Math.round(6 * s)}px system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('ON AIR', cx, cy);
+      glowText('Smile & Shine', back(0.42, 0.42), 15, '#e64980', 'rgba(255,255,255,.9)', 'italic 800');
+      // kệ phụ kiện tường trái + tường phải
+      shelf(wl, 0.12, 0.8, 0.3, ['🧸', '🐻', '🎀', '🐰']);
+      shelf(wl, 0.12, 0.8, 0.5, ['👒', '🎩', '🧢', '👑']);
+      shelf(wl, 0.12, 0.8, 0.7, ['🐱', '🦄', '🐶', '🐥']);
+      shelf(wr, 0.25, 0.85, 0.42, ['🌷', '💐', '🕶️']);
+    } else if (id === 'r_cafe') {
+      shell({ ceil: '#6b4a35', sideA: '#ead7bd', sideB: '#f3e4cf', back: '#f6e9d6', floorA: '#8a5a32', floorB: '#b07a4a' });
+      // sàn ván gỗ so le
+      for (let i = 0; i <= 12; i++) line(fl(0, i / 12), fl(1, i / 12), 'rgba(60,30,10,.35)', 1.4);
+      const ds = DEP(9); for (let j = 1; j < ds.length; j++) for (let i = 0; i < 12; i++) if ((i + j) % 2) line(fl(ds[j], i / 12), fl(ds[j], (i + 1) / 12), 'rgba(60,30,10,.3)', 1);
+      tiles(0.66, '#a9744a', 'rgba(60,30,10,.35)', 1, 8);
+      // cửa sổ có nắng
+      const [wx, wy, ww, wh] = frame(0.52, 0.1, 0.94, 0.58, '#5c3d2e', '#bfe3ff');
+      g.fillStyle = lg(0, wy, 0, wy + wh, [[0, '#a5d8ff'], [1, '#fff3bf']]); g.fillRect(wx, wy, ww, wh);
+      g.fillStyle = '#69db7c'; g.beginPath(); g.ellipse(wx + ww * 0.3, wy + wh, ww * 0.35, wh * 0.3, 0, Math.PI, 0); g.fill();
+      g.fillStyle = '#5c3d2e'; g.fillRect(wx + ww / 2 - 3 * s, wy, 6 * s, wh); g.fillRect(wx, wy + wh / 2 - 3 * s, ww, 6 * s);
+      g.save(); g.globalAlpha = 0.18; poly([[wx, wy], [wx + ww, wy], [w * 0.9, h], [w * 0.35, h]], '#fff3bf'); g.restore();
+      glowText('Quang Lâm Coffee', back(0.27, 0.26), 17, '#fff4e6', '#ff922b', 'italic 900');
+      frame(0.08, 0.38, 0.22, 0.6, '#5c3d2e', '#ffe8cc'); emoji('☕', back(0.15, 0.49), 22);
+      frame(0.27, 0.38, 0.41, 0.6, '#5c3d2e', '#d3f9d8'); emoji('🌿', back(0.34, 0.49), 22);
+      // bóng đèn treo
+      [0.25, 0.5, 0.75].forEach((u, i) => { const top = ce(0.55, u), y = top[1] + (40 + i % 2 * 18) * s; line(top, [top[0], y], '#2b1a10', 1.5); g.save(); g.shadowColor = '#ffd43b'; g.shadowBlur = 22 * s; g.fillStyle = '#fff3bf'; g.beginPath(); g.arc(top[0], y + 6 * s, 7 * s, 0, 7); g.fill(); g.restore(); });
+      emoji('🪴', fl(0.12, 0.06), 58); emoji('🪴', fl(0.12, 0.94), 58);
+      shelf(wl, 0.2, 0.85, 0.42, ['🥐', '🍰', '🧁']); shelf(wr, 0.2, 0.85, 0.42, ['📚', '🕯️', '📻']);
+    } else if (id === 'r_balloon') {
+      shell({ ceil: '#fff', sideA: '#e5dbff', sideB: '#f3f0ff', back: '#fff0f6', floorA: '#ffd8e8', floorB: '#ffe3ef' });
+      checker(8, '#ffc9de', '#fff0f6');
+      tiles(0.7, '#d0bfff', '#fff', 2, 10);
+      // vòm bóng bay trên tường sau
+      const [bx, by] = back(0.5, 0.95), R = (X1 - X0) * 0.36, cols = ['#ff8fab', '#ffd43b', '#74c0fc', '#b197fc', '#63e6be'];
+      for (let k = 0; k <= 22; k++) { const a = Math.PI + (k / 22) * Math.PI; balloon(bx + Math.cos(a) * R, by + Math.sin(a) * R * 1.35, (14 + (k % 3) * 3) * s, cols[k % 5]); }
+      glowText('HAPPY DAY', back(0.5, 0.6), 24, '#f06595', 'rgba(255,255,255,1)');
+      // chùm bóng ở 2 góc
+      [[0.12, 1], [0.88, -1]].forEach(([u, sg]) => { const base = fl(0.15, u); for (let k = 0; k < 7; k++) { const x = base[0] + sg * (Math.sin(k * 2.1) * 28) * s, y = base[1] - (120 + (k % 4) * 34) * s; line([x, y + 18 * s], base, 'rgba(0,0,0,.25)', 1); balloon(x, y, 22 * s, cols[(k + (sg > 0 ? 0 : 2)) % 5]); } });
+      emoji('🎁', fl(0.2, 0.2), 34); emoji('🧸', fl(0.2, 0.8), 40);
+    } else if (id === 'r_neon') {
+      shell({ ceil: '#0e0820', sideA: '#160c33', sideB: '#22124a', back: '#140b2b', floorA: '#07050f', floorB: '#120a26' });
+      const pulse = 0.65 + 0.35 * Math.sin(t * 3);
+      g.save(); g.shadowColor = '#f06595'; g.shadowBlur = 12 * s; floorGrid(10, `rgba(240,101,149,${0.35 + 0.25 * pulse})`, 1.6); g.restore();
+      // ống neon dọc 2 tường bên
+      DEP(5).slice(0, 5).forEach((d, i) => [wl, wr].forEach((f) => { g.save(); g.shadowColor = i % 2 ? '#4dabf7' : '#da77f2'; g.shadowBlur = 16 * s; line(f(d + 0.05, 0.12), f(d + 0.05, 0.85), i % 2 ? '#a5d8ff' : '#f3d9fa', 4 * (1 - d * 0.6)); g.restore(); }));
+      // khung neon + chữ trên tường sau
+      const [nx0, ny0] = back(0.1, 0.12), [nx1, ny1] = back(0.9, 0.8);
+      g.save(); g.shadowColor = '#4dabf7'; g.shadowBlur = 20 * s; g.strokeStyle = '#d0ebff'; g.lineWidth = 4 * s; g.beginPath(); g.roundRect(nx0, ny0, nx1 - nx0, ny1 - ny0, 18 * s); g.stroke(); g.restore();
+      g.globalAlpha = 0.6 + 0.4 * pulse; glowText('QUANG LÂM', back(0.5, 0.36), 36, '#ffdeeb', '#f06595'); glowText('✦ PHOTO NIGHT ✦', back(0.5, 0.58), 15, '#e3fafc', '#22b8cf'); g.globalAlpha = 1;
+      // phản chiếu trên sàn bóng
+      g.save(); g.globalAlpha = 0.18; poly([back(0.1, 1), back(0.9, 1), fl(0.6, 0.85), fl(0.6, 0.15)], '#f06595'); g.restore();
+    } else if (id === 'r_royal') {
+      shell({ ceil: '#3b0a12', sideA: '#6e0f1f', sideB: '#8b1426', back: '#951a2c', floorA: '#e9ecef', floorB: '#f8f9fa' });
+      checker(8, '#212529', '#f1f3f5');
+      // thảm đỏ chạy vào tường sau
+      poly([fl(0, 0.36), fl(0, 0.64), fl(1, 0.58), fl(1, 0.42)], '#c92a2a');
+      line(fl(0, 0.38), fl(1, 0.435), '#fcc419', 2); line(fl(0, 0.62), fl(1, 0.565), '#fcc419', 2);
+      tiles(0.66, '#5c0b19', '#d4a017', 2, 6);
+      // rèm nhung 2 bên tường sau + khung tranh vàng
+      [[0, 0.16], [0.84, 1]].forEach(([u0, u1]) => { const [x0, y0] = back(u0, 0), [x1, y1] = back(u1, 1); g.fillStyle = lg(x0, 0, x1, 0, [[0, '#7a0f1c'], [0.5, '#c92a2a'], [1, '#7a0f1c']]); g.fillRect(x0, y0, x1 - x0, y1 - y0); g.fillStyle = '#fcc419'; g.fillRect(x0, y0 + (y1 - y0) * 0.55, x1 - x0, 5 * s); });
+      const [fx, fy, fw, fh] = frame(0.3, 0.14, 0.7, 0.56, '#d4a017', '#fff3bf');
+      g.fillStyle = lg(0, fy, 0, fy + fh, [[0, '#a5d8ff'], [1, '#d8f5a2']]); g.fillRect(fx + 4 * s, fy + 4 * s, fw - 8 * s, fh - 8 * s); emoji('🏰', [fx + fw / 2, fy + fh * 0.6], 44);
+      // đèn chùm
+      const top = ce(0.6, 0.5), cy = top[1] + 46 * s; line(top, [top[0], cy], '#d4a017', 2);
+      g.save(); g.shadowColor = '#ffe066'; g.shadowBlur = 24 * s; g.strokeStyle = '#fcc419'; g.lineWidth = 3 * s; g.beginPath(); g.ellipse(top[0], cy, 46 * s, 12 * s, 0, 0, Math.PI); g.stroke();
+      for (let k = 0; k < 7; k++) { const x = top[0] - 42 * s + k * 14 * s, y = cy + Math.sin((k / 6) * Math.PI) * 12 * s; g.fillStyle = '#fff9db'; g.beginPath(); g.arc(x, y - 6 * s, 4 * s, 0, 7); g.fill(); }
+      g.restore();
+      emoji('🏺', fl(0.18, 0.08), 46); emoji('🏺', fl(0.18, 0.92), 46);
+    } else {
+      // r_studio: phông giấy trắng cuộn xuống sàn + 2 đèn softbox
+      shell({ ceil: '#ced4da', sideA: '#adb5bd', sideB: '#ced4da', back: '#dee2e6', floorA: '#868e96', floorB: '#adb5bd' });
+      floorGrid(6, 'rgba(0,0,0,.06)');
+      poly([back(0.08, 0), back(0.92, 0), back(0.92, 1), fl(0.5, 0.86), fl(0.5, 0.14), back(0.08, 1)], lg(0, Y0, 0, L(h, Y1, 0.5), [[0, '#ffffff'], [0.75, '#f8f9fa'], [1, '#e9ecef']]));
+      const [rx, ry] = back(0.5, 0.06); g.fillStyle = '#495057'; g.fillRect(rx - (X1 - X0) * 0.44, ry - 6 * s, (X1 - X0) * 0.88, 8 * s);
+      [[0.1, 1], [0.9, -1]].forEach(([u, sg]) => {
+        const f = fl(0.22, u), top = [f[0] + sg * 6 * s, f[1] - 210 * s];
+        line(f, top, '#212529', 3); line(f, [f[0] - 24 * s, f[1] + 4 * s], '#212529', 3); line(f, [f[0] + 24 * s, f[1] + 4 * s], '#212529', 3);
+        g.save(); g.translate(top[0], top[1]); g.rotate(sg * 0.35);
+        g.fillStyle = '#212529'; g.fillRect(-38 * s, -46 * s, 76 * s, 70 * s);
+        g.shadowColor = '#fff'; g.shadowBlur = 28 * s; g.fillStyle = '#fff'; g.fillRect(-32 * s, -40 * s, 64 * s, 58 * s); g.restore();
+      });
+      // đèn vòng (ring light) sau lưng
+      const [lx, ly] = back(0.5, 0.36); g.save(); g.shadowColor = '#fff'; g.shadowBlur = 20 * s; g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 7 * s; g.beginPath(); g.arc(lx, ly, 50 * s, 0, 7); g.stroke(); g.restore();
+    }
+    // ánh sáng đèn chụp từ trên + tối dần 4 góc cho có chiều sâu
+    const sp = g.createRadialGradient(w / 2, h * 0.35, 10, w / 2, h * 0.5, w * 0.62); sp.addColorStop(0, 'rgba(255,255,255,.18)'); sp.addColorStop(0.6, 'rgba(255,255,255,0)'); sp.addColorStop(1, 'rgba(0,0,0,.28)');
+    g.fillStyle = sp; g.fillRect(0, 0, w, h);
+    // đường giao tường cho nổi khối
+    [[[0, 0], back(0, 0)], [[w, 0], back(1, 0)], [[0, h], back(0, 1)], [[w, h], back(1, 1)]].forEach(([a, b]) => line(a, b, 'rgba(0,0,0,.08)', 1.5));
+    line(back(0, 1), back(1, 1), 'rgba(0,0,0,.15)', 2);
+  }
   function backdrop(g, w, h, id, t) {
+    if (id && id.startsWith('r_')) return drawRoom(g, w, h, id, t);
     const lin = (a, b, c3) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, a); if (c3) { gr.addColorStop(0.6, b); gr.addColorStop(1, c3); } else gr.addColorStop(1, b); g.fillStyle = gr; g.fillRect(0, 0, w, h); };
     const emo = (ch, n, size, seed) => { g.font = `${size}px system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle'; for (let k = 0; k < n; k++) { const a = Math.sin(k * 12.9898 + seed) * 43758.5453, r = a - Math.floor(a), b = Math.sin(k * 78.233 + seed) * 12345.678, r2 = b - Math.floor(b); g.globalAlpha = 0.55 + r2 * 0.4; g.fillText(ch, r * w, (r2 * h * 0.8 + t * 8 * (k % 3 + 1)) % (h * 0.85)); } g.globalAlpha = 1; };
     if (id === 'pastel') { lin('#ffdeeb', '#e5dbff', '#d0ebff'); emo('🍭', 7, 26, 1); emo('☁️', 5, 34, 2); }
@@ -277,6 +446,7 @@ const BOOTH = (() => {
       else if (pose === 'heart' || pose === 'v') dir = n > 1 && x > w / 2 ? -1 : 1;
       if (pose === 'jump') dy = -(14 + Math.abs(Math.sin(i * 1.7 + 1)) * 16) * k;
       const y = base + dy, top = y - 100 * k;
+      g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(x, base + 2 * k, 24 * k * (dy ? 0.7 : 1), 6 * k, 0, 0, 7); g.fill(); // bóng đổ dưới chân
       try { ART.character(g, x, y, p.look, { scale: 1.18 * k, t: 0, dir, hires: Math.min(4, Math.ceil(k * 1.2)) }); } catch (e) { /* bỏ qua */ }
       g.globalAlpha = 1; g.shadowBlur = 0;
       const d = (sess.dress[p.id]) || {};
@@ -327,13 +497,13 @@ const BOOTH = (() => {
       ${fr.length ? `<div class="pb-join">${fr.map(([h, o]) => `<button class="btn" data-join="${esc(h)}">🎉 Vào phòng chụp của ${esc(o.name)} (${o.members.length} người) — miễn phí</button>`).join('')}</div>` : ''}
       <div class="pb-price"><b>${fmt(PRICE)} xu</b> / lượt · chụp <b>thoải mái</b> trong ${SESSION_MIN} phút</div>
       <p class="muted">👥 Mở phòng xong bấm <b>✉️ Mời</b> để bạn bè (đã kết bạn) đang online vào chụp chung — chỉ người trong phòng mới có mặt trong ảnh.</p>
-      <p class="muted">🎨 Phông nền & 👑 phụ kiện thuê riêng từng món (500 – 3.000 xu) · 🖼️ khung ảnh miễn phí</p>
+      <p class="muted">🏠 Phòng chụp 3D & 👑 phụ kiện thuê riêng từng món (500 – 3.000 xu) · 🖼️ khung ảnh miễn phí</p>
       <button class="btn" data-pay>💳 Trả ${fmt(PRICE)} xu & vào chụp</button></div>`;
     p.body.querySelectorAll('[data-join]').forEach((b) => b.onclick = () => join(b.dataset.join));
     p.body.querySelector('[data-pay]').onclick = () => {
       if (!AV.spend(PRICE)) return UI.toast(`Cần ${fmt(PRICE)} xu để chụp 😢`);
       if (isMember()) leaveRoom();
-      sess = { until: Date.now() + SESSION_MIN * 60000, rent: new Set(['studio']), dress: {}, bg: 'studio', frame: 'pink', layout: 'strip', pose: 'v', skip: new Set() };
+      sess = { until: Date.now() + SESSION_MIN * 60000, rent: new Set(['studio']), dress: {}, bg: 'r_studio', frame: 'pink', layout: 'strip', pose: 'v', skip: new Set() };
       room = { host: myId(), members: [myId()] };
       hostSync();
       UI.toast('📸 Chào mừng tới Quang Lâm Photobooth! Chụp thoải mái nhé ✨', 3500);
@@ -359,7 +529,7 @@ const BOOTH = (() => {
           <small class="muted">${host ? 'Bấm tên để chọn người đeo phụ kiện · bấm lần nữa để ẩn/hiện người đó trong ảnh' : ''}</small></div>
         <div class="pb-right">
           <div class="pb-time">⏳ Còn <b>${mm}:${String(ss).padStart(2, '0')}</b> · 💰 ${fmt(AV.S.coins)} xu</div>
-          <div class="pb-tabs">${[...(member ? [] : [['pose', '🤸 Dáng'], ['bg', '🎨 Phông']]), ...SLOTS.map((s) => [s[0], s[1].split(' ')[0] + ' ' + s[1].split(' ')[1]]), ...(member ? [] : [['frame', '🖼️ Khung']])].map((t) => `<button class="${tab === t[0] ? 'on' : ''}" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div>
+          <div class="pb-tabs">${[...(member ? [] : [['pose', '🤸 Dáng'], ['bg', '🏠 Phòng']]), ...SLOTS.map((s) => [s[0], s[1].split(' ')[0] + ' ' + s[1].split(' ')[1]]), ...(member ? [] : [['frame', '🖼️ Khung']])].map((t) => `<button class="${tab === t[0] ? 'on' : ''}" data-tab="${t[0]}">${t[1]}</button>`).join('')}</div>
           <div class="pb-items">${tab === 'pose' ? POSES.map((x) => `<button class="pb-it ${sess.pose === x.id ? 'on' : ''}" data-pose="${x.id}"><span>${x.icon}</span><b>${x.name}</b><small>${sess.pose === x.id ? 'Đang chọn' : 'Miễn phí'}</small></button>`).join('') + `<small class="muted" style="grid-column:1/-1">${sess.layout === 'strip' ? '🎞️ Dải 4 tấm: ' + stripPoses().map((id) => POSES.find((x) => x.id === id).icon).join(' → ') : '🖼️ 1 tấm lớn theo dáng đang chọn'} · 🤝🤜 Bắt tay / đấm nhau: ghép từng cặp</small>` : tab === 'frame' ? items.map((f) => `<button class="pb-it ${sess.frame === f.id ? 'on' : ''}" data-frame="${f.id}"><span style="background:${f.bg};border:2px solid ${f.ink}" class="pb-sw"></span><b>${f.name}</b><small>Miễn phí</small></button>`).join('')
             : (tab !== 'bg' ? `<button class="pb-it ${!d[tab] ? 'on' : ''}" data-off="${tab}"><span>🚫</span><b>Không đeo</b><small>&nbsp;</small></button>` : '')
               + items.map((it) => { const has = it.price === 0 || sess.rent.has(it.id), on = tab === 'bg' ? sess.bg === it.id : d[tab] === it.id; return `<button class="pb-it ${on ? 'on' : ''} ${has ? '' : 'lock'}" data-item="${it.id}"><span>${it.icon}</span><b>${it.name}</b><small>${has ? (on ? 'Đang dùng' : 'Đã thuê ✓') : 'Thuê ' + fmt(it.price) + ' xu'}</small></button>`; }).join('')}</div>

@@ -564,13 +564,13 @@ const MAPS = (() => {
       inter(m, { x: x - 105, y: y - 160, w: 210, h: 160, ax: x - 40, ay: y + 28, name: `${e.name} (ăn uống +XP)`, use: () => UI.eateryPanel(e.id) });
     });
     addPot(m, 1750, 1360, 'dao');
-    /* ----- 🎰 Quầy Vietlott cạnh quán Mì Cay ----- */
+    /* ----- 🎰 Quầy QL Lotto cạnh quán Mì Cay ----- */
     if (typeof LOTTO !== 'undefined') {
       const LX = 1150, LY = 1430;
       sobj(m, LX, LY, (c) => LOTTO.kiosk(c, LX, LY), { l: -66, t: -206, w: 160, h: 216 });
       obj(m, LY + 30, (c) => LOTTO.board(c, LX - 2, LY + 30), [LX - 36, LY - 56, LX + 36, LY + 32]);
       col(m, LX - 52, LY - 14, 104, 14);
-      inter(m, { x: LX - 56, y: LY - 110, w: 112, h: 112, ax: LX, ay: LY + 26, name: 'Quầy Vietlott Mega 6/45 (quay mỗi 2 tiếng)', use: () => LOTTO.panel(), arrow: { x: LX, y: LY - 175, text: 'Vietlott' } });
+      inter(m, { x: LX - 56, y: LY - 110, w: 112, h: 112, ax: LX, ay: LY + 26, name: 'Quầy QL Lotto Lộc 6/45 (quay mỗi 2 tiếng)', use: () => LOTTO.panel(), arrow: { x: LX, y: LY - 175, text: 'QL Lotto' } });
     }
     /* ----- 🚜 cổng sang Trang Trại Mở Rộng ----- */
     {
@@ -624,15 +624,15 @@ const MAPS = (() => {
     addBusStop(m, GATE + 140, 1432, 1);
     /* ----- 📸 Quang Lâm Photobooth ngay cạnh quán trà đá ----- */
     if (typeof BOOTH !== 'undefined') BOOTH.addTo(m, { sobj, col, inter }, TX + 185, TY);
-    /* ----- 🚗 VinFast Showroom + 🔌 trạm sạc V-GREEN cạnh ATM ----- */
+    /* ----- 🚗 Quang Lâm Fast Showroom + 🔌 trạm sạc QL-GREEN cạnh ATM ----- */
     const VX = 2935, VY = 1430;
     const VK = 0.72; // thấp vừa để không che luống đất
     sobj(m, VX, VY, (c) => { c.save(); c.translate(VX, VY); c.scale(VK, VK); c.translate(-VX, -VY); vinfast(c, VX, VY); c.restore(); }, { l: -170, t: -220, w: 340, h: 240 });
     m.objects[m.objects.length - 1].b3d = { w: 316, h: 198, roof: '#1b2f48', wall: '#495057', depth: 45 };
     col(m, VX - 152, VY - 38, 108, 36); col(m, VX + 44, VY - 38, 108, 36); col(m, VX - 44, VY - 38, 88, 12);
-    inter(m, { x: VX - 44, y: VY - 110, w: 88, h: 110, ax: VX, ay: VY + 30, name: 'VinFast Showroom (mua ô tô điện)', use: () => UI.carShop(), arrow: { x: VX, y: VY - 124, text: 'VinFast' } });
-    /* ----- 📱 CellphoneS + Thế Giới Di Động ngay cạnh VinFast ----- */
-    [['cps', 3185, 'CellphoneS'], ['tgdd', 3435, 'Thế Giới Di Động']].forEach(([k, SX, nm]) => {
+    inter(m, { x: VX - 44, y: VY - 110, w: 88, h: 110, ax: VX, ay: VY + 30, name: 'Quang Lâm Fast Showroom (mua ô tô điện)', use: () => UI.carShop(), arrow: { x: VX, y: VY - 124, text: 'Quang Lâm Fast' } });
+    /* ----- 📱 ZenoPhone + Thế Giới Dế Yêu ngay cạnh Quang Lâm Fast ----- */
+    [['cps', 3185, 'ZenoPhone'], ['tgdd', 3435, 'Thế Giới Dế Yêu']].forEach(([k, SX, nm]) => {
       const SY = 1430;
       sobj(m, SX, SY, (c) => phoneStore(c, SX, SY, k), { l: -126, t: -206, w: 252, h: 218 });
       m.objects[m.objects.length - 1].b3d = { w: 226, h: 150, roof: k === 'cps' ? '#d70018' : '#ffd400', wall: '#f8f9fa' };
@@ -643,7 +643,7 @@ const MAPS = (() => {
     sobj(m, CX2, CY2, (c) => charger(c, CX2, CY2), { l: -80, t: -200, w: 160, h: 215 });
     m.objects[m.objects.length - 1].b3d = { w: 160, h: 196, roof: '#0ca678', wall: '#dee2e6', canopy: 1 };
     col(m, CX2 - 60, CY2 - 34, 120, 32);
-    inter(m, { x: CX2 - 70, y: CY2 - 190, w: 140, h: 190, ax: CX2, ay: CY2 + 30, name: 'Trạm sạc V-GREEN (sạc pin ô tô)', use: () => UI.chargeStation(), arrow: { x: CX2, y: CY2 - 205, text: 'Trạm sạc' } });
+    inter(m, { x: CX2 - 70, y: CY2 - 190, w: 140, h: 190, ax: CX2, ay: CY2 + 30, name: 'Trạm sạc QL-GREEN (sạc pin ô tô)', use: () => UI.chargeStation(), arrow: { x: CX2, y: CY2 - 205, text: 'Trạm sạc' } });
     /* ----- Biển chúc mừng 20/10 cạnh cổng (hiện từ 1/10 đến hết 21/10) ----- */
     const WX = 4700, WY = 1430, WK = 0.62;
     const womensDay = () => { const d = new Date(); return d.getMonth() === 9 && d.getDate() <= 21; };
@@ -853,14 +853,14 @@ const MAPS = (() => {
     col(m, VX - 280, VY - 70, 200, 66); col(m, VX + 80, VY - 70, 200, 66); col(m, VX - 80, VY - 70, 160, 26);
     inter(m, { x: VX - 70, y: VY - 82, w: 140, h: 84, ax: VX, ay: VY + 40, name: 'Concert Ngàn Chông Gai (mua vé vào xem)', use: () => CONCERT.enter(), arrow: { x: VX, y: VY - 92, text: 'Vào xem concert' } });
     m.lights = m.lights.concat([[VX - 200, VY - 230, 80], [VX + 200, VY - 230, 80]]);
-    /* ----- Rạp phim CGV ----- */
+    /* ----- Rạp phim QL Cinema ----- */
     const GX = 4080, GY = 775;
     aobj(m, GX, GY, (c, t) => {
       c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(GX, GY + 4, 230, 22, 0, 0, Math.PI * 2); c.fill();
       c.fillStyle = '#2b2b30'; c.fillRect(GX - 210, GY - 260, 420, 260);
       c.fillStyle = '#e03131'; c.fillRect(GX - 220, GY - 272, 440, 70);
-      c.fillStyle = '#fff'; c.font = '900 52px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('CGV', GX, GY - 236);
-      c.font = '800 13px "Be Vietnam Pro", system-ui'; c.fillStyle = '#ffe3e3'; c.fillText('CINEMAS', GX + 100, GY - 222);
+      c.fillStyle = '#fff'; c.font = '900 52px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('QL', GX - 30, GY - 236);
+      c.font = '800 13px "Be Vietnam Pro", system-ui'; c.fillStyle = '#ffe3e3'; c.fillText('CINEMA', GX + 70, GY - 222);
       for (let k = 0; k < 18; k++) { c.fillStyle = (Math.floor(t * 4) + k) % 2 ? '#ffd43b' : '#fff3bf'; c.beginPath(); c.arc(GX - 205 + k * 24, GY - 196, 4, 0, Math.PI * 2); c.fill(); }
       [[-150, '#4c6ef5', '🦸'], [150, '#f03e3e', '👻']].forEach(([dx, col, ic]) => {
         c.fillStyle = '#111'; c.fillRect(GX + dx - 46, GY - 182, 92, 128);
@@ -872,7 +872,7 @@ const MAPS = (() => {
       c.fillStyle = '#ffd43b'; c.font = '900 14px "Be Vietnam Pro", system-ui'; c.fillStyle = '#fff'; c.fillText('🎬 VÀO RẠP', GX, GY - 134);
     }, { l: -235, t: -285, w: 470, h: 315 });
     col(m, GX - 210, GY - 60, 140, 56); col(m, GX + 70, GY - 60, 140, 56); col(m, GX - 70, GY - 60, 140, 24);
-    inter(m, { x: GX - 60, y: GY - 120, w: 120, h: 122, ax: GX, ay: GY + 40, name: 'Rạp phim CGV (vé 60 xu)', use: () => AV.enterCgv(), arrow: { x: GX, y: GY - 150, text: 'Xem phim' } });
+    inter(m, { x: GX - 60, y: GY - 120, w: 120, h: 122, ax: GX, ay: GY + 40, name: 'Rạp phim QL Cinema (vé 60 xu)', use: () => AV.enterCgv(), arrow: { x: GX, y: GY - 150, text: 'Xem phim' } });
     addPot(m, CX - 130, CY + 40, 'mai'); addPot(m, CX + 130, CY + 40, 'dao');
 
     npc(m, 'Bé Bin', { skin: '#ffe0c4', hair: 'spiky', hairColor: '#c68642', shirt: '#fd7e14', shirtStyle: 'star', pants: '#364fc7', hat: 'beanie' }, { l: 200, t: 700, r: 1800, b: 830 }, 1000, 760, 'chick');
@@ -1377,12 +1377,10 @@ const MAPS = (() => {
     [tx - 32, tx + 32].forEach((sx) => { c.fillStyle = '#e03131'; c.beginPath(); c.roundRect(sx - 9, y - 16, 18, 6, 2); c.fill(); c.fillStyle = '#c92a2a'; c.fillRect(sx - 8, y - 10, 3, 10); c.fillRect(sx + 5, y - 10, 3, 10); });
   }
 
-  /* ---------- 🚗 Showroom VinFast + trạm sạc (vẽ bằng code) ---------- */
+  /* ---------- 🚗 Showroom Quang Lâm Fast + trạm sạc (vẽ bằng code) ---------- */
   function vfLogo(c, x, y, r) {
     c.fillStyle = '#fff'; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
-    c.strokeStyle = '#1864ab'; c.lineWidth = r * 0.22; c.lineJoin = 'round';
-    c.beginPath(); c.moveTo(x - r * 0.55, y - r * 0.4); c.lineTo(x, y + r * 0.5); c.lineTo(x + r * 0.55, y - r * 0.4); c.stroke();
-    c.strokeStyle = '#e03131'; c.lineWidth = r * 0.12; c.beginPath(); c.moveTo(x - r * 0.3, y - r * 0.4); c.lineTo(x, y + r * 0.15); c.lineTo(x + r * 0.3, y - r * 0.4); c.stroke();
+    c.fillStyle = '#1864ab'; c.font = `900 ${Math.round(r * 1.5)}px "Be Vietnam Pro", system-ui`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('Q', x, y + 1);
   }
   function vinfast(c, x, y) {
     const W2 = 440, L = x - W2 / 2;
@@ -1390,8 +1388,8 @@ const MAPS = (() => {
     c.fillStyle = '#343a40'; c.fillRect(L, y - 250, W2, 250);
     c.fillStyle = '#1b2f48'; c.fillRect(L - 8, y - 276, W2 + 16, 36);
     vfLogo(c, L + 34, y - 258, 15);
-    c.fillStyle = '#fff'; c.font = '900 26px "Be Vietnam Pro", system-ui'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText('VINFAST', L + 58, y - 257);
-    c.font = '700 12px "Be Vietnam Pro", system-ui'; c.fillStyle = '#a5d8ff'; c.fillText('SHOWROOM Ô TÔ ĐIỆN', L + 190, y - 256);
+    c.fillStyle = '#fff'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.font = '900 22px "Be Vietnam Pro", system-ui'; c.fillText('QUANG LÂM FAST', L + 58, y - 257);
+    c.font = '700 11px "Be Vietnam Pro", system-ui'; c.fillStyle = '#a5d8ff'; c.textAlign = 'right'; c.fillText('SHOWROOM Ô TÔ ĐIỆN', L + W2 - 12, y - 256); c.textAlign = 'left';
     const g = c.createLinearGradient(L, y - 230, L, y); g.addColorStop(0, '#d0ebff'); g.addColorStop(1, '#74c0fc');
     c.fillStyle = g; c.fillRect(L + 12, y - 230, W2 - 24, 226);
     c.fillStyle = '#e9ecef'; c.fillRect(L + 12, y - 40, W2 - 24, 36);
@@ -1407,7 +1405,7 @@ const MAPS = (() => {
     c.fillStyle = 'rgba(0,0,0,.15)'; c.beginPath(); c.ellipse(x, y + 4, 80, 12, 0, 0, Math.PI * 2); c.fill();
     c.fillStyle = '#868e96'; c.fillRect(x - 70, y - 190, 6, 190); c.fillRect(x + 64, y - 190, 6, 190);
     c.fillStyle = '#0ca678'; c.beginPath(); c.roundRect(x - 80, y - 200, 160, 30, 8); c.fill();
-    c.fillStyle = '#fff'; c.font = '900 16px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('⚡ V-GREEN', x, y - 185);
+    c.fillStyle = '#fff'; c.font = '900 16px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('⚡ QL-GREEN', x, y - 185);
     [-28, 28].forEach((dx) => {
       c.fillStyle = '#f8f9fa'; c.beginPath(); c.roundRect(x + dx - 18, y - 120, 36, 120, 8); c.fill();
       c.fillStyle = '#0ca678'; c.fillRect(x + dx - 18, y - 120, 36, 16);
@@ -1616,7 +1614,7 @@ const MAPS = (() => {
     return m;
   }
 
-  /* ---------- 🎬 Rạp CGV (trong rạp, dùng chung) ---------- */
+  /* ---------- 🎬 Rạp QL Cinema (trong rạp, dùng chung) ---------- */
   /* ---------- 🏥 Bệnh viện Zeno (bên ngoài) ---------- */
   /** 💊 Nhà thuốc Long Châu: biển xanh dương, cửa kính, kệ thuốc, chữ thập xanh */
   function pharmacyArt(c, x, y) {
@@ -1680,7 +1678,7 @@ const MAPS = (() => {
     c.fillStyle = '#ced4da'; c.fillRect(x - 150, y - 4, 300, 10);
   }
   ART.ambulance = (c, x, y) => ambulance(c, x, y);
-  /** 📱 cửa hàng điện thoại: 'cps' = CellphoneS (đỏ), 'tgdd' = Thế Giới Di Động (vàng) */
+  /** 📱 cửa hàng điện thoại: 'cps' = ZenoPhone (đỏ), 'tgdd' = Thế Giới Dế Yêu (vàng) */
   function phoneStore(c, x, y, kind) {
     const W = 226, L = x - W / 2, cps = kind === 'cps';
     const main = cps ? '#d70018' : '#ffd400', ink = cps ? '#fff' : '#111';
@@ -1690,12 +1688,12 @@ const MAPS = (() => {
     c.fillStyle = cps ? '#a50013' : '#e0b800'; c.fillRect(L - 6, y - 150, W + 12, 5);
     c.textAlign = 'center'; c.textBaseline = 'middle';
     if (cps) {
-      c.fillStyle = '#fff'; c.font = 'italic 900 27px "Be Vietnam Pro", system-ui'; c.fillText('CellphoneS', x, y - 172);
+      c.fillStyle = '#fff'; c.font = 'italic 900 27px "Be Vietnam Pro", system-ui'; c.fillText('ZenoPhone', x, y - 172);
     } else {
       c.fillStyle = '#111'; c.beginPath(); c.arc(L + 22, y - 171, 15, 0, Math.PI * 2); c.fill();
       c.fillStyle = '#ffd400'; c.beginPath(); c.arc(L + 22, y - 175, 5, 0, Math.PI * 2); c.fill(); c.beginPath(); c.ellipse(L + 22, y - 163, 9, 5, 0, Math.PI, 0); c.fill();
-      c.fillStyle = '#111'; c.font = '900 15px "Be Vietnam Pro", system-ui'; c.fillText('thegioididong', x + 14, y - 178);
-      c.font = '800 10px "Be Vietnam Pro", system-ui'; c.fillText('.com', x + 70, y - 163);
+      c.fillStyle = '#111'; c.font = '900 16px "Be Vietnam Pro", system-ui'; c.fillText('Thế Giới Dế Yêu', x + 14, y - 178);
+      c.font = '800 10px "Be Vietnam Pro", system-ui'; c.fillText('ĐIỆN THOẠI · PHỤ KIỆN', x + 14, y - 162);
     }
     // tủ kính bày điện thoại
     const glass = (gx, gw) => {
@@ -1811,7 +1809,7 @@ const MAPS = (() => {
   }
 
   function cgv() {
-    const m = base('cgv', 'Rạp CGV', 2000, 1250);
+    const m = base('cgv', 'Rạp QL Cinema', 2000, 1250);
     m.indoor = true;
     m.hz = 0;
     m.music = 'mute';

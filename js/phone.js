@@ -1,4 +1,4 @@
-/* 📱 ĐIỆN THOẠI — mua ở CellphoneS / Thế Giới Di Động (phố trước nông trại, cạnh VinFast).
+/* 📱 ĐIỆN THOẠI — mua ở ZenoPhone / Thế Giới Dế Yêu (phố trước nông trại, cạnh Quang Lâm Fast).
  * Bấm nút 📱 trên thanh trên cùng để cầm điện thoại: giao diện iPhone hoặc Android tuỳ máy đã mua,
  * có số điện thoại riêng, danh bạ (bạn bè), tin nhắn, gọi điện, máy ảnh chụp màn hình, ngân hàng, bản đồ…
  * Gọi 115 khi ốm → xe cấp cứu hú còi chạy tới tận nơi đưa vào Bệnh viện Zeno.
@@ -18,8 +18,8 @@ const PHONE = (() => {
     { id: 'ip18pm', name: 'iPhone 18 Pro Max', os: 'ios', price: 49990000, drain: 0.5, color: '#c92a2a', tag: 'MỚI · đỉnh nhất · pin trâu nhất' },
   ];
   const STORES = {
-    cps: { name: 'CellphoneS', icon: '🔴', disc: 0.97, note: 'Giảm 3% cho thành viên S-Member' },
-    tgdd: { name: 'Thế Giới Di Động', icon: '🟡', disc: 1, note: 'Tặng kèm 1 sạc dự phòng khi mua máy' },
+    cps: { name: 'ZenoPhone', icon: '🔴', disc: 0.97, note: 'Giảm 3% cho thành viên Z-Member' },
+    tgdd: { name: 'Thế Giới Dế Yêu', icon: '🟡', disc: 1, note: 'Tặng kèm 1 sạc dự phòng khi mua máy' },
   };
   const POWERBANK = 590000, TRADE_IN = 0.3, LOAN = { pre: 0.3, n: 6 };
   /** mỗi ngày tự trừ 1 kỳ trả góp; không đủ xu → khoá máy */
@@ -255,7 +255,7 @@ const PHONE = (() => {
     { id: 'car', icon: '🚕', name: 'ZenoCar', bg: 'linear-gradient(#69db7c,#2b8a3e)' },
     { id: 'bank', icon: '🏦', name: 'QL Bank', bg: 'linear-gradient(#2f9e44,#00502b)' },
     { id: 'quest', icon: '📜', name: 'Nhiệm vụ', bg: 'linear-gradient(#ffe8a3,#f59f00)' },
-    { id: 'lotto', icon: '🎰', name: 'Vietlott', bg: 'linear-gradient(#ff8787,#c92a2a)' },
+    { id: 'lotto', icon: '🎰', name: 'QL Lotto', bg: 'linear-gradient(#ff8787,#c92a2a)' },
     { id: 'weather', icon: '🌤️', name: 'Thời tiết', bg: 'linear-gradient(#74c0fc,#1c7ed6)' },
     { id: 'clock', icon: '⏰', name: 'Đồng hồ', bg: 'linear-gradient(#343a40,#000)' },
     { id: 'health', icon: '❤️', name: 'Sức khoẻ', bg: 'linear-gradient(#fff,#f1f3f5)' },
@@ -275,7 +275,7 @@ const PHONE = (() => {
   function open() {
     const m = model();
     if (!m) {
-      const p = UI.panel('📱 Bạn chưa có điện thoại', `<p>Mua điện thoại ở <b>🔴 CellphoneS</b> hoặc <b>🟡 Thế Giới Di Động</b> — phố trước cổng nông trại, cạnh VinFast.</p>
+      const p = UI.panel('📱 Bạn chưa có điện thoại', `<p>Mua điện thoại ở <b>🔴 ZenoPhone</b> hoặc <b>🟡 Thế Giới Dế Yêu</b> — phố trước cổng nông trại, cạnh Quang Lâm Fast.</p>
         <p class="muted">Có điện thoại để: nhận số riêng, gửi số kết bạn, nhắn tin, gọi <b>115</b> khi ốm để xe cấp cứu đến đón, chụp ảnh màn hình…</p>
         <div class="row-end" style="justify-content:center"><button class="btn" data-go>🛵 Đến cửa hàng</button></div>`);
       p.body.querySelector('[data-go]').onclick = () => { p.close(); AV.teleport('farm', false, 3160, 1500, '📱 Đến cửa hàng điện thoại…'); };
@@ -409,7 +409,7 @@ const PHONE = (() => {
       show();
     } else if (app === 'contacts') {
       const list = contacts();
-      box.innerHTML = header('Danh bạ').replace('<span></span>', '<button class="ph-back" data-new>＋</button>') + `<div class="ph-me"><b>${esc(S().name)}</b><span>${myNum() ? 'Số của tôi: ' + pretty(myNum()) : 'Chưa có SIM — mua ở CellphoneS / Thế Giới Di Động'}</span></div>
+      box.innerHTML = header('Danh bạ').replace('<span></span>', '<button class="ph-back" data-new>＋</button>') + `<div class="ph-me"><b>${esc(S().name)}</b><span>${myNum() ? 'Số của tôi: ' + pretty(myNum()) : 'Chưa có SIM — mua ở ZenoPhone / Thế Giới Dế Yêu'}</span></div>
         <div class="ph-list">${list.length ? list.map((c, i) => `<div class="ph-row" data-open="${i}"><span class="ph-av">${esc((c.name || '?')[0].toUpperCase())}</span><div><b>${esc(c.name)}</b></div><span class="ph-chev">›</span></div>`).join('')
         : '<p class="ph-empty">Danh bạ trống.<br>Bấm <b>＋</b> để lưu số, hoặc gặp người chơi khác → bấm vào họ → <b>📱 Gửi số điện thoại</b>.</p>'}</div>` + tabsBar('contacts');
       back(); bindTabs();
@@ -472,7 +472,7 @@ const PHONE = (() => {
       const mh = typeof EVENTS !== 'undefined' ? EVENTS.merchantHours().map((h) => h + 'h').join(' · ') : '';
       box.innerHTML = header('Đồng hồ') + `<div class="ph-clock"><b>${vnTime()}</b>
         <div class="ph-row2">⏰ Giờ vàng x2: <b>20h–21h</b>${golden ? ' 🔥 ĐANG DIỄN RA' : ''}</div>
-        <div class="ph-row2">🎰 Vietlott quay: <b>mỗi 2 tiếng (giờ chẵn)</b></div>${mh ? `<div class="ph-row2">🛒 Thương lái: <b>${mh}</b></div>` : ''}</div>`;
+        <div class="ph-row2">🎰 QL Lotto quay: <b>mỗi 2 tiếng (giờ chẵn)</b></div>${mh ? `<div class="ph-row2">🛒 Thương lái: <b>${mh}</b></div>` : ''}</div>`;
       back();
     } else if (app === 'health') {
       const sick = AV.isSick(), en = Math.round(AV.energy());
@@ -585,7 +585,7 @@ const PHONE = (() => {
   function dial(num, video) {
     num = String(num).replace(/\D/g, '');
     const emergency = ['115', '113', '114'].includes(num);
-    if (!emergency && !myNum()) { UI.toast('📶 Chưa có SIM — mua SIM ở CellphoneS / Thế Giới Di Động để gọi điện'); return; }
+    if (!emergency && !myNum()) { UI.toast('📶 Chưa có SIM — mua SIM ở ZenoPhone / Thế Giới Dế Yêu để gọi điện'); return; }
     const c = contactOf(num);
     const f = c ? { name: c.name } : null;
     callInfo = { num: num.length === 10 ? pretty(num) : num, name: num === '115' ? 'Cấp cứu 115' : num === '113' ? 'Công an 113' : num === '114' ? 'Cứu hoả 114' : f ? (f.name || f.username) : num === myNum() ? 'Chính bạn' : 'Số lạ', icon: num === '115' ? '🚑' : num === '113' ? '🚓' : num === '114' ? '🚒' : f ? (f.name || '?')[0].toUpperCase() : '📞', state: 'Đang gọi…', cancel: false };

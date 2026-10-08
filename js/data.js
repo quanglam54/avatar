@@ -201,13 +201,13 @@ DATA.EATERIES = [
     menu: [{ id: 'bunbo_dacbiet', name: 'Bún bò Huế đặc biệt', icon: '🍲', price: 32, xp: 15 }, { id: 'bun_cha', name: 'Bún chả Hà Nội', icon: '🥗', price: 28, xp: 13 }, { id: 'tra_da', name: 'Trà đá', icon: '🧊', price: 3, xp: 1 }] },
   { id: 'mi', name: 'Mì Cay · Mì Ếch', sub: 'MÌ CAY 7 CẤP ĐỘ 🔥', logo: '🔥', wall: '#ffe3e3', trim: '#212529', awn: ['#e03131', '#212529'], signBg: '#212529', signFg: '#ff6b6b', items: ['🍜', '🐸', '🔥'], deco: 'stools',
     menu: [{ id: 'mi_cay', name: 'Mì cay hải sản cấp 7', icon: '🌶️', price: 26, xp: 12 }, { id: 'mi_ech', name: 'Mì ếch om', icon: '🐸', price: 35, xp: 16 }, { id: 'kimchi', name: 'Kim chi thêm', icon: '🥬', price: 6, xp: 2 }] },
-  { id: 'koi', name: 'KOI Thé', sub: 'TRÀ SỮA · MACCHIATO', logo: '🧋', wall: '#fff8e6', trim: '#b08968', awn: ['#7f5539', '#fff8e6'], signBg: '#3d2b1f', signFg: '#f5d6a1', items: ['🧋', '🧋', '🍮'], deco: 'cafe',
+  { id: 'koi', name: 'Quang Lâm Tea', nameSize: 16, sub: 'TRÀ SỮA · MACCHIATO', logo: '🧋', wall: '#fff8e6', trim: '#b08968', awn: ['#7f5539', '#fff8e6'], signBg: '#3d2b1f', signFg: '#f5d6a1', items: ['🧋', '🧋', '🍮'], deco: 'cafe',
     menu: [{ id: 'koi_tran', name: 'Trà sữa trân châu hoàng kim', icon: '🧋', price: 25, xp: 10 }, { id: 'koi_mac', name: 'Trà xanh macchiato', icon: '🍵', price: 28, xp: 11 }, { id: 'koi_pudding', name: 'Thêm pudding', icon: '🍮', price: 8, xp: 3 }] },
-  { id: 'highlands', name: 'Highlands', sub: 'COFFEE · SINCE 1999', logo: '☕', wall: '#f8f0e3', trim: '#8b0000', awn: ['#a51c1c', '#f8f0e3'], signBg: '#8b0000', signFg: '#fff', items: ['☕', '🥤', '🥐'], deco: 'cafe',
+  { id: 'highlands', name: 'Quang Lâm Coffee', nameSize: 14, sub: 'CÀ PHÊ PHIN · TRÀ', logo: '☕', wall: '#f8f0e3', trim: '#8b0000', awn: ['#a51c1c', '#f8f0e3'], signBg: '#8b0000', signFg: '#fff', items: ['☕', '🥤', '🥐'], deco: 'cafe',
     menu: [{ id: 'hl_phin', name: 'Phin sữa đá', icon: '☕', price: 22, xp: 9 }, { id: 'hl_freeze', name: 'Freeze trà xanh', icon: '🥤', price: 30, xp: 12 }, { id: 'hl_banhmi', name: 'Bánh mì que', icon: '🥖', price: 12, xp: 5 }] },
-  { id: 'starbucks', name: 'Starbucks', sub: 'COFFEE', logo: '⭐', wall: '#f1f3f5', trim: '#00704a', awn: ['#00704a', '#fff'], signBg: '#00704a', signFg: '#fff', items: ['☕', '🥤', '🍰'], deco: 'cafe',
-    menu: [{ id: 'sb_caramel', name: 'Caramel Macchiato', icon: '☕', price: 40, xp: 15 }, { id: 'sb_frap', name: 'Java Chip Frappuccino', icon: '🥤', price: 42, xp: 16 }, { id: 'sb_cake', name: 'Bánh cheesecake', icon: '🍰', price: 30, xp: 11 }] },
-  { id: 'tch', name: 'The Coffee House', nameSize: 14, sub: 'CÀ PHÊ · TRÀ', logo: '🏠', wall: '#fff4e6', trim: '#f08c00', awn: ['#212529', '#ff922b'], signBg: '#fff', signFg: '#212529', subFg: '#f08c00', items: ['☕', '🍑', '🧁'], deco: 'cafe',
+  { id: 'starbucks', name: 'Quang Lâm Café', nameSize: 15, sub: 'COFFEE · CAKE', logo: '⭐', wall: '#f1f3f5', trim: '#00704a', awn: ['#00704a', '#fff'], signBg: '#00704a', signFg: '#fff', items: ['☕', '🥤', '🍰'], deco: 'cafe',
+    menu: [{ id: 'sb_caramel', name: 'Caramel Macchiato', icon: '☕', price: 40, xp: 15 }, { id: 'sb_frap', name: 'Đá xay socola chip', icon: '🥤', price: 42, xp: 16 }, { id: 'sb_cake', name: 'Bánh cheesecake', icon: '🍰', price: 30, xp: 11 }] },
+  { id: 'tch', name: 'Nhà Quang Lâm', nameSize: 16, sub: 'CÀ PHÊ · TRÀ', logo: '🏠', wall: '#fff4e6', trim: '#f08c00', awn: ['#212529', '#ff922b'], signBg: '#fff', signFg: '#212529', subFg: '#f08c00', items: ['☕', '🍑', '🧁'], deco: 'cafe',
     menu: [{ id: 'tch_suada', name: 'Cà phê sữa đá', icon: '☕', price: 20, xp: 8 }, { id: 'tch_dao', name: 'Trà đào cam sả', icon: '🍑', price: 26, xp: 11 }, { id: 'tch_cake', name: 'Bánh mousse', icon: '🧁', price: 18, xp: 7 }] },
 ];
 
@@ -272,9 +272,9 @@ DATA.CAMP_MENU = [
     menu: [{ id: 'cs_dua', name: 'Nước dừa tươi', icon: '🥥', price: 15, xp: 6 }, { id: 'cs_kem', name: 'Kem ốc quế', icon: '🍦', price: 12, xp: 5 }, { id: 'cs_banh', name: 'Bánh mì kẹp', icon: '🥪', price: 20, xp: 8 }, { id: 'cs_snack', name: 'Snack khoai tây', icon: '🍟', price: 10, xp: 4 }, { id: 'cs_sakura', name: 'Trà sữa hoa anh đào', icon: '🌸', price: 28, xp: 12 }] },
 ];
 
-/** Quầy bắp nước rạp CGV */
+/** Quầy bắp nước rạp QL Cinema */
 DATA.CGV_MENU = [
-  { id: 'cgv_snack', name: 'Quầy Bắp Nước CGV', logo: '🍿', items: ['🍿', '🥤'],
+  { id: 'cgv_snack', name: 'Quầy Bắp Nước QL Cinema', logo: '🍿', items: ['🍿', '🥤'],
     menu: [{ id: 'cgv_bap', name: 'Bắp rang bơ', icon: '🍿', price: 30, xp: 12 }, { id: 'cgv_nuoc', name: 'Nước ngọt ly lớn', icon: '🥤', price: 20, xp: 8 }, { id: 'cgv_combo', name: 'Combo bắp + 2 nước', icon: '🎬', price: 65, xp: 28 }, { id: 'cgv_hotdog', name: 'Xúc xích nướng', icon: '🌭', price: 25, xp: 10 }] },
 ];
 
@@ -324,13 +324,13 @@ DATA.floorTheme = (n) => (n >= 50 ? { id: 'penthouse', name: 'Penthouse sân th�
   }
 })();
 
-/** 🚗 Ô tô điện VinFast (mua ở showroom trước cổng nông trại, tự lái trên phố, cần sạc pin) */
+/** 🚗 Ô tô điện Quang Lâm Fast (mua ở showroom trước cổng nông trại, tự lái trên phố, cần sạc pin) */
 DATA.CARS = [
-  { id: 'vf3', name: 'VinFast VF 3', body: '#ffd43b', price: 15000, max: 520, accel: 300, range: 25, len: 120, desc: 'Mini điện nhỏ xinh, đi phố gọn gàng' },
-  { id: 'vf5', name: 'VinFast VF 5', body: '#4dabf7', price: 25000, max: 560, accel: 330, range: 30, len: 135, desc: 'SUV cỡ A, rộng rãi cho cả nhà' },
-  { id: 'vf6', name: 'VinFast VF 6', body: '#40c057', price: 40000, max: 600, accel: 360, range: 36, len: 145, desc: 'SUV cỡ B, tăng tốc mượt' },
-  { id: 'vf8', name: 'VinFast VF 8', body: '#e03131', price: 70000, max: 660, accel: 400, range: 44, len: 155, desc: 'SUV cỡ D, mạnh mẽ đi xa' },
-  { id: 'vf9', name: 'VinFast VF 9', body: '#212529', price: 100000, max: 700, accel: 420, range: 50, len: 165, desc: 'SUV 7 chỗ hạng sang, pin bền nhất' },
+  { id: 'vf3', name: 'Quang Lâm Fast QL3', body: '#ffd43b', price: 15000, max: 520, accel: 300, range: 25, len: 120, desc: 'Mini điện nhỏ xinh, đi phố gọn gàng' },
+  { id: 'vf5', name: 'Quang Lâm Fast QL5', body: '#4dabf7', price: 25000, max: 560, accel: 330, range: 30, len: 135, desc: 'SUV cỡ A, rộng rãi cho cả nhà' },
+  { id: 'vf6', name: 'Quang Lâm Fast QL6', body: '#40c057', price: 40000, max: 600, accel: 360, range: 36, len: 145, desc: 'SUV cỡ B, tăng tốc mượt' },
+  { id: 'vf8', name: 'Quang Lâm Fast QL8', body: '#e03131', price: 70000, max: 660, accel: 400, range: 44, len: 155, desc: 'SUV cỡ D, mạnh mẽ đi xa' },
+  { id: 'vf9', name: 'Quang Lâm Fast QL9', body: '#212529', price: 100000, max: 700, accel: 420, range: 50, len: 165, desc: 'SUV 7 chỗ hạng sang, pin bền nhất' },
 ];
 DATA.CHARGE_PRICE = 3; // xu cho mỗi 1% pin
 

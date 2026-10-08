@@ -216,21 +216,21 @@ const RIDE = (() => {
     if (!carDef || towed) return;
     const st = carState();
     st.bat = Math.max(0, st.bat - (dist / 1000) / carDef.range * 100);
-    if (st.bat <= 20 && batWarn < 1) { batWarn = 1; UI.toast('🔋 Pin còn dưới 20% — nhớ ghé trạm sạc V-GREEN trước cổng nông trại nhé!', 4500); }
+    if (st.bat <= 20 && batWarn < 1) { batWarn = 1; UI.toast('🔋 Pin còn dưới 20% — nhớ ghé trạm sạc QL-GREEN trước cổng nông trại nhé!', 4500); }
     if (st.bat <= 5 && batWarn < 2) { batWarn = 2; UI.toast('🪫 Pin sắp cạn (dưới 5%)!', 3500); if (navigator.vibrate) navigator.vibrate(150); }
     if (st.bat <= 0 && !towed) {
       towed = true; st.bat = 0; me.v = 0;
       const fee = Math.min(150, AV.S.coins);
       AV.S.coins -= fee;
-      banner = { text: '🪫 Hết pin! Xe cứu hộ VinFast đang tới…', until: clock + 3 };
-      UI.toast(`🪫 Xe hết pin giữa đường! Cứu hộ VinFast kéo xe bạn tới nơi (−${fee} xu). Nhớ sạc ở trạm V-GREEN trước cổng nông trại.`, 7000);
+      banner = { text: '🪫 Hết pin! Xe cứu hộ Quang Lâm Fast đang tới…', until: clock + 3 };
+      UI.toast(`🪫 Xe hết pin giữa đường! Cứu hộ Quang Lâm Fast kéo xe bạn tới nơi (−${fee} xu). Nhớ sạc ở trạm QL-GREEN trước cổng nông trại.`, 7000);
       phase = 'arrive'; phaseT = -1.5;
     }
   }
 
   function finish() {
     if (!active) return;
-    if (carDef) { const b = Math.round(carBat()); AV.markChanged(); if (!towed && b < 20) setTimeout(() => UI.toast(`🔋 ${carDef.name} còn ${b}% pin — sạc ở trạm V-GREEN trước cổng nông trại nhé`, 5000), 1500); }
+    if (carDef) { const b = Math.round(carBat()); AV.markChanged(); if (!towed && b < 20) setTimeout(() => UI.toast(`🔋 ${carDef.name} còn ${b}% pin — sạc ở trạm QL-GREEN trước cổng nông trại nhé`, 5000), 1500); }
     active = false;
     el.style.display = 'none';
     keys.clear();
@@ -1032,7 +1032,7 @@ const RIDE = (() => {
   }
 
   /** Xe của người chơi (mình hoặc người khác): taxi Xanh SM có mình ngồi sau, hoặc xe máy tự lái */
-  /** Ô tô VinFast tự lái: thân xe màu, logo V, người chơi ngồi ghế lái */
+  /** Ô tô Quang Lâm Fast tự lái: thân xe màu, logo V, người chơi ngồi ghế lái */
   function vfCar(c, x, y, car, look, t) {
     const L = car.len, h = car.id === 'vf3' ? 60 : 64;
     c.fillStyle = car.body;
@@ -1049,7 +1049,7 @@ const RIDE = (() => {
     // đèn LED chữ V đặc trưng + logo
     c.strokeStyle = '#e7f5ff'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(x + L / 2 - 16, y - 36); c.lineTo(x + L / 2 - 6, y - 30); c.lineTo(x + L / 2 - 2, y - 36); c.stroke();
     c.fillStyle = '#ff6b6b'; c.fillRect(x - L / 2, y - 36, 6, 5);
-    c.fillStyle = car.body === '#212529' ? '#ced4da' : '#1b2a38'; c.font = '900 9px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('VINFAST', x - L * 0.1, y - 24);
+    c.fillStyle = car.body === '#212529' ? '#ced4da' : '#1b2a38'; c.font = '900 9px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('QL FAST', x - L * 0.1, y - 24);
     wheel(c, x - L * 0.3, y - 12, 13); wheel(c, x + L * 0.3, y - 12, 13);
   }
   function drawPlayerVeh(c, x, y, v, look, t, d, name, mine) {

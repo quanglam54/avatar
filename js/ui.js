@@ -559,7 +559,7 @@ const UI = (() => {
       if (car) {
         const b = S.evs[v].bat, need = RIDE.batNeed(car, inf.m);
         if (b < need) {
-          confirm(`🪫 <b>${esc(car.name)}</b> còn <b>${Math.round(b)}%</b> pin, quãng đường ${inf.km} cần khoảng <b>${need}%</b>.<br>Ra <b>trạm sạc V-GREEN</b> trước cổng nông trại để sạc nhé. Vẫn đi? (hết pin giữa đường sẽ phải gọi cứu hộ 150 xu)`, 'Vẫn đi', () => { p.close(); AV.startRide(id, v); });
+          confirm(`🪫 <b>${esc(car.name)}</b> còn <b>${Math.round(b)}%</b> pin, quãng đường ${inf.km} cần khoảng <b>${need}%</b>.<br>Ra <b>trạm sạc QL-GREEN</b> trước cổng nông trại để sạc nhé. Vẫn đi? (hết pin giữa đường sẽ phải gọi cứu hộ 150 xu)`, 'Vẫn đi', () => { p.close(); AV.startRide(id, v); });
           return;
         }
         p.close(); AV.startRide(id, v); return;
@@ -592,17 +592,17 @@ const UI = (() => {
     render();
   }
 
-  /* ---------- 🚗 Showroom VinFast ---------- */
+  /* ---------- 🚗 Showroom Quang Lâm Fast ---------- */
   function carShop() {
     const S = AV.S;
-    const p = panel('🚗 VinFast Showroom', '', { wide: true });
+    const p = panel('🚗 Quang Lâm Fast Showroom', '', { wide: true });
     const render = () => {
       const own = S.evs || {};
       p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu</div>
         <div class="bike-grid">${DATA.CARS.map((c) => `<div class="bike-card car-card"><canvas data-pv="${c.id}"></canvas>
           <b>${esc(c.name)}</b><small>${esc(c.desc)}</small><small>⚡ ${Math.round(c.max / 10)} km/h · 🔋 đầy pin đi ~${c.range} km</small>
           ${own[c.id] ? `<button class="btn small ghost" disabled>✅ Đã có · ${Math.round(own[c.id].bat)}%</button>` : `<button class="btn small" data-buy="${c.id}">${c.price.toLocaleString('vi-VN')} xu</button>`}</div>`).join('')}</div>
-        <p class="muted small-note">Mua xong chọn khu trên 🗺️ bản đồ → chọn xe của bạn để tự lái qua phố Hà Nội. Xe chạy điện: hết pin thì sạc ở <b>trạm V-GREEN</b> ngay bên cạnh.</p>`;
+        <p class="muted small-note">Mua xong chọn khu trên 🗺️ bản đồ → chọn xe của bạn để tự lái qua phố Hà Nội. Xe chạy điện: hết pin thì sạc ở <b>trạm QL-GREEN</b> ngay bên cạnh.</p>`;
       p.body.querySelectorAll('[data-pv]').forEach((cv) => requestAnimationFrame(() => RIDE.preview(cv, cv.dataset.pv, S.look)));
       p.body.querySelectorAll('[data-buy]').forEach((bt) => bt.onclick = () => { const c = DATA.CARS.find((x) => x.id === bt.dataset.buy); confirm(`Mua <b>${esc(c.name)}</b> giá <b>${c.price.toLocaleString('vi-VN')} xu</b>?`, 'Mua xe', () => { if (AV.buyCar(c.id)) render(); }); });
     };
@@ -736,7 +736,7 @@ const UI = (() => {
   }
   function chargeStation() {
     const S = AV.S;
-    const p = panel('🔌 Trạm sạc V-GREEN', '');
+    const p = panel('🔌 Trạm sạc QL-GREEN', '');
     const render = (msg) => {
       const own = Object.keys(S.evs || {}).map((id) => DATA.CARS.find((c) => c.id === id)).filter(Boolean);
       p.body.innerHTML = `<div class="coins-line">💰 ${S.coins.toLocaleString('vi-VN')} xu · ⚡ ${DATA.CHARGE_PRICE} xu / 1% pin</div>
@@ -744,7 +744,7 @@ const UI = (() => {
         ${own.length ? `<div class="shop-list">${own.map((c) => { const b = Math.round(S.evs[c.id].bat); return `<div class="shop-row"><span class="ic">🚗</span><div class="info"><b>${esc(c.name)}</b>
           <div class="bat-bar ${b <= 20 ? 'low' : ''}"><i style="width:${b}%"></i><span>${b}%</span></div></div>
           <button class="btn small" data-ch="${c.id}" ${b >= 100 ? 'disabled' : ''}>🔌 Sạc đầy · ${Math.ceil(100 - b) * DATA.CHARGE_PRICE} xu</button></div>`; }).join('')}</div>`
-          : '<p class="muted">Bạn chưa có ô tô điện. Ghé <b>VinFast Showroom</b> bên cạnh để mua xe nhé!</p>'}`;
+          : '<p class="muted">Bạn chưa có ô tô điện. Ghé <b>Quang Lâm Fast Showroom</b> bên cạnh để mua xe nhé!</p>'}`;
       p.body.querySelectorAll('[data-ch]').forEach((bt) => bt.onclick = () => {
         const id = bt.dataset.ch, c = DATA.CARS.find((x) => x.id === id), from = S.evs[id].bat;
         if (S.coins < Math.ceil(100 - from) * DATA.CHARGE_PRICE) return render('⚠️ Không đủ xu để sạc');
@@ -1058,8 +1058,8 @@ const UI = (() => {
     if (ad) ad.onclick = () => { p.close(); SOCIAL.addFriend(r.user); };
     const ph = p.body.querySelector('[data-phone]');
     if (ph) ph.onclick = () => {
-      if (!PHONE.has()) return toast('📱 Bạn chưa có điện thoại — mua ở CellphoneS / Thế Giới Di Động cạnh VinFast');
-      if (!PHONE.hasSim()) return toast('📶 Điện thoại chưa có SIM — mua SIM ở CellphoneS / Thế Giới Di Động để có số');
+      if (!PHONE.has()) return toast('📱 Bạn chưa có điện thoại — mua ở ZenoPhone / Thế Giới Dế Yêu cạnh Quang Lâm Fast');
+      if (!PHONE.hasSim()) return toast('📶 Điện thoại chưa có SIM — mua SIM ở ZenoPhone / Thế Giới Dế Yêu để có số');
       p.close();
       if (SOCIAL.isFriend(r.user)) { SOCIAL.sendCard((AV.S.friends || []).find((f) => f.username === r.user)); return; }
       SOCIAL.addFriend(r.user, { phone: PHONE.myNum() });
@@ -1928,7 +1928,7 @@ const UI = (() => {
     else if ($('#imgBtn')) $('#imgBtn').hidden = true;
   }
 
-  /** 🎬 Rạp CGV: dán link YouTube để tự xem phim (chỉ mình bạn thấy) */
+  /** 🎬 Rạp QL Cinema: dán link YouTube để tự xem phim (chỉ mình bạn thấy) */
   function moviePicker() {
     const p = panel('🎬 Chọn phim của bạn', `
       <p class="muted">Dán link YouTube để màn chiếu phát phim bạn muốn. <b>Chỉ mình bạn thấy</b>, người khác trong rạp vẫn xem phim mặc định. Ra khỏi rạp thì lần sau vào lại sẽ chiếu phim mặc định.</p>
