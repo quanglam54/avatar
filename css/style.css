@@ -1232,7 +1232,7 @@ html, body, button, .btn, .panel, .panel-back, a, input, select, textarea, label
   .lobby { top: 60%; gap: 6px; max-height: 66%; overflow-y: auto; }
   .lobby .lrow { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; max-width: 100%; gap: 6px; padding-bottom: 4px; white-space: nowrap; }
   .lobby .chip { font-size: 12px; padding: 4px 9px; flex: none; }
-  .lobby .bet-in { width: 74px; flex: none; font-size: 12px; padding: 4px 6px; }
+  .lobby .bet-in { width: 96px; flex: none; font-size: 13px; padding: 4px 8px; }
   .lobby .btn.big { font-size: 18px; padding: 8px 18px; }
   .lobby .toggle-in { font-size: 12px; }
 }

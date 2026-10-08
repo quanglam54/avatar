@@ -457,7 +457,7 @@ const TABLE = (() => {
     const end = g && g.end ? `<div class="endbox">🏆 <b>${esc(seatName(g.end.winner))}</b> thắng! <small>${esc(g.end.reason)}</small></div>` : '';
     return `<div class="lobby">
       ${end}
-      <div class="lrow">Mức cược: ${host ? [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000].map((b) => `<button class="chip ${b === st.bet ? 'on' : ''}" data-bet="${b}">🪙 ${b.toLocaleString('vi-VN')}</button>`).join('') + '<input class="field bet-in" type="number" min="1" placeholder="Tự nhập" data-betin><button class="chip" data-betset>Đặt</button>' : `<b>🪙 ${st.bet.toLocaleString('vi-VN')} xu</b>`}</div>
+      <div class="lrow">Mức cược: ${host ? [10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000].map((b) => `<button class="chip ${b === st.bet ? 'on' : ''}" data-bet="${b}">🪙 ${b.toLocaleString('vi-VN')}</button>`).join('') + `<input class="field bet-in" type="text" inputmode="numeric" autocomplete="off" maxlength="13" placeholder="Tự nhập" value="${esc(betDraft)}" data-betin><button class="chip" data-betset>Đặt</button>` : `<b>🪙 ${st.bet.toLocaleString('vi-VN')} xu</b>`}</div>
       ${seated() ? (host ? `<button class="btn big" data-start>▶ ${g && g.end ? 'Ván mới' : 'Bắt đầu'}</button>` : '<div class="muted">⏳ Chờ chủ bàn bắt đầu…</div>') : '<div class="muted">Chọn một ghế trống để ngồi chơi</div>'}
       <div class="muted" style="font-size:12px">🤖 Chỉ có mình bạn thì máy vào chơi cùng · có bạn bè ngồi là máy tự rời bàn</div>
       ${seated() ? CARDLOBBY.inviteHtml(st) : ''}
@@ -482,8 +482,11 @@ const TABLE = (() => {
     </div>`;
   }
 
+  /** số đang gõ ở ô Tự nhập — giữ lại khi bàn vẽ lại (chủ bàn gửi trạng thái 3 giây/lần) */
+  let betDraft = '';
   function render() {
     if (!viewOpen) { $('#tableBtn').classList.toggle('show', seated()); return; }
+    const ae = document.activeElement, typing = !!(ae && ae.matches && ae.matches('#tableView [data-betin]')), caret = typing ? ae.selectionStart : 0;
     const base = Math.max(0, mySeat());
     const pos = ['bottom', 'right', 'top', 'left'];
     const seatsHtml = [0, 1, 2, 3].map((k) => {
@@ -501,11 +504,21 @@ const TABLE = (() => {
     root.querySelectorAll('[data-card]').forEach((b) => b.onclick = () => { const c = +b.dataset.card; selected.has(c) ? selected.delete(c) : selected.add(c); render(); });
     root.querySelectorAll('[data-sit]').forEach((b) => b.onclick = () => sit(+b.dataset.sit));
     root.querySelectorAll('[data-bet]').forEach((b) => b.onclick = () => { st.bet = +b.dataset.bet; broadcast(); });
-    const bs = root.querySelector('[data-betset]');
+    const bs = root.querySelector('[data-betset]'), bi = root.querySelector('[data-betin]');
+    if (bi) {
+      bi.oninput = () => { betDraft = bi.value; };
+      bi.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); bs.click(); } };
+      if (typing) { bi.focus(); try { bi.setSelectionRange(caret, caret); } catch (er) { /* bỏ qua */ } }
+    }
     if (bs) bs.onclick = () => {
-      const v = Math.floor(+root.querySelector('[data-betin]').value || 0);
-      if (v < 1) return UI.toast('Nhập số xu muốn cược');
+      // gõ được cả 100.000 / 100,000 / 100 000
+      const v = parseInt(String(bi ? bi.value : '').replace(/[^0-9]/g, ''), 10) || 0;
+      if (v < 1) return UI.toast('Nhập số xu muốn cược (vd: 25000)');
+      if (v > 100000000) UI.toast('Cược tối đa 100.000.000 xu');
       st.bet = Math.min(v, 100000000);
+      betDraft = '';
+      if (AV.S.coins < st.bet) UI.toast(`⚠️ Bạn chỉ có ${AV.S.coins.toLocaleString('vi-VN')} xu — thua sẽ cược hết số đó`, 3500);
+      else UI.toast(`🪙 Đã đặt mức cược ${st.bet.toLocaleString('vi-VN')} xu`);
       broadcast();
     };
     CARDLOBBY.bindInvites(root, T.id, st.bet);
