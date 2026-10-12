@@ -195,6 +195,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
   engine.setHardwareScalingLevel(1 / Math.min(PHONE ? 1 : 1.5, devicePixelRatio || 1));
   const scene = new B.Scene(engine);
   scene.skipPointerMovePicking = true;
+  // game tự xử lý chuột / chạm: tắt bộ xử lý của Babylon (nó chặn sự kiện kéo → camera không xoay được)
+  try { scene.detachControl(); } catch (e) { /* bỏ qua */ }
   scene.clearColor = new B.Color4(0.62, 0.78, 0.86, 1);
   // sương mù rừng: dày dần theo khoảng cách (vào rừng sâu dày hơn), màu xanh xám như hơi ẩm
   const FOGD = PHONE ? 0.0125 : 0.0105;
@@ -957,13 +959,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
     }
     if (!look) look = { id: e.pointerId, x: e.clientX, y: e.clientY };
   });
-  addEventListener('pointermove', (e) => {
+  addEventListener('pointermove', (e) => { // bắt ở pha capture: chạy trước mọi thứ khác trên trang
     if (mouseLocked()) { camera.alpha -= (e.movementX || 0) * 0.0035; camBeta = clamp(camBeta - (e.movementY || 0) * 0.0028, 0.6, 1.5); camDragAt = performance.now(); return; }
     if (joy && e.pointerId === joy.id) { let dx = e.clientX - joy.x, dy = e.clientY - joy.y; const m = Math.hypot(dx, dy); if (m > 50) { dx *= 50 / m; dy *= 50 / m; } joy.dx = dx / 50; joy.dy = dy / 50; joyEl.firstElementChild.style.transform = `translate(${dx}px,${dy}px)`; }
     else if (look && e.pointerId === look.id) { camera.alpha -= (e.clientX - look.x) * 0.006; camBeta = clamp(camBeta - (e.clientY - look.y) * 0.004, 0.6, 1.5); look.x = e.clientX; look.y = e.clientY; camDragAt = performance.now(); }
-  });
+  }, true);
   const endPtr = (e) => { if (joy && e.pointerId === joy.id) { joy = null; joyEl.classList.add('hidden'); joyEl.firstElementChild.style.transform = ''; } if (look && e.pointerId === look.id) look = null; };
-  addEventListener('pointerup', endPtr); addEventListener('pointercancel', endPtr);
+  addEventListener('pointerup', endPtr, true); addEventListener('pointercancel', endPtr, true);
   cv.addEventListener('wheel', (e) => { e.preventDefault(); camZoom = clamp(camZoom * (e.deltaY > 0 ? 1.1 : 0.9), 0.55, 2.2); }, { passive: false });
   document.querySelectorAll('#btns button').forEach((b) => {
     const k = b.dataset.b;
@@ -1201,7 +1203,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
   function updateCamera(dt) {
     const s = player.scale, h = player.d.H * player.d.k * s;
     const tgt = new V3(player.x, player.y + h * 1.25 + 0.4, player.z);
-    camera.target = dt ? V3.Lerp(camera.target, tgt, Math.min(1, dt * 8)) : tgt;
+    // dời điểm nhìn tại chỗ (gán camera.target = … thì Babylon tự tính lại góc từ vị trí cũ → mất phần vừa xoay bằng chuột / vuốt)
+    camera.target.copyFrom(dt ? V3.Lerp(camera.target, tgt, Math.min(1, dt * 8)) : tgt);
     // đi mà không xoay camera thì camera tự vòng ra sau lưng
     if (player.sp > 0.5 && performance.now() - camDragAt > 1500) { const want = -Math.PI / 2 - player.a; camera.alpha += wrap(want - camera.alpha) * Math.min(1, dt * 1.6); }
     camera.beta = dt ? lerp(camera.beta, camBeta, Math.min(1, dt * 6)) : camBeta;
@@ -1259,7 +1262,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb7c9; col
   // thử nghiệm: đặt camera / con vật để chụp ảnh kiểm tra
   if (Q.get('dbg')) setTimeout(() => { scene.meshes.forEach((m) => { const p = m.getVerticesData(B.VertexBuffer.PositionKind); let bad = 0, mx = 0; if (p) for (let i = 0; i < p.length; i++) { if (!isFinite(p[i])) bad++; else mx = Math.max(mx, Math.abs(p[i])); } if (bad || (mx > 30 && !/ground|water/.test(m.name))) console.log('BADMESH', m.name, 'nan=' + bad, 'max=' + mx.toFixed(1), 'thin=' + (m.thinInstanceCount || 0)); }); console.log('DBGDONE', scene.meshes.length); }, 500);
   if (Q.get('dbg')) setInterval(() => console.log('REMOTES', MYID, remotes.size, [...remotes.values()].map((r) => r.name + '@' + Math.round(dist(r.x, r.z, player.x, player.z)) + 'm').join(',')), 3000);
-  if (Q.get('test')) window.__dino = { player: () => player, creatures, P, camera, place, makeCreature, setCam: (a, b, z) => { camera.alpha = a; camBeta = b; camZoom = z; } };
+  if (Q.get('test')) window.__dino = { dbgInput: () => JSON.stringify({ look, joy, started, dead: P.dead, locked: mouseLocked() }), player: () => player, creatures, P, camera, place, makeCreature, setCam: (a, b, z) => { camera.alpha = a; camBeta = b; camZoom = z; } };
   }
 })();
 </script>

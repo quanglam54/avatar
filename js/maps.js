@@ -2609,6 +2609,42 @@ const MAPS = (() => {
   DATA.EATERIES.forEach((e) => { all['eat_' + e.id] = () => EATERY.buildMap({ base, ground, obj, sobj, aobj, col, inter, npc }, e.id); });
   Object.defineProperty(all, 'moveGroup', { value: moveGroup, enumerable: false });
   Object.defineProperty(all, 'floorN', { value: (n) => { const m = floorN(n); halloween(m); return m; }, enumerable: false });
+  /* 🍜 xe hàng rong ở mọi khu: đói thì ăn ngay tại chỗ (menu DATA.STREET_FOOD) */
+  function foodCart(c, x, y, e) {
+    c.save();
+    c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(x, y + 2, 95, 11, 0, 0, Math.PI * 2); c.fill();
+    // ghế nhựa đỏ + xanh
+    [[-78, '#e03131'], [78, '#1c7ed6']].forEach(([dx, col]) => { c.fillStyle = col; c.fillRect(x + dx - 13, y - 22, 26, 6); c.fillRect(x + dx - 11, y - 16, 4, 16); c.fillRect(x + dx + 7, y - 16, 4, 16); });
+    // xe gỗ
+    c.fillStyle = '#8a5a32'; c.fillRect(x - 58, y - 62, 116, 46); c.fillStyle = '#6b4423'; c.fillRect(x - 58, y - 20, 116, 6);
+    c.fillStyle = '#b07a4a'; for (let k = 0; k < 4; k++) c.fillRect(x - 54 + k * 28, y - 58, 24, 36);
+    c.fillStyle = '#212529'; [x - 40, x + 40].forEach((wx) => { c.beginPath(); c.arc(wx, y - 10, 10, 0, Math.PI * 2); c.fill(); c.fillStyle = '#adb5bd'; c.beginPath(); c.arc(wx, y - 10, 4, 0, Math.PI * 2); c.fill(); c.fillStyle = '#212529'; });
+    // tủ kính + món
+    c.fillStyle = 'rgba(210,240,255,.85)'; c.fillRect(x - 50, y - 92, 100, 30); c.strokeStyle = '#495057'; c.lineWidth = 2; c.strokeRect(x - 50, y - 92, 100, 30);
+    c.font = '18px system-ui, "Segoe UI Emoji"'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    (e.items || [e.logo]).slice(0, 3).forEach((it, i) => c.fillText(it, x - 30 + i * 30, y - 77));
+    // ô che
+    c.fillStyle = '#495057'; c.fillRect(x - 2, y - 150, 4, 60);
+    const col = e.umb || '#e03131';
+    for (let k = 0; k < 6; k++) { c.fillStyle = k % 2 ? '#fff' : col; c.beginPath(); c.moveTo(x, y - 172); c.lineTo(x - 84 + k * 28, y - 138); c.lineTo(x - 84 + (k + 1) * 28, y - 138); c.closePath(); c.fill(); }
+    // biển tên
+    c.fillStyle = e.signBg || '#c92a2a'; c.beginPath(); c.roundRect(x - 62, y - 128, 124, 22, 7); c.fill();
+    c.fillStyle = e.signFg || '#fff'; c.font = '900 11px "Be Vietnam Pro", system-ui'; c.fillText(e.name.toUpperCase(), x, y - 117);
+    c.restore();
+  }
+  const CARTS = { town: ['sf_bundau', 440, 800], mall: ['sf_banhmi', 1540, 800], fun: ['sf_buncha', 5000, 800], park: ['sf_che', 640, 1045], beach: ['sf_ngo', 1780, 760], hospital: ['sf_xoi', 510, 600], school: ['sf_nem', 540, 800], mine: ['sf_xoi', 1400, 800], race: ['sf_banhmi', 230, 800] };
+  Object.keys(CARTS).forEach((z) => {
+    if (!all[z]) return;
+    const fn = all[z];
+    all[z] = () => {
+      const m = fn(), [id, x, y] = CARTS[z], e = (DATA.STREET_FOOD || []).find((q) => q.id === id);
+      if (!e) return m;
+      sobj(m, x, y, (c) => foodCart(c, x, y, e), { l: -110, t: -185, w: 220, h: 200 });
+      col(m, x - 58, y - 30, 116, 24);
+      inter(m, { x: x - 70, y: y - 170, w: 140, h: 170, ax: x, ay: y + 26, name: `${e.name} (ăn cho no, hồi ⚡)`, use: () => UI.eateryPanel(id), arrow: { x, y: y - 190, text: 'Ăn uống' } });
+      return m;
+    };
+  });
   Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
   return all;
 })();

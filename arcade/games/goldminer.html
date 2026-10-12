@@ -2,23 +2,63 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Đào Vàng</title>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../assets/style.css">
-  <style>#cv { width: 100%; max-width: 820px; height: auto; cursor: pointer; }</style>
+  <style>
+    #cv { width: 100%; max-width: 860px; height: auto; touch-action: manipulation; cursor: pointer; }
+    #area .overlay { bottom: auto; min-height: 100%; }
+    .gm-controls { display: flex; gap: 18px; align-items: center; justify-content: center; padding: 4px 0 2px; flex-wrap: wrap; }
+    .gm-controls small { color: var(--muted); max-width: 300px; line-height: 1.45; }
+    .dyn-btn {
+      width: 96px; height: 96px; border-radius: 50%; border: 6px solid #2b1a10; cursor: pointer; flex: none;
+      background: radial-gradient(circle at 40% 35%, #ff8787, #e03131 55%, #a61e1e); color: #fff;
+      font: 900 30px/1 "Be Vietnam Pro", system-ui; box-shadow: 0 7px 0 #2b1a10, 0 0 0 7px #ced4da;
+      display: grid; place-items: center; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
+    }
+    .dyn-btn span { display: block; font-size: 17px; text-shadow: 0 2px 0 #7a0e0e; margin-top: 2px; }
+    .dyn-btn:disabled { filter: grayscale(1); opacity: .45; cursor: default; }
+    .dyn-btn:not(:disabled):active, .dyn-btn.hit { transform: translateY(5px); box-shadow: 0 2px 0 #2b1a10, 0 0 0 7px #ced4da; }
+    .dyn-btn.ready { animation: dynPulse .7s infinite alternate; }
+    @keyframes dynPulse { to { box-shadow: 0 7px 0 #2b1a10, 0 0 0 7px #ffd43b, 0 0 24px 10px rgba(255, 212, 59, .55); } }
+    .shop { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px; margin: 0 auto 16px; max-width: 660px; }
+    .shop .item {
+      display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 8px;
+      border-radius: 16px; border: 2px solid var(--line); background: var(--card-2); text-align: center; transition: transform .12s, border-color .12s;
+    }
+    .shop .item:not(:disabled):hover { transform: translateY(-3px); border-color: #f59f00; }
+    .shop .item .ic { font-size: 34px; line-height: 1.1; }
+    .shop .item b { font-size: 14px; }
+    .shop .item small { color: var(--muted); font-size: 11.5px; line-height: 1.35; }
+    .shop .item .price { font-weight: 800; color: #f59f00; font-size: 16px; margin-top: 2px; }
+    .shop .item.sold { border-color: var(--good); opacity: .6; }
+    .shop .item.sold .price { color: var(--good); }
+    .shop .item.poor { opacity: .45; }
+    .shop .item:disabled { cursor: default; }
+    .shop-head { margin: 0 0 12px !important; }
+    @media (max-width: 520px) {
+      .dyn-btn { width: 78px; height: 78px; font-size: 24px; }
+      .shop .item { padding: 8px 6px; }
+      .shop .item .ic { font-size: 26px; }
+    }
+  </style>
 </head>
 <body>
   <main class="game-layout">
     <section class="stage">
       <div class="hud">
-        <div>Điểm<b id="score">0</b></div>
-        <div>Mục tiêu<b id="goal">0</b></div>
-        <div>Màn<b id="level">1</b></div>
+        <div>Tiền<b id="money">$0</b></div>
+        <div>Mục tiêu<b id="goal">$650</b></div>
         <div>Thời gian<b id="time">60</b></div>
+        <div>Màn<b id="level">1</b></div>
         <div>Kỷ lục<b data-best>—</b></div>
       </div>
-      <div class="play-area" id="area"><canvas id="cv" width="820" height="540"></canvas></div>
+      <div class="play-area" id="area"><canvas id="cv" width="860" height="560"></canvas></div>
+      <div class="gm-controls">
+        <button class="dyn-btn" id="dynBtn" disabled>🧨<span id="dynCount">0</span></button>
+        <small>Bấm vào màn chơi (hoặc phím <b>Space</b> / <b>↓</b>) để <b>thả móc</b>. Móc phải vật nặng vô giá trị? Bấm <b>🧨</b> (hoặc phím <b>D</b> / <b>↑</b>) để cho nổ tung!</small>
+      </div>
     </section>
     <aside class="side" id="side"></aside>
   </main>
@@ -27,177 +67,755 @@
   <script>
     GH.initGame('goldminer');
     const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-    const area = document.getElementById('area');
-    const W = cv.width, H = cv.height, PIV = { x: W / 2, y: 92 }, GROUND = 130;
-    const KINDS = {
-      goldS: { r: 16, value: 60, weight: 1.3, color: '#ffd43b' },
-      goldM: { r: 26, value: 160, weight: 2.2, color: '#fcc419' },
-      goldL: { r: 42, value: 420, weight: 4.2, color: '#fab005' },
-      rockS: { r: 20, value: 15, weight: 2.4, color: '#868e96' },
-      rockL: { r: 34, value: 30, weight: 4.6, color: '#6c757d' },
-      gem: { r: 12, value: 600, weight: 0.8, color: '#74c0fc' },
-      bag: { r: 18, value: 0, weight: 1.2, color: '#c98a4b' },
+    const area = document.getElementById('area'), dynBtn = document.getElementById('dynBtn');
+    const W = cv.width, H = cv.height, TIME = 60, SURF = 120;
+    const DRUM = { x: 430, y: 88 }, PIV = { x: 430, y: 104 };
+    const REST = 24, OUT_SPEED = 560, EMPTY_SPEED = 780, PULL_BASE = 560;
+    const GOALS = [650, 1195, 2010, 3024, 4313, 5737, 7476, 9208, 11240, 13281];
+    const TYPES = {
+      goldS: { r: 13, val: 50, wt: 1.8 },
+      goldM: { r: 22, val: 100, wt: 3 },
+      goldL: { r: 36, val: 250, wt: 5.6 },
+      goldXL: { r: 50, val: 500, wt: 8.2 },
+      rockS: { r: 17, val: 11, wt: 3.6 },
+      rockL: { r: 29, val: 20, wt: 6.6 },
+      diamond: { r: 11, val: 600, wt: 1.2 },
+      bag: { r: 18, val: 0, wt: 1.6 },
+      skull: { r: 14, val: 20, wt: 1.6 },
+      bone: { r: 15, val: 7, wt: 1.4 },
+      mole: { r: 16, val: 2, wt: 1.6 },
+      moleD: { r: 16, val: 2, wt: 1.7 },
+      tnt: { r: 18, val: 0, wt: 1 },
     };
-    let items, score, total, level, goal, timeLeft, hook, state = 'ready', last = 0, msg = null;
+    const MONEY_TARGET = { x: 92, y: 30 };
 
-    function rand(a, b) { return a + Math.random() * (b - a); }
+    let state = 'ready', level, money, shownMoney, goal, timeLeft, items, claw, floats, parts, msg, dyn;
+    let buffs, nextBuffs, last = 0, reelAng = 0, swingPhase = 0, shake = 0, clearT = 0, lastTick = 0, now = 0;
+    let bgCanvas = null;
 
-    function makeLevel() {
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const rint = (a, b) => Math.floor(rnd(a, b + 1));
+    const goalFor = (lv) => (lv <= GOALS.length ? GOALS[lv - 1] : GOALS[GOALS.length - 1] + (lv - GOALS.length) * 2300);
+    const fmtMoney = (v) => '$' + Math.round(v).toLocaleString('vi-VN');
+
+    /* ---------- Âm thanh ---------- */
+    let actx = null;
+    function audio() {
+      try {
+        if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+        if (actx.state === 'suspended') actx.resume();
+        return actx;
+      } catch (e) { return null; }
+    }
+    function tone(freq, dur, type = 'sine', vol = 0.15, slide = 0, delay = 0) {
+      try {
+        const a = audio(); if (!a) return;
+        const t0 = a.currentTime + delay;
+        const o = a.createOscillator(), g = a.createGain();
+        o.type = type; o.frequency.setValueAtTime(freq, t0);
+        if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t0 + dur);
+        g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+        o.connect(g); g.connect(a.destination); o.start(t0); o.stop(t0 + dur + 0.03);
+      } catch (e) { /* bỏ qua */ }
+    }
+    function noise(dur, vol = 0.4, cutoff = 900) {
+      try {
+        const a = audio(); if (!a) return;
+        const len = Math.floor(a.sampleRate * dur), buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+        const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+        src.buffer = buf; f.type = 'lowpass'; f.frequency.value = cutoff; g.gain.value = vol;
+        src.connect(f); f.connect(g); g.connect(a.destination); src.start();
+      } catch (e) { /* bỏ qua */ }
+    }
+    const sfx = {
+      launch: () => tone(260, 0.14, 'triangle', 0.07, 260),
+      grab: () => { tone(170, 0.12, 'square', 0.08, -70); noise(0.08, 0.2, 2000); },
+      ding: (big) => { tone(big ? 1568 : 1175, 0.14, 'sine', 0.14); tone(big ? 2093 : 1568, 0.25, 'sine', 0.11, 0, 0.08); },
+      thud: () => tone(130, 0.18, 'triangle', 0.16, -60),
+      boom: () => { noise(0.75, 0.6, 700); tone(95, 0.45, 'sawtooth', 0.16, -60); },
+      win: () => [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.22, 'triangle', 0.12, 0, i * 0.11)),
+      lose: () => [523, 440, 349, 262].forEach((f, i) => tone(f, 0.28, 'triangle', 0.12, 0, i * 0.15)),
+      tick: () => tone(1000, 0.05, 'square', 0.05),
+      buy: () => { tone(988, 0.08, 'square', 0.06); tone(1319, 0.16, 'square', 0.06, 0, 0.07); },
+      power: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.12, 'square', 0.06, 0, i * 0.06)),
+    };
+
+    /* ---------- Tạo màn ---------- */
+    function makeShape(n, lo, hi) { return Array.from({ length: n }, () => rnd(lo, hi)); }
+    function newItem(type, x, y) {
+      const t = TYPES[type];
+      const it = { type, r: t.r, val: t.val, wt: t.wt, x, y, seed: Math.random() * 100, rot: rnd(-0.4, 0.4) };
+      it.shape = type.startsWith('rock') ? makeShape(10, 0.82, 1.05) : makeShape(9, 0.8, 1.06);
+      if (type === 'mole' || type === 'moleD') {
+        const span = rnd(160, 300);
+        it.x0 = Math.max(24, x - span / 2); it.x1 = Math.min(W - 24, x + span / 2);
+        it.vx = rnd(45, 80) * (Math.random() < 0.5 ? -1 : 1);
+      }
+      return it;
+    }
+    function overlaps(x, y, r) { return items.some((o) => Math.hypot(o.x - x, o.y - y) < o.r + r + 8); }
+    function place(type, ymin, ymax) {
+      const r = TYPES[type].r;
+      const lo = Math.max(ymin, SURF + 48 + r), hi = Math.min(ymax, H - r - 6);
+      for (let k = 0; k < 90; k++) {
+        const x = rnd(r + 12, W - r - 12), y = rnd(lo, Math.max(lo, hi));
+        if (Math.abs(x - PIV.x) < 40 && y < 210) continue;
+        if (!overlaps(x, y, r)) { const it = newItem(type, x, y); items.push(it); return it; }
+      }
+      return null;
+    }
+    function estValue(it) {
+      if (it.type === 'bag') return 220;
+      if (it.type === 'moleD') return 600;
+      return it.val;
+    }
+    function genLevel(lv) {
       items = [];
-      const plan = { goldL: 1 + Math.floor(level / 2), goldM: 3 + level, goldS: 4, rockL: 2 + Math.floor(level / 2), rockS: 3, gem: level >= 2 ? 1 + Math.floor(level / 3) : 0, bag: 2 };
-      for (const [k, n] of Object.entries(plan)) {
+      const need = goalFor(lv) - (lv > 1 ? goalFor(lv - 1) : 0);
+      const add = (type, n, ymin, ymax) => { for (let i = 0; i < n; i++) place(type, ymin, ymax); };
+      if (lv >= 3 && Math.random() < 0.45 + lv * 0.06) add('goldXL', lv >= 7 ? 2 : 1, 420, H);
+      add('goldL', Math.min(4, 1 + Math.floor(lv / 2)), 340, H);
+      add('rockL', Math.min(4, 1 + rint(0, 1) + Math.floor(lv / 3)), 230, 520);
+      if (lv >= 4) add('tnt', rint(1, 2), 250, 520);
+      add('goldM', 2 + rint(0, 2), 230, 520);
+      add('rockS', 2 + rint(0, 2), 180, 480);
+      if (lv >= 2) add('diamond', Math.min(5, lv - 1 + rint(0, 1)), 330, H);
+      add('bag', 1 + rint(0, 2), 190, 540);
+      add('goldS', 3 + rint(0, 2), 180, 460);
+      if (lv >= 2) { add('skull', rint(0, 1) + (lv >= 4 ? 1 : 0), 200, 540); add('bone', rint(1, 2), 200, 540); }
+      if (lv >= 3) {
+        const n = Math.min(4, lv - 2);
         for (let i = 0; i < n; i++) {
-          const r = KINDS[k].r;
-          for (let tries = 0; tries < 60; tries++) {
-            const x = rand(40 + r, W - 40 - r), y = rand(GROUND + 70 + r, H - 20 - r);
-            if (items.every((o) => Math.hypot(o.x - x, o.y - y) > o.r + r + 8)) { items.push({ k, x, y, r }); break; }
-          }
+          const y = rnd(210, 520), x = rnd(120, W - 120);
+          items.push(newItem(Math.random() < 0.35 + lv * 0.05 ? 'moleD' : 'mole', x, y));
         }
       }
-      score = 0;
-      goal = 300 + level * 350 + (level - 1) * level * 60;
-      timeLeft = 60;
-      hook = { a: 0, dir: 1, len: 40, state: 'swing', item: null };
-      hud();
+      let total = items.reduce((s, it) => s + estValue(it), 0), guard = 0;
+      while (total < need * 1.9 && guard++ < 40) {
+        const pick = lv >= 2 && Math.random() < 0.45 ? 'diamond' : (Math.random() < 0.6 ? 'goldL' : 'goldM');
+        const it = place(pick, pick === 'goldM' ? 240 : 320, H);
+        if (it) total += estValue(it);
+      }
     }
 
-    function hud() {
-      document.getElementById('score').textContent = (total + score).toLocaleString('vi-VN');
-      document.getElementById('goal').textContent = (total + goal).toLocaleString('vi-VN');
-      document.getElementById('level').textContent = level;
-      document.getElementById('time').textContent = Math.ceil(timeLeft);
+    /* ---------- Vòng chơi ---------- */
+    function resetClaw() { claw = { st: 'swing', ang: 0, len: REST, item: null, open: 1 }; }
+    function setupLevel() {
+      goal = goalFor(level); timeLeft = TIME; lastTick = 0;
+      genLevel(level); resetClaw(); floats = []; parts = []; swingPhase = 0;
     }
-
     function start() {
       area.querySelectorAll('.overlay').forEach((o) => o.remove());
-      total = 0; level = 1;
-      makeLevel();
+      level = 1; money = 0; shownMoney = 0; dyn = 0; buffs = {}; nextBuffs = {};
+      setupLevel();
       state = 'play';
+      msg = { text: 'Màn 1 · Mục tiêu ' + fmtMoney(goal), t: 1.8, color: '#ffd43b' };
+      audio(); updateDyn(); hud();
+    }
+    function nextLevel() {
+      area.querySelectorAll('.overlay').forEach((o) => o.remove());
+      level++; buffs = nextBuffs; nextBuffs = {};
+      setupLevel();
+      state = 'play';
+      msg = { text: 'Màn ' + level + ' · Mục tiêu ' + fmtMoney(goal), t: 1.8, color: '#ffd43b' };
+      updateDyn(); hud();
     }
 
-    function shoot() {
+    const hudCache = {};
+    function setText(id, v) { if (hudCache[id] !== v) { hudCache[id] = v; document.getElementById(id).textContent = v; } }
+    function hud() {
+      setText('money', fmtMoney(money));
+      setText('goal', fmtMoney(goal));
+      setText('time', String(Math.ceil(Math.max(0, timeLeft))));
+      setText('level', String(level));
+    }
+    function updateDyn() {
+      document.getElementById('dynCount').textContent = dyn;
+      const usable = state === 'play' && dyn > 0 && claw && claw.st === 'back' && !!claw.item;
+      dynBtn.disabled = dyn <= 0 || state !== 'play';
+      dynBtn.classList.toggle('ready', usable);
+    }
+
+    const dirOf = (a) => ({ x: Math.sin(a), y: Math.cos(a) });
+    function clawPos() { const d = dirOf(claw.ang); return { x: PIV.x + d.x * claw.len, y: PIV.y + d.y * claw.len }; }
+    function heldPos() {
+      const d = dirOf(claw.ang), p = clawPos(), off = 12 + claw.item.r * 0.85;
+      return { x: p.x + d.x * off, y: p.y + d.y * off };
+    }
+
+    function press() {
       if (state === 'ready') return start();
-      if (state === 'play' && hook.state === 'swing') hook.state = 'out';
+      if (state !== 'play' || claw.st !== 'swing') return;
+      claw.st = 'out'; sfx.launch();
+    }
+
+    function useDynamite() {
+      if (state !== 'play' || dyn <= 0 || claw.st !== 'back' || !claw.item) return;
+      dyn--;
+      const p = heldPos();
+      explode(p.x, p.y, claw.item);
+      claw.item = null;
+      msg = { text: 'BÙM! 💥', t: 0.9, color: '#ff922b' };
+      dynBtn.classList.add('hit'); setTimeout(() => dynBtn.classList.remove('hit'), 80);
+      updateDyn();
+    }
+
+    function debrisColor(it) {
+      if (!it) return '#ffa94d';
+      if (it.type.startsWith('gold')) return '#fcc419';
+      if (it.type.startsWith('rock')) return '#868e96';
+      if (it.type === 'diamond') return '#a5d8ff';
+      if (it.type === 'bag') return '#c08a4a';
+      if (it.type.startsWith('mole')) return '#8d5a3b';
+      return '#f1f3f5';
+    }
+    function explode(x, y, it, big) {
+      const n = big ? 60 : 36, col = debrisColor(it);
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2, s = rnd(60, big ? 420 : 300);
+        const fire = Math.random() < 0.6;
+        parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 60, life: rnd(0.4, 0.9), max: 0.9, r: rnd(2, big ? 7 : 5), col: fire ? ['#ffe066', '#ff922b', '#f03e3e', '#fff'][rint(0, 3)] : col, g: fire ? 80 : 600 });
+      }
+      parts.push({ x, y, vx: 0, vy: 0, life: 0.35, max: 0.35, r: big ? 110 : 60, col: 'flash', g: 0 });
+      shake = Math.max(shake, big ? 0.55 : 0.35);
+      sfx.boom();
+    }
+
+    function bagReward(x, y) {
+      const r = Math.random(), lucky = !!buffs.clover;
+      if (r < 0.1) {
+        buffs.strength = true; sfx.power();
+        floats.push(mkFloat('💪 Tăng lực!', '#69db7c', x, y, false));
+        return 0;
+      }
+      if (r < 0.2) {
+        dyn++; sfx.power(); updateDyn();
+        floats.push(mkFloat('+1 🧨', '#ff8787', x, y, false));
+        return 0;
+      }
+      return Math.round(lucky ? rnd(300, 900) : 15 + Math.pow(Math.random(), 1.5) * 560);
+    }
+
+    function mkFloat(text, color, x, y, fly) { return { text, color, x0: x, y0: y, t: 0, dur: fly ? 1.0 : 1.3, fly }; }
+
+    function collect() {
+      const it = claw.item;
+      resetClaw();
+      claw.ang = Math.sin(swingPhase) * 1.3;
+      if (!it) return;
+      const x = PIV.x + 40, y = PIV.y + 10;
+      let v = it.val;
+      if (it.type.startsWith('rock') && buffs.rockBook) v *= 3;
+      if (it.type === 'diamond') v = buffs.diamondBook ? 900 : 600;
+      if (it.type === 'moleD') v = 2 + (buffs.diamondBook ? 900 : 600);
+      if (it.type === 'bag') v = bagReward(x, y);
+      if (v > 0) {
+        money += v;
+        const precious = v >= 250;
+        floats.push(mkFloat('+' + fmtMoney(v), precious ? '#ffd43b' : '#fff', x, y, true));
+        if (v >= 50) sfx.ding(precious); else sfx.thud();
+      }
+      hud(); updateDyn();
     }
 
     function endLevel() {
-      if (score >= goal) {
-        total += score;
-        state = 'between';
-        GH.overlay(area, `<h2>🎉 Qua màn ${level}!</h2><p>Bạn được ${score.toLocaleString('vi-VN')} điểm ở màn này.</p>`, 'Màn tiếp theo ▶', () => { level++; makeLevel(); state = 'play'; });
+      if (claw.item) claw.item = null;
+      resetClaw();
+      if (money >= goal) {
+        state = 'clear'; clearT = 1.8; sfx.win();
+        msg = { text: '🎉 Đạt mục tiêu! Qua màn!', t: 1.8, color: '#69db7c' };
       } else {
-        state = 'over';
-        GH.gameOver(area, 'goldminer', total + score, { title: '⏰ Hết giờ!', note: `Thiếu ${(goal - score).toLocaleString('vi-VN')} điểm để qua màn ${level}` }, start);
+        state = 'over'; sfx.lose();
+        msg = null; updateDyn(); hud();
+        GH.gameOver(area, 'goldminer', money, { title: '💸 Không đủ tiền mục tiêu!', note: `Dừng ở màn ${level} · cần ${fmtMoney(goal)}` }, start);
       }
+      updateDyn();
     }
 
+    /* ---------- Cửa hàng ---------- */
+    function showShop() {
+      state = 'shop';
+      const L = level;
+      const all = [
+        { id: 'dyn', ic: '🧨', name: 'Thuốc nổ', desc: 'Phá vật đang móc để kéo về nhanh (bấm 🧨 / phím D)', price: rint(10, 80) + L * 12 },
+        { id: 'strength', ic: '💪', name: 'Thuốc tăng lực', desc: 'Màn sau kéo nhanh gấp rưỡi', price: rint(100, 300) + L * 25 },
+        { id: 'clover', ic: '🍀', name: 'Cỏ bốn lá', desc: 'Màn sau túi bí ẩn chứa nhiều tiền hơn', price: rint(20, 120) + L * 15 },
+        { id: 'diamondBook', ic: '💎', name: 'Sách đá quý', desc: 'Màn sau kim cương giá $900 thay vì $600', price: rint(100, 400) + L * 20 },
+        { id: 'rockBook', ic: '🪨', name: 'Sách sưu tầm đá', desc: 'Màn sau đá có giá gấp 3', price: rint(5, 60) + L * 6 },
+      ];
+      const offers = all.filter(() => Math.random() < 0.65);
+      while (offers.length < 2) { const o = all[rint(0, all.length - 1)]; if (!offers.includes(o)) offers.push(o); }
+      offers.sort((a, b) => all.indexOf(a) - all.indexOf(b));
+      const html = `<h2>🛒 Cửa hàng</h2>
+        <p class="shop-head">Tiền của bạn: <b id="shopMoney" style="color:#f59f00">${fmtMoney(money)}</b> · Màn ${L + 1} cần <b>${fmtMoney(goalFor(L + 1))}</b><br><small>Tiền mua đồ sẽ bị trừ vào điểm.</small></p>
+        <div class="shop">${offers.map((o, i) => `<button class="item" data-i="${i}"><span class="ic">${o.ic}</span><b>${o.name}</b><small>${o.desc}</small><span class="price">${fmtMoney(o.price)}</span></button>`).join('')}</div>`;
+      GH.overlay(area, html, 'Màn tiếp theo ▶', nextLevel);
+      const ov = area.querySelector('.overlay');
+      const refresh = () => {
+        ov.querySelector('#shopMoney').textContent = fmtMoney(money);
+        ov.querySelectorAll('.item').forEach((b) => {
+          const o = offers[+b.dataset.i];
+          if (b.classList.contains('sold')) return;
+          b.classList.toggle('poor', money < o.price);
+          b.disabled = money < o.price;
+        });
+        hud();
+      };
+      ov.querySelectorAll('.item').forEach((b) => {
+        b.onclick = (e) => {
+          e.stopPropagation();
+          const o = offers[+b.dataset.i];
+          if (b.classList.contains('sold') || money < o.price) return;
+          money -= o.price; shownMoney = money;
+          if (o.id === 'dyn') dyn++; else nextBuffs[o.id] = true;
+          b.classList.add('sold'); b.disabled = true;
+          b.querySelector('.price').textContent = '✓ Đã mua';
+          sfx.buy(); refresh(); updateDyn();
+        };
+      });
+      refresh();
+    }
+
+    /* ---------- Cập nhật ---------- */
     function update(dt) {
-      if (state !== 'play') return;
-      timeLeft -= dt;
-      if (timeLeft <= 0) { timeLeft = 0; hud(); endLevel(); return; }
-      const h = hook;
-      if (h.state === 'swing') {
-        h.a += h.dir * dt * 1.6;
-        if (h.a > 1.25) { h.a = 1.25; h.dir = -1; }
-        if (h.a < -1.25) { h.a = -1.25; h.dir = 1; }
-      } else if (h.state === 'out') {
-        h.len += 520 * dt;
-        const tx = PIV.x + Math.sin(h.a) * h.len, ty = PIV.y + Math.cos(h.a) * h.len;
-        const hit = items.find((o) => Math.hypot(o.x - tx, o.y - ty) < o.r + 6);
-        if (hit) { h.item = hit; h.state = 'back'; items.splice(items.indexOf(hit), 1); }
-        else if (tx < 0 || tx > W || ty > H) h.state = 'back';
-      } else if (h.state === 'back') {
-        const w = h.item ? KINDS[h.item.k].weight : 0.4;
-        h.len -= (560 / w) * dt;
-        if (h.item) { h.item.x = PIV.x + Math.sin(h.a) * (h.len + h.item.r); h.item.y = PIV.y + Math.cos(h.a) * (h.len + h.item.r); }
-        if (h.len <= 40) {
-          h.len = 40;
-          if (h.item) {
-            let v = KINDS[h.item.k].value;
-            if (h.item.k === 'bag') v = [50, 120, 250, 500, 30][Math.floor(Math.random() * 5)];
-            score += v;
-            msg = { text: `+${v}`, t: 1.2, color: h.item.k === 'gem' ? '#74c0fc' : h.item.k.startsWith('rock') ? '#ced4da' : '#ffd43b' };
-            hud();
-          }
-          h.item = null;
-          h.state = 'swing';
-          if (!items.some((o) => KINDS[o.k].value > 0 || o.k === 'bag')) endLevel();
-        }
-      }
+      now += dt;
+      floats.forEach((f) => { f.t += dt; });
+      floats = floats.filter((f) => f.t < f.dur);
+      parts.forEach((p) => { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += p.g * dt; p.vx *= 0.98; });
+      parts = parts.filter((p) => p.life > 0);
       if (msg) { msg.t -= dt; if (msg.t <= 0) msg = null; }
+      shake = Math.max(0, shake - dt);
+      shownMoney += (money - shownMoney) * Math.min(1, dt * 8);
+      if (Math.abs(money - shownMoney) < 1) shownMoney = money;
+
+      items.forEach((it) => {
+        if (it.vx) {
+          it.x += it.vx * dt;
+          if (it.x < it.x0) { it.x = it.x0; it.vx = Math.abs(it.vx); }
+          if (it.x > it.x1) { it.x = it.x1; it.vx = -Math.abs(it.vx); }
+        }
+      });
+
+      if (state === 'clear') { clearT -= dt; if (clearT <= 0) showShop(); return; }
+      if (state === 'ready') { swingPhase += dt * 2.1; claw.ang = Math.sin(swingPhase) * 1.3; return; }
+      if (state !== 'play') return;
+
+      timeLeft -= dt;
+      if (timeLeft <= 10 && Math.ceil(timeLeft) !== lastTick) { lastTick = Math.ceil(timeLeft); if (lastTick > 0) sfx.tick(); }
+      if (timeLeft <= 0) { timeLeft = 0; hud(); return endLevel(); }
+
+      if (claw.st === 'swing') {
+        swingPhase += dt * 2.1;
+        claw.ang = Math.sin(swingPhase) * 1.3;
+        claw.len = REST;
+        claw.open = Math.min(1, claw.open + dt * 4);
+        if (!items.length) return endLevel();
+      } else if (claw.st === 'out') {
+        let dist = OUT_SPEED * dt;
+        const d = dirOf(claw.ang);
+        while (dist > 0 && claw.st === 'out') {
+          const s = Math.min(8, dist); dist -= s;
+          claw.len += s;
+          const p = clawPos(), tip = { x: p.x + d.x * 14, y: p.y + d.y * 14 };
+          if (tip.x < 4 || tip.x > W - 4 || tip.y > H - 4) { claw.st = 'back'; break; }
+          const hit = items.find((it) => Math.hypot(it.x - tip.x, it.y - tip.y) < it.r + 6);
+          if (hit) {
+            items.splice(items.indexOf(hit), 1);
+            claw.st = 'back';
+            if (hit.type === 'tnt') {
+              explode(hit.x, hit.y, null, true);
+              for (let i = items.length - 1; i >= 0; i--) {
+                const o = items[i];
+                if (Math.hypot(o.x - hit.x, o.y - hit.y) < 125 + o.r * 0.5) { explode(o.x, o.y, o, false); items.splice(i, 1); }
+              }
+              msg = { text: 'TNT phát nổ! 💥', t: 1.1, color: '#ff6b6b' };
+            } else {
+              claw.item = hit; sfx.grab();
+            }
+          }
+        }
+        claw.open = Math.min(1, claw.open + dt * 4);
+      } else if (claw.st === 'back') {
+        const speed = (claw.item ? PULL_BASE / claw.item.wt : EMPTY_SPEED) * (buffs.strength ? 1.5 : 1);
+        claw.len -= speed * dt;
+        reelAng += speed * dt / 14;
+        claw.open = claw.item ? Math.max(0, claw.open - dt * 8) : Math.min(1, claw.open + dt * 4);
+        if (claw.item) { const hp = heldPos(); claw.item.x = hp.x; claw.item.y = hp.y; }
+        if (claw.len <= REST) { claw.len = REST; collect(); }
+      }
+      updateDyn();
       hud();
     }
 
-    function drawItem(o) {
-      const K = KINDS[o.k];
-      ctx.save(); ctx.translate(o.x, o.y);
-      if (o.k.startsWith('gold')) {
-        ctx.fillStyle = '#e8a800'; ctx.beginPath(); ctx.ellipse(2, 3, o.r, o.r * 0.82, 0.3, 0, 7); ctx.fill();
-        ctx.fillStyle = K.color; ctx.beginPath(); ctx.ellipse(0, 0, o.r, o.r * 0.8, 0.3, 0, 7); ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.ellipse(-o.r * 0.3, -o.r * 0.3, o.r * 0.3, o.r * 0.18, -0.4, 0, 7); ctx.fill();
-      } else if (o.k.startsWith('rock')) {
-        ctx.fillStyle = '#495057'; ctx.beginPath(); ctx.ellipse(2, 3, o.r, o.r * 0.78, 0, 0, 7); ctx.fill();
-        ctx.fillStyle = K.color; ctx.beginPath(); ctx.ellipse(0, 0, o.r, o.r * 0.75, 0, 0, 7); ctx.fill();
-        ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.beginPath(); ctx.arc(o.r * 0.3, o.r * 0.1, o.r * 0.25, 0, 7); ctx.fill();
-      } else if (o.k === 'gem') {
-        ctx.fillStyle = K.color;
-        ctx.beginPath(); ctx.moveTo(0, -o.r); ctx.lineTo(o.r, -o.r * 0.2); ctx.lineTo(0, o.r); ctx.lineTo(-o.r, -o.r * 0.2); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(0, -o.r); ctx.lineTo(o.r * 0.4, -o.r * 0.2); ctx.lineTo(-o.r * 0.4, -o.r * 0.2); ctx.closePath(); ctx.fill();
-      } else {
-        ctx.fillStyle = K.color; ctx.beginPath(); ctx.arc(0, 4, o.r, 0, 7); ctx.fill();
-        ctx.fillStyle = '#8a4b22'; ctx.fillRect(-6, -o.r + 2, 12, 6);
-        ctx.fillStyle = '#5c3214'; ctx.font = '900 16px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', 0, 6);
+    /* ---------- Vẽ ---------- */
+    function circle(x, y, r, c) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+
+    function buildBackground() {
+      bgCanvas = document.createElement('canvas'); bgCanvas.width = W; bgCanvas.height = H;
+      const b = bgCanvas.getContext('2d');
+      let s = 7; const sr = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+      const dirt = b.createLinearGradient(0, SURF, 0, H);
+      dirt.addColorStop(0, '#c98a45'); dirt.addColorStop(0.35, '#a96a32'); dirt.addColorStop(0.7, '#87501f'); dirt.addColorStop(1, '#5e3513');
+      b.fillStyle = dirt; b.fillRect(0, SURF, W, H - SURF);
+      for (let k = 0; k < 5; k++) {
+        const y0 = SURF + 70 + k * 88;
+        b.fillStyle = k % 2 ? 'rgba(60,30,8,.13)' : 'rgba(255,220,160,.07)';
+        b.beginPath(); b.moveTo(0, y0);
+        for (let x = 0; x <= W; x += 40) b.lineTo(x, y0 + Math.sin(x / 90 + k * 2) * 10 + sr() * 6);
+        for (let x = W; x >= 0; x -= 40) b.lineTo(x, y0 + 34 + Math.sin(x / 70 + k) * 9 + sr() * 6);
+        b.closePath(); b.fill();
       }
+      for (let i = 0; i < 900; i++) {
+        const x = sr() * W, y = SURF + 6 + sr() * (H - SURF);
+        b.fillStyle = sr() < 0.5 ? 'rgba(50,25,5,.22)' : 'rgba(255,230,180,.12)';
+        b.fillRect(x, y, 1 + sr() * 2.5, 1 + sr() * 2);
+      }
+      for (let i = 0; i < 70; i++) {
+        const x = sr() * W, y = SURF + 14 + sr() * (H - SURF - 14), r = 2 + sr() * 5;
+        b.fillStyle = `rgba(${90 + sr() * 50 | 0},${60 + sr() * 30 | 0},${30 + sr() * 20 | 0},.55)`;
+        b.beginPath(); b.ellipse(x, y, r * 1.3, r, sr() * 3, 0, Math.PI * 2); b.fill();
+        b.fillStyle = 'rgba(255,240,210,.18)'; b.beginPath(); b.ellipse(x - r * 0.3, y - r * 0.35, r * 0.5, r * 0.3, 0, 0, Math.PI * 2); b.fill();
+      }
+      const sky = b.createLinearGradient(0, 0, 0, SURF);
+      sky.addColorStop(0, '#ffe58f'); sky.addColorStop(1, '#fff3c4');
+      b.fillStyle = sky; b.fillRect(0, 0, W, SURF);
+      b.fillStyle = 'rgba(255,255,255,.7)';
+      [[160, 40, 1], [690, 30, 0.8], [600, 70, 0.6]].forEach(([x, y, k]) => {
+        b.beginPath(); b.ellipse(x, y, 40 * k, 13 * k, 0, 0, Math.PI * 2); b.ellipse(x + 26 * k, y - 8 * k, 26 * k, 14 * k, 0, 0, Math.PI * 2); b.ellipse(x - 24 * k, y - 4 * k, 22 * k, 11 * k, 0, 0, Math.PI * 2); b.fill();
+      });
+      b.fillStyle = '#e8b04c'; b.beginPath(); b.moveTo(0, SURF);
+      for (let x = 0; x <= W; x += 20) b.lineTo(x, SURF - 6 - Math.sin(x / 60) * 3 - (x > 560 ? 8 * Math.sin((x - 560) / 300 * Math.PI) : 0));
+      b.lineTo(W, SURF); b.closePath(); b.fill();
+      b.fillStyle = '#b5762e'; b.fillRect(0, SURF - 2, W, 6);
+      b.fillStyle = '#8f5520'; b.fillRect(0, SURF + 4, W, 3);
+      b.fillStyle = '#4a2a0e'; b.beginPath(); b.ellipse(PIV.x, SURF + 3, 34, 7, 0, 0, Math.PI * 2); b.fill();
+    }
+
+    function blobPath(x, y, r, shape, squash = 0.88) {
+      const n = shape.length;
+      const pts = shape.map((k, i) => { const a = (i / n) * Math.PI * 2; return [x + Math.cos(a) * r * k, y + Math.sin(a) * r * k * squash]; });
+      const mid = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+      ctx.beginPath();
+      const m0 = mid(pts[n - 1], pts[0]);
+      ctx.moveTo(m0[0], m0[1]);
+      for (let i = 0; i < n; i++) { const m = mid(pts[i], pts[(i + 1) % n]); ctx.quadraticCurveTo(pts[i][0], pts[i][1], m[0], m[1]); }
+      ctx.closePath();
+    }
+    function sparkle(x, y, s, a) {
+      if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = '#fff'; ctx.translate(x, y);
+      ctx.beginPath();
+      ctx.moveTo(0, -s); ctx.quadraticCurveTo(0, 0, s, 0); ctx.quadraticCurveTo(0, 0, 0, s); ctx.quadraticCurveTo(0, 0, -s, 0); ctx.quadraticCurveTo(0, 0, 0, -s);
+      ctx.fill(); ctx.restore();
+    }
+
+    function drawGold(it) {
+      const { x, y, r } = it;
+      ctx.fillStyle = 'rgba(40,20,0,.25)'; blobPath(x + 3, y + 4, r, it.shape); ctx.fill();
+      const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.08, x, y, r * 1.25);
+      g.addColorStop(0, '#fffbe6'); g.addColorStop(0.3, '#ffe066'); g.addColorStop(0.7, '#f59f00'); g.addColorStop(1, '#a35200');
+      ctx.fillStyle = g; blobPath(x, y, r, it.shape); ctx.fill();
+      ctx.strokeStyle = '#8a4500'; ctx.lineWidth = Math.max(1.5, r / 14); ctx.stroke();
+      ctx.fillStyle = 'rgba(160,80,0,.35)';
+      [[0.3, 0.25, 0.16], [-0.2, 0.35, 0.11], [0.4, -0.15, 0.1]].forEach(([dx, dy, k]) => { ctx.beginPath(); ctx.ellipse(x + dx * r, y + dy * r, r * k, r * k * 0.7, 0.4, 0, Math.PI * 2); ctx.fill(); });
+      ctx.fillStyle = 'rgba(255,255,255,.8)';
+      ctx.beginPath(); ctx.ellipse(x - r * 0.38, y - r * 0.38, r * 0.24, r * 0.11, -0.7, 0, Math.PI * 2); ctx.fill();
+      circle(x - r * 0.05, y - r * 0.55, r * 0.06, 'rgba(255,255,255,.75)');
+      sparkle(x + r * 0.35, y - r * 0.3, r * 0.28 + 3, Math.sin(now * 3 + it.seed) * 0.9);
+    }
+    function drawRock(it) {
+      const { x, y, r } = it;
+      ctx.fillStyle = 'rgba(30,15,0,.28)'; blobPath(x + 3, y + 4, r, it.shape, 0.8); ctx.fill();
+      const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.4, r * 0.1, x, y, r * 1.2);
+      g.addColorStop(0, '#e9ecef'); g.addColorStop(0.45, '#adb5bd'); g.addColorStop(1, '#495057');
+      ctx.fillStyle = g; blobPath(x, y, r, it.shape, 0.8); ctx.fill();
+      ctx.strokeStyle = '#343a40'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.strokeStyle = 'rgba(52,58,64,.6)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x - r * 0.1, y - r * 0.5); ctx.lineTo(x + r * 0.05, y - r * 0.1); ctx.lineTo(x - r * 0.15, y + r * 0.2);
+      ctx.moveTo(x + r * 0.05, y - r * 0.1); ctx.lineTo(x + r * 0.4, y + r * 0.05); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(x - r * 0.35, y - r * 0.32, r * 0.2, r * 0.09, -0.5, 0, Math.PI * 2); ctx.fill();
+    }
+    function drawDiamond(x, y, r, seed) {
+      ctx.save(); ctx.translate(x, y);
+      const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 2.4);
+      glow.addColorStop(0, 'rgba(165,216,255,.55)'); glow.addColorStop(1, 'rgba(165,216,255,0)');
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, r * 2.4, 0, Math.PI * 2); ctx.fill();
+      const P = { tl: [-r * 0.6, -r * 0.55], tr: [r * 0.6, -r * 0.55], l: [-r, -r * 0.1], rr: [r, -r * 0.1], b: [0, r * 1.05], tm: [0, -r * 0.55], ml: [-r * 0.35, -r * 0.1], mr: [r * 0.35, -r * 0.1] };
+      const poly = (pts, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(...pts[0]); pts.slice(1).forEach((p) => ctx.lineTo(...p)); ctx.closePath(); ctx.fill(); };
+      poly([P.tl, P.tr, P.rr, P.l], '#d0ebff');
+      poly([P.tl, P.tm, P.ml, P.l], '#e7f5ff');
+      poly([P.tm, P.tr, P.rr, P.mr], '#a5d8ff');
+      poly([P.l, P.ml, P.b], '#74c0fc');
+      poly([P.ml, P.mr, P.b], '#a5d8ff');
+      poly([P.mr, P.rr, P.b], '#339af0');
+      ctx.strokeStyle = '#1864ab'; ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.moveTo(...P.tl); ctx.lineTo(...P.tr); ctx.lineTo(...P.rr); ctx.lineTo(...P.b); ctx.lineTo(...P.l); ctx.closePath(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(...P.l); ctx.lineTo(...P.rr); ctx.moveTo(...P.ml); ctx.lineTo(...P.b); ctx.lineTo(...P.mr); ctx.stroke();
       ctx.restore();
+      sparkle(x + r * 0.5, y - r * 0.6, r * 0.7, 0.4 + Math.sin(now * 5 + seed) * 0.6);
+    }
+    function drawBag(it) {
+      const { x, y, r } = it;
+      ctx.fillStyle = 'rgba(30,15,0,.25)'; ctx.beginPath(); ctx.ellipse(x + 3, y + r * 0.75, r * 1.05, r * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+      const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.1, 2, x, y + r * 0.2, r * 1.3);
+      g.addColorStop(0, '#f0c98b'); g.addColorStop(1, '#9c6428');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x - r * 0.35, y - r * 0.55);
+      ctx.bezierCurveTo(x - r * 1.25, y - r * 0.1, x - r * 1.15, y + r * 0.85, x, y + r * 0.85);
+      ctx.bezierCurveTo(x + r * 1.15, y + r * 0.85, x + r * 1.25, y - r * 0.1, x + r * 0.35, y - r * 0.55);
+      ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#6b3d12'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x - r * 0.35, y - r * 0.55); ctx.lineTo(x - r * 0.6, y - r * 1.05); ctx.lineTo(x + r * 0.6, y - r * 1.05); ctx.lineTo(x + r * 0.35, y - r * 0.55); ctx.closePath();
+      ctx.fillStyle = '#c99254'; ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#c92a2a'; ctx.fillRect(x - r * 0.45, y - r * 0.66, r * 0.9, r * 0.18);
+      ctx.fillStyle = '#5c3209'; ctx.font = `900 ${r * 1.05}px "Be Vietnam Pro", system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('?', x, y + r * 0.22);
+    }
+    function drawSkull(it) {
+      const { x, y, r } = it;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(it.rot);
+      circle(0, -r * 0.15, r * 0.85, '#f1f3f5');
+      ctx.fillStyle = '#f1f3f5'; ctx.fillRect(-r * 0.45, r * 0.3, r * 0.9, r * 0.5);
+      ctx.strokeStyle = '#868e96'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, -r * 0.15, r * 0.85, 0, Math.PI * 2); ctx.stroke();
+      circle(-r * 0.32, -r * 0.1, r * 0.22, '#343a40'); circle(r * 0.32, -r * 0.1, r * 0.22, '#343a40');
+      ctx.fillStyle = '#495057'; ctx.beginPath(); ctx.moveTo(0, r * 0.1); ctx.lineTo(-r * 0.1, r * 0.3); ctx.lineTo(r * 0.1, r * 0.3); ctx.fill();
+      ctx.strokeStyle = '#868e96'; ctx.beginPath(); for (let i = -1; i <= 1; i++) { ctx.moveTo(i * r * 0.2, r * 0.45); ctx.lineTo(i * r * 0.2, r * 0.8); } ctx.stroke();
+      ctx.restore();
+    }
+    function drawBone(it) {
+      const { x, y, r } = it;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(it.rot + 0.5);
+      ctx.strokeStyle = '#e9ecef'; ctx.lineWidth = r * 0.45; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-r * 0.75, 0); ctx.lineTo(r * 0.75, 0); ctx.stroke();
+      [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(([sx, sy]) => circle(sx * r * 0.85, sy * r * 0.22, r * 0.3, '#f8f9fa'));
+      ctx.restore();
+    }
+    function drawMole(it, held) {
+      const { x, y, r } = it, dir = it.vx >= 0 ? 1 : -1;
+      const bob = held ? Math.sin(now * 30) * 1.5 : Math.abs(Math.sin(now * 10 + it.seed)) * 2;
+      if (!held) {
+        ctx.fillStyle = 'rgba(50,25,5,.22)'; ctx.beginPath(); ctx.roundRect(it.x0 - 14, y - r * 0.9, it.x1 - it.x0 + 28, r * 1.9, r); ctx.fill();
+      }
+      ctx.save(); ctx.translate(x, y - bob); ctx.scale(dir, 1);
+      ctx.fillStyle = '#5c3a24'; [-8, 6].forEach((lx) => { ctx.beginPath(); ctx.ellipse(lx, r * 0.75, 4, 3, 0, 0, Math.PI * 2); ctx.fill(); });
+      const g = ctx.createRadialGradient(-3, -5, 2, 0, 0, r * 1.4);
+      g.addColorStop(0, '#b07a55'); g.addColorStop(1, '#6e452b');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, r * 1.25, r * 0.85, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f3c3a6'; ctx.beginPath(); ctx.ellipse(r * 1.05, r * 0.05, r * 0.5, r * 0.38, 0, 0, Math.PI * 2); ctx.fill();
+      circle(r * 1.5, -r * 0.02, r * 0.18, '#e64980');
+      circle(r * 0.62, -r * 0.35, r * 0.11, '#212529');
+      ctx.strokeStyle = '#5c3a24'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-r * 1.2, 0); ctx.lineTo(-r * 1.55, -r * 0.2); ctx.stroke();
+      ctx.restore();
+      if (it.type === 'moleD') drawDiamond(x + dir * r * 1.4, y + r * 0.45 - bob, 7, it.seed);
+      if (held) { ctx.font = '18px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('💦', x + 18, y - 22); }
+    }
+    function drawTnt(it) {
+      const { x, y, r } = it;
+      ctx.fillStyle = 'rgba(30,15,0,.25)'; ctx.beginPath(); ctx.ellipse(x + 3, y + r, r, r * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+      const g = ctx.createLinearGradient(x - r, 0, x + r, 0);
+      g.addColorStop(0, '#a61e1e'); g.addColorStop(0.45, '#ff6b6b'); g.addColorStop(1, '#8a1414');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(x - r * 0.85, y - r, r * 1.7, r * 2, 6); ctx.fill();
+      ctx.fillStyle = '#495057'; ctx.fillRect(x - r * 0.85, y - r * 0.7, r * 1.7, 3); ctx.fillRect(x - r * 0.85, y + r * 0.6, r * 1.7, 3);
+      ctx.fillStyle = '#fff'; ctx.font = `900 ${r * 0.62}px "Be Vietnam Pro", system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('TNT', x, y + 1);
+      ctx.strokeStyle = '#212529'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y - r); ctx.quadraticCurveTo(x + 6, y - r - 8, x + 2, y - r - 12); ctx.stroke();
+      if (Math.sin(now * 12 + it.seed) > 0) circle(x + 2, y - r - 13, 3, '#ffd43b');
+    }
+    function drawItem(it, held) {
+      const t = it.type;
+      if (t.startsWith('gold')) drawGold(it);
+      else if (t.startsWith('rock')) drawRock(it);
+      else if (t === 'diamond') drawDiamond(it.x, it.y, it.r, it.seed);
+      else if (t === 'bag') drawBag(it);
+      else if (t === 'skull') drawSkull(it);
+      else if (t === 'bone') drawBone(it);
+      else if (t === 'mole' || t === 'moleD') drawMole(it, held);
+      else if (t === 'tnt') drawTnt(it);
+    }
+
+    function drawWinch() {
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#6b3d12'; ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.moveTo(402, SURF); ctx.lineTo(422, DRUM.y + 2); ctx.moveTo(458, SURF); ctx.lineTo(438, DRUM.y + 2); ctx.stroke();
+      ctx.strokeStyle = '#8f5520'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(410, SURF - 12); ctx.lineTo(450, SURF - 12); ctx.stroke();
+      circle(DRUM.x, DRUM.y, 19, '#5c3209');
+      circle(DRUM.x, DRUM.y, 16, '#c98a45');
+      ctx.strokeStyle = '#a8742c'; ctx.lineWidth = 1.2;
+      for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(DRUM.x, DRUM.y, 6 + i * 2.6, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.strokeStyle = '#5c3209'; ctx.lineWidth = 3;
+      for (let i = 0; i < 4; i++) {
+        const a = reelAng + (i * Math.PI) / 2;
+        ctx.beginPath(); ctx.moveTo(DRUM.x, DRUM.y); ctx.lineTo(DRUM.x + Math.cos(a) * 16, DRUM.y + Math.sin(a) * 16); ctx.stroke();
+      }
+      circle(DRUM.x, DRUM.y, 4, '#3d1f05');
+    }
+    function crankPoint() { return { x: DRUM.x + Math.cos(reelAng) * 15, y: DRUM.y + Math.sin(reelAng) * 15 }; }
+
+    function drawMiner() {
+      const bx = 478, by = SURF, pulling = state === 'play' && claw.st === 'back';
+      const strain = pulling && claw.item ? Math.min(1, claw.item.wt / 8) : 0;
+      const lean = pulling ? Math.sin(reelAng) * 1.5 + strain * 3 : 0;
+      ctx.fillStyle = '#8f5520'; ctx.fillRect(bx - 4, by - 22, 40, 22);
+      ctx.strokeStyle = '#5c3209'; ctx.lineWidth = 2; ctx.strokeRect(bx - 4, by - 22, 40, 22);
+      ctx.beginPath(); ctx.moveTo(bx - 4, by - 22); ctx.lineTo(bx + 36, by); ctx.stroke();
+      ctx.strokeStyle = '#1c4f8c'; ctx.lineWidth = 9; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(bx + 14, by - 26); ctx.lineTo(bx - 6, by - 26); ctx.lineTo(bx - 8, by - 7); ctx.stroke();
+      ctx.fillStyle = '#3d2410'; ctx.beginPath(); ctx.ellipse(bx - 13, by - 4, 9, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.save(); ctx.translate(bx + 12, by - 26); ctx.rotate(-lean * 0.04);
+      ctx.fillStyle = '#e03131'; ctx.beginPath(); ctx.roundRect(-14, -42, 28, 34, 9); ctx.fill();
+      ctx.fillStyle = '#1971c2'; ctx.beginPath(); ctx.roundRect(-13, -26, 26, 26, 6); ctx.fill();
+      ctx.fillRect(-11, -40, 5, 16); ctx.fillRect(6, -40, 5, 16);
+      circle(-8, -24, 2, '#ffd43b'); circle(8, -24, 2, '#ffd43b');
+      const hx = -2, hy = -54;
+      circle(hx + 8, hy, 4, '#f4b98e');
+      circle(hx, hy, 13, '#ffd8b5');
+      circle(hx - 12, hy + 2, 5.5, '#f4a582');
+      ctx.fillStyle = '#f1f3f5';
+      ctx.beginPath(); ctx.ellipse(hx - 15, hy + 7, 7, 3.6, 0.35, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(hx - 6, hy + 7, 7, 3.6, -0.35, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#dee2e6'; ctx.beginPath(); ctx.ellipse(hx + 6, hy + 2, 4, 6, 0, 0, Math.PI * 2); ctx.fill();
+      circle(hx - 6, hy - 4, 1.8, '#212529');
+      ctx.strokeStyle = '#adb5bd'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(hx - 9, hy - 8); ctx.lineTo(hx - 3, hy - 9); ctx.stroke();
+      ctx.fillStyle = '#7a4a1e'; ctx.beginPath(); ctx.ellipse(hx, hy - 10, 20, 5, -0.05, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#8f5a2a'; ctx.beginPath(); ctx.roundRect(hx - 10, hy - 25, 21, 16, [8, 8, 2, 2]); ctx.fill();
+      ctx.fillStyle = '#4a2a0e'; ctx.fillRect(hx - 10, hy - 14, 21, 4);
+      ctx.restore();
+      const sh = { x: bx + 2, y: by - 62 }, cp = crankPoint();
+      const hand = pulling ? cp : { x: DRUM.x + 14, y: DRUM.y + 2 };
+      const ex = (sh.x + hand.x) / 2 + 2, ey = Math.max(sh.y, hand.y) + 8;
+      ctx.strokeStyle = '#e03131'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(sh.x, sh.y); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.strokeStyle = '#ffd8b5'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(hand.x, hand.y); ctx.stroke();
+      ctx.strokeStyle = '#3d1f05'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(DRUM.x, DRUM.y); ctx.lineTo(cp.x, cp.y); ctx.stroke();
+      circle(cp.x, cp.y, 3.5, '#212529');
+      circle(hand.x, hand.y, 4, '#ffd8b5');
+      for (let i = 0; i < Math.min(dyn, 6); i++) {
+        const dx = bx + 46 + (i % 3) * 9, dy = by - 26 - Math.floor(i / 3) * 6;
+        ctx.save(); ctx.translate(dx, dy); ctx.rotate(0.1);
+        ctx.fillStyle = '#e03131'; ctx.fillRect(-3, 0, 6, 22); ctx.fillStyle = '#fff'; ctx.fillRect(-3, 8, 6, 3);
+        ctx.strokeStyle = '#495057'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(2, -5); ctx.stroke();
+        ctx.restore();
+      }
+      if (dyn > 6) { ctx.fillStyle = '#5c3209'; ctx.font = '900 13px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'left'; ctx.fillText('x' + dyn, bx + 76, by - 18); }
+    }
+
+    function drawClaw() {
+      const p = clawPos(), d = dirOf(claw.ang);
+      ctx.strokeStyle = '#2b1a10'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(PIV.x, PIV.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(PIV.x + 1, PIV.y); ctx.lineTo(p.x + 1, p.y); ctx.stroke();
+      if (claw.item) drawItem(claw.item, true);
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(-claw.ang);
+      const open = 0.25 + claw.open * 0.55;
+      [-1, 1].forEach((s) => {
+        ctx.save(); ctx.rotate(s * open);
+        ctx.strokeStyle = '#495057'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(0, 2); ctx.quadraticCurveTo(s * 13, 10, s * 7, 22); ctx.stroke();
+        ctx.strokeStyle = '#adb5bd'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, 2); ctx.quadraticCurveTo(s * 13, 10, s * 7, 22); ctx.stroke();
+        ctx.restore();
+      });
+      ctx.fillStyle = '#343a40'; ctx.beginPath(); ctx.roundRect(-7, -6, 14, 10, 3); ctx.fill();
+      circle(0, 0, 3, '#ced4da');
+      ctx.restore();
+      if (state === 'play' && claw.st === 'swing') {
+        ctx.setLineDash([4, 10]); ctx.strokeStyle = 'rgba(255,240,200,.25)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(p.x + d.x * 24, p.y + d.y * 24); ctx.lineTo(p.x + d.x * 140, p.y + d.y * 140); ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+
+    function panel(x, y, w, h) { ctx.fillStyle = 'rgba(43,26,16,.78)'; ctx.beginPath(); ctx.roundRect(x, y, w, h, 12); ctx.fill(); ctx.strokeStyle = 'rgba(255,212,59,.5)'; ctx.lineWidth = 2; ctx.stroke(); }
+    function drawCanvasHud() {
+      panel(10, 8, 200, 58);
+      ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+      ctx.font = '700 12px "Be Vietnam Pro", system-ui'; ctx.fillStyle = '#ffe8a3';
+      ctx.fillText('Tiền', 22, 23); ctx.fillText('Mục tiêu', 22, 50);
+      ctx.textAlign = 'right'; ctx.font = '900 20px "Be Vietnam Pro", system-ui';
+      ctx.fillStyle = shownMoney >= goal ? '#69db7c' : '#ffd43b'; ctx.fillText(fmtMoney(shownMoney), 198, 24);
+      ctx.font = '800 15px "Be Vietnam Pro", system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(fmtMoney(goal), 198, 50);
+      panel(W - 150, 8, 140, 58);
+      ctx.textAlign = 'left'; ctx.font = '900 20px "Be Vietnam Pro", system-ui';
+      ctx.fillStyle = timeLeft <= 10 && state === 'play' && Math.sin(now * 10) > 0 ? '#ff6b6b' : '#fff';
+      ctx.fillText('⏱ ' + Math.ceil(Math.max(0, timeLeft)) + 's', W - 138, 25);
+      ctx.font = '800 14px "Be Vietnam Pro", system-ui'; ctx.fillStyle = '#ffe8a3'; ctx.fillText('Màn ' + level, W - 138, 50);
+      const icons = [buffs.strength && '💪', buffs.clover && '🍀', buffs.diamondBook && '💎', buffs.rockBook && '🪨'].filter(Boolean);
+      if (icons.length) { ctx.font = '16px system-ui, "Segoe UI Emoji"'; ctx.textAlign = 'right'; ctx.fillText(icons.join(''), W - 18, 50); }
     }
 
     function draw() {
-      const sky = ctx.createLinearGradient(0, 0, 0, GROUND);
-      sky.addColorStop(0, '#74c0fc'); sky.addColorStop(1, '#d0ebff');
-      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, GROUND);
-      const dirt = ctx.createLinearGradient(0, GROUND, 0, H);
-      dirt.addColorStop(0, '#c98a4b'); dirt.addColorStop(1, '#6b3618');
-      ctx.fillStyle = dirt; ctx.fillRect(0, GROUND, W, H - GROUND);
-      ctx.fillStyle = '#40c057'; ctx.fillRect(0, GROUND - 8, W, 10);
-      for (let i = 0; i < 40; i++) { ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.beginPath(); ctx.arc((i * 137) % W, GROUND + 30 + ((i * 71) % (H - GROUND - 40)), 6 + (i % 4) * 3, 0, 7); ctx.fill(); }
-      // người đào vàng + tời
-      ctx.fillStyle = '#8a4b22'; ctx.fillRect(PIV.x - 50, 60, 100, 20);
-      ctx.fillStyle = '#495057'; ctx.beginPath(); ctx.arc(PIV.x, 70, 14, 0, 7); ctx.fill();
-      ctx.fillStyle = '#ffe0c4'; ctx.beginPath(); ctx.arc(PIV.x + 54, 30, 14, 0, 7); ctx.fill();
-      ctx.fillStyle = '#f59f00'; ctx.beginPath(); ctx.arc(PIV.x + 54, 26, 15, Math.PI, 0); ctx.fill(); ctx.fillRect(PIV.x + 36, 24, 36, 4);
-      ctx.fillStyle = '#1971c2'; ctx.fillRect(PIV.x + 44, 44, 20, 24);
-      items.forEach(drawItem);
-      // dây + móc
-      const h = hook, tx = PIV.x + Math.sin(h.a) * h.len, ty = PIV.y + Math.cos(h.a) * h.len;
-      ctx.strokeStyle = '#343a40'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(PIV.x, PIV.y - 20); ctx.lineTo(tx, ty); ctx.stroke();
-      if (h.item) drawItem(h.item);
-      ctx.save(); ctx.translate(tx, ty); ctx.rotate(-h.a);
-      ctx.strokeStyle = '#495057'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-14, 6, -10, 16); ctx.moveTo(0, 0); ctx.quadraticCurveTo(14, 6, 10, 16); ctx.stroke();
+      ctx.save();
+      if (shake > 0) ctx.translate(rnd(-1, 1) * shake * 16, rnd(-1, 1) * shake * 16);
+      if (!bgCanvas) buildBackground();
+      ctx.drawImage(bgCanvas, 0, 0);
+      items.forEach((it) => drawItem(it, false));
+      drawWinch();
+      drawClaw();
+      drawMiner();
+      parts.forEach((p) => {
+        if (p.col === 'flash') {
+          const k = p.life / p.max;
+          const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * (1.4 - k * 0.6));
+          g.addColorStop(0, `rgba(255,250,220,${k})`); g.addColorStop(0.4, `rgba(255,170,60,${k * 0.8})`); g.addColorStop(1, 'rgba(255,100,0,0)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 1.4, 0, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.globalAlpha = Math.max(0, Math.min(1, p.life / p.max * 1.5));
+          circle(p.x, p.y, p.r, p.col);
+          ctx.globalAlpha = 1;
+        }
+      });
       ctx.restore();
+      drawCanvasHud();
+      floats.forEach((f) => {
+        const k = f.t / f.dur;
+        let x = f.x0, y = f.y0 - 30 * Math.min(1, k * 4), s = 1 + Math.max(0, 0.4 - k) * 1.2;
+        if (f.fly && k > 0.3) {
+          const q = (k - 0.3) / 0.7, e = q * q * (3 - 2 * q);
+          x = f.x0 + (MONEY_TARGET.x - f.x0) * e;
+          y = f.y0 - 30 + (MONEY_TARGET.y - (f.y0 - 30)) * e - Math.sin(e * Math.PI) * 50;
+          s = 1 - e * 0.45;
+        }
+        ctx.globalAlpha = f.fly ? 1 - Math.max(0, k - 0.9) * 10 : Math.min(1, (1 - k) * 3);
+        ctx.font = `900 ${Math.round(28 * s)}px "Be Vietnam Pro", system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(43,26,16,.85)'; ctx.strokeText(f.text, x, y);
+        ctx.fillStyle = f.color; ctx.fillText(f.text, x, y);
+        ctx.globalAlpha = 1;
+      });
       if (msg) {
-        ctx.globalAlpha = Math.min(1, msg.t);
-        ctx.font = '900 34px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center';
-        ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.strokeText(msg.text, PIV.x, 50 - (1.2 - msg.t) * 20);
-        ctx.fillStyle = msg.color; ctx.fillText(msg.text, PIV.x, 50 - (1.2 - msg.t) * 20);
+        ctx.globalAlpha = Math.min(1, msg.t * 2);
+        ctx.font = '900 30px "Be Vietnam Pro", system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 7; ctx.strokeStyle = '#2b1a10'; ctx.strokeText(msg.text, W / 2, 300);
+        ctx.fillStyle = msg.color; ctx.fillText(msg.text, W / 2, 300);
         ctx.globalAlpha = 1;
       }
     }
 
     function loop(t) {
-      const dt = Math.min(0.05, (t - (last || t)) / 1000);
+      const dt = Math.min(0.05, Math.max(0, (t - (last || t)) / 1000));
       last = t;
       update(dt);
       draw();
       requestAnimationFrame(loop);
     }
 
-    cv.addEventListener('pointerdown', (e) => { e.preventDefault(); shoot(); });
-    document.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'ArrowDown') { e.preventDefault(); shoot(); } });
+    cv.addEventListener('pointerdown', (e) => { e.preventDefault(); press(); });
+    dynBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); useDynamite(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
+      if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowDown') {
+        if (state === 'shop' || state === 'over') return;
+        e.preventDefault(); press();
+      } else if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowUp') {
+        e.preventDefault(); useDynamite();
+      }
+    });
 
-    total = 0; level = 1; makeLevel(); state = 'ready';
+    level = 1; money = 0; shownMoney = 0; dyn = 0; buffs = {}; nextBuffs = {}; msg = null;
+    setupLevel(); hud(); updateDyn();
     requestAnimationFrame(loop);
-    GH.overlay(area, '<h2>⛏️ Đào Vàng</h2><p>Chạm hoặc bấm Space để thả móc gắp vàng.<br>Đủ điểm mục tiêu trước khi hết 60 giây!</p>', 'Bắt đầu', start);
+    GH.overlay(area, '<h2>⛏️ Đào Vàng</h2><p>Móc câu tự lắc qua lại — bấm vào màn chơi (hoặc <b>Space</b>) để <b>thả móc</b>.<br>Vàng to đáng tiền nhưng kéo chậm, đá thì rẻ. Kim cương nhẹ mà giá cao!<br>Gom đủ <b>tiền mục tiêu</b> trong 60 giây để qua màn và ghé <b>cửa hàng</b>.</p>', 'Bắt đầu', start);
   </script>
 </body>
 </html>

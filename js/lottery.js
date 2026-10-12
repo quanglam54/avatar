@@ -6,9 +6,9 @@ const LOTTO = (() => {
   const PRICE = 10000, MAX_DRAW = 20, PICK = 6, MAXN = 45;
   const PRIZES = [
     { k: 6, name: 'JACKPOT', amt: 12000000000 },
-    { k: 5, name: 'Giải Nhất', amt: 10000000 },
-    { k: 4, name: 'Giải Nhì', amt: 300000 },
-    { k: 3, name: 'Giải Ba', amt: 30000 },
+    { k: 5, name: 'Giải Nhất', amt: 3000000000 },
+    { k: 4, name: 'Giải Nhì', amt: 300000000 },
+    { k: 3, name: 'Giải Ba', amt: 50000000 },
   ];
   const fmt = (n) => Number(n).toLocaleString('vi-VN');
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

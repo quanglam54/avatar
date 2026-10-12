@@ -66,6 +66,8 @@ const DATA = {
   ARCADE: [
     { id: 'flappy', name: 'Flappy Bird', icon: '🐤', color: '#38bdf8', div: 0.5 },
     { id: 'keobo', name: 'Bắt Bò', icon: '🐄', color: '#e03131', div: 60 },
+    { id: 'pikachu', name: 'Pikachu', icon: '⚡', color: '#f59f00', div: 150 },
+    { id: 'goldminer', name: 'Đào Vàng', icon: '⛏️', color: '#8a4b22', div: 250 },
   ],
   CROPS: {
     wheat: { name: 'Lúa mì', icon: '🌾', seed: 2, sell: 5, time: 300, xp: 4, lvl: 1, yield: 4 },
