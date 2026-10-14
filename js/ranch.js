@@ -635,6 +635,17 @@ const RANCH = (() => {
     obj(m, 1490, (c) => { if (!R().deco.flowerfence) return; for (let x = 20; x < 2980; x += 30) { c.fillStyle = '#fff'; c.fillRect(x, 1462, 6, 30); c.fillStyle = ['#ff6b6b', '#ffd43b', '#f783ac', '#da77f2'][(x / 30) % 4]; c.beginPath(); c.arc(x + 3, 1460, 7, 0, 7); c.fill(); } }, [0, 1440, 3000, 1500]);
     obj(m, 830, (c, t) => { if (R().deco.scarecrow) ART.scarecrow(c, 120, 1060, t); }, [60, 940, 180, 1070]);
     [[2850, 400, 'green'], [2900, 1100, 'fruit'], [100, 400, 'pink']].forEach(([x, y, v]) => addTree(m, x, y, v));
+    /* 🌳 lối sang Vườn Nhà · Tiệm Bánh · Bến Sông */
+    if (typeof GARDEN !== 'undefined') {
+      sobj(m, 2780, 1420, (c) => {
+        c.fillStyle = '#6b4423'; c.fillRect(2776, 1330, 8, 90);
+        c.fillStyle = '#e64980'; c.beginPath(); c.roundRect(2690, 1262, 180, 74, 12); c.fill(); c.strokeStyle = '#a61e4d'; c.lineWidth = 4; c.stroke();
+        c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '900 14px "Be Vietnam Pro", system-ui'; c.fillText('VƯỜN NHÀ ➜', 2780, 1282);
+        c.font = '800 11px "Be Vietnam Pro", system-ui'; c.fillText('Trồng cây · Trang trí', 2780, 1302); c.fillText('Tiệm bánh · Bến sông', 2780, 1318);
+      }, { l: -100, t: -166, w: 200, h: 172 });
+      col(m, 2774, 1410, 12, 10);
+      inter(m, { x: 2690, y: 1262, w: 180, h: 158, ax: 2780, ay: 1450, name: 'Sang Vườn Nhà (trồng cây ăn quả, trang trí, tiệm bánh, bến thuyền)', use: () => AV.teleport('garden', false, 330, 1235, '🌳 Sang vườn nhà…'), arrow: { x: 2780, y: 1245, text: 'Vườn nhà' } });
+    }
     edges(m);
     m.spawn = { x: 200, y: 1300 };
     m.bounds = { l: 30, t: 360, r: m.w - 30, b: m.h - 30 };

@@ -3728,6 +3728,7 @@
   function tap(e) {
     if (UI.isBlocking() || player.hidden || fade.mode) return;
     if (EDIT.on) return;
+    if (typeof GARDEN !== 'undefined' && GARDEN.tap(toWorld(e.clientX, e.clientY))) return;
     if (player.fishing && player.fishing.state === 'bite') { AV.pullRod(); return; }
     if (TABLE.seated()) { TABLE.openView(); return; }
     if (typeof CARDROOM !== 'undefined' && CARDROOM.seatedAny()) { CARDROOM.openMine(); return; }
@@ -3901,6 +3902,7 @@
   if (typeof LOTTO !== 'undefined') LOTTO.init();
   if (typeof PHONE !== 'undefined') PHONE.init();
   if (typeof RANCH !== 'undefined') RANCH.init();
+  if (typeof GARDEN !== 'undefined') GARDEN.init();
   if (typeof FARMLIFE !== 'undefined') FARMLIFE.init();
   MUSIC.init(S.settings || {});
   SOCIAL.init();

@@ -685,6 +685,18 @@ const MAPS = (() => {
     }, [WX - 115, WY - 270, WX + 115, WY + 10]);
     m.colliders.push({ x: WX - 84, y: WY - 8, w: 18, h: 10, when: womensDay }, { x: WX + 66, y: WY - 8, w: 18, h: 10, when: womensDay });
     addStreetSign(m, 3420, 1430, ['Cầu Giấy', 'Hồ Tùng Mậu']);
+    /* ----- 🌳 cổng sang Vườn Nhà · Tiệm Bánh · Bến Sông ----- */
+    if (typeof GARDEN !== 'undefined') {
+      const GX2 = 5060, GY2 = 1430;
+      sobj(m, GX2, GY2, (c) => {
+        c.fillStyle = '#6b4423'; c.fillRect(GX2 - 66, GY2 - 110, 10, 110); c.fillRect(GX2 + 56, GY2 - 110, 10, 110);
+        c.fillStyle = '#e64980'; c.beginPath(); c.roundRect(GX2 - 92, GY2 - 170, 184, 66, 12); c.fill(); c.strokeStyle = '#a61e4d'; c.lineWidth = 4; c.stroke();
+        c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '900 14px "Be Vietnam Pro", system-ui'; c.fillText('🌳 VƯỜN NHÀ ➜', GX2, GY2 - 150);
+        c.font = '800 11px "Be Vietnam Pro", system-ui'; c.fillText('Tiệm bánh · Bến sông', GX2, GY2 - 128);
+        c.font = '26px system-ui, "Segoe UI Emoji"'; c.fillText('🍊🧁⛵', GX2, GY2 - 76);
+      }, { l: -100, t: -178, w: 200, h: 186 });
+      inter(m, { x: GX2 - 80, y: GY2 - 170, w: 160, h: 170, ax: GX2, ay: GY2 + 28, name: 'Sang Vườn Nhà (trồng cây, trang trí, tiệm bánh, bến thuyền)', use: () => AV.teleport('garden', false, 330, 1235, '🌳 Sang vườn nhà…'), arrow: { x: GX2, y: GY2 - 190, text: 'Vườn nhà' } });
+    }
     sobj(m, 0, 1594, (c) => ART.roseHedge(c, 0, m.w, 1594), { l: -10, t: -44, w: m.w + 20, h: 48 });
 
     m.spawn = { x: GATE, y: 1350 };
@@ -2604,7 +2616,9 @@ const MAPS = (() => {
 
   Object.defineProperty(floorN, 'hidden', { value: true });
   const ranch = () => RANCH.buildMap({ base, ground, obj, sobj, col, inter, paintGrass, addTree, edges });
-  const all = { apt_han: () => airport('han'), apt_hph: () => airport('hph'), apt_vdo: () => airport('vdo'), apt_sgn: () => airport('sgn'), apt_pqc: () => airport('pqc'), apt_dad: () => airport('dad'), ranch, mine, hospital, clinic, home2: () => floorMap(2), home3: () => floorMap(3), home4: () => floorMap(4), farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
+  const sport = () => SPORTS.buildMap({ base, ground, obj, sobj, aobj, col, inter, npc, paintGrass, paintPaved, paintStreet, addTree, addBush, addBench, addLamp, street });
+  const garden = () => GARDEN.buildMap({ base, ground, obj, sobj, aobj, col, inter, paintGrass, addTree, edges });
+  const all = { sport, garden, apt_han: () => airport('han'), apt_hph: () => airport('hph'), apt_vdo: () => airport('vdo'), apt_sgn: () => airport('sgn'), apt_pqc: () => airport('pqc'), apt_dad: () => airport('dad'), ranch, mine, hospital, clinic, home2: () => floorMap(2), home3: () => floorMap(3), home4: () => floorMap(4), farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
   // 🍜 bên trong các quán ăn / cà phê ở phố trước nông trại (js/eatery.js)
   DATA.EATERIES.forEach((e) => { all['eat_' + e.id] = () => EATERY.buildMap({ base, ground, obj, sobj, aobj, col, inter, npc }, e.id); });
   Object.defineProperty(all, 'moveGroup', { value: moveGroup, enumerable: false });

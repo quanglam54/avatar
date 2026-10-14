@@ -95,7 +95,12 @@
 
     const rnd = (a, b) => a + Math.random() * (b - a);
     const rint = (a, b) => Math.floor(rnd(a, b + 1));
-    const goalFor = (lv) => (lv <= GOALS.length ? GOALS[lv - 1] : GOALS[GOALS.length - 1] + (lv - GOALS.length) * 2300);
+    function goalFor(lv) {
+      if (lv <= GOALS.length) return GOALS[lv - 1];
+      let g = GOALS[GOALS.length - 1], inc = 2041;
+      for (let k = GOALS.length + 1; k <= lv; k++) { inc += 250; g += inc; }
+      return g;
+    }
     const fmtMoney = (v) => '$' + Math.round(v).toLocaleString('vi-VN');
 
     /* ---------- Âm thanh ---------- */
@@ -173,29 +178,38 @@
     function genLevel(lv) {
       items = [];
       const need = goalFor(lv) - (lv > 1 ? goalFor(lv - 1) : 0);
-      const add = (type, n, ymin, ymax) => { for (let i = 0; i < n; i++) place(type, ymin, ymax); };
-      if (lv >= 3 && Math.random() < 0.45 + lv * 0.06) add('goldXL', lv >= 7 ? 2 : 1, 420, H);
-      add('goldL', Math.min(4, 1 + Math.floor(lv / 2)), 340, H);
-      add('rockL', Math.min(4, 1 + rint(0, 1) + Math.floor(lv / 3)), 230, 520);
-      if (lv >= 4) add('tnt', rint(1, 2), 250, 520);
-      add('goldM', 2 + rint(0, 2), 230, 520);
-      add('rockS', 2 + rint(0, 2), 180, 480);
-      if (lv >= 2) add('diamond', Math.min(5, lv - 1 + rint(0, 1)), 330, H);
-      add('bag', 1 + rint(0, 2), 190, 540);
-      add('goldS', 3 + rint(0, 2), 180, 460);
-      if (lv >= 2) { add('skull', rint(0, 1) + (lv >= 4 ? 1 : 0), 200, 540); add('bone', rint(1, 2), 200, 540); }
+      const budget = need * (lv <= 2 ? 2.1 : Math.max(1.25, 1.65 - lv * 0.04)) + 250;
+      const DEPTH = {
+        goldS: [180, 460], goldM: [230, 520], goldL: [340, H], goldXL: [420, H],
+        diamond: [330, H], bag: [190, 540], rockS: [180, 480], rockL: [230, 520],
+        skull: [200, 540], bone: [200, 540], tnt: [250, 520],
+      };
+      let total = 0;
+      const add = (type, n) => { for (let i = 0; i < n; i++) { const it = place(type, ...DEPTH[type]); if (it) total += estValue(it); } };
+      /* vật cản + đồ rẻ */
+      add('rockL', Math.min(5, 1 + rint(0, 1) + Math.floor(lv / 3)));
+      add('rockS', 2 + rint(0, 2));
+      if (lv >= 4) add('tnt', rint(1, 2));
+      if (lv >= 2) { add('skull', rint(0, 1) + (lv >= 4 ? 1 : 0)); add('bone', rint(1, 2)); }
       if (lv >= 3) {
         const n = Math.min(4, lv - 2);
         for (let i = 0; i < n; i++) {
-          const y = rnd(210, 520), x = rnd(120, W - 120);
-          items.push(newItem(Math.random() < 0.35 + lv * 0.05 ? 'moleD' : 'mole', x, y));
+          const it = newItem(Math.random() < 0.3 + lv * 0.04 ? 'moleD' : 'mole', rnd(120, W - 120), rnd(210, 520));
+          items.push(it); total += estValue(it);
         }
       }
-      let total = items.reduce((s, it) => s + estValue(it), 0), guard = 0;
-      while (total < need * 1.9 && guard++ < 40) {
-        const pick = lv >= 2 && Math.random() < 0.45 ? 'diamond' : (Math.random() < 0.6 ? 'goldL' : 'goldM');
-        const it = place(pick, pick === 'goldM' ? 240 : 320, H);
-        if (it) total += estValue(it);
+      /* đồ giá trị: thêm đến khi đủ ngân sách của màn */
+      add('goldL', 1); add('goldM', 2); add('goldS', 2); add('bag', 1);
+      const weights = {
+        goldS: 3, goldM: 3, goldL: 2 + lv * 0.15, bag: 1,
+        goldXL: lv >= 3 ? 0.4 + lv * 0.1 : 0, diamond: lv >= 2 ? Math.min(2.2, 0.4 + lv * 0.15) : 0,
+      };
+      const sum = Object.values(weights).reduce((a, b) => a + b, 0);
+      let guard = 0;
+      while (total < budget && guard++ < 60) {
+        let r = Math.random() * sum, pick = 'goldM';
+        for (const [k, w] of Object.entries(weights)) { if ((r -= w) < 0) { pick = k; break; } }
+        add(pick, 1);
       }
     }
 

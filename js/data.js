@@ -425,6 +425,7 @@ DATA.ZONES = [
   { id: 'school', name: 'Trường học', icon: '🏫', x: 48, y: 86, desc: 'Đố vui tiếng Anh' },
   { id: 'mine', name: 'Mỏ Quảng Ninh', icon: '⛏️', x: 93, y: 40, desc: 'Đào quặng, đá quý, đánh quái · Lò rèn' },
   { id: 'race', name: 'Khu Đua Xe', icon: '🏎️', x: 8, y: 48, desc: 'Đua xe 3D hoạt hình, drift ăn xu' },
+  { id: 'sport', name: 'Khu Thể Thao', icon: '🏸', x: 41, y: 68, desc: 'Cầu lông, bóng rổ, golf…' },
 ];
 
 DATA.FISH = [
