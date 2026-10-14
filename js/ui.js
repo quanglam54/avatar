@@ -119,6 +119,7 @@ const UI = (() => {
     let name = S.name;
     const p = panel(isNew ? '✨ Tạo nhân vật của bạn' : '👕 Tủ đồ', '', { wide: true, locked: isNew });
     if (!isNew && typeof WARDROBE !== 'undefined') p.el.querySelector('header h3').insertAdjacentHTML('afterend', '<button class="btn small wd-mine-btn" type="button">✨ Đồ của tôi</button>'), p.el.querySelector('.wd-mine-btn').onclick = () => { p.close(); WARDROBE.mine(); };
+    if (!isNew && typeof CLOSET !== 'undefined') { p.el.querySelector('header h3').insertAdjacentHTML('afterend', '<button class="btn small cl-btn" type="button">🎒 Đồ đã mua</button>'); p.el.querySelector('.cl-btn').onclick = () => { p.close(); CLOSET.open(); }; }
     let timer;
     /** Chip chọn món pixel đã sở hữu (chỉ hiện khi đã mua ít nhất 1 món loại đó) */
     const pxChips = (key, label, ownKey, names, none) => {
@@ -140,7 +141,8 @@ const UI = (() => {
           <div class="opts">
             <label>Nhân vật</label>${chips('avatar', DATA.AVATARS, (ART.avatarOf(look) || { id: 'custom' }).id)}
             ${ART.avatarOf(look) && (DATA.PAINT_HAIRS[ART.avatarOf(look).id] || []).length > 1 ? `<label>Kiểu tóc (nhân vật vẽ)</label>${chips('phair', DATA.PAINT_HAIRS[ART.avatarOf(look).id], look.phair || '')}` : ''}
-            <small class="muted">${ART.avatarOf(look) ? 'Nhân vật vẽ mặc sẵn đồ — sắp có thêm bộ đồ ở Tiệm Thời Trang. Chọn 🎨 Tự phối đồ để dùng đồ kiểu cũ.' : 'Đang tự phối đồ: chỉnh màu da, tóc, áo, quần bên dưới'}</small>
+            <small class="muted">${ART.avatarOf(look) ? 'Nhân vật vẽ: quần áo ✨ Thời trang 4 mùa mặc được ngay. Mũ, trang sức, kiểu áo, bộ đồ đã mua chỉ hiện khi chọn 🎨 Tự phối đồ.' : 'Đang tự phối đồ: chỉnh màu da, tóc, áo, quần — đồ đã mua ở bên dưới'}</small>
+            ${ART.avatarOf(look) && !isNew && ((S.owned.hats || []).length > 1 || (S.owned.accs || []).length > 1 || (S.owned.shirtStyles || []).length > 1 || (S.owned.outfits || []).length) ? `<div class="cl-own"><b>🎒 Bạn đã mua ${(S.owned.hats || []).length - 1 + Math.max(0, (S.owned.accs || []).length - 1) + (S.owned.shirtStyles || []).length - 1 + (S.owned.outfits || []).length} món mũ / trang sức / áo / bộ đồ</b><button class="btn small" type="button" data-tocustom>🎨 Mặc đồ đã mua</button></div>` : ''}
             <div class="vec-opts" ${ART.avatarOf(look) ? 'hidden' : ''}>
             <label>Màu da</label>${swatches('skin', DATA.SKINS, look.skin)}
             <label>Kiểu tóc</label>${chips('hair', DATA.HAIR_STYLES, look.hair)}
@@ -168,6 +170,8 @@ const UI = (() => {
         name = p.body.querySelector('#nameInput').value;
         render();
       });
+      const tc = p.body.querySelector('[data-tocustom]');
+      if (tc) tc.onclick = () => { look.avatar = 'custom'; name = p.body.querySelector('#nameInput').value; render(); };
       const rnd = p.body.querySelector('[data-random]');
       if (rnd) rnd.onclick = () => {
         const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -1638,6 +1642,7 @@ const UI = (() => {
     const items = [
       ['bag', '🎒', 'Túi đồ', inventory],
       ['wear', '👕', 'Tủ đồ', () => characterEditor(false)],
+      ['closet', '🎒', 'Đồ đã mua', () => (typeof CLOSET !== 'undefined' ? CLOSET.open() : characterEditor(false))],
       ['mywear', '✨', 'Đồ của tôi', () => WARDROBE.mine()],
       ['map', '🗺️', 'Bản đồ', () => cityMap(false)],
       ['quest', '📜', 'Nhiệm vụ', questsPanel],

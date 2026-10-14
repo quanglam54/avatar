@@ -3483,12 +3483,12 @@
     const charDraw = (x, y, look, o, key) => list.push({ y, key, ent: true, bb: [x - 75, y - 200, x + 75, y + 16], draw: () => {
       const boat = o && o.boat, swim = !boat && map.id === 'cherry' && CAMP.inPool(x, y);
       if (!boat && !swim) return drawChar(x, y, look, o, key);
-      if (boat) CAMP.boat(g, x, y, clock);
+      if (boat) (boat === 'swan' && typeof HOTAY !== 'undefined' ? HOTAY.swanBack : CAMP.boat)(g, x, y, clock);
       const sink = boat ? 18 : 30;
       g.save(); g.beginPath(); g.rect(x - 100, y - 400, 200, 400 - (boat ? 10 : 6)); g.clip();
       drawChar(x, y + sink, look, { ...o, moving: false }, key);
       g.restore();
-      if (boat) CAMP.boatFront(g, x, y, clock);
+      if (boat) (boat === 'swan' && typeof HOTAY !== 'undefined' ? HOTAY.swanFront : CAMP.boatFront)(g, x, y, clock);
       else { g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 2.5; g.beginPath(); g.ellipse(x, y - 6, 26 + Math.sin(clock * 4) * 3, 7, 0, 0, Math.PI * 2); g.stroke(); }
     } });
     map.npcs.forEach((n) => {
@@ -3551,7 +3551,7 @@
     } else list.forEach((o) => o.draw(g, clock));
     if (EDIT.on && map.movables) drawEdit(g);
     if (!map.indoor && typeof SEASON !== 'undefined') { const VW2 = W / ZOOM, VH2 = H / ZOOM; g.fillStyle = SEASON.now().tint; g.fillRect(cam.x - VW2 / 2 - 10, cam.y - VH2 / 2 - 10, VW2 + 20, VH2 + 20); }
-    if (AV.hw() && !map.indoor) {
+    if (AV.hw() && !map.indoor && !map.solemn) {
       const vw = W / ZOOM, vh = H / ZOOM;
       if (map.hz > 0) ART.hwBunting(g, Math.max(0, cam.x - vw / 2 - 60), Math.min(map.w, cam.x + vw / 2 + 60), map.hz - 40, clock);
       ART.hwSky(g, cam.x, cam.y, vw, vh, clock, map.hz);
@@ -3904,6 +3904,8 @@
   if (typeof RANCH !== 'undefined') RANCH.init();
   if (typeof GARDEN !== 'undefined') GARDEN.init();
   if (typeof HOTAY !== 'undefined') HOTAY.init();
+  if (typeof BADINH !== 'undefined') BADINH.init();
+  if (typeof CLOSET !== 'undefined') CLOSET.patch();
   if (typeof FARMLIFE !== 'undefined') FARMLIFE.init();
   MUSIC.init(S.settings || {});
   SOCIAL.init();

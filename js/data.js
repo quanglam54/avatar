@@ -427,6 +427,7 @@ DATA.ZONES = [
   { id: 'race', name: 'Khu Đua Xe', icon: '🏎️', x: 8, y: 48, desc: 'Đua xe 3D hoạt hình, drift ăn xu' },
   { id: 'sport', name: 'Khu Thể Thao', icon: '🏸', x: 41, y: 68, desc: 'Cầu lông, bóng rổ, golf…' },
   { id: 'hotay', name: 'Hồ Tây', icon: '🌅', x: 22, y: 91, desc: 'Pháo hoa drone · cực quang' },
+  { id: 'badinh', name: 'Quảng trường Ba Đình', icon: '🇻🇳', x: 36, y: 40, desc: 'Lăng Bác · lễ thượng cờ' },
 ];
 
 DATA.FISH = [

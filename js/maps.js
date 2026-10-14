@@ -2572,7 +2572,7 @@ const MAPS = (() => {
 
   /** Trang trí Halloween: chỉ hiện khi sự kiện đang diễn ra (vẽ nhưng tự ẩn khi tắt) */
   function halloween(m) {
-    if (m.indoor) return;
+    if (m.indoor || m.solemn) return;
     const r = ART.srand([...m.id].reduce((a, c) => a * 31 + c.charCodeAt(0), 17) % 2147483646);
     const free = (x, y, pad) => !m.colliders.some((c) => x > c.x - pad && x < c.x + c.w + pad && y > c.y - pad && y < c.y + c.h + pad)
       && !m.inter.some((o) => x > o.x - 20 && x < o.x + o.w + 20 && y > o.y - 10 && y < o.y + o.h + 30)
@@ -2619,7 +2619,8 @@ const MAPS = (() => {
   const sport = () => SPORTS.buildMap({ base, ground, obj, sobj, aobj, col, inter, npc, paintGrass, paintPaved, paintStreet, addTree, addBush, addBench, addLamp, street });
   const garden = () => GARDEN.buildMap({ base, ground, obj, sobj, aobj, col, inter, paintGrass, addTree, edges });
   const hotay = () => HOTAY.buildMap({ base, ground, obj, sobj, aobj, col, inter, npc, paintGrass, paintStreet, addTree, addBench, addLamp, street });
-  const all = { sport, garden, hotay, apt_han: () => airport('han'), apt_hph: () => airport('hph'), apt_vdo: () => airport('vdo'), apt_sgn: () => airport('sgn'), apt_pqc: () => airport('pqc'), apt_dad: () => airport('dad'), ranch, mine, hospital, clinic, home2: () => floorMap(2), home3: () => floorMap(3), home4: () => floorMap(4), farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
+  const badinh = () => BADINH.buildMap({ base, ground, obj, sobj, aobj, col, inter, npc, paintGrass, paintStreet, addTree, street });
+  const all = { sport, garden, hotay, badinh, apt_han: () => airport('han'), apt_hph: () => airport('hph'), apt_vdo: () => airport('vdo'), apt_sgn: () => airport('sgn'), apt_pqc: () => airport('pqc'), apt_dad: () => airport('dad'), ranch, mine, hospital, clinic, home2: () => floorMap(2), home3: () => floorMap(3), home4: () => floorMap(4), farm, town, mall, fun, casino, arena, horse, club, sky, concert, cherry, wc, cgv, boxing, park, beach, school, classroom, home, race };
   // 🍜 bên trong các quán ăn / cà phê ở phố trước nông trại (js/eatery.js)
   DATA.EATERIES.forEach((e) => { all['eat_' + e.id] = () => EATERY.buildMap({ base, ground, obj, sobj, aobj, col, inter, npc }, e.id); });
   Object.defineProperty(all, 'moveGroup', { value: moveGroup, enumerable: false });
