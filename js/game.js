@@ -3903,6 +3903,7 @@
   if (typeof PHONE !== 'undefined') PHONE.init();
   if (typeof RANCH !== 'undefined') RANCH.init();
   if (typeof GARDEN !== 'undefined') GARDEN.init();
+  if (typeof HOTAY !== 'undefined') HOTAY.init();
   if (typeof FARMLIFE !== 'undefined') FARMLIFE.init();
   MUSIC.init(S.settings || {});
   SOCIAL.init();
