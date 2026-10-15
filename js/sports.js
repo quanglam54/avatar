@@ -442,295 +442,618 @@ const SPORTS = (() => {
 
 
   /* ======================================================================
-   * ⛳ GOLF — kiểu Golf Clash: sân 3D nhìn từ sau bóng, chọn điểm rơi, thanh lực chính xác, gió
+   * 🏓 BÓNG BÀN kiểu "Ping Pong Go": vợt to nằm dưới ngón tay, kéo tới đâu vợt theo tới đó,
+   * bóng chạm vợt là tự đánh. Vuốt nhanh lúc chạm bóng = đánh mạnh / chéo góc.
    * ==================================================================== */
-  const GHOLES = [
-    { par: 4, path: [[0, 0], [0, 170], [35, 270], [55, 350]], hw: 20, green: [58, 360, 16], sand: [[24, 200, 13, 7], [86, 345, 9, 6], [36, 378, 10, 5]], water: [] },
-    { par: 3, path: [[0, 0], [0, 168]], hw: 15, green: [0, 170, 15], sand: [[-21, 170, 7, 9], [20, 178, 7, 6]], water: [[0, 118, 30, 14]] },
-    { par: 5, path: [[0, 0], [-25, 200], [10, 380], [0, 470]], hw: 22, green: [0, 480, 17], sand: [[-55, 210, 12, 7], [32, 395, 12, 7], [-16, 492, 9, 5]], water: [[-48, 260, 26, 16], [30, 300, 18, 11]] },
-  ];
-  const CLUBS = [{ n: 'Gậy gạt (Putter)', max: 30, a: 0, roll: 0 }, { n: 'Gậy kỹ thuật (Wedge)', max: 95, a: 46, roll: 0.03 }, { n: 'Gậy sắt 7', max: 155, a: 30, roll: 0.07 }, { n: 'Gậy gỗ 3', max: 205, a: 20, roll: 0.11 }, { n: 'Gậy Driver', max: 245, a: 15, roll: 0.14 }];
-  function makeGolf(diff) {
-    const G = 9.8, cam = { x: 0, y: 60, z: -25, yaw: 0, pitch: 0.8, F: 600, W: 1280, H: 720, cy: 0.5 };
-    let hi = 0, strokes = 0, phase = 'aim', t = 0, wait = 0, meter = null, drag = false, tree = null;
-    const cards = [], aiCards = [], msgs = [];
-    const say = (text, color = '#fff', y = 0.4) => msgs.push({ text, color, y, t: 0 });
-    const ball = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, roll: null, trail: [] };
-    let H, centerline, trees, target = { x: 0, z: 100 }, wind = { a: 0, s: 0 }, lastSafe = [0, 0], camT = null;
-    const dirTo = (a, b) => Math.atan2(b[0] - a[0], b[1] - a[1]);
-    /* ---------- địa hình ---------- */
-    function segDist(px, pz, a, b) { const vx = b[0] - a[0], vz = b[1] - a[1], l2 = vx * vx + vz * vz, k = Math.max(0, Math.min(1, ((px - a[0]) * vx + (pz - a[1]) * vz) / l2)); return Math.hypot(px - a[0] - vx * k, pz - a[1] - vz * k); }
-    const inEll = (x, z, e) => ((x - e[0]) / e[2]) ** 2 + ((z - e[1]) / e[3]) ** 2 <= 1;
-    function terrain(x, z) {
-      if (Math.hypot(x - H.green[0], z - H.green[1]) <= H.green[2]) return 'green';
-      if (H.water.some((e) => inEll(x, z, e))) return 'water';
-      if (H.sand.some((e) => inEll(x, z, e))) return 'sand';
-      if (Math.abs(x) < 5 && Math.abs(z) < 6) return 'tee';
-      let d = 1e9; for (let i = 0; i < H.path.length - 1; i++) d = Math.min(d, segDist(x, z, H.path[i], H.path[i + 1]));
-      if (d <= H.hw && z > 25) return 'fairway';
-      if (d > 85) return 'ob';
-      return 'rough';
-    }
-    function load() {
-      H = GHOLES[hi]; strokes = 0; phase = 'aim';
-      ball.x = 0; ball.y = 0; ball.z = 0; ball.trail = []; lastSafe = [0, 0];
-      wind = { a: Math.random() * Math.PI * 2, s: Math.round(Math.random() * (1.5 + diff * 1.5) * 10) / 10 };
-      const r = srand((hi + 1) * 977); trees = [];
-      for (let i = 0; i < 260 && trees.length < 90; i++) {
-        const z = -30 + r() * (H.green[1] + 80), x = (r() - 0.5) * 260;
-        let d = 1e9; for (let k = 0; k < H.path.length - 1; k++) d = Math.min(d, segDist(x, z, H.path[k], H.path[k + 1]));
-        if (d > H.hw + 12 && Math.hypot(x - H.green[0], z - H.green[1]) > H.green[2] + 14 && !H.water.some((e) => inEll(x, z, [e[0], e[1], e[2] + 6, e[3] + 6]))) trees.push({ x, z, s: 8 + r() * 7, c: r() });
+  function makePingPong(diff) {
+    const L = 2.74, W = 1.525, NZ = L / 2, SURF = 0.76, NETH = 0.1525, G = 9.8, BR = 0.022, PAD_Y = SURF + 0.13, PR = 0.17;
+    const cam = makeCam({ y: 1.6, z: -1.3, pitch: 0.32, f: 1.1, cy: 0.45 });
+    const me = { x: 0, z: -0.15, tx: 0, tz: -0.15, vx: 0, vz: 0, swing: 0 };
+    const ai = { x: 0, z: L + 0.18, tx: 0, swing: 0, react: 0, err: 0 };
+    const b = { x: 0, y: 1, z: 0, vx: 0, vy: 0, vz: 0, hitter: -1, bounces: 0, live: false, trail: [] };
+    const sc = [0, 0], msgs = [], fx = [];
+    let server = 0, servesLeft = 2, phase = 'serve', wait = 1, t = 0, rally = 0, bestRally = 0, lastW = 0, held = false;
+    const say = (text, color = '#fff', y = 0.3) => msgs.push({ text, color, y, t: 0 });
+    const onTable = (x, z) => Math.abs(x) <= W / 2 && z >= 0 && z <= L;
+    /** bóng bay parabol tới (tx, tz) sau T giây, tự kéo dài nếu sát lưới */
+    function shoot(w, tx, tz, T) {
+      for (let i = 0; i < 6; i++) {
+        const vx = (tx - b.x) / T, vz = (tz - b.z) / T, vy = (SURF + BR - b.y + 0.5 * G * T * T) / T;
+        const tn = (NZ - b.z) / vz, yn = b.y + vy * tn - 0.5 * G * tn * tn;
+        if (tn <= 0 || yn > SURF + NETH + 0.05 || i === 5) { b.vx = vx; b.vy = vy; b.vz = vz; break; }
+        T *= 1.12;
       }
-      defaultTarget(); frame(true);
-      say(`Lỗ ${hi + 1}/3 · Par ${H.par}`, '#fff3bf', 0.35);
+      b.hitter = w; b.bounces = 0; b.live = true; b.trail = []; rally++;
+      (w === 0 ? me : ai).swing = 0.25;
+      fx.push({ x: b.x, y: b.y, z: b.z, t: 0 });
+      if (w === 0) { ai.react = [0.25, 0.14, 0.06][diff]; ai.err = (Math.random() * 2 - 1) * [0.22, 0.12, 0.05][diff]; }
     }
-    const pin = () => [H.green[0], H.green[1]];
-    const onGreen = () => terrain(ball.x, ball.z) === 'green';
-    const lie = () => terrain(ball.x, ball.z);
-    const lieK = () => ({ sand: 0.6, rough: 0.85 })[lie()] || 1;
-    function club() {
-      if (onGreen()) return CLUBS[0];
-      const d = Math.hypot(target.x - ball.x, target.z - ball.z) / lieK();
-      return CLUBS.slice(1).find((c) => c.max >= d) || CLUBS[CLUBS.length - 1];
+    function myHit() {
+      const off = Math.max(-1, Math.min(1, (b.x - me.x) / PR));
+      const strong = me.vz > 1.6 || Math.abs(me.vx) > 2.2;
+      let tx = Math.max(-0.7, Math.min(0.7, me.x * 0.35 + off * 0.32 + me.vx * 0.08));
+      if (Math.abs(tx) > 0.66 && Math.random() < 0.5) tx *= 1.08; // góc quá sát mép có thể ra ngoài
+      const tz = strong ? L - 0.18 - Math.random() * 0.25 : NZ + 0.45 + Math.random() * 0.75;
+      b.z = Math.max(b.z, me.z); b.y = Math.max(b.y, SURF + 0.06);
+      shoot(0, tx, tz, strong ? 0.42 : 0.66);
+      if (strong) say('💥 ĐẬP!', '#ffd43b', 0.42);
+      if (navigator.vibrate) try { navigator.vibrate(12); } catch (e) { /* bỏ qua */ }
     }
-    function defaultTarget() {
-      const p = pin(), d = Math.hypot(p[0] - ball.x, p[1] - ball.z);
-      if (onGreen()) { target = { x: p[0], z: p[1] }; return; }
-      // đi dọc đường giữa fairway: điểm xa nhất trong tầm gậy driver
-      const max = 235 * lieK();
-      if (d <= max) { target = { x: p[0], z: p[1] }; return; }
-      let best = null;
-      for (let i = 0; i < H.path.length - 1; i++) for (let k = 0; k <= 20; k++) { const a = H.path[i], b = H.path[i + 1], x = a[0] + (b[0] - a[0]) * k / 20, z = a[1] + (b[1] - a[1]) * k / 20, dd = Math.hypot(x - ball.x, z - ball.z); if (dd <= max && z > ball.z && (!best || z > best.z)) best = { x, z }; }
-      target = best || { x: ball.x + (p[0] - ball.x) / d * max, z: ball.z + (p[1] - ball.z) / d * max };
+    function aiHit() {
+      const err = Math.random() < [0.18, 0.1, 0.05][diff];
+      const away = me.x > 0 ? -1 : 1, r = (a, c) => a + Math.random() * (c - a);
+      let tx = err ? away * r(0.8, 1.0) : (Math.random() < 0.3 + diff * 0.2 ? away * r(0.25, 0.6) : r(-0.6, 0.6));
+      const tz = err && Math.random() < 0.4 ? -r(0.1, 0.4) : r(0.25, NZ - 0.3);
+      b.z = Math.min(b.z, ai.z); b.y = Math.max(b.y, SURF + 0.06);
+      shoot(1, tx, tz, [0.85, 0.72, 0.58][diff] * (diff === 2 && Math.random() < 0.3 ? 0.78 : 1));
     }
-    /* ---------- camera ---------- */
-    function frame(snap) {
-      const putt = onGreen() || phase === 'putt';
-      const tx = target.x, tz = target.z, d = Math.max(putt ? 6 : 40, Math.hypot(tx - ball.x, tz - ball.z));
-      const yaw = Math.atan2(tx - ball.x, tz - ball.z), back = putt ? 3 + d * 0.15 : 22, h = putt ? 2.5 + d * 0.35 : 26 + d * 0.32;
-      const a1 = Math.atan2(h, back), a2 = Math.atan2(h, back + d + (putt ? 2 : 25));
-      const c = { yaw, x: ball.x - Math.sin(yaw) * back, z: ball.z - Math.cos(yaw) * back, y: h, pitch: (a1 + a2) / 2, half: (a1 - a2) / 2 };
-      camT = c; if (snap) Object.assign(cam, c);
+    function serve(w) {
+      phase = 'play'; rally = 0;
+      const p = w === 0 ? me : ai;
+      b.x = p.x; b.z = w === 0 ? 0.05 : L - 0.05; b.y = SURF + 0.22;
+      const tx = (Math.random() - 0.5) * 0.9;
+      shoot(w, tx, w === 0 ? NZ + 0.5 + Math.random() * 0.6 : NZ - 0.5 - Math.random() * 0.5, 0.75);
     }
-    function camStep(dt) {
-      if (!camT) return;
-      const k = Math.min(1, dt * 3);
-      let dy = camT.yaw - cam.yaw; while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
-      cam.yaw += dy * k; ['x', 'y', 'z', 'pitch', 'half'].forEach((p) => { cam[p] = (cam[p] ?? camT[p]) + (camT[p] - (cam[p] ?? camT[p])) * k; });
-    }
-    const toC = (x, y, z) => {
-      const dx = x - cam.x, dy = y - cam.y, dz = z - cam.z, cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
-      const X = dx * cy - dz * sy, Dz = dx * sy + dz * cy, c = Math.cos(cam.pitch), s = Math.sin(cam.pitch);
-      return { X, Y: dy * c + Dz * s, Z: -dy * s + Dz * c };
-    };
-    const proj = (C) => { const k = cam.F / Math.max(0.05, C.Z); return { x: cam.W / 2 + C.X * k, y: cam.H * cam.cy - C.Y * k, k }; };
-    const P = (x, y, z) => proj(toC(x, y, z));
-    function poly(g, pts, fill) {
-      // cắt theo mặt phẳng gần (Z > 0.5) rồi chiếu
-      const cs = pts.map(([x, z, y]) => toC(x, y || 0, z)), out = [], N = 0.5;
-      for (let i = 0; i < cs.length; i++) {
-        const a = cs[i], b = cs[(i + 1) % cs.length], ia = a.Z > N, ib = b.Z > N;
-        if (ia) out.push(a);
-        if (ia !== ib) { const k = (N - a.Z) / (b.Z - a.Z); out.push({ X: a.X + (b.X - a.X) * k, Y: a.Y + (b.Y - a.Y) * k, Z: N }); }
-      }
-      if (out.length < 3) return;
-      g.beginPath(); out.forEach((c, i) => { const p = proj(c); if (i) g.lineTo(p.x, p.y); else g.moveTo(p.x, p.y); }); g.closePath(); g.fillStyle = fill; g.fill();
-    }
-    const ellPts = (e, n = 28) => Array.from({ length: n }, (_, i) => [e[0] + Math.cos(i / n * Math.PI * 2) * e[2], e[1] + Math.sin(i / n * Math.PI * 2) * e[3]]);
-    function corridor(hw) {
-      const L = [], R = [];
-      for (let i = 0; i < H.path.length - 1; i++) {
-        const a = H.path[i], b = H.path[i + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.ceil(len / 10);
-        for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, z = a[1] + (b[1] - a[1]) * k / n; if (z < 25) continue; const nx = (b[1] - a[1]) / len, nz = -(b[0] - a[0]) / len, w = hw * (0.85 + 0.15 * Math.sin(z * 0.05)); L.push([x - nx * w, z - nz * w]); R.push([x + nx * w, z + nz * w]); }
-      }
-      return L.concat(R.reverse());
-    }
-    /* ---------- đánh bóng ---------- */
-    function shoot(err) {
-      const c = club(), d0 = Math.hypot(target.x - ball.x, target.z - ball.z), dir = Math.atan2(target.x - ball.x, target.z - ball.z);
-      strokes++; lastSafe = [ball.x, ball.z];
-      if (c.max === 30) { // gạt bóng: lăn trên green
-        const d = Math.min(30, d0) * (1 + err * 0.12), v = Math.sqrt(2 * 1.3 * d);
-        ball.roll = { vx: Math.sin(dir + err * 0.05) * v, vz: Math.cos(dir + err * 0.05) * v, a: 1.3 };
-        phase = 'roll'; return;
-      }
-      const perfect = Math.abs(err) < 0.12;
-      if (perfect) say('🎯 HOÀN HẢO!', '#69db7c', 0.3); else if (Math.abs(err) > 0.6) say(err > 0 ? 'Lệch phải!' : 'Lệch trái!', '#ffa8a8', 0.3);
-      const dist = Math.min(d0, c.max * lieK()) * (perfect ? 1 : 1 - Math.abs(err) * 0.08);
-      const side = perfect ? 0 : err * (8 + dist * 0.09);
-      const tx = ball.x + Math.sin(dir) * dist + Math.cos(dir) * side, tz = ball.z + Math.cos(dir) * dist - Math.sin(dir) * side;
-      const th = c.a * Math.PI / 180, v = Math.sqrt(G * dist / Math.sin(2 * th)), T = 2 * v * Math.sin(th) / G;
-      const ux = (tx - ball.x) / dist, uz = (tz - ball.z) / dist;
-      ball.vx = ux * v * Math.cos(th) + Math.sin(wind.a) * wind.s * 0.55; ball.vz = uz * v * Math.cos(th) + Math.cos(wind.a) * wind.s * 0.55; ball.vy = v * Math.sin(th);
-      ball.club = c; ball.T = T; ball.trail = []; phase = 'fly'; tree = null;
-      camT = { ...camT };
-    }
-    function settle() {
-      const tr = lie();
-      if (tr === 'water' || tr === 'ob') { strokes++; say(tr === 'water' ? '💦 Rơi xuống hồ! +1 gậy' : '🌲 Bóng ra ngoài sân! +1 gậy', '#a5d8ff', 0.35); ball.x = lastSafe[0]; ball.z = lastSafe[1]; ball.y = 0; }
-      else if (tr === 'sand') say('🏖️ Rơi vào hố cát', '#ffe8a3', 0.35);
-      if (strokes >= 10) { holeDone(true); return; }
-      phase = 'aim'; defaultTarget(); frame(false);
-    }
-    function holeDone(pick) {
-      const d = strokes - H.par;
-      cards.push(strokes);
-      const ai = Math.max(2, H.par + [[0, 1, 1, 2], [-1, 0, 0, 1], [-1, -1, 0, 0]][diff][Math.floor(Math.random() * 4)]);
-      aiCards.push(ai);
-      say(pick ? '🫳 Nhặt bóng' : strokes === 1 ? '🏆 HOLE IN ONE!!!' : d <= -2 ? '🦅 EAGLE!' : d === -1 ? '🐦 BIRDIE!' : d === 0 ? '👍 PAR' : d === 1 ? 'Bogey' : `+${d}`, d <= 0 ? '#ffe066' : '#fff', 0.32);
-      say(`🤖 Máy: ${ai} gậy`, '#ffa8a8', 0.4);
-      phase = 'next'; wait = 2.2;
+    function point(w, text) {
+      if (phase !== 'play') return;
+      sc[w]++; lastW = w; phase = 'dead'; wait = 1.2; b.live = false; bestRally = Math.max(bestRally, rally);
+      say(text, w === 0 ? '#8ce99a' : '#ffa8a8', 0.3); say(w === 0 ? '+1 cho bạn' : '+1 cho máy', '#ffe066', 0.38);
     }
     function step(dt) {
-      t += dt; camStep(dt);
-      if (meter) meter.v = Math.sin(t * (2.6 + diff * 0.6) + meter.ph);
-      if (phase === 'next') { if ((wait -= dt) <= 0) { if (hi >= GHOLES.length - 1) { const a = cards.reduce((s, v) => s + v, 0), b = aiCards.reduce((s, v) => s + v, 0); game.over = true; game.res = { win: a < b, draw: a === b, strokes: a, ai: b, par: GHOLES.reduce((s, h) => s + h.par, 0), cards }; return; } hi++; load(); } return; }
-      if (phase === 'fly') {
-        const px = ball.x, pz = ball.z;
-        ball.vy -= G * dt; ball.x += ball.vx * dt; ball.y += ball.vy * dt; ball.z += ball.vz * dt;
-        ball.trail.push([ball.x, ball.y, ball.z]); if (ball.trail.length > 60) ball.trail.shift();
-        if (ball.y < 14) { const hit = trees.find((tr) => Math.hypot(tr.x - ball.x, tr.z - ball.z) < 3 && ball.y < tr.s); if (hit) { say('🌳 Trúng cây!', '#ffa8a8', 0.35); ball.x = px; ball.z = pz; ball.vx *= -0.15; ball.vz *= -0.15; ball.vy = Math.min(ball.vy, 0); } }
-        if (ball.y <= 0) {
-          ball.y = 0; const tr = lie();
-          if (tr === 'water' || tr === 'ob') return settle();
-          const sp = Math.hypot(ball.vx, ball.vz), k = ball.club.roll * ({ fairway: 1, green: 0.5, rough: 0.35, sand: 0, tee: 1 }[tr] || 0.5);
-          const rd = Math.hypot(ball.x - lastSafe[0], ball.z - lastSafe[1]) * k, a = 3.5, v = Math.sqrt(2 * a * rd);
-          ball.roll = sp > 0.01 ? { vx: ball.vx / sp * v, vz: ball.vz / sp * v, a } : { vx: 0, vz: 0, a };
-          phase = 'roll';
+      t += dt;
+      // vợt bám ngón tay rất nhanh
+      const ox = me.x, oz = me.z;
+      me.x += (me.tx - me.x) * Math.min(1, dt * 28); me.z += (me.tz - me.z) * Math.min(1, dt * 28);
+      me.px = ox; me.pz = oz;
+      me.vx = me.vx * 0.7 + ((me.x - ox) / dt) * 0.3; me.vz = me.vz * 0.7 + ((me.z - oz) / dt) * 0.3;
+      me.swing = Math.max(0, me.swing - dt); ai.swing = Math.max(0, ai.swing - dt);
+      // máy: chạy ngang tới chỗ bóng sẽ tới
+      if (b.live && b.hitter === 0 && b.vz > 0) {
+        if (ai.react > 0) ai.react -= dt;
+        else { const tt = (ai.z - b.z) / b.vz; ai.tx = Math.max(-1.1, Math.min(1.1, b.x + b.vx * tt + ai.err)); }
+      } else ai.tx *= 0.97;
+      ai.x += Math.max(-1, Math.min(1, ai.tx - ai.x)) * Math.min(1, dt * [2.6, 3.6, 5][diff]) * 1.6;
+      if (phase === 'serve') {
+        const p = server === 0 ? me : ai;
+        b.x = p.x; b.z = server === 0 ? Math.max(0.05, me.z + 0.05) : L - 0.05; b.y = SURF + 0.2 + Math.abs(Math.sin(t * 4)) * 0.12;
+        if (server === 1 && (wait -= dt) <= 0) serve(1);
+        return;
+      }
+      if (phase === 'dead') {
+        if (b.y > 0) { b.vy -= G * dt; b.x += b.vx * dt * 0.5; b.y += b.vy * dt; b.z += b.vz * dt * 0.5; }
+        if ((wait -= dt) <= 0) {
+          const w = sc[0] > sc[1] ? 0 : 1;
+          if ((sc[w] >= 7 && sc[w] - sc[1 - w] >= 2) || sc[w] >= 11) { game.over = true; game.res = { win: w === 0, score: sc.slice(), bestRally }; return; }
+          if (--servesLeft <= 0) { server = 1 - server; servesLeft = 2; }
+          phase = 'serve'; wait = 1;
         }
         return;
       }
-      if (phase === 'roll') {
-        const r = ball.roll, tr = lie(), a = tr === 'green' ? 1.3 : tr === 'sand' ? 30 : tr === 'rough' ? 9 : r.a;
-        const sp = Math.hypot(r.vx, r.vz);
-        if (sp > 0) { const ns = Math.max(0, sp - a * dt); r.vx *= ns / sp; r.vz *= ns / sp; }
-        ball.x += r.vx * dt; ball.z += r.vz * dt;
-        const dh = Math.hypot(ball.x - H.green[0], ball.z - H.green[1]);
-        if (dh < 0.11 && sp < 2.2) { ball.y = -0.06; holeDone(false); return; }
-        if (dh < 0.11 && sp >= 2.2) say('Lướt qua lỗ!', '#fff', 0.4);
-        if (dh < 0.6 && sp < 1.2) { r.vx += (H.green[0] - ball.x) * 3 * dt; r.vz += (H.green[1] - ball.z) * 3 * dt; }
-        if (lie() === 'water' || lie() === 'ob') return settle();
-        if (Math.hypot(r.vx, r.vz) < 0.03) settle();
+      const pz = b.z, py = b.y;
+      b.vy -= G * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
+      if ((pz - NZ) * (b.z - NZ) <= 0 && Math.abs(b.x) < W / 2 + 0.15 && b.y < SURF + NETH && b.y > SURF - 0.02) { b.z = pz; b.vz *= -0.15; b.vx *= 0.3; return point(1 - b.hitter, '🥅 Chạm lưới!'); }
+      if (b.vy < 0 && b.y <= SURF + BR && py > SURF + BR - 0.01 && onTable(b.x, b.z)) {
+        const side = b.z < NZ ? 0 : 1;
+        if (b.bounces === 0 && side === b.hitter) return point(1 - b.hitter, '❌ Lỗi!');
+        b.bounces++; b.y = SURF + BR; b.vy = -b.vy * 0.86;
+        if (b.bounces >= 2) return point(b.hitter, b.hitter === 0 ? '✨ Ăn điểm!' : '😵 Không đỡ kịp!');
+      }
+      if (b.y < SURF - 0.3) return b.bounces ? point(b.hitter, b.hitter === 0 ? '✨ Ăn điểm!' : '😵 Không đỡ kịp!') : point(1 - b.hitter, '🚫 Bóng ra ngoài!');
+      // bóng tới vợt mình: chạm vùng vợt là tự đánh (rộng tay, dễ chơi)
+      if (b.hitter === 1 && b.vz < 0 && b.z < NZ) {
+        const near = Math.abs(b.x - me.x) < PR + 0.06 && Math.abs(b.z - me.z) < PR + 0.05 && b.y < PAD_Y + 0.6;
+        const crossed = pz > me.z && b.z <= me.z && Math.abs(b.x - me.x) < PR + 0.08 && b.y < PAD_Y + 0.65;
+        // vuốt vợt quét ngang qua bóng (vợt đi nhanh, giữa 2 khung hình) cũng tính là chạm
+        const sx = me.x - me.px, sz = me.z - me.pz, l2 = sx * sx + sz * sz;
+        let swept = false;
+        if (l2 > 1e-6 && b.y < PAD_Y + 0.6) { const k = Math.max(0, Math.min(1, ((b.x - me.px) * sx + (b.z - me.pz) * sz) / l2)); swept = Math.hypot(b.x - me.px - sx * k, b.z - me.pz - sz * k) < PR + 0.06; }
+        if (near || crossed || swept) myHit();
+      }
+      // bóng tới máy
+      if (b.hitter === 0 && b.vz > 0 && pz < ai.z && b.z >= ai.z) {
+        if (b.bounces >= 1 && Math.abs(b.x - ai.x) < 0.2 && b.y < SURF + 0.6) aiHit();
+        else if (b.bounces >= 1) return point(0, '✨ Ăn điểm!');
       }
     }
-    const BTN = () => ({ x: game.VW - 250, y: game.VH - 110, w: 230, h: 90 });
-    const inBtn = (p) => { const b = BTN(); return p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h; };
-    function setTarget(p) {
-      const c = Math.cos(cam.pitch), s = Math.sin(cam.pitch), X = (p.x - cam.W / 2) / cam.F, Y = (cam.H * cam.cy - p.y) / cam.F;
-      const dy = c * Y - s, dzc = s * Y + c; if (dy > -0.01) return;
-      const tt = -cam.y / dy, lx = tt * X, lz = tt * dzc, cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
-      let x = cam.x + lx * cy + lz * sy, z = cam.z - lx * sy + lz * cy;
-      const max = onGreen() ? 30 : 245 * lieK(), d = Math.hypot(x - ball.x, z - ball.z);
-      if (d > max) { x = ball.x + (x - ball.x) / d * max; z = ball.z + (z - ball.z) / d * max; }
-      if (d < 2) return;
-      target = { x, z };
+    /** ngón tay → vị trí vợt trên mặt bàn (vợt nằm ngay dưới ngón, nhích lên một chút cho khỏi che) */
+    function finger(p) {
+      const q = cam.ground(p.x, p.y - 30, PAD_Y);
+      if (!q) return;
+      me.tx = Math.max(-1.05, Math.min(1.05, q.x)); me.tz = Math.max(-0.55, Math.min(NZ - 0.12, q.z));
     }
     const game = {
       VW: 1280, VH: 720, wide: true, over: false, res: null,
-      update(dt) { for (let k = 0; k < 2; k++) { step(dt / 2); if (game.over) break; } msgs.forEach((m) => { m.t += dt; }); while (msgs.length && msgs[0].t > 1.8) msgs.shift(); },
-      down(p) {
-        if (phase !== 'aim') return;
-        if (meter) { const e = meter.v; meter = null; shoot(e); return; }
-        if (inBtn(p)) { if (onGreen()) shoot((Math.random() - 0.5) * 0.25); else meter = { v: 0, ph: Math.random() * 6 }; return; }
-        drag = true; setTarget(p);
+      _dbg: () => ({ b, me, ai, sc, rally, bestRally, phase, server }),
+      update(dt) {
+        for (let k = 0; k < 4; k++) { step(dt / 4); if (game.over) break; }
+        if (b.live) { b.trail.push([b.x, b.y, b.z]); if (b.trail.length > 9) b.trail.shift(); }
+        msgs.forEach((m) => { m.t += dt; }); while (msgs.length && msgs[0].t > 1.3) msgs.shift();
+        fx.forEach((f) => { f.t += dt; }); while (fx.length && fx[0].t > 0.4) fx.shift();
       },
-      move(p) { if (drag && phase === 'aim' && !meter) setTarget(p); },
-      up() { if (drag) { drag = false; frame(false); } },
-      key(k, on) { if (on && (k === ' ' || k === 'Enter')) game.down(game.btnCenter()); },
-      btnCenter() { const b = BTN(); return { x: b.x + b.w / 2, y: b.y + b.h / 2 }; },
+      down(p) { held = true; finger(p); if (phase === 'serve' && server === 0) serve(0); },
+      move(p) { finger(p); },
+      up() { held = false; },
+      key(k, on) {
+        if (!on) return;
+        if (k === 'ArrowLeft' || k === 'a') me.tx -= 0.15; if (k === 'ArrowRight' || k === 'd') me.tx += 0.15;
+        if (k === 'ArrowUp' || k === 'w') me.tz = Math.min(NZ - 0.12, me.tz + 0.12); if (k === 'ArrowDown' || k === 's') me.tz = Math.max(-0.55, me.tz - 0.12);
+        if ((k === ' ' || k === 'Enter') && phase === 'serve' && server === 0) serve(0);
+      },
       draw(g) {
-        cam.W = game.VW; cam.H = game.VH; cam.F = cam.H * 0.42 / Math.tan(Math.max(0.12, cam.half || 0.4));
-        const hz = cam.H * cam.cy - cam.F * Math.tan(cam.pitch);
-        if (hz > 0) { const sk = g.createLinearGradient(0, 0, 0, hz); sk.addColorStop(0, '#74c0fc'); sk.addColorStop(1, '#d0ebff'); g.fillStyle = sk; g.fillRect(0, 0, cam.W, hz + 1); }
-        g.fillStyle = '#3f8f3a'; g.fillRect(0, Math.max(0, hz), cam.W, cam.H);
-        // fairway có sọc cắt cỏ
-        const fw = corridor(H.hw);
-        poly(g, corridor(H.hw + 6), '#4fa646'); poly(g, fw, '#78c850');
-        g.save(); g.beginPath(); fw.forEach(([x, z], i) => { const q = proj(toC(x, 0, z)); if (toC(x, 0, z).Z > 0.5) { if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); } }); g.closePath(); g.clip();
-        for (let z = 20; z < H.green[1] + 30; z += 22) poly(g, [[-300, z], [300, z], [300, z + 11], [-300, z + 11]], 'rgba(255,255,255,.07)');
-        g.restore();
-        poly(g, [[-6, -7], [6, -7], [6, 7], [-6, 7]], '#8bd06a');
-        poly(g, ellPts([H.green[0], H.green[1], H.green[2] + 3, H.green[2] + 3]), '#5fb84a');
-        poly(g, ellPts([H.green[0], H.green[1], H.green[2], H.green[2]]), '#94e07a');
-        H.sand.forEach((e) => { poly(g, ellPts([e[0], e[1], e[2] + 1, e[3] + 1]), '#d9c27a'); poly(g, ellPts(e), '#f6e6ad'); });
-        H.water.forEach((e) => { poly(g, ellPts([e[0], e[1], e[2] + 1.5, e[3] + 1.5]), '#2f7d3a'); poly(g, ellPts(e), '#3d9be9'); poly(g, ellPts([e[0] - e[2] * 0.2, e[1], e[2] * 0.5, e[3] * 0.4]), 'rgba(255,255,255,.18)'); });
-        // vòng ngắm + đường bay dự kiến
-        if (phase === 'aim') {
-          const putt = onGreen();
-          [[putt ? 0.9 : 7, 'rgba(255,255,255,.85)'], [putt ? 0.55 : 4.5, '#ffd43b'], [putt ? 0.25 : 2, '#ff922b']].forEach(([r, c]) => poly(g, ellPts([target.x, target.z, r, r], 24).map(([x, z]) => [x, z, 0.02]), c));
-          const c = club(), d = Math.hypot(target.x - ball.x, target.z - ball.z), th = c.a * Math.PI / 180;
-          g.setLineDash([10, 9]); g.strokeStyle = 'rgba(160,240,255,.95)'; g.lineWidth = 3; g.beginPath();
-          for (let i = 0; i <= 40; i++) { const k = i / 40, x = ball.x + (target.x - ball.x) * k, z = ball.z + (target.z - ball.z) * k, y = putt ? 0.02 : Math.tan(th) * d * k * (1 - k), q = toC(x, y, z); if (q.Z < 0.5) continue; const pp = proj(q); if (i) g.lineTo(pp.x, pp.y); else g.moveTo(pp.x, pp.y); }
-          g.stroke(); g.setLineDash([]);
-        }
-        // lá cờ + cây (xa trước gần sau)
-        const items = trees.map((tr) => ({ z: toC(tr.x, 0, tr.z).Z, d: () => drawTree(g, tr) }));
-        items.push({ z: toC(H.green[0], 0, H.green[1]).Z, d: () => drawPin(g) });
-        items.push({ z: toC(ball.x, 0, ball.z).Z - 0.1, d: () => drawBall(g) });
-        items.filter((it) => it.z > 0.5).sort((a, b) => b.z - a.z).forEach((it) => it.d());
-        // người chơi đứng cạnh bóng lúc ngắm
-        if (phase === 'aim' && !onGreen()) { const q = toC(ball.x - Math.cos(cam.yaw) * 0.9, 0, ball.z + Math.sin(cam.yaw) * 0.9); if (q.Z > 0.5) { const pp = proj(q); backFigure(g, pp, pp.k, S().look || {}, { racket: true, swing: meter ? 0.1 : 0, color: '#adb5bd' }); } }
-        hud(g);
-        drawMsgs(g, msgs.map((m) => ({ ...m, x: game.VW / 2, y: game.VH * m.y })));
+        cam.set(game.VW, game.VH);
+        const Wd = game.VW, Hd = game.VH;
+        // trời mây hoàng hôn
+        const sk = g.createLinearGradient(0, 0, 0, Hd); sk.addColorStop(0, '#ffcf6b'); sk.addColorStop(0.55, '#ff9f7a'); sk.addColorStop(1, '#b9a6f0'); g.fillStyle = sk; g.fillRect(0, 0, Wd, Hd);
+        for (let i = 0; i < 9; i++) { const cx = ((i * 263 + t * 8) % (Wd + 400)) - 200, cy = Hd * (0.12 + (i % 4) * 0.22); g.fillStyle = i % 2 ? 'rgba(255,240,220,.55)' : 'rgba(255,200,170,.45)'; [[0, 0, 90], [70, 15, 70], [-70, 18, 64], [20, -40, 60]].forEach(([dx, dy, r]) => { g.beginPath(); g.arc(cx + dx, cy + dy, r, 0, Math.PI * 2); g.fill(); }); }
+        // bàn: mặt xanh ngọc, viền trắng, cạnh xám
+        const w2 = W / 2;
+        cam.poly(g, [[-w2, SURF - 0.06, 0], [w2, SURF - 0.06, 0], [w2, SURF, 0], [-w2, SURF, 0]], '#8f959c');
+        cam.poly(g, [[-w2 - 0.03, SURF, -0.03], [w2 + 0.03, SURF, -0.03], [w2 + 0.03, SURF, L + 0.03], [-w2 - 0.03, SURF, L + 0.03]], '#2b2f36');
+        cam.poly(g, [[-w2, SURF, 0], [w2, SURF, 0], [w2, SURF, L], [-w2, SURF, L]], '#ffffff');
+        cam.poly(g, [[-w2 + 0.03, SURF, 0.03], [w2 - 0.03, SURF, 0.03], [w2 - 0.03, SURF, L - 0.03], [-w2 + 0.03, SURF, L - 0.03]], '#19d6ad');
+        cam.line(g, [0, SURF + 0.001, 0.03], [0, SURF + 0.001, L - 0.03], '#ffffff', 0.012);
+        const F = cam.p(0, SURF - 0.06, 0); g.fillStyle = 'rgba(255,255,255,.75)'; g.font = `900 ${Math.max(10, 0.035 * F.k)}px "Be Vietnam Pro", system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('QL PING PONG', F.x, F.y - 0.03 * F.k);
+        const items = [];
+        // máy (vợt xanh) + lưới + bóng + vợt mình: vẽ xa trước gần sau
+        items.push({ z: ai.z, d: () => paddle(g, ai.x, SURF + 0.2, ai.z, '#3a8ff0', ai.swing, 1) });
+        items.push({ z: NZ, d: () => net(g) });
+        items.push({ z: b.z, d: () => ball(g) });
+        items.push({ z: me.z - 0.001, d: () => paddle(g, me.x, PAD_Y, me.z, '#ff6b0a', me.swing, 0.8) });
+        items.sort((a, c) => c.z - a.z).forEach((it) => it.d());
+        fx.forEach((f) => { const q = cam.p(f.x, f.y, f.z), r = (0.05 + f.t * 0.4) * q.k; g.strokeStyle = `rgba(255,255,255,${1 - f.t / 0.4})`; g.lineWidth = 3; g.beginPath(); g.arc(q.x, q.y, r, 0, Math.PI * 2); g.stroke(); });
+        // điểm
+        g.fillStyle = 'rgba(0,0,0,.35)'; rr(g, Wd / 2 - 120, 14, 240, 54, 27); g.fill();
+        g.font = '900 30px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillStyle = '#ffd8b0'; g.fillText(sc[0], Wd / 2 - 50, 42); g.fillStyle = '#fff'; g.fillText(':', Wd / 2, 40); g.fillStyle = '#b3d4ff'; g.fillText(sc[1], Wd / 2 + 50, 42);
+        g.font = '800 13px "Be Vietnam Pro", system-ui'; g.fillStyle = '#fff'; g.fillText('Bạn', Wd / 2 - 50, 80); g.fillText('Máy', Wd / 2 + 50, 80);
+        if (phase === 'serve' && server === 0) hint(g, '👆 Chạm để giao bóng · kéo ngón tay để di chuyển vợt', 0.93);
+        else if (rally < 2 && sc[0] + sc[1] < 2 && !held) hint(g, '👆 Đặt ngón tay lên bàn và kéo vợt chặn đường bóng — bóng chạm vợt là tự đánh', 0.93);
+        drawMsgs(g, msgs.map((m) => ({ ...m, x: Wd / 2, y: Hd * m.y })));
       },
     };
-    function drawTree(g, tr) {
-      const b = P(tr.x, 0, tr.z), top = P(tr.x, tr.s, tr.z), r = tr.s * 0.42 * b.k;
-      if (r < 1) return;
-      g.fillStyle = 'rgba(0,0,0,.22)'; g.beginPath(); g.ellipse(b.x + r * 0.3, b.y, r * 0.9, r * 0.35, 0, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = '#5c3a1e'; g.lineWidth = Math.max(1, r * 0.18); g.beginPath(); g.moveTo(b.x, b.y); g.lineTo(top.x, (b.y + top.y) / 2); g.stroke();
-      const cy = (b.y * 0.35 + top.y * 0.65), col = tr.c > 0.5 ? ['#1e5f2b', '#2b7a3a', '#3f9a4c'] : ['#22552a', '#2f6d33', '#4c8f3c'];
-      [[0, 0, 1, 0], [-0.45, 0.25, 0.7, 0], [0.45, 0.2, 0.7, 0], [0, -0.4, 0.75, 1], [-0.2, -0.15, 0.4, 2]].forEach(([dx, dy, s, ci]) => { g.fillStyle = col[ci]; g.beginPath(); g.arc(b.x + dx * r, cy + dy * r, r * s, 0, Math.PI * 2); g.fill(); });
+    function net(g) {
+      const w2 = W / 2 + 0.12;
+      [-w2, w2].forEach((x) => cam.line(g, [x, SURF, NZ], [x, SURF + NETH + 0.01, NZ], '#3a3f47', 0.02));
+      cam.poly(g, [[-w2, SURF, NZ], [w2, SURF, NZ], [w2, SURF + NETH, NZ], [-w2, SURF + NETH, NZ]], 'rgba(40,45,55,.5)');
+      cam.line(g, [-w2, SURF + NETH, NZ], [w2, SURF + NETH, NZ], '#ffffff', 0.008);
     }
-    function drawPin(g) {
-      const b = P(H.green[0], 0, H.green[1]), top = P(H.green[0], 2.4, H.green[1]);
-      g.fillStyle = '#1d3b12'; g.beginPath(); g.ellipse(b.x, b.y, Math.max(2, 0.11 * b.k), Math.max(1, 0.05 * b.k), 0, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = '#f8f9fa'; g.lineWidth = Math.max(1.5, 0.03 * b.k); g.beginPath(); g.moveTo(b.x, b.y); g.lineTo(top.x, top.y); g.stroke();
-      const fl = Math.max(8, 0.55 * top.k), w = Math.sin(t * 5) * fl * 0.08;
-      g.fillStyle = '#ff6b6b'; g.beginPath(); g.moveTo(top.x, top.y); g.quadraticCurveTo(top.x + fl * 0.6, top.y + fl * 0.2 + w, top.x + fl, top.y + fl * 0.3); g.lineTo(top.x, top.y + fl * 0.6); g.closePath(); g.fill();
+    function ball(g) {
+      if (b.z < cam.z + 0.35) return; // bóng bay ra sau lưng camera thì thôi không vẽ
+      const S0 = cam.p(b.x, onTable(b.x, b.z) ? SURF + 0.001 : 0, b.z);
+      g.fillStyle = 'rgba(0,0,0,.22)'; g.beginPath(); g.ellipse(S0.x, S0.y, Math.max(3, 0.03 * S0.k), Math.max(1.5, 0.012 * S0.k), 0, 0, Math.PI * 2); g.fill();
+      if (b.trail.length > 2) { g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineCap = 'round'; g.beginPath(); b.trail.forEach(([x, y, z], i) => { const q = cam.p(x, y, z); g.lineWidth = Math.max(1, 0.02 * q.k); if (i) g.lineTo(q.x, q.y); else g.moveTo(q.x, q.y); }); g.stroke(); }
+      const q = cam.p(b.x, b.y, b.z), r = Math.max(4, BR * 1.6 * q.k);
+      g.fillStyle = '#ffe14d'; g.beginPath(); g.arc(q.x, q.y, r, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#3a2b00'; g.lineWidth = Math.max(1.5, r * 0.18); g.stroke();
+      g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.arc(q.x - r * 0.3, q.y - r * 0.3, r * 0.3, 0, Math.PI * 2); g.fill();
     }
-    function drawBall(g) {
-      if (ball.trail.length > 1) { g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 2; g.beginPath(); let st = false; ball.trail.forEach(([x, y, z]) => { const q = toC(x, y, z); if (q.Z < 0.5) return; const pp = proj(q); if (st) g.lineTo(pp.x, pp.y); else { g.moveTo(pp.x, pp.y); st = true; } }); g.stroke(); }
-      const s = P(ball.x, 0, ball.z), q = P(ball.x, Math.max(0, ball.y) + 0.05, ball.z), r = Math.max(3, 0.06 * q.k);
-      if (ball.y < -0.01) return;
-      g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(s.x, s.y, r, r * 0.4, 0, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#fff'; g.beginPath(); g.arc(q.x, q.y - r * 0.6, r, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#adb5bd'; g.lineWidth = 1; g.stroke();
+    function paddle(g, x, y, z, col, swing, alpha) {
+      const q = cam.p(x, y, z), S0 = cam.p(x, SURF, z), r = PR * q.k, tilt = (swing > 0 ? Math.sin((swing / 0.25) * Math.PI) * 0.35 : 0) - Math.max(-0.4, Math.min(0.4, (x - (cam.x || 0)) * 0.3));
+      g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(S0.x, S0.y, r * 0.8, r * 0.28, 0, 0, Math.PI * 2); g.fill();
+      g.save(); g.globalAlpha = alpha; g.translate(q.x, q.y); g.rotate(tilt);
+      rr(g, -r * 0.13, r * 0.7, r * 0.26, r * 0.85, r * 0.08); g.fillStyle = '#e8873a'; g.fill(); g.strokeStyle = '#3a2410'; g.lineWidth = Math.max(2, r * 0.05); g.stroke();
+      g.beginPath(); g.ellipse(0, 0, r * 0.82, r * 0.95, 0, 0, Math.PI * 2); g.fillStyle = col; g.fill(); g.stroke();
+      g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.ellipse(-r * 0.28, -r * 0.32, r * 0.3, r * 0.22, -0.5, 0, Math.PI * 2); g.fill();
+      g.restore();
     }
-    function hud(g) {
-      const W = game.VW, Hh = game.VH, tot = cards.reduce((s, v) => s + v, 0), aiTot = aiCards.reduce((s, v) => s + v, 0);
-      g.fillStyle = 'rgba(10,30,60,.75)'; rr(g, W / 2 - 230, 10, 460, 54, 14); g.fill();
-      g.font = '900 18px "Be Vietnam Pro", system-ui'; g.textBaseline = 'middle';
-      g.textAlign = 'left'; g.fillStyle = '#8ce99a'; g.fillText(`🧑 Bạn: ${tot + strokes}`, W / 2 - 215, 37);
-      g.textAlign = 'center'; g.fillStyle = '#fff'; g.fillText(`⛳ Lỗ ${hi + 1}/3 · Par ${H.par} · Gậy ${strokes}`, W / 2, 37);
-      g.textAlign = 'right'; g.fillStyle = '#ffa8a8'; g.fillText(`🤖 ${aiTot}`, W / 2 + 215, 37);
-      // gió
-      g.fillStyle = 'rgba(10,30,60,.75)'; rr(g, 14, 80, 120, 110, 14); g.fill();
-      g.fillStyle = '#fff'; g.font = '900 14px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.fillText('GIÓ', 74, 98);
-      g.save(); g.translate(74, 135); g.rotate(wind.a - cam.yaw); g.fillStyle = '#ff922b'; g.beginPath(); g.moveTo(0, -24); g.lineTo(14, 2); g.lineTo(5, 2); g.lineTo(5, 20); g.lineTo(-5, 20); g.lineTo(-5, 2); g.lineTo(-14, 2); g.closePath(); g.fill(); g.restore();
-      g.fillStyle = '#fff'; g.font = '900 16px "Be Vietnam Pro", system-ui'; g.fillText(`${wind.s} m/s`, 74, 176);
-      if (phase !== 'aim') return;
-      const c = club(), d = Math.hypot(target.x - ball.x, target.z - ball.z), dp = Math.hypot(H.green[0] - ball.x, H.green[1] - ball.z);
-      g.fillStyle = 'rgba(10,30,60,.75)'; rr(g, 14, Hh - 104, 300, 88, 14); g.fill();
-      g.fillStyle = '#fff'; g.textAlign = 'left'; g.font = '900 17px "Be Vietnam Pro", system-ui'; g.fillText(`🏌️ ${c.n}`, 30, Hh - 80);
-      g.font = '800 14px "Be Vietnam Pro", system-ui'; g.fillText(`Đánh ${Math.round(d)}m · cách cờ ${Math.round(dp)}m`, 30, Hh - 56);
-      g.fillStyle = '#ffd43b'; g.fillText(`Nằm ở: ${({ fairway: 'fairway', rough: 'cỏ dày', sand: 'hố cát', green: 'green', tee: 'điểm phát bóng' })[lie()] || lie()}`, 30, Hh - 34);
-      const b = BTN();
-      const gr = g.createLinearGradient(0, b.y, 0, b.y + b.h); gr.addColorStop(0, '#ff922b'); gr.addColorStop(1, '#e8590c');
-      g.fillStyle = gr; rr(g, b.x, b.y, b.w, b.h, 22); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 4; g.stroke();
-      g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = '900 30px "Be Vietnam Pro", system-ui'; g.fillText(meter ? 'DỪNG!' : onGreen() ? 'GẠT BÓNG' : 'ĐÁNH', b.x + b.w / 2, b.y + b.h / 2);
-      if (meter) {
-        const mw = Math.min(560, W - 80), mx = W / 2 - mw / 2, my = Hh - 190;
-        g.fillStyle = 'rgba(0,0,0,.6)'; rr(g, mx - 10, my - 10, mw + 20, 56, 14); g.fill();
-        g.fillStyle = '#e03131'; g.fillRect(mx, my, mw, 36); g.fillStyle = '#fab005'; g.fillRect(mx + mw * 0.3, my, mw * 0.4, 36); g.fillStyle = '#40c057'; g.fillRect(mx + mw * 0.44, my, mw * 0.12, 36);
-        g.fillStyle = '#fff'; g.font = '900 12px "Be Vietnam Pro", system-ui'; g.fillText('HOÀN HẢO', W / 2, my + 18);
-        const px = mx + (meter.v + 1) / 2 * mw; g.fillStyle = '#fff'; g.fillRect(px - 4, my - 8, 8, 52); g.strokeStyle = '#212529'; g.lineWidth = 2; g.strokeRect(px - 4, my - 8, 8, 52);
-        g.font = '900 15px "Be Vietnam Pro", system-ui'; g.fillText('👆 Chạm để dừng đúng vùng xanh', W / 2, my - 22);
-      } else if (strokes === 0 && hi === 0) {
-        g.fillStyle = 'rgba(0,0,0,.55)'; rr(g, W / 2 - 300, Hh - 170, 600, 40, 20); g.fill(); g.fillStyle = '#fff'; g.font = '900 16px "Be Vietnam Pro", system-ui';
-        g.fillText('👆 Kéo trên sân để chọn chỗ bóng rơi · bấm ĐÁNH', W / 2, Hh - 150);
+    return game;
+  }
+
+  /* ======================================================================
+   * 🏸 CẦU LÔNG nhìn ngang (kiểu Badminton League): nút ◀ ▶ chạy, nút 🪶 Đánh cao · 🪽 Bỏ nhỏ · 💥 Đập cầu.
+   * Không bấm gì thì vợt vẫn tự đỡ (phông cầu) cho dễ chơi. Toạ độ: x tính từ lưới (0), mình bên trái (x < 0).
+   * ==================================================================== */
+  function makeBadminton(diff) {
+    const FL = 560, NT = 395, CW = 560, G = 1050, K = 0.00165, PG = 2300;
+    const me = { x: -300, y: FL, vy: 0, tx: null, dir: 1, swing: 0, t: 0, moving: false, want: null, wantAt: -9, vx: 0, kL: false, kR: false };
+    const ai = { x: 300, y: FL, vy: 0, tx: 300, dir: -1, swing: 0, t: 0, moving: false, react: 0, err: 0, plan: 0 };
+    const s = { x: 0, y: 0, vx: 0, vy: 0, live: false, hitter: -1, ang: 0, trail: [] };
+    const sc = [0, 0], msgs = [], btn = { L: false, R: false }, ptr = new Map();
+    let server = 0, phase = 'serve', wait = 1, t = 0, lastW = 0, rally = 0, bestRally = 0, VWc = 1280;
+    const say = (text, color = '#fff', x = 0, y = 210) => msgs.push({ text, color, x, y, t: 0 });
+    const P = (w) => (w === 0 ? me : ai);
+    const reach = (p) => ({ x: p.x + p.dir * 26, y: p.y - 150 });
+    /* ---------- vật lý cầu ---------- */
+    function sim(x, y, vx, vy) {
+      const dt = 1 / 90; let clear = null, n = 0;
+      while (y < FL && n++ < 600) { const sp = Math.hypot(vx, vy); vx += -K * sp * vx * dt; vy += (G - K * sp * vy) * dt; const px = x; x += vx * dt; y += vy * dt; if (clear === null && px * x <= 0) clear = y < NT - 14; }
+      return { land: x, clear: !!clear };
+    }
+    const KINDS = { clear: [[52, 76], [950, 1550]], drop: [[22, 58], [420, 820]], drive: [[4, 24], [900, 1400]], smash: [[-38, -8], [1400, 1950]], serve: [[44, 70], [760, 1250]] };
+    function plan(p, kind, target) {
+      const [A, V] = KINDS[kind], x0 = p.x + p.dir * 30, y0 = Math.min(s.y, p.y - 120);
+      let best = null;
+      for (let i = 0; i <= 10; i++) for (let j = 0; j <= 9; j++) {
+        const a = (A[0] + (A[1] - A[0]) * i / 10) * Math.PI / 180, v = V[0] + (V[1] - V[0]) * j / 9;
+        const vx = p.dir * Math.cos(a) * v, vy = -Math.sin(a) * v, r = sim(x0, y0, vx, vy);
+        if (!r.clear) continue;
+        const e = Math.abs(r.land - target);
+        if (!best || e < best.e) best = { e, vx, vy, x0, y0 };
+      }
+      if (!best && kind !== 'clear') return plan(p, 'clear', target);
+      return best || { vx: p.dir * 700, vy: -950, x0, y0 };
+    }
+    function hit(w, kind, target) {
+      const p = P(w), pl = plan(p, kind, target);
+      s.x = pl.x0; s.y = pl.y0; s.vx = pl.vx; s.vy = pl.vy; s.hitter = w; s.live = true; s.trail = []; p.swing = 0.3; rally++;
+      if (kind === 'smash') say('💥 ĐẬP CẦU!', '#ffd43b', p.x, p.y - 260);
+      if (w === 0) { ai.react = [0.3, 0.16, 0.07][diff]; ai.err = (Math.random() * 2 - 1) * [70, 35, 12][diff]; ai.plan = 0; me.want = null; if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) { /* bỏ qua */ } }
+    }
+    const R = (a, c) => a + Math.random() * (c - a);
+    /** cú đánh của mình theo nút đã bấm (không bấm thì tự phông cầu) */
+    function myShot() {
+      const k = t - me.wantAt < 0.7 ? me.want : null;
+      if (k === 'smash' && s.y < FL - 190) return hit(0, 'smash', R(140, 470));
+      if (k === 'drop') return hit(0, 'drop', R(70, 170));
+      if (k === 'clear' || k === 'smash') return hit(0, 'clear', R(420, 540));
+      hit(0, Math.random() < 0.6 ? 'clear' : 'drive', R(300, 520));
+    }
+    function aiShot() {
+      if (Math.random() < [0.2, 0.12, 0.06][diff]) return hit(1, Math.random() < 0.5 ? 'clear' : 'drive', -CW - R(30, 100));
+      if (diff >= 1 && s.y < FL - 210 && Math.random() < 0.25 + diff * 0.15) return hit(1, 'smash', me.x < -300 ? R(-260, -80) : R(-520, -380));
+      const r = Math.random();
+      if (r < 0.45) hit(1, 'clear', R(-540, -420)); else if (r < 0.75) hit(1, 'drop', R(-170, -70)); else hit(1, 'drive', me.x < -300 ? R(-260, -100) : R(-500, -360));
+    }
+    function serve(w) { phase = 'play'; const p = P(w); s.x = p.x + p.dir * 30; s.y = p.y - 100; hit(w, 'serve', w === 0 ? R(380, 520) : R(-520, -380)); }
+    function point(w, text) {
+      if (phase !== 'play') return;
+      sc[w]++; phase = 'dead'; wait = 1.3; s.live = false; lastW = w; bestRally = Math.max(bestRally, rally); rally = 0;
+      say(text, w === 0 ? '#8ce99a' : '#ffa8a8'); say(w === 0 ? '+1 cho bạn' : '+1 cho máy', '#ffe066', 0, 250);
+    }
+    function moveP(p, dt, sp, lo, hi) {
+      const ox = p.x;
+      if (p.tx != null) p.x += Math.max(-sp * dt, Math.min(sp * dt, p.tx - p.x));
+      p.x = Math.max(lo, Math.min(hi, p.x));
+      p.vx = p.vx * 0.7 + ((p.x - ox) / dt) * 0.3; p.moving = Math.abs(p.x - ox) > 0.4; if (p.moving) p.t += dt;
+      if (p.y < FL || p.vy < 0) { p.vy += PG * dt; p.y += p.vy * dt; if (p.y >= FL) { p.y = FL; p.vy = 0; } }
+      p.swing = Math.max(0, p.swing - dt);
+    }
+    function step(dt) {
+      t += dt;
+      // nút ◀ ▶ (hoặc phím) → chạy; chạm chỗ khác trên sân → chạy tới đó
+      if (btn.L || me.kL) me.tx = me.x - 60; else if (btn.R || me.kR) me.tx = me.x + 60; else if (me.tx != null && Math.abs(me.tx - me.x) < 4) me.tx = null;
+      moveP(me, dt, 600, -CW - 40, -40);
+      // máy đoán chỗ cầu rơi rồi chạy tới
+      if (s.live && s.hitter === 0) {
+        if (ai.react > 0) ai.react -= dt;
+        else if ((ai.plan -= dt) <= 0) {
+          ai.plan = 0.12; let x = s.x, y = s.y, vx = s.vx, vy = s.vy, n = 0, tx = null; const d = 1 / 60;
+          while (n++ < 300 && y < FL) { const sp = Math.hypot(vx, vy); vx += -K * sp * vx * d; vy += (G - K * sp * vy) * d; x += vx * d; y += vy * d; if (x > 0 && vy > 0 && y > FL - 160) { tx = x; break; } }
+          if (tx !== null) ai.tx = Math.max(40, Math.min(CW + 40, tx + 24 + ai.err));
+          if (diff >= 1 && s.vy > 0 && s.x > 0 && s.y < FL - 270 && Math.abs(s.x - ai.x) < 90 && ai.y >= FL && Math.random() < 0.06) ai.vy = -700;
+        }
+      } else if (phase === 'play' && s.hitter === 1) ai.tx = ai.tx * 0.97 + 300 * 0.03;
+      moveP(ai, dt, [400, 520, 650][diff], 40, CW + 40);
+      if (phase === 'serve') {
+        const p = P(server); s.x = p.x + p.dir * 30; s.y = p.y - 100; s.ang = Math.PI / 2;
+        if (server === 1 && (wait -= dt) <= 0) serve(1);
+        return;
+      }
+      if (phase === 'dead') {
+        if (s.y < FL) { const sp = Math.hypot(s.vx, s.vy); s.vx += -K * sp * s.vx * dt; s.vy += (G - K * sp * s.vy) * dt; s.x += s.vx * dt; s.y = Math.min(FL, s.y + s.vy * dt); }
+        if ((wait -= dt) <= 0) {
+          const w = sc[0] > sc[1] ? 0 : 1;
+          if ((sc[w] >= 7 && sc[w] - sc[1 - w] >= 2) || sc[w] >= 11) { game.over = true; game.res = { win: w === 0, score: sc.slice(), bestRally }; return; }
+          server = lastW; phase = 'serve'; wait = 1; me.tx = -300; ai.tx = 300;
+        }
+        return;
+      }
+      const sp = Math.hypot(s.vx, s.vy);
+      s.vx += -K * sp * s.vx * dt; s.vy += (G - K * sp * s.vy) * dt;
+      const px = s.x; s.x += s.vx * dt; s.y += s.vy * dt; s.ang = Math.atan2(s.vy, s.vx);
+      if (px * s.x <= 0 && s.y > NT) { s.x = px; s.vx = -s.vx * 0.12; s.vy = Math.max(0, s.vy) * 0.4; }
+      if (s.y >= FL) {
+        s.y = FL;
+        const inC = Math.abs(s.x) <= CW, side = s.x < 0 ? 0 : 1;
+        return inC ? point(1 - side, side === 0 ? '😵 Cầu rơi sân bạn' : '✨ Cầu rơi sân đối thủ!') : point(1 - s.hitter, '🚫 Cầu ra ngoài!');
+      }
+      for (const w of [0, 1]) {
+        if (s.hitter === w) continue;
+        const p = P(w), onSide = w === 0 ? s.x < 0 : s.x > 0, rc = reach(p);
+        if (onSide && Math.hypot(s.x - rc.x, s.y - rc.y) < (w === 0 ? 110 : 92)) { if (w === 0) myShot(); else aiShot(); break; }
       }
     }
-    load();
+    /* ---------- nút bấm trên màn hình ---------- */
+    const BTNS = () => {
+      const W = VWc, by = 640;
+      return [
+        { k: 'L', x: 90, y: by, r: 56, ic: '◀', lab: 'Trái' }, { k: 'R', x: 230, y: by, r: 56, ic: '▶', lab: 'Phải' },
+        { k: 'drop', x: W - 360, y: by, r: 52, ic: '🪽', lab: 'Bỏ nhỏ' }, { k: 'clear', x: W - 225, y: by, r: 56, ic: '🪶', lab: 'Đánh cao' }, { k: 'smash', x: W - 90, y: by - 30, r: 66, ic: '💥', lab: 'ĐẬP' },
+      ];
+    };
+    function press(k) {
+      if (k === 'L' || k === 'R') { btn[k] = true; return; }
+      if (phase === 'serve' && server === 0) return serve(0);
+      me.want = k; me.wantAt = t; me.swing = Math.max(me.swing, 0.12);
+      if (k === 'smash' && me.y >= FL) me.vy = -720;
+      // cầu đang trong tầm thì đánh luôn
+      if (phase === 'play' && s.hitter === 1 && s.x < 0) { const rc = reach(me); if (Math.hypot(s.x - rc.x, s.y - rc.y) < 150) myShot(); }
+    }
+    const game = {
+      VW: 1280, VH: 720, wide: true, over: false, res: null,
+      _dbg: () => ({ s, me, ai, sc, rally, bestRally, phase, server }),
+      update(dt) { for (let k = 0; k < 2; k++) { step(dt / 2); if (game.over) break; } if (s.live) { s.trail.push([s.x, s.y]); if (s.trail.length > 10) s.trail.shift(); } msgs.forEach((m) => { m.t += dt; }); while (msgs.length && msgs[0].t > 1.3) msgs.shift(); },
+      down(p) {
+        const b = BTNS().find((o) => Math.hypot(p.x - o.x, p.y - o.y) < o.r + 14);
+        if (b) { ptr.set(p.id, b.k); press(b.k); return; }
+        ptr.set(p.id, 'move');
+        if (phase === 'serve' && server === 0) return serve(0);
+        me.tx = Math.max(-CW - 40, Math.min(-40, p.x - VWc / 2));
+      },
+      move(p, held) { if (held && ptr.get(p.id) === 'move') me.tx = Math.max(-CW - 40, Math.min(-40, p.x - VWc / 2)); },
+      up(p) { const k = ptr.get(p.id); ptr.delete(p.id); if (k === 'L' || k === 'R') { if (![...ptr.values()].includes(k)) btn[k] = false; } },
+      key(k, on) {
+        if (k === 'ArrowLeft' || k === 'a') me.kL = on;
+        if (k === 'ArrowRight' || k === 'd') me.kR = on;
+        if (!on) return;
+        if (k === 'k' || k === 'ArrowUp') press('clear'); if (k === 'l' || k === ' ') press('smash'); if (k === 'j' || k === 'ArrowDown') press('drop');
+      },
+      draw(g) {
+        VWc = game.VW; const W = VWc, H = game.VH, cx = W / 2;
+        // trời hoàng hôn + phố
+        const sk = g.createLinearGradient(0, 0, 0, H); sk.addColorStop(0, '#5b4b8a'); sk.addColorStop(0.45, '#e88a7a'); sk.addColorStop(0.7, '#f6c08a'); g.fillStyle = sk; g.fillRect(0, 0, W, H);
+        g.fillStyle = 'rgba(70,50,90,.55)'; for (let x = 0; x < W; x += 70) { const h = 120 + ((x * 37) % 140); g.fillRect(x, FL - 130 - h, 58, h); }
+        g.fillStyle = '#2b2440'; for (let x = 60; x < W; x += 340) { g.fillRect(x, FL - 300, 8, 300); g.fillRect(x - 30, FL - 310, 68, 12); for (let k = 0; k < 3; k++) { g.fillStyle = '#fff3c4'; g.beginPath(); g.arc(x - 18 + k * 22, FL - 318, 8, 0, Math.PI * 2); g.fill(); g.fillStyle = '#2b2440'; } }
+        g.fillStyle = 'rgba(40,35,60,.5)'; g.fillRect(0, FL - 120, W, 120);
+        // sân
+        const fl = g.createLinearGradient(0, FL - 40, 0, H); fl.addColorStop(0, '#8a7fb0'); fl.addColorStop(1, '#5d527f'); g.fillStyle = fl; g.fillRect(0, FL - 40, W, H - FL + 40);
+        g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 4;
+        [[FL - 40, 0.92], [FL - 10, 1], [FL + 26, 1.08], [FL + 70, 1.18]].forEach(([y, k]) => { g.beginPath(); g.moveTo(cx - CW * k, y); g.lineTo(cx + CW * k, y); g.stroke(); });
+        [-CW, -CW * 0.42, CW * 0.42, CW].forEach((x) => { g.beginPath(); g.moveTo(cx + x * 0.92, FL - 40); g.lineTo(cx + x * 1.18, FL + 70); g.stroke(); });
+        // lưới
+        g.fillStyle = '#2b2b33'; g.fillRect(cx - 5, NT - 10, 10, FL - NT + 40); g.fillRect(cx - 22, FL + 20, 44, 24);
+        g.fillStyle = 'rgba(30,30,40,.55)'; g.fillRect(cx - 3, NT, 6, 95);
+        g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1; for (let y = NT; y < NT + 95; y += 7) { g.beginPath(); g.moveTo(cx - 3, y); g.lineTo(cx + 3, y); g.stroke(); }
+        g.fillStyle = '#fff'; g.fillRect(cx - 6, NT - 5, 12, 6);
+        // người chơi
+        drawPlayer(g, ai, AI_LOOK, cx, '#7048e8'); drawPlayer(g, me, S().look || AI_LOOK, cx, '#f76707');
+        // cầu
+        g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(cx + s.x, FL + 6, 12, 4, 0, 0, Math.PI * 2); g.fill();
+        if (s.trail.length > 2) { g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 3; g.beginPath(); s.trail.forEach(([x, y], i) => (i ? g.lineTo(cx + x, y) : g.moveTo(cx + x, y))); g.stroke(); }
+        g.save(); g.translate(cx + s.x, s.y); g.rotate(s.ang);
+        g.fillStyle = '#f8f9fa'; g.beginPath(); g.moveTo(0, -5); g.lineTo(-28, -14); g.lineTo(-28, 14); g.lineTo(0, 5); g.closePath(); g.fill(); g.strokeStyle = '#adb5bd'; g.lineWidth = 1; g.stroke();
+        g.fillStyle = '#fff'; g.beginPath(); g.arc(3, 0, 7, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#495057'; g.stroke();
+        g.restore();
+        // bảng điểm
+        g.fillStyle = 'rgba(20,20,50,.55)'; rr(g, cx - 130, 14, 260, 60, 14); g.fill();
+        g.font = '900 40px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.fillText(`${sc[0]} : ${sc[1]}`, cx, 46);
+        g.font = '800 14px "Be Vietnam Pro", system-ui'; g.fillStyle = '#ffd8b0'; g.fillText(`🧑 ${String(S().name || 'Bạn').slice(0, 10)}`, cx - 200, 46); g.fillStyle = '#d0bfff'; g.fillText('Máy 🤖', cx + 200, 46);
+        g.fillStyle = '#ffe066'; g.beginPath(); g.arc(server === 0 ? cx - 118 : cx + 118, 26, 6, 0, Math.PI * 2); g.fill();
+        // nút
+        BTNS().forEach((o) => {
+          const on = (o.k === 'L' && btn.L) || (o.k === 'R' && btn.R) || (me.want === o.k && t - me.wantAt < 0.3);
+          g.fillStyle = on ? 'rgba(255,212,59,.55)' : 'rgba(255,255,255,.22)'; g.beginPath(); g.arc(o.x, o.y, o.r, 0, Math.PI * 2); g.fill();
+          g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 3; g.stroke();
+          g.font = `${o.r * 0.8}px system-ui, "Segoe UI Emoji"`; g.fillStyle = '#fff'; g.fillText(o.ic, o.x, o.y + 2);
+          g.font = '900 13px "Be Vietnam Pro", system-ui'; g.fillText(o.lab, o.x, o.y + o.r + 14);
+        });
+        if (phase === 'serve' && server === 0) hint(g, '👆 Bấm 🪶 Đánh cao để phát cầu', 0.3);
+        else if (sc[0] + sc[1] === 0 && rally < 3) hint(g, '◀ ▶ chạy theo cầu · cầu tới gần là vợt tự đỡ · bấm 💥 ĐẬP khi cầu bay cao', 0.3);
+        drawMsgs(g, msgs.map((m) => ({ ...m, x: cx + m.x, y: m.y })));
+      },
+    };
+    function drawPlayer(g, p, look, cx, col) {
+      const x = cx + p.x;
+      g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(x, FL + 4, 40, 9, 0, 0, Math.PI * 2); g.fill();
+      try { ART.character(g, x, p.y, look, { dir: p.dir, t: p.t, moving: p.moving, scale: 1.45 }); }
+      catch (e) { g.fillStyle = look.shirt || '#4dabf7'; rr(g, x - 22, p.y - 140, 44, 90, 14); g.fill(); g.fillStyle = look.skin || '#f1c27d'; g.beginPath(); g.arc(x, p.y - 162, 24, 0, Math.PI * 2); g.fill(); }
+      const sw = p.swing > 0 ? Math.sin((1 - p.swing / 0.3) * Math.PI) : 0, a = -Math.PI / 2 + p.dir * (0.55 - sw * 1.7);
+      const hx = x + p.dir * 22, hy = p.y - 105, ex = hx + Math.cos(a) * 56, ey = hy + Math.sin(a) * 56;
+      g.strokeStyle = '#343a40'; g.lineWidth = 4; g.beginPath(); g.moveTo(hx, hy); g.lineTo(ex, ey); g.stroke();
+      g.save(); g.translate(ex + Math.cos(a) * 22, ey + Math.sin(a) * 22); g.rotate(a + Math.PI / 2);
+      g.strokeStyle = col; g.lineWidth = 4.5; g.beginPath(); g.ellipse(0, 0, 16, 24, 0, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 1; for (let k = -12; k <= 12; k += 4) { g.beginPath(); g.moveTo(k, -20); g.lineTo(k, 20); g.stroke(); g.beginPath(); g.moveTo(-14, k * 1.5); g.lineTo(14, k * 1.5); g.stroke(); }
+      g.restore();
+    }
+    return game;
+  }
+
+  /* ======================================================================
+   * ⛳ GOLF MINI 3D (kiểu Golf Battle): sân cỏ ô carô có tường bao, thùng gỗ, hố cát, hồ nước, thùng trượt.
+   * Kéo ngược (như ná cao su) ở bất kỳ đâu trên màn hình → thả để đánh. Mỗi lần chơi = 1 màn (1 lỗ).
+   * Bản đồ mỗi màn vẽ bằng chữ, mỗi ô = 1 mét. Hàng trên cùng là phía xa (lỗ golf), hàng dưới là chỗ phát bóng.
+   *   . cỏ   S phát bóng   H lỗ   B thùng gỗ   s cát   w nước   m làn thùng trượt   (dấu cách) = ngoài sân
+   * ==================================================================== */
+  const MINI = [
+    { name: 'Khởi động', par: 2, wall: 'stone', map: ['..H..', '.....', '.....', '.....', '.....', '.....', '.....', '.....', '..S..'] },
+    { name: 'Thùng gỗ', par: 2, wall: 'wood', map: ['..H..', '.....', '.....', '.BBB.', '.....', '.....', '.....', '.....', '..S..'] },
+    { name: 'Rẽ phải', par: 3, wall: 'stone', map: ['.......', '.....H.', '...    ', '...    ', '...    ', '...    ', '...    ', '.S.    '] },
+    { name: 'Qua suối', par: 3, wall: 'wood', map: ['...H...', '.......', '.......', 'wwwww..', 'wwwww..', '.......', '.......', '.......', '...S...'] },
+    { name: 'Ziczac', par: 3, wall: 'stone', map: ['    ..H', '    ...', '.......', '.......', '...B   ', '...    ', '...    ', '.S.    '] },
+    { name: 'Rừng thùng', par: 3, wall: 'wood', map: ['..H..', '.....', 'B...B', '..B..', '.....', 'ss.ss', '.....', 'B.B.B', '.....', '..S..'] },
+    { name: 'Chữ U', par: 4, wall: 'stone', map: ['........', '........', '...  ...', '...  ...', '...  ...', '...  ...', '.H.  .S.'] },
+    { name: 'Thùng trượt', par: 4, wall: 'wood', map: ['...H...', '.......', 'mmmmmmm', '.......', '.......', 'mmmmmmm', '.......', '.......', '...S...'] },
+    { name: 'Đảo giữa hồ', par: 5, wall: 'stone', map: ['  ..H..   ', '  .....   ', '  ..B..   ', '  .....   ', '  ww.ww   ', '  .....   ', '  .....  .', '  mmmmm  .', '  .......S', '  ........'] },
+  ];
+  function makeGolf(lv) {
+    const LV = MINI[Math.max(0, Math.min(MINI.length - 1, lv | 0))], rows = LV.map, NR = rows.length, NC = Math.max(...rows.map((r) => r.length));
+    const BR = 0.12, HOLE = 0.24, MAXV = 11;
+    const cell = (c, r) => (r < 0 || r >= NR || c < 0 || c >= NC ? ' ' : (rows[r][c] || ' '));
+    // ô (c, r) → toạ độ thế giới: x tăng sang phải, z tăng về phía xa (hàng trên)
+    const wx = (c) => c - NC / 2 + 0.5, wz = (r) => NR - 1 - r + 0.5;
+    const toCell = (x, z) => ({ c: Math.floor(x + NC / 2), r: NR - 1 - Math.floor(z) });
+    const at = (x, z) => { const { c, r } = toCell(x, z); return cell(c, r); };
+    const isFloor = (ch) => ch !== ' ' && ch !== 'B';
+    let start = null, hole = null;
+    for (let r = 0; r < NR; r++) for (let c = 0; c < NC; c++) { const ch = cell(c, r); if (ch === 'S') start = { x: wx(c), z: wz(r) }; if (ch === 'H') hole = { x: wx(c), z: wz(r) }; }
+    // thùng trượt: mỗi hàng có 'm' là 1 làn, thùng dài 2 ô trượt qua lại
+    const movers = [];
+    for (let r = 0; r < NR; r++) { const cs = [...rows[r]].map((ch, c) => (ch === 'm' ? c : -1)).filter((c) => c >= 0); if (cs.length) movers.push({ r, a: wx(cs[0]) - 0.5, b: wx(cs[cs.length - 1]) + 0.5, w: 2, sp: 1.6 + movers.length * 0.4, ph: movers.length * 1.7, x: 0, z0: wz(r) - 0.5 }); }
+    const ball = { x: start.x, z: start.z, vx: 0, vz: 0, s: 1, last: [start.x, start.z] };
+    let strokes = 0, phase = 'aim', t = 0, wait = 0, aim = null, yaw = Math.atan2(hole.x - start.x, hole.z - start.z) * 0.6;
+    const cam = { x: 0, y: 4.2, z: 0, yaw, pitch: 0.5, F: 700, W: 1280, H: 720, cy: 0.45 };
+    const msgs = [];
+    const say = (text, color = '#fff', y = 0.32) => msgs.push({ text, color, y, t: 0 });
+    say(`Màn ${(lv | 0) + 1} · ${LV.name} · Par ${LV.par}`, '#fff3bf', 0.28);
+    /* ---------- vật lý ---------- */
+    function boxHit(x0, z0, x1, z1, mvx) {
+      const cx = Math.max(x0, Math.min(x1, ball.x)), cz = Math.max(z0, Math.min(z1, ball.z)), dx = ball.x - cx, dz = ball.z - cz, d = Math.hypot(dx, dz);
+      if (d >= BR || d < 1e-6) return;
+      const nx = dx / d, nz = dz / d; ball.x = cx + nx * BR; ball.z = cz + nz * BR;
+      const rvx = ball.vx - (mvx || 0), vn = rvx * nx + ball.vz * nz;
+      if (vn < 0) { ball.vx -= 1.75 * vn * nx; ball.vz -= 1.75 * vn * nz; if (Math.abs(vn) > 1) sfxBump = 0.12; }
+    }
+    let sfxBump = 0;
+    function physics(dt) {
+      const sp = Math.hypot(ball.vx, ball.vz), ch = at(ball.x, ball.z);
+      const dec = (ch === 's' ? 7 : 1.7) + sp * 0.25;
+      if (sp > 0) { const ns = Math.max(0, sp - dec * dt); ball.vx *= ns / sp; ball.vz *= ns / sp; }
+      ball.x += ball.vx * dt; ball.z += ball.vz * dt;
+      // tường + thùng gỗ: ô không phải mặt sân là khối đặc
+      const { c, r } = toCell(ball.x, ball.z);
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const ch2 = cell(c + dc, r + dr); if (isFloor(ch2)) continue; const x0 = wx(c + dc) - 0.5, z0 = wz(r + dr) - 0.5; boxHit(x0, z0, x0 + 1, z0 + 1); }
+      movers.forEach((m) => boxHit(m.x - m.w / 2, m.z0 + 0.15, m.x + m.w / 2, m.z0 + 0.85, m.vx));
+      if (at(ball.x, ball.z) === 'w') { strokes++; say('💦 Rơi xuống nước! +1 gậy', '#a5d8ff'); ball.x = ball.last[0]; ball.z = ball.last[1]; ball.vx = ball.vz = 0; phase = 'aim'; if (strokes >= 8) done(true); return; }
+      const dh = Math.hypot(ball.x - hole.x, ball.z - hole.z), sp2 = Math.hypot(ball.vx, ball.vz);
+      if (dh < HOLE && sp2 < 4.2) { phase = 'sink'; return; }
+      if (dh < HOLE * 0.8 && sp2 >= 4.2) { const a = (Math.random() - 0.5) * 0.6, c2 = Math.cos(a), s2 = Math.sin(a), vx = ball.vx; ball.vx = (vx * c2 - ball.vz * s2) * 0.8; ball.vz = (vx * s2 + ball.vz * c2) * 0.8; }
+      if (dh < 0.7 && sp2 < 2.2) { ball.vx += (hole.x - ball.x) * 3 * dt; ball.vz += (hole.z - ball.z) * 3 * dt; }
+      if (sp2 < 0.06) { ball.vx = ball.vz = 0; phase = 'aim'; if (strokes >= 8 && phase === 'aim') done(true); }
+    }
+    function done(pick) {
+      const d = strokes - LV.par, stars = pick ? 0 : strokes === 1 ? 3 : d <= -1 ? 3 : d === 0 ? 2 : 1;
+      say(pick ? '🫳 Hết lượt (8 gậy)' : strokes === 1 ? '🏆 HOLE IN ONE!!!' : d <= -2 ? '🦅 EAGLE!' : d === -1 ? '🐦 BIRDIE!' : d === 0 ? '👍 PAR' : d === 1 ? 'Bogey' : `+${d} gậy`, d <= 0 ? '#ffe066' : '#fff', 0.36);
+      phase = 'end'; wait = 1.8; game.res = { lv: lv | 0, strokes, par: LV.par, stars, win: !pick && d <= 0 };
+    }
+    /** dự đoán đường bóng (để vẽ vạch ngắm) */
+    function predict(vx, vz) {
+      const save = { x: ball.x, z: ball.z, vx: ball.vx, vz: ball.vz }, pts = [];
+      ball.vx = vx; ball.vz = vz;
+      for (let i = 0; i < 70 && Math.hypot(ball.vx, ball.vz) > 0.3; i++) { for (let k = 0; k < 3; k++) { const sp = Math.hypot(ball.vx, ball.vz), dec = 1.7 + sp * 0.25, ns = Math.max(0, sp - dec / 90); if (sp > 0) { ball.vx *= ns / sp; ball.vz *= ns / sp; } ball.x += ball.vx / 90; ball.z += ball.vz / 90; const { c, r } = toCell(ball.x, ball.z); for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { if (isFloor(cell(c + dc, r + dr))) continue; const x0 = wx(c + dc) - 0.5, z0 = wz(r + dr) - 0.5; boxHit(x0, z0, x0 + 1, z0 + 1); } } pts.push([ball.x, ball.z]); if (at(ball.x, ball.z) === 'w') { pts.water = 1; break; } }
+      Object.assign(ball, save); sfxBump = 0;
+      return pts;
+    }
+    const shotOf = (a) => {
+      const dx = a.cx - a.sx, dy = a.cy - a.sy, len = Math.hypot(dx, dy), pw = Math.min(1, len / (cam.H * 0.32));
+      if (len < 6) return null;
+      const fwd = dy / len, rgt = -dx / len, cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+      const vx = (fwd * sy + rgt * cy) * pw * MAXV, vz = (fwd * cy - rgt * sy) * pw * MAXV;
+      return { vx, vz, pw };
+    };
+    function step(dt) {
+      t += dt; sfxBump = Math.max(0, sfxBump - dt);
+      movers.forEach((m) => { const span = m.b - m.a - m.w, px = m.x; m.x = m.a + m.w / 2 + span * (0.5 + 0.5 * Math.sin(t * m.sp / Math.max(1, span) * 2 + m.ph)); m.vx = (m.x - px) / Math.max(dt, 1e-4); });
+      if (phase === 'roll') { for (let k = 0; k < 4; k++) { physics(dt / 4); if (phase !== 'roll') break; } }
+      else if (phase === 'sink') { ball.s = Math.max(0, ball.s - dt * 3); ball.x += (hole.x - ball.x) * 0.25; ball.z += (hole.z - ball.z) * 0.25; if (ball.s <= 0) done(false); }
+      else if (phase === 'end') { if ((wait -= dt) <= 0) game.over = true; }
+      // camera bám sau bóng, nhìn theo hướng ngắm
+      const dist = 4.4, ty = phase === 'roll' ? Math.atan2(ball.vx || 1e-6, ball.vz || 1e-6) : yaw;
+      if (phase === 'roll' && Math.hypot(ball.vx, ball.vz) > 1.5) { let d2 = ty - yaw; while (d2 > Math.PI) d2 -= 2 * Math.PI; while (d2 < -Math.PI) d2 += 2 * Math.PI; yaw += d2 * Math.min(1, dt * 1.2); }
+      let dy = yaw - cam.yaw; while (dy > Math.PI) dy -= 2 * Math.PI; while (dy < -Math.PI) dy += 2 * Math.PI;
+      cam.yaw += dy * Math.min(1, dt * 4);
+      const tx = ball.x - Math.sin(cam.yaw) * dist, tz = ball.z - Math.cos(cam.yaw) * dist;
+      cam.x += (tx - cam.x) * Math.min(1, dt * 5); cam.z += (tz - cam.z) * Math.min(1, dt * 5);
+    }
+    /* ---------- vẽ 3D ---------- */
+    const toC = (x, y, z) => { const dx = x - cam.x, dy = y - cam.y, dz = z - cam.z, cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), X = dx * cy - dz * sy, D = dx * sy + dz * cy, c = Math.cos(cam.pitch), s = Math.sin(cam.pitch); return { X, Y: dy * c + D * s, Z: -dy * s + D * c }; };
+    const proj = (q) => { const k = cam.F / Math.max(0.05, q.Z); return { x: cam.W / 2 + q.X * k, y: cam.H * cam.cy - q.Y * k, k }; };
+    const P = (x, y, z) => proj(toC(x, y, z));
+    function poly(g, pts, fill, stroke) {
+      const cs = pts.map(([x, y, z]) => toC(x, y, z)), out = [], N = 0.2;
+      for (let i = 0; i < cs.length; i++) { const a = cs[i], b = cs[(i + 1) % cs.length], ia = a.Z > N, ib = b.Z > N; if (ia) out.push(a); if (ia !== ib) { const k = (N - a.Z) / (b.Z - a.Z); out.push({ X: a.X + (b.X - a.X) * k, Y: a.Y + (b.Y - a.Y) * k, Z: N }); } }
+      if (out.length < 3) return;
+      g.beginPath(); out.forEach((c, i) => { const p = proj(c); if (i) g.lineTo(p.x, p.y); else g.moveTo(p.x, p.y); }); g.closePath(); g.fillStyle = fill; g.fill();
+      if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1; g.stroke(); }
+    }
+    const WALL = LV.wall === 'wood' ? { top: '#b5763d', side: '#8a5427', dark: '#6b3f1c', line: 'rgba(60,30,10,.45)' } : { top: '#c9c9c9', side: '#9a9a9a', dark: '#7d7d7d', line: 'rgba(60,60,60,.35)' };
+    /** hộp (tường / thùng): các mặt nhìn thấy được, kèm độ sâu để sắp xếp */
+    function boxFaces(x0, z0, x1, z1, h, col, list, crate) {
+      const cx = cam.x, cz = cam.z, ctr = toC((x0 + x1) / 2, h / 2, (z0 + z1) / 2).Z;
+      const faces = [];
+      faces.push({ n: 'top', pts: [[x0, h, z0], [x1, h, z0], [x1, h, z1], [x0, h, z1]], col: col.top });
+      if (cz < z0) faces.push({ pts: [[x0, 0, z0], [x1, 0, z0], [x1, h, z0], [x0, h, z0]], col: col.side });
+      if (cz > z1) faces.push({ pts: [[x0, 0, z1], [x1, 0, z1], [x1, h, z1], [x0, h, z1]], col: col.side });
+      if (cx < x0) faces.push({ pts: [[x0, 0, z0], [x0, 0, z1], [x0, h, z1], [x0, h, z0]], col: col.dark });
+      if (cx > x1) faces.push({ pts: [[x1, 0, z0], [x1, 0, z1], [x1, h, z1], [x1, h, z0]], col: col.dark });
+      list.push({ z: ctr, d: (g) => faces.forEach((f) => { poly(g, f.pts, f.col, col.line); if (crate && f.n !== 'top') { const [a, , c2] = f.pts; const A = P(...a), C = P(...c2); g.strokeStyle = 'rgba(60,30,10,.55)'; g.lineWidth = 2; g.beginPath(); g.moveTo(A.x, A.y); g.lineTo(C.x, C.y); g.stroke(); } }) });
+    }
+    function scene(g) {
+      const list = [];
+      for (let r = 0; r < NR; r++) for (let c = 0; c < NC; c++) {
+        const ch = cell(c, r), x0 = wx(c) - 0.5, z0 = wz(r) - 0.5;
+        if (ch === ' ') continue;
+        const col = ch === 'w' ? '#3d9be9' : ch === 's' ? '#ecd38c' : (c + r) % 2 ? '#5fbf48' : '#4eaa3c';
+        const zc = toC(x0 + 0.5, 0, z0 + 0.5).Z + 2.5;
+        list.push({ z: zc, d: (g2) => { poly(g2, [[x0, 0, z0], [x0 + 1, 0, z0], [x0 + 1, 0, z0 + 1], [x0, 0, z0 + 1]], col); if (ch === 'w') { const p = P(x0 + 0.5, 0, z0 + 0.5); g2.strokeStyle = 'rgba(255,255,255,.5)'; g2.lineWidth = 1.5; g2.beginPath(); g2.ellipse(p.x + Math.sin(t * 2 + c) * 4, p.y, 0.2 * p.k, 0.06 * p.k, 0, 0, Math.PI * 2); g2.stroke(); } } });
+        if (ch === 'B') boxFaces(x0 + 0.06, z0 + 0.06, x0 + 0.94, z0 + 0.94, 0.8, { top: '#b97a3c', side: '#9b622c', dark: '#7d4d20', line: 'rgba(60,30,10,.6)' }, list, true);
+        // tường ở cạnh giáp ngoài sân
+        const T = 0.28, Hh = 0.38;
+        if (cell(c, r - 1) === ' ') boxFaces(x0 - T, z0 + 1, x0 + 1 + T, z0 + 1 + T, Hh, WALL, list);
+        if (cell(c, r + 1) === ' ') boxFaces(x0 - T, z0 - T, x0 + 1 + T, z0, Hh, WALL, list);
+        if (cell(c - 1, r) === ' ') boxFaces(x0 - T, z0, x0, z0 + 1, Hh, WALL, list);
+        if (cell(c + 1, r) === ' ') boxFaces(x0 + 1, z0, x0 + 1 + T, z0 + 1, Hh, WALL, list);
+      }
+      movers.forEach((m) => boxFaces(m.x - m.w / 2, m.z0 + 0.15, m.x + m.w / 2, m.z0 + 0.85, 0.6, { top: '#e8590c', side: '#c2410c', dark: '#9c3008', line: 'rgba(0,0,0,.4)' }, list, true));
+      // lỗ + cờ
+      list.push({ z: toC(hole.x, 0, hole.z).Z + 0.4, d: (g2) => {
+        poly(g2, Array.from({ length: 18 }, (_, i) => [hole.x + Math.cos(i / 18 * Math.PI * 2) * HOLE, 0.002, hole.z + Math.sin(i / 18 * Math.PI * 2) * HOLE]), '#18230f');
+        const b = P(hole.x, 0, hole.z), top = P(hole.x, 1.4, hole.z);
+        g2.strokeStyle = '#f1f3f5'; g2.lineWidth = Math.max(2, 0.03 * b.k); g2.beginPath(); g2.moveTo(b.x, b.y); g2.lineTo(top.x, top.y); g2.stroke();
+        const fl = Math.max(10, 0.45 * top.k), w = Math.sin(t * 5) * fl * 0.08;
+        g2.fillStyle = '#ff3b3b'; g2.beginPath(); g2.moveTo(top.x, top.y); g2.quadraticCurveTo(top.x + fl * 0.6, top.y + fl * 0.15 + w, top.x + fl, top.y + fl * 0.28); g2.lineTo(top.x, top.y + fl * 0.55); g2.closePath(); g2.fill();
+      } });
+      // bóng
+      list.push({ z: toC(ball.x, 0, ball.z).Z - 0.05, d: (g2) => {
+        if (ball.s <= 0) return;
+        const sh = P(ball.x, 0, ball.z), q = P(ball.x, BR * ball.s, ball.z), r = Math.max(3, BR * ball.s * q.k);
+        if (phase === 'aim') { g2.strokeStyle = '#ffd43b'; g2.lineWidth = Math.max(3, 0.06 * sh.k); g2.beginPath(); g2.ellipse(sh.x, sh.y, 0.32 * sh.k, 0.32 * sh.k * Math.sin(cam.pitch + 0.25), 0, 0, Math.PI * 2); g2.stroke(); }
+        g2.fillStyle = 'rgba(0,0,0,.3)'; g2.beginPath(); g2.ellipse(sh.x, sh.y, r, r * 0.45, 0, 0, Math.PI * 2); g2.fill();
+        const gr = g2.createRadialGradient(q.x - r * 0.35, q.y - r * 0.35, r * 0.1, q.x, q.y, r); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, '#cfd4da');
+        g2.fillStyle = gr; g2.beginPath(); g2.arc(q.x, q.y, r, 0, Math.PI * 2); g2.fill(); g2.strokeStyle = '#495057'; g2.lineWidth = 1; g2.stroke();
+      } });
+      list.filter((it) => it.z > 0.2 - 2.5).sort((a, b) => b.z - a.z).forEach((it) => it.d(g));
+    }
+    const ROT = () => [{ k: -1, x: 60, y: cam.H - 70 }, { k: 1, x: cam.W - 60, y: cam.H - 70 }];
+    const game = {
+      VW: 1280, VH: 720, wide: true, over: false, res: null,
+      _dbg: () => ({ ball, hole, phase, strokes, predict, shoot: (vx, vz) => { ball.last = [ball.x, ball.z]; ball.vx = vx; ball.vz = vz; strokes++; phase = 'roll'; } }),
+      update(dt) { for (let k = 0; k < 2; k++) step(dt / 2); msgs.forEach((m) => { m.t += dt; }); while (msgs.length && msgs[0].t > 2) msgs.shift(); },
+      down(p) {
+        const rb = ROT().find((o) => Math.hypot(p.x - o.x, p.y - o.y) < 50);
+        if (rb) { yaw += rb.k * Math.PI / 10; return; }
+        if (phase === 'aim') aim = { sx: p.x, sy: p.y, cx: p.x, cy: p.y };
+      },
+      move(p) { if (aim) { aim.cx = p.x; aim.cy = p.y; } },
+      up() {
+        if (!aim) return;
+        const s = shotOf(aim); aim = null;
+        if (!s || s.pw < 0.06 || phase !== 'aim') return;
+        ball.last = [ball.x, ball.z]; ball.vx = s.vx; ball.vz = s.vz; strokes++; phase = 'roll';
+        yaw = Math.atan2(s.vx, s.vz);
+      },
+      key(k, on) { if (!on) return; if (k === 'ArrowLeft' || k === 'a') yaw -= Math.PI / 12; if (k === 'ArrowRight' || k === 'd') yaw += Math.PI / 12; },
+      draw(g) {
+        cam.W = game.VW; cam.H = game.VH; cam.F = cam.H * 1.0;
+        const W = cam.W, H = cam.H;
+        // trời + biển
+        const hz = cam.H * cam.cy - cam.F * Math.tan(cam.pitch);
+        const sk = g.createLinearGradient(0, 0, 0, Math.max(1, hz)); sk.addColorStop(0, '#6ec6ff'); sk.addColorStop(1, '#d6f0ff'); g.fillStyle = sk; g.fillRect(0, 0, W, Math.max(0, hz) + 1);
+        const sea = g.createLinearGradient(0, hz, 0, H); sea.addColorStop(0, '#5cb8f5'); sea.addColorStop(1, '#2f8fe0'); g.fillStyle = sea; g.fillRect(0, Math.max(0, hz), W, H);
+        g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 2;
+        for (let i = 0; i < 40; i++) { const gx = ((i * 197 + Math.sin(t * 0.5 + i) * 20) % (W + 100)) - 50, gy = Math.max(hz, 0) + ((i * 89) % Math.max(1, H - hz)); g.beginPath(); g.moveTo(gx, gy); g.lineTo(gx + 30, gy + 8); g.lineTo(gx + 64, gy - 4); g.stroke(); }
+        scene(g);
+        // vạch ngắm
+        if (aim && phase === 'aim') {
+          const s = shotOf(aim);
+          if (s) {
+            const pts = predict(s.vx, s.vz);
+            g.fillStyle = '#fff'; pts.forEach(([x, z], i) => { if (i % 3) return; const q = toC(x, 0.05, z); if (q.Z < 0.3) return; const p = proj(q); g.globalAlpha = 1 - i / pts.length; g.beginPath(); g.arc(p.x, p.y, Math.max(2, 0.04 * p.k), 0, Math.PI * 2); g.fill(); });
+            g.globalAlpha = 1;
+            const bw = 300, bx = W / 2 - bw / 2, by = H - 46;
+            g.fillStyle = 'rgba(0,0,0,.5)'; rr(g, bx - 4, by - 4, bw + 8, 24, 12); g.fill();
+            g.fillStyle = `hsl(${120 - s.pw * 120},85%,55%)`; rr(g, bx, by, bw * s.pw, 16, 8); g.fill();
+            g.fillStyle = '#fff'; g.font = '900 13px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(`Lực ${Math.round(s.pw * 100)}%`, W / 2, by - 16);
+          }
+        }
+        // HUD
+        g.fillStyle = 'rgba(20,40,80,.75)'; rr(g, W - 330, 12, 318, 40, 10); g.fill();
+        g.fillStyle = '#fff'; g.font = '900 17px "Be Vietnam Pro", system-ui'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(`⛳ ${(lv | 0) + 1}/${MINI.length} ${LV.name}`, W - 24, 32);
+        g.fillStyle = 'rgba(20,40,80,.75)'; rr(g, 12, 12, 250, 40, 10); g.fill();
+        g.fillStyle = '#ffe066'; g.textAlign = 'left'; g.fillText(`🏌️ Gậy ${strokes}  ·  Par ${LV.par}`, 26, 32);
+        ROT().forEach((o) => { g.fillStyle = 'rgba(255,255,255,.3)'; g.beginPath(); g.arc(o.x, o.y, 34, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 3; g.stroke(); g.fillStyle = '#fff'; g.font = '900 26px system-ui'; g.textAlign = 'center'; g.fillText(o.k < 0 ? '⟲' : '⟳', o.x, o.y + 1); });
+        if (phase === 'aim' && !aim && strokes === 0) hint(g, '👆 Kéo ngược ra sau rồi thả để đánh bóng · ⟲ ⟳ xoay góc nhìn', 0.82);
+        drawMsgs(g, msgs.map((m) => ({ ...m, x: W / 2, y: H * m.y })));
+      },
+    };
     return game;
   }
 
@@ -890,12 +1213,12 @@ const SPORTS = (() => {
    * Khung chơi: menu chọn độ khó → chơi → kết quả + thưởng
    * ==================================================================== */
   const GAMES = {
-    badminton: { name: 'Cầu lông', icon: '🏸', vs: true, make: (d) => makeRally('badminton', d), bg: '#16243f',
-      how: ['Camera sau lưng bạn như game thật — <b>kéo ngón tay trên sân</b> để chạy tới chỗ đó, vợt tự đỡ khi cầu tới gần', 'Chạm khi cầu bay cao = <b>bật nhảy ĐẬP CẦU</b> 💥', 'Đang chạy lên lưới thì bỏ nhỏ, lùi về sau thì phông cầu cao', 'Bàn phím: ← → ↑ ↓ di chuyển, Space nhảy đập', 'Ai được 7 điểm trước (cách 2 điểm) là thắng'] },
-    pingpong: { name: 'Bóng bàn', icon: '🏓', vs: true, make: (d) => makeRally('pingpong', d), bg: '#b9773f',
+    badminton: { name: 'Cầu lông', icon: '🏸', vs: true, make: (d) => makeBadminton(d), bg: '#5b4b8a',
+      how: ['Giữ nút <b>◀ ▶</b> để chạy theo cầu (hoặc chạm vào sân chỗ muốn chạy tới)', 'Cầu tới gần là vợt <b>tự đỡ</b> — không cần bấm gì cũng chơi được', 'Bấm <b>🪶 Đánh cao</b> phông cầu về cuối sân · <b>🪽 Bỏ nhỏ</b> cầu rơi sát lưới', 'Cầu bay cao thì bấm <b>💥 ĐẬP</b> để bật nhảy đập cầu', 'Bàn phím: A/D chạy · K đánh cao · J bỏ nhỏ · L đập · 7 điểm thắng'] },
+    pingpong: { name: 'Bóng bàn', icon: '🏓', vs: true, make: (d) => makePingPong(d), bg: '#ff9f7a',
       how: ['Kéo ngón tay để di chuyển vợt — bóng chạm vợt là tự đánh', 'Bóng phải nảy bên bàn mình 1 lần rồi mới đánh', 'Đỡ ở mép vợt → bóng đi chéo góc (dễ ra ngoài!)', 'Hất vợt nhanh lên trên (hoặc chạm màn hình) lúc chạm bóng = <b>ĐẬP</b> 💥', 'Ai được 7 điểm trước (cách 2 điểm) là thắng'] },
-    golf: { name: 'Golf', icon: '⛳', vs: true, make: (d) => makeGolf(d), bg: '#3f8f3a',
-      how: ['3 lỗ đấu với máy — ai ít gậy hơn thắng', '<b>Kéo trên sân</b> để chọn chỗ bóng rơi (vòng tròn), gậy tự đổi theo khoảng cách', 'Bấm <b>ĐÁNH</b> rồi chạm lần nữa để dừng thanh lực đúng vùng xanh <b>HOÀN HẢO</b>', 'Để ý 🌬️ gió, hố cát, hồ nước và cây', 'Lên green: kéo chọn chỗ gạt rồi bấm GẠT BÓNG'] },
+    golf: { name: 'Golf mini', icon: '⛳', vs: false, levels: true, energy: 1, make: (d) => makeGolf(d), bg: '#2f8fe0',
+      how: ['<b>Kéo ngược ra sau</b> ở bất kỳ đâu trên màn hình (như ná cao su) rồi thả để đánh', 'Kéo càng dài càng mạnh — vạch chấm trắng cho thấy đường bóng sẽ đi, kể cả nảy tường', 'Nút ⟲ ⟳ xoay góc nhìn · tránh thùng gỗ, hố cát, hồ nước, thùng trượt', 'Mỗi màn là 1 lỗ: dưới par ⭐⭐⭐ · đúng par ⭐⭐ · qua lỗ ⭐ · qua màn để mở màn sau'] },
     basketball: { name: 'Bóng rổ', icon: '🏀', vs: false, make: () => makeBasket(), bg: '#18243d',
       how: ['Nhân vật của bạn cầm bóng — <b>vuốt lên về phía rổ ở bất kỳ đâu trên màn hình</b>', 'Vuốt dài thì ném xa, vuốt lệch thì bóng lệch', '45 giây: vào rổ +1, không chạm vành (ngọt) +2 và +2 giây', 'Vào 3 quả liên tiếp: 🔥 nhân đôi điểm · vào 2 quả thì đổi vị trí ném'] },
     pickleball: { name: 'Pickleball', icon: '🥎', vs: true, make: (d) => makeRally('pickleball', d), bg: '#5c7cfa',
@@ -917,7 +1240,11 @@ const SPORTS = (() => {
 .sp-card .diff button{flex:1;border:2px solid #2b1a10;border-radius:10px;padding:8px 4px;font-weight:800;background:#fff;cursor:pointer;font-family:inherit}
 .sp-card .diff button.on{background:#ffd43b}
 .sp-card .note{font-size:12px;color:#7a5a3a;text-align:center;margin:6px 0 0}
-.sp-card .res{font-size:18px;text-align:center;margin:8px 0;font-weight:800}`;
+.sp-card .res{font-size:18px;text-align:center;margin:8px 0;font-weight:800}
+.sp-lv{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
+.sp-lv button{border:2px solid #2b1a10;border-radius:10px;background:#fff;padding:5px 2px;display:flex;flex-direction:column;align-items:center;font-family:inherit;cursor:pointer}
+.sp-lv button b{font-size:18px}.sp-lv button small{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;max-width:100%}.sp-lv button i{font-style:normal;font-size:11px}
+.sp-lv button.on{background:#ffd43b}.sp-lv button:disabled{opacity:.45;cursor:default}`;
     document.head.appendChild(st);
   }
 
@@ -936,7 +1263,7 @@ const SPORTS = (() => {
     const G = GAMES[id];
     if (!G) return;
     const v = document.getElementById('arcadeView');
-    v.innerHTML = `<div class="arc-bar"><b>${G.icon} ${G.name}</b><span>Khu Thể Thao · mỗi ván tốn ${ENERGY} ⚡</span><button class="tv-x" data-close>✕ Thoát</button></div><div class="sp-stage"><canvas></canvas><div class="sp-menu"></div></div>`;
+    v.innerHTML = `<div class="arc-bar"><b>${G.icon} ${G.name}</b><span>Khu Thể Thao · mỗi ván tốn ${G.energy || ENERGY} ⚡</span><button class="tv-x" data-close>✕ Thoát</button></div><div class="sp-stage"><canvas></canvas><div class="sp-menu"></div></div>`;
     v.classList.add('show');
     const stage = v.querySelector('.sp-stage'), cv = v.querySelector('canvas'), g = cv.getContext('2d'), menu = v.querySelector('.sp-menu');
     const me = { id, game: G.make(1), diff: +(D().diff || {})[id] || 1, running: false, raf: 0, last: 0 };
@@ -948,11 +1275,12 @@ const SPORTS = (() => {
       if (me.game.wide) { me.game.VH = 720; me.game.VW = Math.round(clamp(720 * r.width / Math.max(1, r.height), 720, 1700)); }
       k = Math.min(r.width / me.game.VW, r.height / me.game.VH); ox = (r.width - me.game.VW * k) / 2; oy = (r.height - me.game.VH * k) / 2;
     };
-    const toV = (e) => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left - ox) / k, y: (e.clientY - r.top - oy) / k }; };
-    let down = false;
-    cv.addEventListener('pointerdown', (e) => { if (!me.running) return; e.preventDefault(); down = true; try { cv.setPointerCapture(e.pointerId); } catch (er) { /* bỏ qua */ } me.game.down(toV(e)); });
-    cv.addEventListener('pointermove', (e) => { if (!me.running) return; if (down || e.pointerType === 'mouse') me.game.move(toV(e)); });
-    const up = (e) => { if (!down) return; down = false; if (me.running) me.game.up(toV(e)); };
+    const toV = (e) => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left - ox) / k, y: (e.clientY - r.top - oy) / k, id: e.pointerId }; };
+    // nhiều ngón cùng lúc: giữ nút chạy + bấm nút đánh
+    const downs = new Set();
+    cv.addEventListener('pointerdown', (e) => { if (!me.running) return; e.preventDefault(); downs.add(e.pointerId); try { cv.setPointerCapture(e.pointerId); } catch (er) { /* bỏ qua */ } me.game.down(toV(e)); });
+    cv.addEventListener('pointermove', (e) => { if (!me.running) return; if (downs.has(e.pointerId) || e.pointerType === 'mouse') me.game.move(toV(e), downs.has(e.pointerId)); });
+    const up = (e) => { if (!downs.has(e.pointerId)) return; downs.delete(e.pointerId); if (me.running) me.game.up(toV(e)); };
     cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
     const kd = (e) => { if (!me.running) return; if ([' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) e.preventDefault(); me.game.key(e.key.length === 1 ? e.key.toLowerCase() : e.key, true); };
     const ku = (e) => { if (me.running) me.game.key(e.key.length === 1 ? e.key.toLowerCase() : e.key, false); };
@@ -975,18 +1303,25 @@ const SPORTS = (() => {
     }
     function showMenu() {
       const d = D(), best = d.best[id], wins = d.wins[id] || 0, cap = d.day === today() ? DAY_CAP - (d.earned || 0) : DAY_CAP;
-      const rec = id === 'golf' ? (best ? `🏅 Kỷ lục: <b>${best} gậy</b> / 3 lỗ` : 'Chưa có kỷ lục') : id === 'basketball' ? (best ? `🏅 Kỷ lục: <b>${best} điểm</b>` : 'Chưa có kỷ lục') : `🏆 Đã thắng máy <b>${wins}</b> ván`;
+      const rec = id === 'golf' ? `⭐ Đã có <b>${(d.golfStars || []).reduce((a, v) => a + (v || 0), 0)}/${MINI.length * 3}</b> sao` : id === 'basketball' ? (best ? `🏅 Kỷ lục: <b>${best} điểm</b>` : 'Chưa có kỷ lục') : `🏆 Đã thắng máy <b>${wins}</b> ván`;
       menu.hidden = false;
       menu.innerHTML = `<div class="sp-card"><div class="big">${G.icon}</div><h2>${G.name}</h2>
         <ul>${G.how.map((h) => `<li>${h}</li>`).join('')}</ul>
         ${G.vs ? `<div class="diff">${DIFFS.map((n, i) => `<button data-d="${i}" class="${i === me.diff ? 'on' : ''}">${n}<br><small>thắng +${WIN_XU[i]} xu</small></button>`).join('')}</div>` : ''}
         <p class="note">${rec} · Hôm nay còn nhận được tối đa <b>${fmt(Math.max(0, cap))}</b> xu từ thể thao</p>
-        <div class="row"><button class="btn" data-go>▶ Vào sân (−${ENERGY} ⚡)</button></div></div>`;
+        ${G.levels ? levelGrid() : ''}
+        <div class="row"><button class="btn" data-go>▶ ${G.levels ? 'Chơi màn ' + (me.diff + 1) : 'Vào sân'} (−${G.energy || ENERGY} ⚡)</button></div></div>`;
+      menu.querySelectorAll('[data-lv]').forEach((b) => b.onclick = () => { me.diff = +b.dataset.lv; showMenu(); });
       menu.querySelectorAll('[data-d]').forEach((b) => b.onclick = () => { me.diff = +b.dataset.d; D().diff = { ...(D().diff || {}), [id]: me.diff }; showMenu(); });
       menu.querySelector('[data-go]').onclick = start;
     }
+    function levelGrid() {
+      const st = D().golfStars || [], open = Math.min(MINI.length - 1, st.filter((v) => v > 0).length);
+      if (me.diff > open) me.diff = open;
+      return `<div class="sp-lv">${MINI.map((L, i) => `<button data-lv="${i}" class="${i === me.diff ? 'on' : ''}" ${i > open ? 'disabled' : ''}><b>${i > open ? '🔒' : i + 1}</b><small>${L.name}</small><i>${i > open ? '' : '⭐'.repeat(st[i] || 0) + '☆'.repeat(3 - (st[i] || 0))}</i></button>`).join('')}</div>`;
+    }
     function start() {
-      if (!AV.useEnergy(ENERGY)) { UI.toast('😫 Mệt quá rồi — ăn gì đó để hồi ⚡ năng lượng rồi chơi tiếp nhé'); return; }
+      if (!AV.useEnergy(G.energy || ENERGY)) { UI.toast('😫 Mệt quá rồi — ăn gì đó để hồi ⚡ năng lượng rồi chơi tiếp nhé'); return; }
       me.game = G.make(me.diff); fit(); menu.hidden = true; me.running = true; me.last = 0;
       const d = D(); d.plays[id] = (d.plays[id] || 0) + 1; AV.markChanged();
     }
@@ -994,12 +1329,12 @@ const SPORTS = (() => {
       const d = D();
       let coins = 0, xp = 0, title = '', line = '';
       if (id === 'golf') {
-        const diff = res.strokes - res.par;
-        coins = res.win ? WIN_XU[me.diff] + 20 : res.draw ? Math.round(WIN_XU[me.diff] / 2) : 10; xp = res.win ? WIN_XP[me.diff] + 5 : 6;
-        title = res.win ? '🏆 CHIẾN THẮNG!' : res.draw ? '🤝 Hoà!' : '⛳ Thua sát nút';
-        line = `Bạn <b>${res.strokes} gậy</b> (par ${res.par}, ${diff > 0 ? '+' + diff : diff === 0 ? 'đúng par' : diff}) · Máy ${res.ai} gậy · ${res.cards.join(' · ')}`;
-        if (!d.best.golf || res.strokes < d.best.golf) { d.best.golf = res.strokes; line += '<br>🎉 Kỷ lục mới!'; }
-        if (res.win) d.wins.golf = (d.wins.golf || 0) + 1;
+        const st = d.golfStars = d.golfStars || [], prev = st[res.lv] || 0, first = prev === 0 && res.stars > 0;
+        if (res.stars > prev) st[res.lv] = res.stars;
+        coins = [5, 20, 35, 60][res.stars] + (first ? 50 : 0) + res.lv * 5; xp = 4 + res.stars * 4 + res.lv;
+        title = res.stars === 3 ? '🏆 Xuất sắc!' : res.stars ? '⛳ Qua màn!' : '😅 Chưa qua màn';
+        line = `Màn ${res.lv + 1} · ${res.strokes} gậy (par ${res.par})<br><span style="font-size:30px">${'⭐'.repeat(res.stars)}${'☆'.repeat(3 - res.stars)}</span>${first ? '<br>🔓 Mở khoá màn tiếp theo! +50 xu' : ''}`;
+        if (res.stars) { d.wins.golf = (d.wins.golf || 0) + 1; me.diff = Math.min(MINI.length - 1, res.lv + 1); }
       } else if (G.vs) {
         coins = res.win ? WIN_XU[me.diff] : res.score[0] * 2; xp = res.win ? WIN_XP[me.diff] : 4;
         title = res.win ? '🏆 CHIẾN THẮNG!' : '😢 Thua mất rồi';
@@ -1025,7 +1360,7 @@ const SPORTS = (() => {
       menu.hidden = false;
       menu.innerHTML = `<div class="sp-card"><div class="big">${G.icon}</div><h2>${title}</h2><p class="res">${line}</p>
         <p class="res">💰 +${fmt(got)} xu · ⭐ +${xp} XP</p>${got < coins ? '<p class="note">Đã đủ giới hạn xu thể thao hôm nay — mai quay lại nhé!</p>' : ''}
-        <div class="row"><button class="btn" data-again>🔁 Chơi lại</button><button class="btn ghost" data-menu>📋 Đổi độ khó</button><button class="btn ghost" data-quit>🚪 Ra sân</button></div></div>`;
+        <div class="row"><button class="btn" data-again>${G.levels ? `▶ Chơi màn ${me.diff + 1}` : '🔁 Chơi lại'}</button><button class="btn ghost" data-menu>📋 Đổi độ khó</button><button class="btn ghost" data-quit>🚪 Ra sân</button></div></div>`;
       menu.querySelector('[data-again]').onclick = start;
       menu.querySelector('[data-menu]').onclick = showMenu;
       menu.querySelector('[data-quit]').onclick = () => { cleanup(); UI.closeArcade(); };
