@@ -60,29 +60,41 @@ const CARO = (() => {
     v.innerHTML = `<div class="arc-bar"><b>♟️ Cờ Caro</b><span>5 quân liên tiếp · chặn 2 đầu không tính</span><button class="tv-x" data-close>✕ Thoát</button></div>
       <div class="ca-wrap"><div class="ca-side"></div><div class="ca-board"><canvas></canvas></div></div>`;
     v.classList.add('show');
-    v.querySelector('[data-close]').onclick = () => { if (st && st.bet && !st.over && st.mode === 'ai' && st.moves > 1) { UI.toast(`🏳️ Bỏ cuộc — mất ${fmt(st.bet)} xu cược`); } st = null; UI.closeArcade(); };
+    v.querySelector('[data-close]').onclick = () => { leave(); UI.closeArcade(); };
     const cv = v.querySelector('canvas');
     cv.addEventListener('pointerdown', (e) => {
       if (!st || st.over || st.busy) return;
       const r = cv.getBoundingClientRect(), cell = r.width / N, x = Math.floor((e.clientX - r.left) / cell), y = Math.floor((e.clientY - r.top) / cell);
       if (x < 0 || y < 0 || x >= N || y >= N || st.b[y * N + x]) return;
-      if (st.mode === 'ai' && st.turn !== st.me) return;
+      if ((st.mode === 'ai' || st.mode === 'net') && st.turn !== st.me) return UI.toast(st.mode === 'net' ? `⏳ Chờ ${st.oppName} đi…` : '⏳ Chờ máy đi…', 1500);
+      if (st.mode === 'net') send({ op: 'move', to: st.opp, gid: st.gid, x, y });
       play(x, y);
     });
     window.addEventListener('resize', draw);
     menu();
   }
+  /** rời ván đang chơi (online thì báo bỏ cuộc) */
+  function leave() {
+    if (st && !st.over) {
+      if (st.mode === 'net') { send({ op: 'resign', to: st.opp, gid: st.gid }); if (st.bet) UI.toast(`🏳️ Bỏ cuộc — mất ${fmt(st.bet)} xu cược`); }
+      else if (st.mode === 'ai' && st.bet && st.moves > 1) UI.toast(`🏳️ Bỏ cuộc — mất ${fmt(st.bet)} xu cược`);
+      else if (st.mode === 'ai' && st.bet) AV.earn(st.bet);
+    }
+    st = null;
+  }
   function menu() {
     const side = document.querySelector('.ca-side'); if (!side) return;
     const pref = S().caro || (S().caro = { lv: 1, bet: 1000, w: 0, l: 0 });
-    st = null; draw();
+    leave(); draw();
     side.innerHTML = `<h3>♟️ Cờ Caro</h3>
       <p class="muted">Bạn cầm <b style="color:#e03131">✕</b>, máy cầm <b style="color:#1c7ed6">◯</b>. Ai xếp được <b>5 quân liên tiếp</b> (ngang, dọc, chéo) trước là thắng — bị chặn cả 2 đầu thì không tính.</p>
       <label>Độ khó</label><div class="chips">${LV.map((n, i) => `<button class="chip ${pref.lv === i ? 'on' : ''}" data-lv="${i}">${n}</button>`).join('')}</div>
       <label>Tiền cược</label><div class="chips">${BETS.map((b) => `<button class="chip ${pref.bet === b ? 'on' : ''}" data-bet="${b}">${b ? fmt(b) : 'Chơi vui'}</button>`).join('')}</div>
       <p class="muted small-note">Thắng nhận gấp đôi tiền cược · hoà trả lại · thua mất tiền cược. Đã thắng máy ${pref.w} · thua ${pref.l}.</p>
       <button class="btn" data-ai>🤖 Đấu với máy</button>
+      <button class="btn" data-net style="background:linear-gradient(135deg,#f08c00,#e8590c)">🌐 Mời người chơi online</button>
       <button class="btn ghost" data-pvp>👥 2 người chơi chung máy</button>`;
+    side.querySelector('[data-net]').onclick = inviteList;
     side.querySelectorAll('[data-lv]').forEach((b) => b.onclick = () => { pref.lv = +b.dataset.lv; menu(); });
     side.querySelectorAll('[data-bet]').forEach((b) => b.onclick = () => { pref.bet = +b.dataset.bet; menu(); });
     side.querySelector('[data-ai]').onclick = () => start('ai');
@@ -100,8 +112,9 @@ const CARO = (() => {
   }
   function side() {
     const el = document.querySelector('.ca-side'); if (!el || !st) return;
-    const who = (p) => (st.mode === 'pvp' ? (p === 1 ? 'Người chơi ✕' : 'Người chơi ◯') : p === st.me ? 'Bạn' : 'Máy');
+    const who = (p) => (st.mode === 'pvp' ? (p === 1 ? 'Người chơi ✕' : 'Người chơi ◯') : p === st.me ? 'Bạn' : st.mode === 'net' ? esc(st.oppName) : 'Máy');
     const sym = (p) => (p === 1 ? '<b style="color:#e03131">✕</b>' : '<b style="color:#1c7ed6">◯</b>');
+    if (st.mode === 'net') return netSide(el, sym);
     el.innerHTML = `<h3>♟️ ${st.mode === 'ai' ? `Đấu máy · ${LV[st.lv]}` : '2 người chơi'}</h3>
       ${st.bet ? `<p>💰 Cược <b>${fmt(st.bet)} xu</b></p>` : ''}
       <p class="ca-turn">${st.over ? st.msg : `Lượt: ${sym(st.turn)} <b>${who(st.turn)}</b>${st.busy ? ' — đang nghĩ…' : ''}`}</p>
@@ -124,9 +137,10 @@ const CARO = (() => {
     const cur = st;
     setTimeout(() => { if (st !== cur || st.over) return; st.busy = false; const m = aiMove(st.b, st.turn, st.lv); play(m.x, m.y); }, 350 + Math.random() * 300);
   }
-  function finish(p, line) {
+  function finish(p, line, why) {
     st.over = true; st.win = line || null; st.busy = false;
-    const pref = S().caro;
+    const pref = S().caro || (S().caro = { lv: 1, bet: 1000, w: 0, l: 0 });
+    if (st.mode === 'net') return netFinish(p, why, pref);
     if (st.mode === 'pvp') st.msg = p ? `🏆 ${p === 1 ? 'Người chơi ✕' : 'Người chơi ◯'} thắng!` : '🤝 Hoà — kín bàn rồi';
     else if (!p) { st.msg = '🤝 Hoà!'; if (st.bet) AV.earn(st.bet); }
     else if (p === st.me) { pref.w++; const prize = st.bet * 2; st.msg = `🏆 Bạn thắng!${prize ? ` +${fmt(prize)} xu` : ''}`; AV.earn(prize, [8, 15, 25][st.lv]); AV.quest('arcade'); if (st.lv === 2 && typeof NET !== 'undefined' && NET.sendSys) NET.sendSys(`♟️ ${S().name} vừa thắng máy cờ caro mức KHÓ!`); }
@@ -153,6 +167,121 @@ const CARO = (() => {
       else { g.strokeStyle = '#1c7ed6'; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke(); }
     }
   }
+  /* ======================================================================
+   * 👥 CHƠI ONLINE với người chơi khác cùng khu: mời → chấp nhận → mỗi bên cược bằng nhau, thắng ăn cả
+   * Tin nhắn qua NET.sendCaro (phòng của khu đang đứng). Mỗi bên tự kiểm tra nước đi và thắng thua.
+   * ==================================================================== */
+  const CHIPS = [0, 500, 1000, 5000, 20000, 100000];
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const send = (p) => { if (typeof NET !== 'undefined' && NET.sendCaro) NET.sendCaro(p); };
+  let invite = null, invP = null;
+  /** chọn mức cược rồi gửi lời mời */
+  function challenge(r) {
+    if (st && st.mode === 'net' && !st.over) return UI.toast('Bạn đang chơi một ván caro rồi');
+    let bet = 1000;
+    const p = UI.panel(`♟️ Mời ${esc(r.name)} chơi caro`, '');
+    const render = () => {
+      p.body.innerHTML = `<p class="muted">Chọn mức cược — mỗi bên đặt bằng nhau, thắng ăn cả, hoà trả lại.</p>
+        <div class="chips center">${CHIPS.map((c) => `<button class="chip ${c === bet ? 'on' : ''}" data-c="${c}">${c ? '🪙 ' + fmt(c) : 'Chơi vui'}</button>`).join('')}</div>
+        <div class="row-end"><button class="btn" data-go>♟️ Gửi lời mời</button></div>`;
+      p.body.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => { bet = +b.dataset.c; render(); });
+      p.body.querySelector('[data-go]').onclick = () => {
+        if (bet > S().coins) return UI.toast(`Không đủ xu — cần ${fmt(bet)} xu`);
+        if (!NET.remotes.get(r.id)) return UI.toast('⚠️ Người này vừa rời khu rồi');
+        p.close();
+        invite = { gid: NET.pid + '-' + Date.now(), to: r.id, name: r.name, bet };
+        send({ op: 'invite', to: r.id, gid: invite.gid, bet, name: S().name });
+        UI.toast(`♟️ Đã mời ${r.name} — chờ trả lời…`, 4000);
+        const gid = invite.gid;
+        setTimeout(() => { if (invite && invite.gid === gid) { invite = null; UI.toast('⌛ Không thấy trả lời — đã huỷ lời mời'); } }, 25000);
+      };
+    };
+    render();
+  }
+  function onInvite(m) {
+    const bet = Math.max(0, Math.floor(+m.bet) || 0), who = String(m.name || 'Người chơi').slice(0, 16);
+    if ((st && st.mode === 'net' && !st.over) || (invP && invP.el.isConnected)) return send({ op: 'busy', to: m.id, gid: m.gid });
+    invP = UI.panel('♟️ Lời mời chơi caro', `<p class="confirm-text"><b>${esc(who)}</b> mời bạn đánh cờ caro${bet ? ` · cược <b>${fmt(bet)} xu</b>` : ' (chơi vui)'}</p>
+      ${S().coins < bet ? `<p class="game-msg">⚠️ Bạn không đủ xu</p>` : ''}
+      <div class="row-end"><button class="btn ghost" data-no>Từ chối</button><button class="btn" data-yes ${S().coins < bet ? 'disabled' : ''}>♟️ Chơi</button></div>`);
+    const ip = invP, tm = setTimeout(() => { if (ip.el.isConnected) { ip.close(); send({ op: 'decline', to: m.id, gid: m.gid, why: 'không trả lời' }); } }, 22000);
+    ip.body.querySelector('[data-no]').onclick = () => { clearTimeout(tm); ip.close(); send({ op: 'decline', to: m.id, gid: m.gid, why: 'từ chối' }); };
+    ip.body.querySelector('[data-yes]').onclick = () => {
+      clearTimeout(tm); ip.close();
+      if (bet && !AV.spend(bet)) return send({ op: 'decline', to: m.id, gid: m.gid, why: 'không đủ xu' });
+      send({ op: 'accept', to: m.id, gid: m.gid });
+      // người mời cầm ✕ đi trước
+      startNet({ gid: m.gid, opp: m.id, oppName: who, bet, me: 2 });
+    };
+  }
+  function startNet(o) {
+    if (!document.querySelector('.ca-board')) open();
+    st = { mode: 'net', lv: 0, bet: o.bet, b: new Array(N * N).fill(0), turn: 1, me: o.me, over: false, last: null, win: null, moves: 0, busy: false, gid: o.gid, opp: o.opp, oppName: o.oppName, seen: Date.now() };
+    side(); draw();
+    UI.toast(`♟️ Bắt đầu ván với ${o.oppName} — ${o.me === 1 ? 'bạn cầm ✕ đi trước' : 'bạn cầm ◯, đối thủ đi trước'}`, 4000);
+  }
+  function onNet(m) {
+    if (m.to !== NET.pid) return;
+    if (m.op === 'invite') return onInvite(m);
+    if (m.op === 'accept' && invite && m.gid === invite.gid && m.id === invite.to) {
+      const iv = invite; invite = null;
+      if (iv.bet && !AV.spend(iv.bet)) { send({ op: 'resign', to: m.id, gid: m.gid, why: 'nopay' }); return; }
+      return startNet({ gid: iv.gid, opp: m.id, oppName: iv.name, bet: iv.bet, me: 1 });
+    }
+    if ((m.op === 'decline' || m.op === 'busy') && invite && m.gid === invite.gid) { invite = null; return UI.toast(m.op === 'busy' ? '♟️ Người đó đang bận ván khác' : `♟️ Lời mời bị từ chối (${esc(m.why || 'từ chối')})`, 4000); }
+    if (!st || st.mode !== 'net' || m.gid !== st.gid || m.id !== st.opp) return;
+    st.seen = Date.now();
+    if (m.op === 'move' && !st.over && st.turn !== st.me) {
+      const x = m.x | 0, y = m.y | 0;
+      if (x < 0 || y < 0 || x >= N || y >= N || st.b[y * N + x]) return;
+      play(x, y, true);
+    } else if (m.op === 'resign' && !st.over) {
+      if (m.why === 'nopay') { if (st.bet) AV.earn(st.bet); st.over = true; st.msg = '⚠️ Đối thủ không đủ xu — đã trả lại tiền cược'; side(); draw(); return; }
+      finish(st.me, null, `🏳️ ${st.oppName} bỏ cuộc — bạn thắng!`);
+    } else if (m.op === 'rematch' && st.over) {
+      if (st.wantRematch) { const nb = st.bet; if (nb && !AV.spend(nb)) return send({ op: 'decline', to: st.opp, gid: st.gid, why: 'không đủ xu' }); send({ op: 'rematchOk', to: st.opp, gid: st.gid }); startNet({ gid: st.gid + 'r', opp: st.opp, oppName: st.oppName, bet: nb, me: 3 - st.me }); }
+      else { st.oppRematch = true; side(); }
+    } else if (m.op === 'rematchOk' && st.over && st.wantRematch) {
+      const nb = st.bet; if (nb && !AV.spend(nb)) return;
+      startNet({ gid: st.gid + 'r', opp: st.opp, oppName: st.oppName, bet: nb, me: 3 - st.me });
+    }
+  }
+  /** đối thủ rời khu / mất kết nối quá 30 giây → xử thắng */
+  setInterval(() => {
+    if (!st || st.mode !== 'net' || st.over) return;
+    if (NET.remotes.get(st.opp)) { st.gone = 0; return; }
+    st.gone = st.gone || Date.now();
+    if (Date.now() - st.gone > 30000) finish(st.me, null, `📴 ${st.oppName} đã rời đi — bạn thắng!`);
+  }, 2000);
+  /** danh sách người trong khu để mời */
+  function inviteList() {
+    const list = NET.players().filter((r) => !r.hidden && r.id);
+    const p = UI.panel('👥 Mời người chơi caro', list.length ? `<p class="muted">Người đang ở cùng khu với bạn:</p><div class="shop-list">${list.map((r, i) => `<div class="shop-row"><span class="ic">🧑</span><div class="info"><b>${esc(r.name)}</b></div><button class="btn small" data-i="${i}">♟️ Mời</button></div>`).join('')}</div>`
+      : '<p class="muted">Chưa có ai ở cùng khu. Rủ bạn bè vào 🎰 Nhà Casino rồi bấm lại nhé — hoặc bấm vào nhân vật của họ → ♟️ Mời chơi caro.</p>');
+    p.body.querySelectorAll('[data-i]').forEach((b) => b.onclick = () => { p.close(); challenge(list[+b.dataset.i]); });
+  }
+  function netSide(el, sym) {
+    el.innerHTML = `<h3>🌐 Đấu với ${esc(st.oppName)}</h3>${st.bet ? `<p>💰 Cược mỗi bên <b>${fmt(st.bet)} xu</b></p>` : '<p class="muted">Chơi vui</p>'}
+      <p class="ca-turn">${st.over ? st.msg : st.turn === st.me ? `👉 Tới lượt <b>bạn</b> ${sym(st.me)}` : `⏳ Chờ <b>${esc(st.oppName)}</b> ${sym(3 - st.me)}…`}</p>
+      <p class="muted small-note">Bạn cầm ${sym(st.me)} · ${st.me === 1 ? 'bạn đi trước' : 'đối thủ đi trước'}</p>
+      ${st.over ? `${st.oppRematch ? `<p class="game-msg">♟️ ${esc(st.oppName)} muốn đánh tiếp!</p>` : ''}<button class="btn" data-re ${st.wantRematch ? 'disabled' : ''}>${st.wantRematch ? '⏳ Chờ đối thủ…' : '🔁 Đánh ván nữa'}</button>` : '<button class="btn ghost" data-resign>🏳️ Xin thua</button>'}
+      <button class="btn ghost" data-menu>⚙️ Về menu</button>`;
+    const re = el.querySelector('[data-re]');
+    if (re) re.onclick = () => {
+      if (st.bet > S().coins) return UI.toast('Không đủ xu để đánh tiếp');
+      if (st.oppRematch) { if (st.bet && !AV.spend(st.bet)) return; send({ op: 'rematchOk', to: st.opp, gid: st.gid }); startNet({ gid: st.gid + 'r', opp: st.opp, oppName: st.oppName, bet: st.bet, me: 3 - st.me }); return; }
+      st.wantRematch = true; send({ op: 'rematch', to: st.opp, gid: st.gid }); side();
+    };
+    const rs = el.querySelector('[data-resign]');
+    if (rs) rs.onclick = () => UI.confirm('Xin thua ván này?', '🏳️ Xin thua', () => { if (!st || st.over) return; send({ op: 'resign', to: st.opp, gid: st.gid }); finish(3 - st.me, null, '🏳️ Bạn đã xin thua'); });
+    el.querySelector('[data-menu]').onclick = menu;
+  }
+  function netFinish(p, why, pref) {
+    if (!p) { st.msg = '🤝 Hoà — kín bàn rồi'; if (st.bet) AV.earn(st.bet); }
+    else if (p === st.me) { pref.nw = (pref.nw || 0) + 1; st.msg = `${why || '🏆 Bạn thắng!'}${st.bet ? ` +${fmt(st.bet * 2)} xu` : ''}`; AV.earn(st.bet * 2, 20); AV.quest('arcade'); if (NET.sendSys) NET.sendSys(`♟️ ${S().name} vừa thắng ${st.oppName} một ván cờ caro${st.bet ? ` (${fmt(st.bet)} xu)` : ''}!`); }
+    else { pref.nl = (pref.nl || 0) + 1; st.msg = `${why || `😢 ${esc(st.oppName)} thắng rồi`}${st.bet ? ` — mất ${fmt(st.bet)} xu` : ''}`; AV.earn(0, 5); }
+    AV.markChanged(); side(); draw();
+  }
   /** bàn caro đặt trong Nhà Casino */
   function addTo(m, H, x, y) {
     H.sobj(m, x, y, (c) => {
@@ -178,5 +307,5 @@ const CARO = (() => {
 @media (max-width:700px){.ca-wrap{flex-direction:column-reverse}.ca-side{width:auto;align-self:stretch}.ca-board{min-height:62vw}}`;
     document.head.appendChild(s);
   }
-  return { open, addTo };
+  return { open, addTo, challenge, onNet };
 })();
