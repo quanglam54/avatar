@@ -1,3 +1,4 @@
+/* 📱 chặn phóng to cả trang khi chụm 2 ngón / chạm đúp trong game */(function(){var p={passive:false};["gesturestart","gesturechange"].forEach(function(e){document.addEventListener(e,function(v){v.preventDefault();},p);});document.addEventListener("touchmove",function(v){if(v.touches.length>1)v.preventDefault();},p);var l=0;document.addEventListener("touchend",function(v){var n=Date.now();if(n-l<300&&!/input|textarea|select/i.test(v.target.tagName))v.preventDefault();l=n;},p);document.documentElement.style.touchAction="pan-x pan-y";})();
 /* Góc Game — dữ liệu chung: danh sách game, tên người chơi, điểm số, modal, toast */
 (function () {
   const GAMES = [

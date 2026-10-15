@@ -289,7 +289,7 @@ const GARDEN = (() => {
         if (m.q.length >= m.slots || !has(r.need) || !AV.useEnergy(1)) return;
         take(r.need);
         const s = Math.max(now(), m.q.length ? m.q[m.q.length - 1].e : 0);
-        m.q.push({ r: +b.dataset.r, s, e: s + r.t * 60e3, n: 1 });
+        m.q.push({ r: +b.dataset.r, s, e: s + r.t * 60e3, n: 1 }); m.last = +b.dataset.r;
         changed(); render();
       });
     };
@@ -344,28 +344,63 @@ const GARDEN = (() => {
     return g.orders;
   }
   const idleBoat = () => G().boats.findIndex((b) => !b.trip);
-  function send(i) {
+  function send(i, quiet) {
     const g = G(), o = orders()[i], bi = idleBoat();
-    if (!o || o.cool) return;
-    if (bi < 0) return UI.toast('⛵ Hết thuyền rảnh — chờ thuyền về hoặc mua thêm thuyền');
-    if (!has(o.need)) return UI.toast('Chưa đủ hàng để giao đơn này');
+    if (!o || o.cool) return false;
+    if (bi < 0) return quiet ? false : UI.toast('⛵ Hết thuyền rảnh — chờ thuyền về hoặc mua thêm thuyền');
+    if (!has(o.need)) return quiet ? false : UI.toast('Chưa đủ hàng để giao đơn này');
     take(o.need);
     const B = BOATS[g.boats[bi].k], d = Math.round(o.min * 60e3 / B.speed);
     g.boats[bi].trip = { o, s: now(), e: now() + d };
     g.orders[i] = { cool: now() + 3 * 60e3 };
-    AV.sayMine('⛵ Lên đường nào!'); UI.toast(`⛵ ${B.name} chở hàng đi ${o.who} · ${dur(d)} nữa về`, 4000);
+    if (!quiet) { AV.sayMine('⛵ Lên đường nào!'); UI.toast(`⛵ ${B.name} chở hàng đi ${o.who} · ${dur(d)} nữa về`, 4000); }
     changed();
+    return true;
   }
-  function collectBoat(bi) {
+  function collectBoat(bi, quiet) {
     const g = G(), b = g.boats[bi];
     if (!b || !b.trip || b.trip.e > now()) return false;
     const B = BOATS[b.k], o = b.trip.o, coins = Math.round(o.coins * (1 + B.bonus));
-    AV.earn(coins, o.xp); g.delivered = (g.delivered || 0) + 1;
-    AV.floatText(`⛵ +${fmt(coins)} xu`, AV.player ? AV.player.x : 0, AV.player ? AV.player.y - 130 : 0, '#ffd43b');
-    UI.toast(`💰 ${B.name} giao xong đơn cho ${o.who}: +${fmt(coins)} xu, +${o.xp} XP`, 4500);
+    if (quiet) { S().coins += coins; AV.earn(0, o.xp); } else AV.earn(coins, o.xp);
+    g.delivered = (g.delivered || 0) + 1;
+    if (!quiet) { AV.floatText(`⛵ +${fmt(coins)} xu`, AV.player ? AV.player.x : 0, AV.player ? AV.player.y - 130 : 0, '#ffd43b'); UI.toast(`💰 ${B.name} giao xong đơn cho ${o.who}: +${fmt(coins)} xu, +${o.xp} XP`, 4500); }
     if (Math.random() < 0.15) { const tip = ['sugar', 'cocoa', 'butter', 'sticky_rice'][Math.floor(Math.random() * 4)]; give(tip, 3); UI.toast(`🎁 Khách tặng thêm 3 ${icon(tip)} ${nm(tip)}!`, 3500); }
     b.trip = null; changed();
-    return true;
+    return quiet ? coins : true;
+  }
+
+  /* ================= 🧑‍🌾 quản gia vườn (thuê giúp việc) ================= */
+  const STAFF_LABELS = { water: '💧 tưới', harvest: '🧺 hái quả', bake: '🧁 lấy bánh', remake: '🔁 làm bánh', boat: '💰 nhận tiền thuyền', send: '⛵ gửi đơn' };
+  const staffSt = () => { const g = G(); g.staff = g.staff || {}; return g.staff; };
+  function staffWork() {
+    if (typeof STAFF === 'undefined' || !AV.S) return;
+    const st = staffSt(); if (!STAFF.active(st)) return;
+    const g = G(), d = {}, add = (k, n = 1) => { d[k] = (d[k] || 0) + n; };
+    g.trees.forEach((t) => {
+      if (!TREES[t.k]) return;
+      const s = tstate(t);
+      if (s.ripe && STAFF.on(st, 'harvest')) { t.h = t.g; give(s.T.fruit, s.T.yield); add('harvest', s.T.yield); }
+      else if (!s.ripe && !s.wet && STAFF.on(st, 'water')) { t.wet = now() + 30 * 60e3; add('water'); }
+    });
+    MACH_KEYS.forEach((k) => {
+      if (!owned(k)) return;
+      if (STAFF.on(st, 'bake')) add('bake', collect(k, true));
+      const m = machQ(k);
+      if (STAFF.on(st, 'remake') && m.last != null && m.q.length < m.slots) { const r = MACH[k].recipes[m.last]; if (r && has(r.need)) { take(r.need); const s0 = Math.max(now(), m.q.length ? m.q[m.q.length - 1].e : 0); m.q.push({ r: m.last, s: s0, e: s0 + r.t * 60e3, n: 1 }); add('remake'); } }
+    });
+    if (STAFF.on(st, 'boat')) g.boats.forEach((b, i) => { const c = collectBoat(i, true); if (c) add('boat', c); });
+    if (st.opt && st.opt.send) orders().forEach((o, i) => { if (!o.cool && has(o.need) && idleBoat() >= 0 && send(i, true)) add('send'); });
+    if (!Object.keys(d).length) return;
+    const msg = STAFF.record(st, d, STAFF_LABELS);
+    changed();
+    if (AV.currentMap && AV.currentMap() === 'garden') UI.toast(`🧑‍🌾 Quản gia vườn: ${msg}`, 3500);
+  }
+  function staffPanel() {
+    if (typeof STAFF === 'undefined') return;
+    const st = staffSt(); if (!st.opt) st.opt = { send: false };
+    STAFF.panel({ title: 'Thuê quản gia vườn', who: 'Quản gia vườn', icon: '🧑‍🌾', get: staffSt, labels: STAFF_LABELS,
+      desc: 'Quản gia chăm vườn nhà giúp bạn: <b>tưới cây</b>, <b>hái quả chín</b> cất vào túi, <b>lấy bánh đã nướng xong</b>, <b>làm lại món bánh gần nhất</b> của từng máy (nếu đủ nguyên liệu trong túi), <b>nhận tiền thuyền giao hàng về</b>. Có thể bật thêm tự gửi đơn giao hàng khi đủ hàng.',
+      jobs: [['water', '💧 Tưới cây ăn quả'], ['harvest', '🧺 Hái quả chín'], ['bake', '🧁 Lấy bánh đã xong'], ['remake', '🔁 Làm lại món bánh gần nhất'], ['boat', '💰 Nhận tiền thuyền về bến'], ['send', '⛵ Tự gửi đơn giao hàng khi đủ hàng']], onHire: staffWork });
   }
   function dockPanel(tab = 'orders') {
     const p = UI.panel('⛵ Bến thuyền giao hàng', '', { wide: true });
@@ -554,6 +589,8 @@ const GARDEN = (() => {
     board(360, 1330, '#5c940d', 'VƯỜN ƯƠM', 'Mua cây giống', '🌱'); col(m, 355, 1322, 12, 10);
     inter(m, { x: 288, y: 1200, w: 144, h: 130, ax: 360, ay: 1240, name: 'Vườn ươm (mua cây giống, chọn chỗ trồng)', use: () => nursery(), arrow: { x: 360, y: 1185, text: 'Cây giống' } });
     board(590, 1330, '#e64980', 'TRANG TRÍ', 'Mua · sắp xếp đồ', '🎨'); col(m, 585, 1322, 12, 10);
+    board(1060, 1330, '#1971c2', 'QUẢN GIA', 'Thuê giúp việc', '🧑‍🌾'); col(m, 1055, 1322, 12, 10);
+    inter(m, { x: 988, y: 1200, w: 144, h: 130, ax: 1060, ay: 1240, name: 'Thuê quản gia vườn (tưới, hái, lấy bánh, nhận tiền thuyền)', use: () => staffPanel(), arrow: { x: 1060, y: 1185, text: 'Giúp việc' }, indicator: () => (typeof STAFF !== 'undefined' && STAFF.active(staffSt()) ? '🧑‍🌾' : null), ix: 1060, iy: 1196 });
     inter(m, { x: 518, y: 1200, w: 144, h: 130, ax: 590, ay: 1240, name: 'Trang trí vườn (mua đồ, đặt, dời)', use: () => setEdit(true), arrow: { x: 590, y: 1185, text: 'Trang trí' } });
     // máy làm bánh: lấy nhanh ở cửa hàng
     sobj(m, 830, 1330, (c) => { c.fillStyle = '#6b4423'; c.fillRect(826, 1260, 8, 70); rr(c, 760, 1205, 140, 60, 10, '#fab005'); em(c, '🧁', 790, 1250, 26); txt(c, 'TIỆM BÁNH ➜', 845, 1228, 12, '#5c3a1e'); txt(c, 'BẾN THUYỀN ➜', 845, 1248, 11, '#5c3a1e', 800); }, { l: -80, t: -130, w: 160, h: 134 });
@@ -793,6 +830,7 @@ const GARDEN = (() => {
   }
   function init() {
     setInterval(tick, 500);
+    setInterval(staffWork, 15000);
     // bánh ăn được → hồi năng lượng
     const base = AV.edibleEnergy;
     if (base && !base._gd) {
@@ -826,5 +864,5 @@ const GARDEN = (() => {
       document.head.appendChild(st);
     }
   }
-  return { init, buildMap, tap, setEdit, nursery, dockPanel, decoShop, TREES, DECO, MACH };
+  return { init, buildMap, tap, setEdit, nursery, dockPanel, decoShop, staffPanel, TREES, DECO, MACH };
 })();

@@ -3898,6 +3898,19 @@
   // trang lỡ bị phóng to / xoay máy → đo lại
   let rzT = 0; const rz = () => { clearTimeout(rzT); rzT = setTimeout(resize, 150); };
   if (window.visualViewport) window.visualViewport.addEventListener('resize', rz);
+  // 📱 trang lỡ bị phóng to (iPhone tự zoom khi bàn phím bật, chụm tay trong khung game…) → tự thu về 100%
+  const vpMeta = document.querySelector('meta[name=viewport]');
+  const unzoom = () => {
+    const vv = window.visualViewport;
+    if (!vv || vv.scale <= 1.01 || !vpMeta || /input|textarea|select/i.test((document.activeElement || {}).tagName || '')) return;
+    const base = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
+    vpMeta.setAttribute('content', base + ', minimum-scale=1');
+    setTimeout(() => vpMeta.setAttribute('content', base), 60);
+    window.scrollTo(0, 0);
+  };
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', () => setTimeout(unzoom, 250));
+  document.addEventListener('focusout', () => setTimeout(unzoom, 300));
+  setInterval(unzoom, 2000);
   window.addEventListener('orientationchange', rz);
   if (typeof LOTTO !== 'undefined') LOTTO.init();
   if (typeof PHONE !== 'undefined') PHONE.init();

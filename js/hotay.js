@@ -64,7 +64,7 @@ const HOTAY = (() => {
     const st = document.createElement('style');
     st.textContent = `.ht-sky{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;display:none}
 .ht-chip{position:fixed;left:50%;top:118px;transform:translateX(-50%);z-index:6;display:none;background:rgba(20,10,40,.78);color:#fff;border:2px solid #ffd43b;border-radius:999px;padding:5px 14px;font:800 13px "Be Vietnam Pro",system-ui;cursor:pointer;white-space:nowrap}
-.ht-scene{position:relative;flex:1;overflow:hidden}.ht-scene canvas{position:absolute;inset:0;width:100%;height:100%}
+.ht-scene{position:relative;flex:1;overflow:hidden;touch-action:none}.ht-scene canvas{position:absolute;inset:0;width:100%;height:100%}
 .ht-tools{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .ht-tools button{border:3px solid #fff;border-radius:14px;padding:8px 14px;font:900 14px "Be Vietnam Pro",system-ui;color:#1b2f48;background:linear-gradient(#fff,#d0ebff);cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.35)}`;
     document.head.appendChild(st);

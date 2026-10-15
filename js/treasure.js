@@ -108,13 +108,21 @@ const TREASURE = (() => {
       finally { digging = false; digAt = 0; }
     }, DIG_MS);
   }
+  /** đào được: không mở bảng che màn hình nữa — chỉ hiện chữ nổi trên đầu + thanh ngọc nháy sáng */
   function showChest() {
-    const have = S().inv.hw_gem || 0;
-    const p = UI.panel('🎃 RƯƠNG HALLOWEEN!', `<div class="tr-chest">🧰✨</div>
-      <p class="confirm-text">Bạn đào được <b>+1 💠 Ngọc Halloween</b>!</p>
-      <div class="tr-bar"><i style="width:${Math.min(100, have / NEED * 100)}%"></i><span>${have}/${NEED} 💠</span></div>
-      <p class="muted">Gom đủ ${NEED} ngọc mang tới 🦜 Thuyền trưởng Râu Đỏ đổi <b>${fmt(REWARD)} xu</b>.</p>`);
-    setTimeout(() => { if (p.el.isConnected) p.close(); }, 6000);
+    const have = S().inv.hw_gem || 0, P = AV.player;
+    if (P) AV.floatText(`🧰 +1 💠  (${have}/${NEED})`, P.x, P.y - 140, '#e599f7');
+    updateGems(true);
+    if (have >= NEED) UI.toast(`🎉 Đủ ${NEED} 💠 rồi! Mang tới 🦜 Thuyền trưởng Râu Đỏ đổi ${fmt(REWARD)} xu`, 3500);
+  }
+  /** thanh ngọc 💠 x/10 trên màn hình bãi biển */
+  function updateGems(flash) {
+    if (!hud) return;
+    const have = S().inv.hw_gem || 0, g = hud.querySelector('.tr-gems');
+    g.querySelector('span').textContent = `💠 Ngọc ${have}/${NEED}`;
+    g.querySelector('i').style.width = Math.min(100, have / NEED * 100) + '%';
+    g.classList.toggle('full', have >= NEED);
+    if (flash) { g.classList.remove('pop'); void g.offsetWidth; g.classList.add('pop'); }
   }
 
   /* ---------- máy dò ---------- */
@@ -125,15 +133,18 @@ const TREASURE = (() => {
     if (hud) return;
     hud = document.createElement('div');
     hud.className = 'tr-hud';
-    hud.innerHTML = '<div class="tr-meter"><b></b><div class="tr-gauge"><i></i></div></div><button class="tr-dig">🪏 Đào</button>';
+    hud.innerHTML = '<div class="tr-gems" title="Gom đủ ngọc đổi xu ở Thuyền trưởng Râu Đỏ"><i></i><span></span></div><div class="tr-meter"><b></b><div class="tr-gauge"><i></i></div></div><button class="tr-dig">🪏 Đào</button>';
     document.body.appendChild(hud);
     hud.querySelector('.tr-dig').onclick = dig;
+    hud.querySelector('.tr-gems').onclick = () => panel();
+    if (!document.getElementById('tr-gem-css')) { const st = document.createElement('style'); st.id = 'tr-gem-css'; st.textContent = '.tr-gems{position:relative;min-width:150px;height:30px;border-radius:15px;background:rgba(27,47,72,.92);border:2px solid #fff;overflow:hidden;cursor:pointer}.tr-gems i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,#da77f2,#7048e8);transition:width .4s}.tr-gems span{position:relative;display:block;text-align:center;line-height:26px;font-weight:900;font-size:14px;color:#fff;text-shadow:0 1px 2px #000}.tr-gems.full{border-color:#ffd43b;box-shadow:0 0 12px #ffd43b}.tr-gems.pop{animation:trPop .7s}@keyframes trPop{0%{transform:scale(1)}30%{transform:scale(1.25);box-shadow:0 0 18px #e599f7}100%{transform:scale(1)}}'; document.head.appendChild(st); }
   }
   function tick() {
     const onBeach = AV.currentMap && AV.currentMap() === 'beach';
     if (!onBeach) { if (hud) hud.style.display = 'none'; return; }
     ensureHud();
     hud.style.display = 'flex';
+    updateGems();
     refresh();
     const meter = hud.querySelector('.tr-meter');
     if (!S().inv.tool_detector) { meter.style.display = 'none'; return; }
@@ -291,13 +302,13 @@ const TREASURE = (() => {
     p.body.querySelector('[data-go]').onclick = () => { p.close(); if (AV.currentMap() !== 'beach') AV.teleport('beach', false, undefined, undefined, '🏖️ Ra bãi biển săn rương…'); };
   }
   function onNews(text) {
-    UI.toast(text, 5000);
+    // không bật thông báo che màn hình nữa (trên điện thoại rất vướng) — chỉ ghi vào khung chat
     UI.chatLog('', text, false, true);
     lastFetch = 0; refresh(true);
   }
   function init() {
     updateBanner();
-    setTimeout(async () => { await refresh(true); popup(); }, 4500);
+    setTimeout(async () => { await refresh(true); const d = new Date().toDateString(); if (S().trPopDay !== d) { S().trPopDay = d; popup(); } }, 4500);
     setInterval(() => refresh(), 60000);
   }
   return { init, dig, panel, popup, onNews, drawSpots, drawTool, tool, booth, spots, refresh };

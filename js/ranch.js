@@ -163,7 +163,7 @@ const RANCH = (() => {
       p.body.querySelectorAll('[data-r]').forEach((b) => b.onclick = () => {
         const r = MACH[k][+b.dataset.r];
         if (!has(r.need) || !AV.useEnergy(1)) return;
-        take(r.need); R().jobs[k] = { out: r.out, n: r.n, end: now() + r.t * 60e3, dur: r.t * 60e3 }; changed(); render();
+        take(r.need); R().jobs[k] = { out: r.out, n: r.n, end: now() + r.t * 60e3, dur: r.t * 60e3 }; R().last = R().last || {}; R().last[k] = +b.dataset.r; changed(); render();
       });
     };
     render();
@@ -335,7 +335,8 @@ const RANCH = (() => {
     mainP = p;
     const render = async () => {
       const lv = level(), xp = R().xp, nextXp = LV_XP[lv] || null;
-      const TABS = [['guide', '📖 Hướng dẫn'], ['build', '🏗️ Xây dựng'], ['orders', '📦 Đơn xe tải'], ['fair', '🏆 Hội chợ'], ['deco', '🎨 Trang trí'], ['ride', '🐎 Xe & đồ']];
+      if (tab === 'staff') { tab = 'build'; p.close(); staffPanel(); return; }
+      const TABS = [['guide', '📖 Hướng dẫn'], ['build', '🏗️ Xây dựng'], ['orders', '📦 Đơn xe tải'], ['fair', '🏆 Hội chợ'], ['deco', '🎨 Trang trí'], ['ride', '🐎 Xe & đồ'], ['staff', '🧑‍🌾 Giúp việc']];
       p.body.innerHTML = `<div class="coins-line">💰 ${fmt(S().coins)} xu · 🏅 Trang trại <b>cấp ${lv}</b>${nextXp ? ` · ${fmt(xp)}/${fmt(nextXp)} XP` : ' (tối đa)'}</div>
         <div class="qbar"><i style="width:${nextXp ? Math.min(100, (xp - LV_XP[lv - 1]) / (nextXp - LV_XP[lv - 1]) * 100) : 100}%"></i></div>
         <div class="ss-tabs">${TABS.map(([k, l]) => `<button class="${k === tab ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div><div class="ss-box"></div>`;
@@ -548,6 +549,9 @@ const RANCH = (() => {
     }, { l: -70, t: -170, w: 140, h: 175 });
     col(m, 525, 1255, 110, 10);
     inter(m, { x: 516, y: 1100, w: 128, h: 165, ax: 580, ay: 1300, name: 'Biển hướng dẫn: làm gì để nâng cấp trang trại', use: () => guide(), arrow: { x: 580, y: 1085, text: 'Hướng dẫn' }, indicator: () => (R().guided ? null : '❓'), ix: 580, iy: 1092 });
+    sobj(m, 1100, 1265, (c) => { c.fillStyle = '#6b4423'; c.fillRect(1096, 1185, 8, 80); c.fillStyle = '#1971c2'; c.beginPath(); c.roundRect(1030, 1112, 140, 78, 10); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '26px system-ui, "Segoe UI Emoji"'; c.fillText('🧑‍🌾', 1100, 1138); c.font = '900 13px "Be Vietnam Pro", system-ui'; c.fillText('THUÊ GIÚP VIỆC', 1100, 1162); c.font = '800 10px "Be Vietnam Pro", system-ui'; c.fillText('Cho ăn · xưởng · lúa', 1100, 1178); }, { l: -80, t: -160, w: 160, h: 165 });
+    col(m, 1095, 1255, 10, 10);
+    inter(m, { x: 1030, y: 1112, w: 140, h: 150, ax: 1100, ay: 1300, name: 'Thuê công nhân trang trại (cho ăn, xưởng, ruộng lúa)', use: () => staffPanel(), arrow: { x: 1100, y: 1098, text: 'Giúp việc' }, indicator: () => (typeof STAFF !== 'undefined' && STAFF.active(staffSt()) ? '🧑‍🌾' : null), ix: 1100, iy: 1106 });
     inter(m, { x: 650, y: 1150, w: 140, h: 120, ax: 720, ay: 1310, name: 'Xe tải giao hàng (đơn hàng mỗi ngày)', use: () => panel('orders'), indicator: () => (orders().some((o) => !o.done && has(o.need)) ? '📦' : null), ix: 720, iy: 1120 });
     // cúp hội chợ + tượng vàng
     obj(m, 1260, (c) => { const n = R().trophies || 0; if (!n) return; em(c, '🏆', 960, 1260, 54); c.fillStyle = '#5c3a1e'; c.font = '900 13px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.fillText(`×${n} vô địch hội chợ`, 960, 1280); }, [900, 1180, 1020, 1290]);
@@ -652,6 +656,55 @@ const RANCH = (() => {
     return m;
   }
 
-  function init() { setInterval(tick, 500); }
-  return { init, buildMap, panel, guide, onHarvest, level, mount: () => mount };
+  /* ================= 🧑‍🌾 công nhân trang trại (thuê giúp việc) ================= */
+  const STAFF_LABELS = { feed: '🌾 cho ăn', collect: '🥚 thu trứng/sữa', honey: '🍯 lấy mật', make: '🏭 lấy hàng xưởng', remake: '🔁 làm lại', paddy: '🌾 gặt lúa', plant: '🌱 cấy lúa', dry: '☀️ phơi thóc', rice: '🍚 thu gạo', pickle: '🫙 lấy dưa', tree: '🌳 hái cây' };
+  const staffSt = () => { const r = R(); r.staff = r.staff || {}; return r.staff; };
+  function staffWork() {
+    if (typeof STAFF === 'undefined' || !AV.S) return;
+    const st = staffSt(); if (!STAFF.active(st)) return;
+    const r = R(), d = {}, add = (k, n = 1) => { d[k] = (d[k] || 0) + n; }, on = (k) => STAFF.on(st, k);
+    // vịt, dê: thu sản phẩm rồi cho ăn tiếp
+    Object.entries(ANIMALS).forEach(([k, A]) => {
+      if (!built(k)) return;
+      const s = r[k] = r[k] || { fedAt: 0 };
+      if (on('animals') && s.fedAt && s.fedAt + A.time <= now()) { Object.entries(A.out).forEach(([id, n]) => give(id, n)); s.fedAt = 0; r.xp += A.xp; add('collect'); }
+      if (on('animals') && !s.fedAt && has(A.feed)) { take(A.feed); s.fedAt = now(); add('feed'); }
+    });
+    if (on('animals') && built('bee')) { const { b } = honeyNow(); if (b.stock >= 3) { give('honey', b.stock); add('honey', b.stock); b.stock = 0; } }
+    // xưởng: lấy hàng xong, làm lại món gần nhất nếu đủ nguyên liệu
+    Object.keys(MACH).forEach((k) => {
+      if (!built(k)) return;
+      const j = r.jobs[k];
+      if (on('machines') && j && j.end <= now()) { give(j.out, j.n); r.xp += 6 + j.dur / 60e3; delete r.jobs[k]; add('make'); }
+      const li = (r.last || {})[k], rc = li != null ? MACH[k][li] : null;
+      if (on('remake') && !r.jobs[k] && rc && has(rc.need)) { take(rc.need); r.jobs[k] = { out: rc.out, n: rc.n, end: now() + rc.t * 60e3, dur: rc.t * 60e3 }; add('remake'); }
+    });
+    if (on('machines') && built('pickle')) (r.jars || []).forEach((jr, i) => { if (jr && jr.end <= now()) { give('pickle', jr.n); r.jars[i] = null; add('pickle'); } });
+    // ruộng lúa nước: gặt lúa chín, cấy lại (30 xu/ô), phơi thóc
+    if (on('paddy') && built('paddy')) {
+      const P = r.paddies = r.paddies || Array(PADDY_N).fill(0);
+      for (let i = 0; i < PADDY_N; i++) {
+        if (P[i] && now() - P[i] >= RICE_T) { give('paddy', 5); P[i] = 0; add('paddy'); }
+        if (!P[i] && S().coins >= 30) { S().coins -= 30; P[i] = now(); add('plant'); }
+      }
+      const dr = r.dry = r.dry || { n: 0, end: 0 };
+      if (dr.n && dr.end <= now()) { give('rice', dr.n); add('rice', dr.n); dr.n = 0; dr.end = 0; }
+      if (!dr.n && (inv().paddy || 0) > 0) { const n = Math.min(40, inv().paddy); inv().paddy -= n; dr.n = n; dr.end = now() + DRY_T; add('dry'); }
+    }
+    // cây lâu năm đúng mùa
+    if (on('trees') && built('orchard')) { const ts = r.trees = r.trees || TREES.map(() => now()); TREES.forEach((T, i) => { if (treeRipe(i)) { give(T.id, T.yield); ts[i] = now(); add('tree', T.yield); } }); }
+    if (!Object.keys(d).length) return;
+    const msg = STAFF.record(st, d, STAFF_LABELS);
+    changed();
+    if (AV.currentMap && AV.currentMap() === 'ranch') UI.toast(`🧑‍🌾 Công nhân trang trại: ${msg}`, 3500);
+  }
+  function staffPanel() {
+    if (typeof STAFF === 'undefined') return;
+    STAFF.panel({ title: 'Thuê công nhân trang trại', who: 'Công nhân trang trại', icon: '🧑‍🌾', get: staffSt, labels: STAFF_LABELS,
+      desc: 'Công nhân lo hết việc ở Trang Trại Mở Rộng: <b>cho vịt, dê ăn</b> (bằng 🌾 lúa mì trong túi) và <b>thu trứng, sữa, mật ong</b>; <b>lấy hàng ở xưởng</b> và <b>làm lại món gần nhất</b> nếu đủ nguyên liệu; <b>gặt lúa, cấy lại</b> (30 xu/ô), <b>phơi thóc thành gạo</b>; <b>lấy dưa muối</b>; <b>hái cây lâu năm</b> đúng mùa. Mọi thứ thu được cất vào túi của bạn.',
+      jobs: [['animals', '🦆 Vật nuôi: cho ăn, thu trứng / sữa / mật'], ['machines', '🏭 Lấy hàng ở xưởng & hũ dưa'], ['remake', '🔁 Làm lại món gần nhất ở mỗi máy'], ['paddy', '🌾 Ruộng lúa: gặt, cấy lại, phơi thóc'], ['trees', '🌳 Hái cây lâu năm đúng mùa']], onHire: staffWork });
+  }
+
+  function init() { setInterval(tick, 500); setInterval(staffWork, 15000); }
+  return { init, buildMap, panel, guide, onHarvest, level, staffPanel, mount: () => mount };
 })();
