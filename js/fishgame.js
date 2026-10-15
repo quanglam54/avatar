@@ -13,7 +13,7 @@ const FISHGAME = (() => {
 .fishsea .fs-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:linear-gradient(#4dabf7,#1c7ed6);color:#fff;font-weight:900;border-bottom:3px solid #0b2a4a}
 .fishsea .fs-bar span{font-weight:700;font-size:13px;opacity:.9;flex:1}
 .fishsea .fs-stage{flex:1;position:relative;overflow:hidden}
-.fishsea canvas{position:absolute;inset:0;display:block;touch-action:none}
+.fishsea canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 .fishsea .fs-card{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,25,45,.55);padding:16px}
 .fishsea .fs-card[hidden]{display:none}
 .fishsea .fs-card>div{background:#fffaf0;border:3px solid #2b1a10;border-radius:18px;box-shadow:0 6px 0 #2b1a10;max-width:420px;width:100%;padding:16px;color:#2b1a10;text-align:center;max-height:100%;overflow:auto}

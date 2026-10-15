@@ -1029,7 +1029,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .xs-live-note { text-align: center; margin-top: 8px; }
 
 /* 📱 chặn phóng to khi bấm đúp nút / chạm ô nhập trên điện thoại */
-html, body, button, .btn, .panel, .panel-back, a, input, select, textarea, label { touch-action: manipulation; }
+html, body, button, .btn, .panel, .panel-back, a, input, select, textarea, label { touch-action: pan-x pan-y; }
 @media (pointer: coarse) { input, select, textarea { font-size: 16px !important; } }
 
 /* 💊 Nhà thuốc */

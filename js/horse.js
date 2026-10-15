@@ -161,7 +161,7 @@ const HORSE = (() => {
         ${(S.horseLog || []).length ? `<div class="ar-log">${S.horseLog.slice().reverse().map((l) => `<span class="${l.pay ? 'w' : 'l'}">${l.pay ? '🏆 +' + l.pay.toLocaleString('vi-VN') : '❌ −' + l.amt.toLocaleString('vi-VN')} · ${l.f}</span>`).join('')}</div>` : ''}`;
       p.body.querySelectorAll('[data-hpv]').forEach((cv) => {
         const h = +cv.dataset.hpv, g = cv.getContext('2d'), d = Math.min(2, devicePixelRatio || 1);
-        cv.width = 76 * d; cv.height = 50 * d; g.setTransform(d * 0.62, 0, 0, d * 0.62, 38 * d, 46 * d);
+        cv.width = 76 * d; cv.height = 50 * d; cv.style.width = '76px'; cv.style.height = '50px'; g.setTransform(d * 0.62, 0, 0, d * 0.62, 38 * d, 46 * d);
         draw(g, 0, 0, 1, 0, h);
       });
       p.body.querySelectorAll('[data-amt]').forEach((b) => b.onclick = () => { amt = +b.dataset.amt; render(true); });

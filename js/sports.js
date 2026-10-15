@@ -1280,7 +1280,7 @@ const SPORTS = (() => {
   if (!document.getElementById('sp-css')) {
     const st = document.createElement('style'); st.id = 'sp-css';
     st.textContent = `.sp-stage{flex:1;position:relative;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
-.sp-stage canvas{position:absolute;inset:0;display:block;touch-action:none}
+.sp-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 .sp-menu{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,20,40,.55);padding:16px}
 .sp-menu[hidden]{display:none}
 .sp-card{background:#fffaf0;border:3px solid #2b1a10;border-radius:18px;box-shadow:0 6px 0 #2b1a10;max-width:440px;width:100%;padding:18px 18px 14px;color:#2b1a10;max-height:100%;overflow:auto}
