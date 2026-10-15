@@ -1088,7 +1088,10 @@ const SPORTS = (() => {
           const s = shotOf(aim);
           if (s) {
             const pts = predict(s.vx, s.vz);
-            g.fillStyle = '#fff'; pts.forEach(([x, z], i) => { if (i % 3) return; const q = toC(x, 0.05, z); if (q.Z < 0.3) return; const p = proj(q); g.globalAlpha = 1 - i / pts.length; g.beginPath(); g.arc(p.x, p.y, Math.max(2, 0.04 * p.k), 0, Math.PI * 2); g.fill(); });
+            // chỉ vẽ một đoạn ngắn chỉ hướng (dài thêm chút khi kéo mạnh), không vẽ hết đường bóng
+            const maxL = 0.7 + s.pw * 1.6; let L = 0, px0 = ball.x, pz0 = ball.z, n = 0;
+            g.fillStyle = '#fff';
+            for (const [x, z] of pts) { L += Math.hypot(x - px0, z - pz0); px0 = x; pz0 = z; if (L > maxL) break; if (L < 0.25 * (n + 1)) continue; n++; const q = toC(x, 0.05, z); if (q.Z < 0.3) continue; const p = proj(q); g.globalAlpha = Math.max(0.25, 1 - L / maxL); g.beginPath(); g.arc(p.x, p.y, Math.max(2.5, 0.045 * p.k), 0, Math.PI * 2); g.fill(); }
             g.globalAlpha = 1;
             const bw = 300, bx = W / 2 - bw / 2, by = H - 46;
             g.fillStyle = 'rgba(0,0,0,.5)'; rr(g, bx - 4, by - 4, bw + 8, 24, 12); g.fill();
