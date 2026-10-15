@@ -1213,9 +1213,28 @@
     const { bx, by } = bobberSpot();
     player.target = null; player.pending = null; marker = null;
     player.dir = bx >= player.x ? 1 : -1;
-    player.fishing = { state: 'wait', bx, by, biteAt: Date.now() + 6000 + Math.random() * 9000, endAt: 0 };
-    UI.toast('🎣 Đã thả câu — chờ phao giật rồi bấm GIẬT CẦN!');
+    // người khác vẫn thấy mình đang ngồi câu; mình chơi màn câu cá nhìn xuống lòng hồ
+    player.fishing = { state: 'reel', bx, by, biteAt: 0, endAt: 0 };
     NET.sendState();
+    if (typeof FISHGAME === 'undefined' || !FISHGAME.session) return;
+    FISHGAME.session({
+      table: map.fishTable || DATA.FISH, rodLv: (S.tools && S.tools.rod) || 0, look: S.look, sky: map.fishTable === DATA.SKY_FISH,
+      onCatch: (fish) => AV.catchFish(fish, true),
+      onCoin: (n) => { AV.earn(n); },
+      again: () => AV.useEnergy(2),
+      onEnd: () => { AV.stopFishing(true); UI.updateHud && UI.updateHud(); },
+    });
+  };
+
+  /** cá vào túi + XP + nhiệm vụ (quiet: chỉ báo cả khu khi câu được cá hiếm) */
+  AV.catchFish = (fish, quiet) => {
+    addItem(fish.id, 1);
+    addXP(fish.id === 'boot' ? 1 : 5);
+    if (fish.id !== 'boot') AV.quest('fish');
+    const msg = fish.id === 'boot' ? 'đã câu phải một chiếc giày cũ 👢' : `đã câu được một ${fish.name.toLowerCase()} ${fish.icon}`;
+    if (!quiet) { float(`+1 ${fish.icon}`, player.x, player.y - 120); say(player, fish.id === 'boot' ? 'Ơ… chiếc giày cũ 👢😂' : `Câu được ${fish.icon} ${fish.name}!`); UI.chatLog('', `${S.name} ${msg}`, true, true); }
+    if (!quiet || fish.sell >= 45) NET.sendSys(`${S.name} ${msg}`);
+    changed();
   };
 
   AV.stopFishing = (silent) => {

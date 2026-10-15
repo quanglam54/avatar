@@ -162,6 +162,10 @@ const NET = (() => {
     send('caro', p);
   }
 
+  function sendSport(p) {
+    send('sport', p);
+  }
+
   function sendBox(p) {
     send('box', p);
   }
@@ -259,6 +263,8 @@ const NET = (() => {
       if (typeof RPS !== 'undefined') RPS.onNet(m);
     } else if (m.t === 'caro') {
       if (typeof CARO !== 'undefined') CARO.onNet(m);
+    } else if (m.t === 'sport') {
+      if (typeof SPORTS !== 'undefined' && SPORTS.onNet) SPORTS.onNet(m);
     } else if (m.t === 'box') {
       if (typeof BOX !== 'undefined') BOX.onNet(m);
     } else if (m.t === 'vc') {
@@ -445,7 +451,7 @@ const NET = (() => {
 
   return {
     sendBooth, sendCardInv, sendDino, lobbyPeers: () => [...where].filter(([, w]) => Date.now() - w.seen < 30000).map(([id, w]) => ({ id, user: w.user, map: w.map })),
-    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, sendKart, remotes, zoneCounts, announce, farmPing, sendNews, sendCall, sendFirework, sendBite, sendVoice, sendRps, sendCaro, sendBox, sendRide, sendArena, sendHorse,
+    init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, sendKart, remotes, zoneCounts, announce, farmPing, sendNews, sendCall, sendFirework, sendBite, sendVoice, sendRps, sendCaro, sendSport, sendBox, sendRide, sendArena, sendHorse,
     get mode() { return mode; },
     get pid() { return pid; },
     players: () => [...remotes.values()],

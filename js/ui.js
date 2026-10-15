@@ -1052,6 +1052,7 @@ const UI = (() => {
         <button class="btn ghost" data-wave>👋 Vẫy tay</button>
         ${r.id && r.kind === 'remote' ? '<button class="btn" data-rps>✊ Oẳn tù tì</button>' : ''}
         ${r.id && r.kind === 'remote' && typeof CARO !== 'undefined' ? '<button class="btn" data-caro>♟️ Mời chơi caro</button>' : ''}
+        ${r.id && r.kind === 'remote' && typeof SPORTS !== 'undefined' && SPORTS.challenge ? '<button class="btn" data-sport>🏸 Mời chơi thể thao</button>' : ''}
         ${r.id && r.kind === 'remote' && AV.currentMap() === 'boxing' ? '<button class="btn" data-box>🥊 Thách đấu võ đài</button>' : ''}
         ${r.user && CLOUD.user && r.user !== CLOUD.username ? (SOCIAL.isFriend(r.user) ? '<button class="btn" data-dm>💬 Nhắn tin</button>' : '<button class="btn" data-add>➕ Kết bạn</button>') + (typeof PHONE !== 'undefined' ? '<button class="btn ghost" data-phone>📱 Gửi số điện thoại</button>' : '') : ''}
         ${r.user ? '<button class="btn" data-visit>🏡 Thăm nông trại</button>' : ''}
@@ -1076,6 +1077,8 @@ const UI = (() => {
     if (rp) rp.onclick = () => { p.close(); RPS.challenge(r); };
     const cr = p.body.querySelector('[data-caro]');
     if (cr) cr.onclick = () => { p.close(); CARO.challenge(r); };
+    const spb = p.body.querySelector('[data-sport]');
+    if (spb) spb.onclick = () => { p.close(); SPORTS.challenge(r); };
     const bx = p.body.querySelector('[data-box]');
     if (bx) bx.onclick = () => { p.close(); BOX.challenge(r); };
     const v = p.body.querySelector('[data-visit]');

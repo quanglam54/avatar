@@ -433,7 +433,12 @@ DATA.ZONES = [
 DATA.FISH = [
   { id: 'fish_ro', name: 'Cá rô', icon: '🐟', sell: 8, w: 50 },
   { id: 'fish_chep', name: 'Cá chép', icon: '🐠', sell: 15, w: 28 },
+  { id: 'fish_tom', name: 'Tôm càng', icon: '🦐', sell: 6, w: 34 },
+  { id: 'fish_cua', name: 'Cua đồng', icon: '🦀', sell: 12, w: 22 },
+  { id: 'fish_muc', name: 'Mực ống', icon: '🦑', sell: 25, w: 14 },
   { id: 'fish_vang', name: 'Cá vàng hiếm', icon: '🐡', sell: 45, w: 8 },
+  { id: 'fish_bachtuoc', name: 'Bạch tuộc', icon: '🐙', sell: 60, w: 6 },
+  { id: 'fish_map', name: 'Cá mập con', icon: '🦈', sell: 120, w: 3 },
   { id: 'boot', name: 'Giày cũ', icon: '👢', sell: 1, w: 14 },
 ];
 

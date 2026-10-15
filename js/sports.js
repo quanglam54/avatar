@@ -191,8 +191,10 @@ const SPORTS = (() => {
       const tz = w === 0 ? NZ + (PP ? L * 0.3 : PK ? C.kitchen + 1.5 + Math.random() * 3 : 3.5 + Math.random() * 2.5) : NZ - (PP ? L * 0.3 : PK ? C.kitchen + 1.5 + Math.random() * 3 : 3.5 + Math.random() * 2.5);
       launch(w, sideX, tz, 'serve');
     }
-    function point(w, text) {
+    function point(w, text, remote) {
       if (phase !== 'play') return;
+      // online: bên nhận cầu làm trọng tài — cầu mình đánh sang thì chờ bên kia báo
+      if (online && !remote) { if (s.hitter === 0) { phase = 'await'; return; } nsend({ op: 'point', w: w === 0 ? 's' : 'r' }); }
       sc[w]++; phase = 'dead'; wait = 1.3; b.live = false; lastW = w;
       bestRally = Math.max(bestRally, rally); rally = 0;
       say(text, w === 0 ? '#8ce99a' : '#ffa8a8', 0.3); say(w === 0 ? '+1 cho bạn' : '+1 cho máy', '#ffe066', 0.38);
@@ -270,9 +272,11 @@ const SPORTS = (() => {
       if (phase === 'serve') {
         const p = P(server);
         b.x = p.x + (server === 0 ? 0.25 : -0.25); b.z = p.z + (server === 0 ? 0.2 : -0.2); b.y = (PP ? C.surf + 0.25 : 1.0) + Math.abs(Math.sin(t * 3.5)) * 0.35;
-        if (server === 1 && (wait -= dt) <= 0) serve(1);
+        if (!online && server === 1 && (wait -= dt) <= 0) serve(1);
+        if (online && server === 0 && (serveAt += dt) > 6) serve(0);
         return;
       }
+      if (phase === 'await') { if (s.y < FL) { const sp = Math.hypot(s.vx, s.vy); s.vx += -K * sp * s.vx * dt; s.vy += (G - K * sp * s.vy) * dt; const px = s.x; s.x += s.vx * dt; s.y = Math.min(FL, s.y + s.vy * dt); s.ang = Math.atan2(s.vy, s.vx); if (px * s.x <= 0 && s.y > NT) { s.x = px; s.vx = -s.vx * 0.12; } } return; }
       if (phase === 'dead') {
         if (b.y > 0) { adv(b, dt); const sf = surfAt(b.x, b.z); if (b.y < sf + BR) { b.y = sf + BR; b.vy = Math.abs(b.vy) * 0.3; b.vx *= 0.7; b.vz *= 0.7; } }
         if ((wait -= dt) <= 0) {
@@ -445,16 +449,19 @@ const SPORTS = (() => {
    * 🏓 BÓNG BÀN kiểu "Ping Pong Go": vợt to nằm dưới ngón tay, kéo tới đâu vợt theo tới đó,
    * bóng chạm vợt là tự đánh. Vuốt nhanh lúc chạm bóng = đánh mạnh / chéo góc.
    * ==================================================================== */
-  function makePingPong(diff) {
+  function makePingPong(diff, online) {
     const L = 2.74, W = 1.525, NZ = L / 2, SURF = 0.76, NETH = 0.1525, G = 9.8, BR = 0.022, PAD_Y = SURF + 0.13, PR = 0.17;
     const cam = makeCam({ y: 1.6, z: -1.3, pitch: 0.32, f: 1.1, cy: 0.45 });
     const me = { x: 0, z: -0.15, tx: 0, tz: -0.15, vx: 0, vz: 0, swing: 0 };
     const ai = { x: 0, z: L + 0.18, tx: 0, swing: 0, react: 0, err: 0 };
     const b = { x: 0, y: 1, z: 0, vx: 0, vy: 0, vz: 0, hitter: -1, bounces: 0, live: false, trail: [] };
     const sc = [0, 0], msgs = [], fx = [];
-    let server = 0, servesLeft = 2, phase = 'serve', wait = 1, t = 0, rally = 0, bestRally = 0, lastW = 0, held = false;
+    let server = online && online.role === 1 ? 1 : 0, servesLeft = 2, phase = 'serve', wait = 1, t = 0, rally = 0, bestRally = 0, lastW = 0, held = false, posAt = 0, serveAt = 0;
     const say = (text, color = '#fff', y = 0.3) => msgs.push({ text, color, y, t: 0 });
     const onTable = (x, z) => Math.abs(x) <= W / 2 && z >= 0 && z <= L;
+    const oppName = online ? String(online.oppName).slice(0, 12) : 'Máy';
+    /** gửi đường bóng sau khi mình đánh — bên kia nhìn đối xứng (x → −x, z → L − z) */
+    const sendShot = () => { if (online) nsend({ op: 'shot', b: { x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz } }); };
     /** bóng bay parabol tới (tx, tz) sau T giây, tự kéo dài nếu sát lưới */
     function shoot(w, tx, tz, T) {
       for (let i = 0; i < 6; i++) {
@@ -475,7 +482,7 @@ const SPORTS = (() => {
       if (Math.abs(tx) > 0.66 && Math.random() < 0.5) tx *= 1.08; // góc quá sát mép có thể ra ngoài
       const tz = strong ? L - 0.18 - Math.random() * 0.25 : NZ + 0.45 + Math.random() * 0.75;
       b.z = Math.max(b.z, me.z); b.y = Math.max(b.y, SURF + 0.06);
-      shoot(0, tx, tz, strong ? 0.42 : 0.66);
+      shoot(0, tx, tz, strong ? 0.42 : 0.66); sendShot();
       if (strong) say('💥 ĐẬP!', '#ffd43b', 0.42);
       if (navigator.vibrate) try { navigator.vibrate(12); } catch (e) { /* bỏ qua */ }
     }
@@ -493,11 +500,14 @@ const SPORTS = (() => {
       b.x = p.x; b.z = w === 0 ? 0.05 : L - 0.05; b.y = SURF + 0.22;
       const tx = (Math.random() - 0.5) * 0.9;
       shoot(w, tx, w === 0 ? NZ + 0.5 + Math.random() * 0.6 : NZ - 0.5 - Math.random() * 0.5, 0.75);
+      if (w === 0) sendShot();
     }
-    function point(w, text) {
+    function point(w, text, remote) {
       if (phase !== 'play') return;
+      // online: bên nhận bóng làm trọng tài — bóng mình đánh sang thì chờ bên kia báo kết quả
+      if (online && !remote) { if (b.hitter === 0) { phase = 'await'; return; } nsend({ op: 'point', w: w === 0 ? 's' : 'r', text }); }
       sc[w]++; lastW = w; phase = 'dead'; wait = 1.2; b.live = false; bestRally = Math.max(bestRally, rally);
-      say(text, w === 0 ? '#8ce99a' : '#ffa8a8', 0.3); say(w === 0 ? '+1 cho bạn' : '+1 cho máy', '#ffe066', 0.38);
+      say(text, w === 0 ? '#8ce99a' : '#ffa8a8', 0.3); say(w === 0 ? '+1 cho bạn' : `+1 cho ${oppName}`, '#ffe066', 0.38);
     }
     function step(dt) {
       t += dt;
@@ -505,27 +515,30 @@ const SPORTS = (() => {
       const ox = me.x, oz = me.z;
       me.x += (me.tx - me.x) * Math.min(1, dt * 28); me.z += (me.tz - me.z) * Math.min(1, dt * 28);
       me.px = ox; me.pz = oz;
-      me.vx = me.vx * 0.7 + ((me.x - ox) / dt) * 0.3; me.vz = me.vz * 0.7 + ((me.z - oz) / dt) * 0.3;
+      if (dt > 0) { me.vx = me.vx * 0.7 + ((me.x - ox) / dt) * 0.3; me.vz = me.vz * 0.7 + ((me.z - oz) / dt) * 0.3; }
       me.swing = Math.max(0, me.swing - dt); ai.swing = Math.max(0, ai.swing - dt);
-      // máy: chạy ngang tới chỗ bóng sẽ tới
-      if (b.live && b.hitter === 0 && b.vz > 0) {
+      if (online && t - posAt > 0.08) { posAt = t; nsend({ op: 'pos', x: me.x }); }
+      // máy: chạy ngang tới chỗ bóng sẽ tới (online thì vợt bên kia đi theo người chơi thật)
+      if (online) { /* ai.tx nhận qua mạng */ } else if (b.live && b.hitter === 0 && b.vz > 0) {
         if (ai.react > 0) ai.react -= dt;
         else { const tt = (ai.z - b.z) / b.vz; ai.tx = Math.max(-1.1, Math.min(1.1, b.x + b.vx * tt + ai.err)); }
       } else ai.tx *= 0.97;
-      ai.x += Math.max(-1, Math.min(1, ai.tx - ai.x)) * Math.min(1, dt * [2.6, 3.6, 5][diff]) * 1.6;
+      if (online) ai.x += (ai.tx - ai.x) * Math.min(1, dt * 12); else ai.x += Math.max(-1, Math.min(1, ai.tx - ai.x)) * Math.min(1, dt * [2.6, 3.6, 5][diff]) * 1.6;
       if (phase === 'serve') {
         const p = server === 0 ? me : ai;
         b.x = p.x; b.z = server === 0 ? Math.max(0.05, me.z + 0.05) : L - 0.05; b.y = SURF + 0.2 + Math.abs(Math.sin(t * 4)) * 0.12;
-        if (server === 1 && (wait -= dt) <= 0) serve(1);
+        if (!online && server === 1 && (wait -= dt) <= 0) serve(1);
+        if (online && server === 0 && (serveAt += dt) > 6) serve(0);
         return;
       }
+      if (phase === 'await') { b.vy -= G * dt; b.x += b.vx * dt; b.y = Math.max(0, b.y + b.vy * dt); b.z += b.vz * dt; return; }
       if (phase === 'dead') {
         if (b.y > 0) { b.vy -= G * dt; b.x += b.vx * dt * 0.5; b.y += b.vy * dt; b.z += b.vz * dt * 0.5; }
         if ((wait -= dt) <= 0) {
           const w = sc[0] > sc[1] ? 0 : 1;
           if ((sc[w] >= 7 && sc[w] - sc[1 - w] >= 2) || sc[w] >= 11) { game.over = true; game.res = { win: w === 0, score: sc.slice(), bestRally }; return; }
           if (--servesLeft <= 0) { server = 1 - server; servesLeft = 2; }
-          phase = 'serve'; wait = 1;
+          phase = 'serve'; wait = 1; serveAt = 0;
         }
         return;
       }
@@ -549,8 +562,8 @@ const SPORTS = (() => {
         if (l2 > 1e-6 && b.y < PAD_Y + 0.6) { const k = Math.max(0, Math.min(1, ((b.x - me.px) * sx + (b.z - me.pz) * sz) / l2)); swept = Math.hypot(b.x - me.px - sx * k, b.z - me.pz - sz * k) < PR + 0.06; }
         if (near || crossed || swept) myHit();
       }
-      // bóng tới máy
-      if (b.hitter === 0 && b.vz > 0 && pz < ai.z && b.z >= ai.z) {
+      // bóng tới máy (online: bên kia tự xử lý)
+      if (!online && b.hitter === 0 && b.vz > 0 && pz < ai.z && b.z >= ai.z) {
         if (b.bounces >= 1 && Math.abs(b.x - ai.x) < 0.2 && b.y < SURF + 0.6) aiHit();
         else if (b.bounces >= 1) return point(0, '✨ Ăn điểm!');
       }
@@ -564,6 +577,11 @@ const SPORTS = (() => {
     const game = {
       VW: 1280, VH: 720, wide: true, over: false, res: null,
       _dbg: () => ({ b, me, ai, sc, rally, bestRally, phase, server }),
+      onNet(m) {
+        if (m.op === 'pos') ai.tx = -(+m.x || 0);
+        else if (m.op === 'shot' && m.b) { const q = m.b; Object.assign(b, { x: -q.x, y: +q.y, z: L - q.z, vx: -q.vx, vy: +q.vy, vz: -q.vz, hitter: 1, bounces: 0, live: true, trail: [] }); phase = 'play'; ai.swing = 0.25; rally++; }
+        else if (m.op === 'point') { if (phase === 'serve' || phase === 'dead') return; phase = 'play'; const w = m.w === 's' ? 1 : 0; point(w, w === 0 ? '✨ Ăn điểm!' : `😵 ${oppName} ăn điểm`, true); }
+      },
       update(dt) {
         for (let k = 0; k < 4; k++) { step(dt / 4); if (game.over) break; }
         if (b.live) { b.trail.push([b.x, b.y, b.z]); if (b.trail.length > 9) b.trail.shift(); }
@@ -605,8 +623,9 @@ const SPORTS = (() => {
         g.fillStyle = 'rgba(0,0,0,.35)'; rr(g, Wd / 2 - 120, 14, 240, 54, 27); g.fill();
         g.font = '900 30px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
         g.fillStyle = '#ffd8b0'; g.fillText(sc[0], Wd / 2 - 50, 42); g.fillStyle = '#fff'; g.fillText(':', Wd / 2, 40); g.fillStyle = '#b3d4ff'; g.fillText(sc[1], Wd / 2 + 50, 42);
-        g.font = '800 13px "Be Vietnam Pro", system-ui'; g.fillStyle = '#fff'; g.fillText('Bạn', Wd / 2 - 50, 80); g.fillText('Máy', Wd / 2 + 50, 80);
+        g.font = '800 13px "Be Vietnam Pro", system-ui'; g.fillStyle = '#fff'; g.fillText('Bạn', Wd / 2 - 50, 80); g.fillText(oppName, Wd / 2 + 50, 80);
         if (phase === 'serve' && server === 0) hint(g, '👆 Chạm để giao bóng · kéo ngón tay để di chuyển vợt', 0.93);
+        else if (online && phase === 'serve') hint(g, `⏳ Chờ ${oppName} giao bóng…`, 0.93);
         else if (rally < 2 && sc[0] + sc[1] < 2 && !held) hint(g, '👆 Đặt ngón tay lên bàn và kéo vợt chặn đường bóng — bóng chạm vợt là tự đánh', 0.93);
         drawMsgs(g, msgs.map((m) => ({ ...m, x: Wd / 2, y: Hd * m.y })));
       },
@@ -642,13 +661,15 @@ const SPORTS = (() => {
    * 🏸 CẦU LÔNG nhìn ngang (kiểu Badminton League): nút ◀ ▶ chạy, nút 🪶 Đánh cao · 🪽 Bỏ nhỏ · 💥 Đập cầu.
    * Không bấm gì thì vợt vẫn tự đỡ (phông cầu) cho dễ chơi. Toạ độ: x tính từ lưới (0), mình bên trái (x < 0).
    * ==================================================================== */
-  function makeBadminton(diff) {
+  function makeBadminton(diff, online) {
     const FL = 560, NT = 395, CW = 560, G = 1050, K = 0.00165, PG = 2300;
     const me = { x: -300, y: FL, vy: 0, tx: null, dir: 1, swing: 0, t: 0, moving: false, want: null, wantAt: -9, vx: 0, kL: false, kR: false };
     const ai = { x: 300, y: FL, vy: 0, tx: 300, dir: -1, swing: 0, t: 0, moving: false, react: 0, err: 0, plan: 0 };
     const s = { x: 0, y: 0, vx: 0, vy: 0, live: false, hitter: -1, ang: 0, trail: [] };
     const sc = [0, 0], msgs = [], btn = { L: false, R: false }, ptr = new Map();
-    let server = 0, phase = 'serve', wait = 1, t = 0, lastW = 0, rally = 0, bestRally = 0, VWc = 1280;
+    let server = online && online.role === 1 ? 1 : 0, phase = 'serve', wait = 1, t = 0, lastW = 0, rally = 0, bestRally = 0, VWc = 1280, camZ = 1, posAt = 0, serveAt = 0;
+    const oppName = online ? String(online.oppName).slice(0, 12) : 'Máy';
+    const oppLook = () => { const r = online && typeof NET !== 'undefined' && NET.remotes.get(online.opp); return (r && r.look) || AI_LOOK; };
     const say = (text, color = '#fff', x = 0, y = 210) => msgs.push({ text, color, x, y, t: 0 });
     const P = (w) => (w === 0 ? me : ai);
     const reach = (p) => ({ x: p.x + p.dir * 26, y: p.y - 150 });
@@ -675,7 +696,8 @@ const SPORTS = (() => {
     function hit(w, kind, target) {
       const p = P(w), pl = plan(p, kind, target);
       s.x = pl.x0; s.y = pl.y0; s.vx = pl.vx; s.vy = pl.vy; s.hitter = w; s.live = true; s.trail = []; p.swing = 0.3; rally++;
-      if (kind === 'smash') say('💥 ĐẬP CẦU!', '#ffd43b', p.x, p.y - 260);
+      if (kind === 'smash') { say('💥 ĐẬP CẦU!', '#ffd43b', p.x, p.y - 260); msgs[msgs.length - 1].w = 1; }
+      if (w === 0 && online) nsend({ op: 'shot', s: { x: s.x, y: s.y, vx: s.vx, vy: s.vy } });
       if (w === 0) { ai.react = [0.3, 0.16, 0.07][diff]; ai.err = (Math.random() * 2 - 1) * [70, 35, 12][diff]; ai.plan = 0; me.want = null; if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) { /* bỏ qua */ } }
     }
     const R = (a, c) => a + Math.random() * (c - a);
@@ -697,13 +719,13 @@ const SPORTS = (() => {
     function point(w, text) {
       if (phase !== 'play') return;
       sc[w]++; phase = 'dead'; wait = 1.3; s.live = false; lastW = w; bestRally = Math.max(bestRally, rally); rally = 0;
-      say(text, w === 0 ? '#8ce99a' : '#ffa8a8'); say(w === 0 ? '+1 cho bạn' : '+1 cho máy', '#ffe066', 0, 250);
+      say(text, w === 0 ? '#8ce99a' : '#ffa8a8'); say(w === 0 ? '+1 cho bạn' : `+1 cho ${oppName}`, '#ffe066', 0, 250);
     }
     function moveP(p, dt, sp, lo, hi) {
       const ox = p.x;
       if (p.tx != null) p.x += Math.max(-sp * dt, Math.min(sp * dt, p.tx - p.x));
       p.x = Math.max(lo, Math.min(hi, p.x));
-      p.vx = p.vx * 0.7 + ((p.x - ox) / dt) * 0.3; p.moving = Math.abs(p.x - ox) > 0.4; if (p.moving) p.t += dt;
+      if (dt > 0) p.vx = p.vx * 0.7 + ((p.x - ox) / dt) * 0.3; p.moving = Math.abs(p.x - ox) > 0.4; if (p.moving) p.t += dt;
       if (p.y < FL || p.vy < 0) { p.vy += PG * dt; p.y += p.vy * dt; if (p.y >= FL) { p.y = FL; p.vy = 0; } }
       p.swing = Math.max(0, p.swing - dt);
     }
@@ -712,8 +734,9 @@ const SPORTS = (() => {
       // nút ◀ ▶ (hoặc phím) → chạy; chạm chỗ khác trên sân → chạy tới đó
       if (btn.L || me.kL) me.tx = me.x - 60; else if (btn.R || me.kR) me.tx = me.x + 60; else if (me.tx != null && Math.abs(me.tx - me.x) < 4) me.tx = null;
       moveP(me, dt, 600, -CW - 40, -40);
-      // máy đoán chỗ cầu rơi rồi chạy tới
-      if (s.live && s.hitter === 0) {
+      if (online && t - posAt > 0.08) { posAt = t; nsend({ op: 'pos', x: Math.round(me.x), y: Math.round(me.y) }); }
+      // máy đoán chỗ cầu rơi rồi chạy tới (online: người bên kia tự chạy, nhận vị trí qua mạng)
+      if (online) { /* ai.tx nhận qua mạng */ } else if (s.live && s.hitter === 0) {
         if (ai.react > 0) ai.react -= dt;
         else if ((ai.plan -= dt) <= 0) {
           ai.plan = 0.12; let x = s.x, y = s.y, vx = s.vx, vy = s.vy, n = 0, tx = null; const d = 1 / 60;
@@ -722,7 +745,7 @@ const SPORTS = (() => {
           if (diff >= 1 && s.vy > 0 && s.x > 0 && s.y < FL - 270 && Math.abs(s.x - ai.x) < 90 && ai.y >= FL && Math.random() < 0.06) ai.vy = -700;
         }
       } else if (phase === 'play' && s.hitter === 1) ai.tx = ai.tx * 0.97 + 300 * 0.03;
-      moveP(ai, dt, [400, 520, 650][diff], 40, CW + 40);
+      moveP(ai, dt, online ? 900 : [400, 520, 650][diff], 40, CW + 40);
       if (phase === 'serve') {
         const p = P(server); s.x = p.x + p.dir * 30; s.y = p.y - 100; s.ang = Math.PI / 2;
         if (server === 1 && (wait -= dt) <= 0) serve(1);
@@ -733,7 +756,7 @@ const SPORTS = (() => {
         if ((wait -= dt) <= 0) {
           const w = sc[0] > sc[1] ? 0 : 1;
           if ((sc[w] >= 7 && sc[w] - sc[1 - w] >= 2) || sc[w] >= 11) { game.over = true; game.res = { win: w === 0, score: sc.slice(), bestRally }; return; }
-          server = lastW; phase = 'serve'; wait = 1; me.tx = -300; ai.tx = 300;
+          server = lastW; phase = 'serve'; wait = 1; serveAt = 0; me.tx = -300; if (!online) ai.tx = 300;
         }
         return;
       }
@@ -747,7 +770,7 @@ const SPORTS = (() => {
         return inC ? point(1 - side, side === 0 ? '😵 Cầu rơi sân bạn' : '✨ Cầu rơi sân đối thủ!') : point(1 - s.hitter, '🚫 Cầu ra ngoài!');
       }
       for (const w of [0, 1]) {
-        if (s.hitter === w) continue;
+        if (s.hitter === w || (online && w === 1)) continue;
         const p = P(w), onSide = w === 0 ? s.x < 0 : s.x > 0, rc = reach(p);
         if (onSide && Math.hypot(s.x - rc.x, s.y - rc.y) < (w === 0 ? 110 : 92)) { if (w === 0) myShot(); else aiShot(); break; }
       }
@@ -771,15 +794,20 @@ const SPORTS = (() => {
     const game = {
       VW: 1280, VH: 720, wide: true, over: false, res: null,
       _dbg: () => ({ s, me, ai, sc, rally, bestRally, phase, server }),
+      onNet(m) {
+        if (m.op === 'pos') { ai.tx = -(+m.x || 0); const y = +m.y || FL; if (y < FL - 2) { ai.y = y; ai.vy = 0.001; } }
+        else if (m.op === 'shot' && m.s) { const q = m.s; Object.assign(s, { x: -q.x, y: +q.y, vx: -q.vx, vy: +q.vy, hitter: 1, live: true, trail: [] }); phase = 'play'; ai.swing = 0.3; rally++; }
+        else if (m.op === 'point') { if (phase === 'serve' || phase === 'dead') return; phase = 'play'; const w = m.w === 's' ? 1 : 0; point(w, w === 0 ? '✨ Ăn điểm!' : `😵 ${oppName} ăn điểm`, true); }
+      },
       update(dt) { for (let k = 0; k < 2; k++) { step(dt / 2); if (game.over) break; } if (s.live) { s.trail.push([s.x, s.y]); if (s.trail.length > 10) s.trail.shift(); } msgs.forEach((m) => { m.t += dt; }); while (msgs.length && msgs[0].t > 1.3) msgs.shift(); },
       down(p) {
         const b = BTNS().find((o) => Math.hypot(p.x - o.x, p.y - o.y) < o.r + 14);
         if (b) { ptr.set(p.id, b.k); press(b.k); return; }
         ptr.set(p.id, 'move');
         if (phase === 'serve' && server === 0) return serve(0);
-        me.tx = Math.max(-CW - 40, Math.min(-40, p.x - VWc / 2));
+        me.tx = Math.max(-CW - 40, Math.min(-40, (p.x - VWc / 2) / camZ));
       },
-      move(p, held) { if (held && ptr.get(p.id) === 'move') me.tx = Math.max(-CW - 40, Math.min(-40, p.x - VWc / 2)); },
+      move(p, held) { if (held && ptr.get(p.id) === 'move') me.tx = Math.max(-CW - 40, Math.min(-40, (p.x - VWc / 2) / camZ)); },
       up(p) { const k = ptr.get(p.id); ptr.delete(p.id); if (k === 'L' || k === 'R') { if (![...ptr.values()].includes(k)) btn[k] = false; } },
       key(k, on) {
         if (k === 'ArrowLeft' || k === 'a') me.kL = on;
@@ -789,34 +817,48 @@ const SPORTS = (() => {
       },
       draw(g) {
         VWc = game.VW; const W = VWc, H = game.VH, cx = W / 2;
-        // trời hoàng hôn + phố
+        // camera: mặt sân ở 70% chiều cao màn hình, tự lùi xa khi cầu bay cao để luôn thấy cầu
+        const FLs = H * 0.7, top = Math.min(phase === 'serve' ? FL - 260 : s.y, FL - 280);
+        const zt = Math.max(0.42, Math.min(1.2, (FLs - 105) / Math.max(1, FL - top), (W / 2 - 30) / (CW + 100)));
+        camZ += (zt - camZ) * (zt < camZ ? 0.25 : 0.05);
+        // trời hoàng hôn + phố (nền, không phóng to)
         const sk = g.createLinearGradient(0, 0, 0, H); sk.addColorStop(0, '#5b4b8a'); sk.addColorStop(0.45, '#e88a7a'); sk.addColorStop(0.7, '#f6c08a'); g.fillStyle = sk; g.fillRect(0, 0, W, H);
-        g.fillStyle = 'rgba(70,50,90,.55)'; for (let x = 0; x < W; x += 70) { const h = 120 + ((x * 37) % 140); g.fillRect(x, FL - 130 - h, 58, h); }
-        g.fillStyle = '#2b2440'; for (let x = 60; x < W; x += 340) { g.fillRect(x, FL - 300, 8, 300); g.fillRect(x - 30, FL - 310, 68, 12); for (let k = 0; k < 3; k++) { g.fillStyle = '#fff3c4'; g.beginPath(); g.arc(x - 18 + k * 22, FL - 318, 8, 0, Math.PI * 2); g.fill(); g.fillStyle = '#2b2440'; } }
-        g.fillStyle = 'rgba(40,35,60,.5)'; g.fillRect(0, FL - 120, W, 120);
-        // sân
-        const fl = g.createLinearGradient(0, FL - 40, 0, H); fl.addColorStop(0, '#8a7fb0'); fl.addColorStop(1, '#5d527f'); g.fillStyle = fl; g.fillRect(0, FL - 40, W, H - FL + 40);
-        g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 4;
-        [[FL - 40, 0.92], [FL - 10, 1], [FL + 26, 1.08], [FL + 70, 1.18]].forEach(([y, k]) => { g.beginPath(); g.moveTo(cx - CW * k, y); g.lineTo(cx + CW * k, y); g.stroke(); });
-        [-CW, -CW * 0.42, CW * 0.42, CW].forEach((x) => { g.beginPath(); g.moveTo(cx + x * 0.92, FL - 40); g.lineTo(cx + x * 1.18, FL + 70); g.stroke(); });
-        // lưới
-        g.fillStyle = '#2b2b33'; g.fillRect(cx - 5, NT - 10, 10, FL - NT + 40); g.fillRect(cx - 22, FL + 20, 44, 24);
-        g.fillStyle = 'rgba(30,30,40,.55)'; g.fillRect(cx - 3, NT, 6, 95);
-        g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1; for (let y = NT; y < NT + 95; y += 7) { g.beginPath(); g.moveTo(cx - 3, y); g.lineTo(cx + 3, y); g.stroke(); }
-        g.fillStyle = '#fff'; g.fillRect(cx - 6, NT - 5, 12, 6);
+        const hz = FLs - 95 * camZ;
+        g.fillStyle = 'rgba(70,50,90,.55)'; for (let x = 0; x < W; x += 70) { const h = (120 + ((x * 37) % 140)) * (0.6 + camZ * 0.4); g.fillRect(x, hz - 40 - h, 58, h); }
+        g.fillStyle = 'rgba(40,35,60,.5)'; g.fillRect(0, hz - 40, W, 60);
+        // thế giới (phóng to / thu nhỏ quanh lưới)
+        g.save(); g.translate(cx, FLs); g.scale(camZ, camZ); g.translate(0, -FL);
+        g.fillStyle = '#2b2440'; for (let x = -CW - 260; x <= CW + 260; x += 380) { g.fillRect(x, FL - 380, 9, 300); g.fillRect(x - 32, FL - 390, 72, 12); for (let k = 0; k < 3; k++) { g.fillStyle = '#fff3c4'; g.beginPath(); g.arc(x - 18 + k * 22, FL - 398, 8, 0, Math.PI * 2); g.fill(); g.fillStyle = '#2b2440'; } }
+        // sân có chiều sâu: vạch xa hẹp, vạch gần rộng
+        const FAR = FL - 85, NEAR = FL + 95, wAt = (y) => CW * (0.86 + (y - FAR) / (NEAR - FAR) * 0.34);
+        const fl = g.createLinearGradient(0, FAR, 0, FL + 400); fl.addColorStop(0, '#9a8fc0'); fl.addColorStop(1, '#5d527f'); g.fillStyle = fl; g.fillRect(-W / camZ, FAR - 10, W * 2 / camZ, 900);
+        g.fillStyle = '#4f9a7a'; g.beginPath(); g.moveTo(-wAt(FAR), FAR); g.lineTo(wAt(FAR), FAR); g.lineTo(wAt(NEAR), NEAR); g.lineTo(-wAt(NEAR), NEAR); g.closePath(); g.fill();
+        g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 5;
+        [FAR, FAR + 22, (FAR + NEAR) / 2, NEAR - 22, NEAR].forEach((y) => { g.beginPath(); g.moveTo(-wAt(y), y); g.lineTo(wAt(y), y); g.stroke(); });
+        [-1, -0.42, 0.42, 1].forEach((k) => { g.beginPath(); g.moveTo(wAt(FAR) * k, FAR); g.lineTo(wAt(NEAR) * k, NEAR); g.stroke(); });
+        // lưới có chiều sâu: cột xa ở FAR, cột gần ở NEAR, mép trên ở độ cao NT tại mặt phẳng người chơi
+        const NH = FL - NT, fT = FAR - NH * 0.86, nT = NEAR - NH * 1.14, fx = 38, nx = -38;
+        g.fillStyle = 'rgba(25,25,40,.38)'; g.beginPath(); g.moveTo(fx, fT); g.lineTo(nx, nT); g.lineTo(nx, nT + 78); g.lineTo(fx, fT + 60); g.closePath(); g.fill();
+        g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 1.3;
+        for (let k = 0; k <= 1.001; k += 0.0625) { const x = fx + (nx - fx) * k, y = fT + (nT - fT) * k; g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 60 + 18 * k); g.stroke(); }
+        for (let k = 0; k <= 1.001; k += 0.2) { g.beginPath(); g.moveTo(fx, fT + 60 * k); g.lineTo(nx, nT + 78 * k); g.stroke(); }
+        g.strokeStyle = '#fff'; g.lineWidth = 6; g.beginPath(); g.moveTo(fx, fT); g.lineTo(nx, nT); g.stroke();
+        g.fillStyle = '#2b2b33'; g.fillRect(fx - 4, fT - 8, 8, FAR - fT + 8); g.fillRect(nx - 6, nT - 10, 12, NEAR - nT + 10); g.fillRect(nx - 22, NEAR - 4, 44, 16);
         // người chơi
-        drawPlayer(g, ai, AI_LOOK, cx, '#7048e8'); drawPlayer(g, me, S().look || AI_LOOK, cx, '#f76707');
+        drawPlayer(g, ai, oppLook(), 0, '#7048e8'); drawPlayer(g, me, S().look || AI_LOOK, 0, '#f76707');
         // cầu
-        g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(cx + s.x, FL + 6, 12, 4, 0, 0, Math.PI * 2); g.fill();
-        if (s.trail.length > 2) { g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 3; g.beginPath(); s.trail.forEach(([x, y], i) => (i ? g.lineTo(cx + x, y) : g.moveTo(cx + x, y))); g.stroke(); }
-        g.save(); g.translate(cx + s.x, s.y); g.rotate(s.ang);
-        g.fillStyle = '#f8f9fa'; g.beginPath(); g.moveTo(0, -5); g.lineTo(-28, -14); g.lineTo(-28, 14); g.lineTo(0, 5); g.closePath(); g.fill(); g.strokeStyle = '#adb5bd'; g.lineWidth = 1; g.stroke();
+        g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(s.x, FL + 6, 14, 5, 0, 0, Math.PI * 2); g.fill();
+        if (s.trail.length > 2) { g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 4; g.beginPath(); s.trail.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); }
+        g.save(); g.translate(s.x, s.y); g.rotate(s.ang); const sz = 1.25 / Math.max(0.6, camZ);
+        g.scale(sz, sz);
+        g.fillStyle = '#f8f9fa'; g.beginPath(); g.moveTo(0, -5); g.lineTo(-28, -14); g.lineTo(-28, 14); g.lineTo(0, 5); g.closePath(); g.fill(); g.strokeStyle = '#495057'; g.lineWidth = 1.5; g.stroke();
         g.fillStyle = '#fff'; g.beginPath(); g.arc(3, 0, 7, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#495057'; g.stroke();
+        g.restore();
         g.restore();
         // bảng điểm
         g.fillStyle = 'rgba(20,20,50,.55)'; rr(g, cx - 130, 14, 260, 60, 14); g.fill();
         g.font = '900 40px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.fillText(`${sc[0]} : ${sc[1]}`, cx, 46);
-        g.font = '800 14px "Be Vietnam Pro", system-ui'; g.fillStyle = '#ffd8b0'; g.fillText(`🧑 ${String(S().name || 'Bạn').slice(0, 10)}`, cx - 200, 46); g.fillStyle = '#d0bfff'; g.fillText('Máy 🤖', cx + 200, 46);
+        g.font = '800 14px "Be Vietnam Pro", system-ui'; g.fillStyle = '#ffd8b0'; g.fillText(`🧑 ${String(S().name || 'Bạn').slice(0, 10)}`, cx - 200, 46); g.fillStyle = '#d0bfff'; g.fillText(online ? `🌐 ${oppName}` : 'Máy 🤖', cx + 200, 46);
         g.fillStyle = '#ffe066'; g.beginPath(); g.arc(server === 0 ? cx - 118 : cx + 118, 26, 6, 0, Math.PI * 2); g.fill();
         // nút
         BTNS().forEach((o) => {
@@ -827,14 +869,15 @@ const SPORTS = (() => {
           g.font = '900 13px "Be Vietnam Pro", system-ui'; g.fillText(o.lab, o.x, o.y + o.r + 14);
         });
         if (phase === 'serve' && server === 0) hint(g, '👆 Bấm 🪶 Đánh cao để phát cầu', 0.3);
+        else if (online && phase === 'serve') hint(g, `⏳ Chờ ${oppName} phát cầu…`, 0.3);
         else if (sc[0] + sc[1] === 0 && rally < 3) hint(g, '◀ ▶ chạy theo cầu · cầu tới gần là vợt tự đỡ · bấm 💥 ĐẬP khi cầu bay cao', 0.3);
-        drawMsgs(g, msgs.map((m) => ({ ...m, x: cx + m.x, y: m.y })));
+        drawMsgs(g, msgs.map((m) => (m.w ? { ...m, x: cx + m.x * camZ, y: FLs + (m.y - FL) * camZ } : { ...m, x: cx + m.x, y: m.y })));
       },
     };
     function drawPlayer(g, p, look, cx, col) {
       const x = cx + p.x;
       g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(x, FL + 4, 40, 9, 0, 0, Math.PI * 2); g.fill();
-      try { ART.character(g, x, p.y, look, { dir: p.dir, t: p.t, moving: p.moving, scale: 1.45 }); }
+      try { ART.character(g, x, p.y, look, { dir: p.dir, t: p.t, moving: p.moving, scale: 1.7 }); }
       catch (e) { g.fillStyle = look.shirt || '#4dabf7'; rr(g, x - 22, p.y - 140, 44, 90, 14); g.fill(); g.fillStyle = look.skin || '#f1c27d'; g.beginPath(); g.arc(x, p.y - 162, 24, 0, Math.PI * 2); g.fill(); }
       const sw = p.swing > 0 ? Math.sin((1 - p.swing / 0.3) * Math.PI) : 0, a = -Math.PI / 2 + p.dir * (0.55 - sw * 1.7);
       const hx = x + p.dir * 22, hy = p.y - 105, ex = hx + Math.cos(a) * 56, ey = hy + Math.sin(a) * 56;
@@ -864,7 +907,7 @@ const SPORTS = (() => {
     { name: 'Thùng trượt', par: 4, wall: 'wood', map: ['...H...', '.......', 'mmmmmmm', '.......', '.......', 'mmmmmmm', '.......', '.......', '...S...'] },
     { name: 'Đảo giữa hồ', par: 5, wall: 'stone', map: ['  ..H..   ', '  .....   ', '  ..B..   ', '  .....   ', '  ww.ww   ', '  .....   ', '  .....  .', '  mmmmm  .', '  .......S', '  ........'] },
   ];
-  function makeGolf(lv) {
+  function makeGolf(lv, online) {
     const LV = MINI[Math.max(0, Math.min(MINI.length - 1, lv | 0))], rows = LV.map, NR = rows.length, NC = Math.max(...rows.map((r) => r.length));
     const BR = 0.12, HOLE = 0.24, MAXV = 11;
     const cell = (c, r) => (r < 0 || r >= NR || c < 0 || c >= NC ? ' ' : (rows[r][c] || ' '));
@@ -881,7 +924,8 @@ const SPORTS = (() => {
     const ball = { x: start.x, z: start.z, vx: 0, vz: 0, s: 1, last: [start.x, start.z] };
     let strokes = 0, phase = 'aim', t = 0, wait = 0, aim = null, yaw = Math.atan2(hole.x - start.x, hole.z - start.z) * 0.6;
     const cam = { x: 0, y: 4.2, z: 0, yaw, pitch: 0.5, F: 700, W: 1280, H: 720, cy: 0.45 };
-    const msgs = [];
+    const msgs = [], opp = { x: start.x, z: start.z, s: 1, n: 0, on: false }, oppName = online ? String(online.oppName).slice(0, 12) : '';
+    let posAt = 0, sentAt = 0, sent = '';
     const say = (text, color = '#fff', y = 0.32) => msgs.push({ text, color, y, t: 0 });
     say(`Màn ${(lv | 0) + 1} · ${LV.name} · Par ${LV.par}`, '#fff3bf', 0.28);
     /* ---------- vật lý ---------- */
@@ -931,6 +975,7 @@ const SPORTS = (() => {
     };
     function step(dt) {
       t += dt; sfxBump = Math.max(0, sfxBump - dt);
+      if (online && t - posAt > 0.12) { posAt = t; const k = `${ball.x.toFixed(2)},${ball.z.toFixed(2)},${ball.s.toFixed(1)},${strokes}`; if (k !== sent || t - sentAt > 1.5) { sent = k; sentAt = t; nsend({ op: 'pos', x: +ball.x.toFixed(2), z: +ball.z.toFixed(2), s: +ball.s.toFixed(2), n: strokes }); } }
       movers.forEach((m) => { const span = m.b - m.a - m.w, px = m.x; m.x = m.a + m.w / 2 + span * (0.5 + 0.5 * Math.sin(t * m.sp / Math.max(1, span) * 2 + m.ph)); m.vx = (m.x - px) / Math.max(dt, 1e-4); });
       if (phase === 'roll') { for (let k = 0; k < 4; k++) { physics(dt / 4); if (phase !== 'roll') break; } }
       else if (phase === 'sink') { ball.s = Math.max(0, ball.s - dt * 3); ball.x += (hole.x - ball.x) * 0.25; ball.z += (hole.z - ball.z) * 0.25; if (ball.s <= 0) done(false); }
@@ -991,6 +1036,12 @@ const SPORTS = (() => {
         const fl = Math.max(10, 0.45 * top.k), w = Math.sin(t * 5) * fl * 0.08;
         g2.fillStyle = '#ff3b3b'; g2.beginPath(); g2.moveTo(top.x, top.y); g2.quadraticCurveTo(top.x + fl * 0.6, top.y + fl * 0.15 + w, top.x + fl, top.y + fl * 0.28); g2.lineTo(top.x, top.y + fl * 0.55); g2.closePath(); g2.fill();
       } });
+      // bóng "ma" của đối thủ (online)
+      if (online && opp.on && opp.s > 0) list.push({ z: toC(opp.x, 0, opp.z).Z - 0.04, d: (g2) => {
+        const q = P(opp.x, BR * opp.s, opp.z), r = Math.max(3, BR * opp.s * q.k);
+        g2.globalAlpha = 0.75; g2.fillStyle = '#ff922b'; g2.beginPath(); g2.arc(q.x, q.y, r, 0, Math.PI * 2); g2.fill(); g2.strokeStyle = '#fff'; g2.lineWidth = 1.5; g2.stroke(); g2.globalAlpha = 1;
+        g2.font = '800 12px "Be Vietnam Pro", system-ui'; g2.textAlign = 'center'; g2.textBaseline = 'bottom'; g2.fillStyle = '#fff'; g2.fillText(oppName, q.x, q.y - r - 3);
+      } });
       // bóng
       list.push({ z: toC(ball.x, 0, ball.z).Z - 0.05, d: (g2) => {
         if (ball.s <= 0) return;
@@ -1005,6 +1056,7 @@ const SPORTS = (() => {
     const ROT = () => [{ k: -1, x: 60, y: cam.H - 70 }, { k: 1, x: cam.W - 60, y: cam.H - 70 }];
     const game = {
       VW: 1280, VH: 720, wide: true, over: false, res: null,
+      onNet(m) { if (m.op === 'pos') { opp.x = +m.x || 0; opp.z = +m.z || 0; opp.s = Math.max(0, Math.min(1, +m.s)); opp.n = m.n | 0; opp.on = true; } },
       _dbg: () => ({ ball, hole, phase, strokes, predict, shoot: (vx, vz) => { ball.last = [ball.x, ball.z]; ball.vx = vx; ball.vz = vz; strokes++; phase = 'roll'; } }),
       update(dt) { for (let k = 0; k < 2; k++) step(dt / 2); msgs.forEach((m) => { m.t += dt; }); while (msgs.length && msgs[0].t > 2) msgs.shift(); },
       down(p) {
@@ -1049,6 +1101,7 @@ const SPORTS = (() => {
         g.fillStyle = '#fff'; g.font = '900 17px "Be Vietnam Pro", system-ui'; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(`⛳ ${(lv | 0) + 1}/${MINI.length} ${LV.name}`, W - 24, 32);
         g.fillStyle = 'rgba(20,40,80,.75)'; rr(g, 12, 12, 250, 40, 10); g.fill();
         g.fillStyle = '#ffe066'; g.textAlign = 'left'; g.fillText(`🏌️ Gậy ${strokes}  ·  Par ${LV.par}`, 26, 32);
+        if (online) { g.fillStyle = 'rgba(120,50,0,.75)'; rr(g, 12, 58, 250, 34, 10); g.fill(); g.fillStyle = '#ffd8a8'; g.font = '800 14px "Be Vietnam Pro", system-ui'; g.fillText(`🆚 ${oppName}: ${opp.n} gậy${opp.s <= 0 ? ' · ✅ vào lỗ' : ''}`, 26, 75); }
         ROT().forEach((o) => { g.fillStyle = 'rgba(255,255,255,.3)'; g.beginPath(); g.arc(o.x, o.y, 34, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 3; g.stroke(); g.fillStyle = '#fff'; g.font = '900 26px system-ui'; g.textAlign = 'center'; g.fillText(o.k < 0 ? '⟲' : '⟳', o.x, o.y + 1); });
         if (phase === 'aim' && !aim && strokes === 0) hint(g, '👆 Kéo ngược ra sau rồi thả để đánh bóng · ⟲ ⟳ xoay góc nhìn', 0.82);
         drawMsgs(g, msgs.map((m) => ({ ...m, x: W / 2, y: H * m.y })));
@@ -1213,11 +1266,11 @@ const SPORTS = (() => {
    * Khung chơi: menu chọn độ khó → chơi → kết quả + thưởng
    * ==================================================================== */
   const GAMES = {
-    badminton: { name: 'Cầu lông', icon: '🏸', vs: true, make: (d) => makeBadminton(d), bg: '#5b4b8a',
+    badminton: { name: 'Cầu lông', icon: '🏸', vs: true, make: (d, n) => makeBadminton(d, n), bg: '#5b4b8a',
       how: ['Giữ nút <b>◀ ▶</b> để chạy theo cầu (hoặc chạm vào sân chỗ muốn chạy tới)', 'Cầu tới gần là vợt <b>tự đỡ</b> — không cần bấm gì cũng chơi được', 'Bấm <b>🪶 Đánh cao</b> phông cầu về cuối sân · <b>🪽 Bỏ nhỏ</b> cầu rơi sát lưới', 'Cầu bay cao thì bấm <b>💥 ĐẬP</b> để bật nhảy đập cầu', 'Bàn phím: A/D chạy · K đánh cao · J bỏ nhỏ · L đập · 7 điểm thắng'] },
-    pingpong: { name: 'Bóng bàn', icon: '🏓', vs: true, make: (d) => makePingPong(d), bg: '#ff9f7a',
+    pingpong: { name: 'Bóng bàn', icon: '🏓', vs: true, make: (d, n) => makePingPong(d, n), bg: '#ff9f7a',
       how: ['Kéo ngón tay để di chuyển vợt — bóng chạm vợt là tự đánh', 'Bóng phải nảy bên bàn mình 1 lần rồi mới đánh', 'Đỡ ở mép vợt → bóng đi chéo góc (dễ ra ngoài!)', 'Hất vợt nhanh lên trên (hoặc chạm màn hình) lúc chạm bóng = <b>ĐẬP</b> 💥', 'Ai được 7 điểm trước (cách 2 điểm) là thắng'] },
-    golf: { name: 'Golf mini', icon: '⛳', vs: false, levels: true, energy: 1, make: (d) => makeGolf(d), bg: '#2f8fe0',
+    golf: { name: 'Golf mini', icon: '⛳', vs: false, levels: true, energy: 1, make: (d, n) => makeGolf(d, n), bg: '#2f8fe0',
       how: ['<b>Kéo ngược ra sau</b> ở bất kỳ đâu trên màn hình (như ná cao su) rồi thả để đánh', 'Kéo càng dài càng mạnh — vạch chấm trắng cho thấy đường bóng sẽ đi, kể cả nảy tường', 'Nút ⟲ ⟳ xoay góc nhìn · tránh thùng gỗ, hố cát, hồ nước, thùng trượt', 'Mỗi màn là 1 lỗ: dưới par ⭐⭐⭐ · đúng par ⭐⭐ · qua lỗ ⭐ · qua màn để mở màn sau'] },
     basketball: { name: 'Bóng rổ', icon: '🏀', vs: false, make: () => makeBasket(), bg: '#18243d',
       how: ['Nhân vật của bạn cầm bóng — <b>vuốt lên về phía rổ ở bất kỳ đâu trên màn hình</b>', 'Vuốt dài thì ném xa, vuốt lệch thì bóng lệch', '45 giây: vào rổ +1, không chạm vành (ngọt) +2 và +2 giây', 'Vào 3 quả liên tiếp: 🔥 nhân đôi điểm · vào 2 quả thì đổi vị trí ném'] },
@@ -1258,15 +1311,101 @@ const SPORTS = (() => {
     return c;
   }
 
+  /* ======================================================================
+   * 👥 MỜI BẠN CHƠI ONLINE: mời người cùng khu → chấp nhận → mỗi bên cược bằng nhau, thắng ăn cả.
+   * Tin nhắn qua NET.sendSport (phòng của khu đang đứng).
+   * ==================================================================== */
+  const ONLINE = ['pingpong', 'badminton', 'golf'], CHIPS = [0, 500, 1000, 5000, 20000];
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const ssend = (p) => { if (typeof NET !== 'undefined' && NET.sendSport) NET.sendSport(p); };
+  let NS = null, invite = null, invP = null;
+  /** gửi tin trong ván online đang chơi */
+  function nsend(p) { if (NS) ssend({ ...p, to: NS.opp, gid: NS.gid }); }
+  const golfOpen = () => Math.min(MINI.length - 1, (D().golfStars || []).filter((v) => v > 0).length);
+  function challenge(r, game) {
+    if (NS && !NS.over) return UI.toast('Bạn đang trong một trận rồi');
+    let gm = ONLINE.includes(game) ? game : 'pingpong', bet = 1000, lv = 0;
+    const p = UI.panel(`🌐 Mời ${esc(r.name)} chơi thể thao`, '');
+    const render = () => {
+      p.body.innerHTML = `<p class="muted">Chọn môn và mức cược — mỗi bên đặt bằng nhau, thắng ăn cả, hoà trả lại.</p>
+        <div class="chips center">${ONLINE.map((k) => `<button class="chip ${k === gm ? 'on' : ''}" data-g="${k}">${GAMES[k].icon} ${GAMES[k].name}</button>`).join('')}</div>
+        ${gm === 'golf' ? `<p class="muted">Màn chơi (cùng đánh 1 lỗ, ai ít gậy hơn thắng):</p><div class="chips center">${MINI.slice(0, golfOpen() + 1).map((L, i) => `<button class="chip ${i === lv ? 'on' : ''}" data-l="${i}">${i + 1}. ${L.name}</button>`).join('')}</div>` : ''}
+        <div class="chips center">${CHIPS.map((c) => `<button class="chip ${c === bet ? 'on' : ''}" data-c="${c}">${c ? '🪙 ' + fmt(c) : 'Chơi vui'}</button>`).join('')}</div>
+        <div class="row-end"><button class="btn" data-go>${GAMES[gm].icon} Gửi lời mời</button></div>`;
+      p.body.querySelectorAll('[data-g]').forEach((b) => b.onclick = () => { gm = b.dataset.g; render(); });
+      p.body.querySelectorAll('[data-l]').forEach((b) => b.onclick = () => { lv = +b.dataset.l; render(); });
+      p.body.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => { bet = +b.dataset.c; render(); });
+      p.body.querySelector('[data-go]').onclick = () => {
+        if (bet > S().coins) return UI.toast(`Không đủ xu — cần ${fmt(bet)} xu`);
+        if (!NET.remotes.get(r.id)) return UI.toast('⚠️ Người này vừa rời khu rồi');
+        p.close(); sendInvite({ to: r.id, name: r.name, game: gm, bet, lv });
+      };
+    };
+    render();
+  }
+  function sendInvite(o) {
+    invite = { ...o, gid: NET.pid + '-' + Date.now() };
+    ssend({ op: 'invite', to: o.to, gid: invite.gid, bet: o.bet, game: o.game, lv: o.lv, name: S().name });
+    UI.toast(`${GAMES[o.game].icon} Đã mời ${o.name} — chờ trả lời…`, 4000);
+    const gid = invite.gid;
+    setTimeout(() => { if (invite && invite.gid === gid) { invite = null; UI.toast('⌛ Không thấy trả lời — đã huỷ lời mời'); } }, 25000);
+  }
+  function onInvite(m) {
+    const G = GAMES[m.game];
+    if (!ONLINE.includes(m.game)) return;
+    const bet = Math.max(0, Math.floor(+m.bet) || 0), lv = Math.max(0, Math.min(MINI.length - 1, m.lv | 0)), who = String(m.name || 'Người chơi').slice(0, 16);
+    if ((NS && !NS.over) || (invP && invP.el.isConnected)) return ssend({ op: 'busy', to: m.id, gid: m.gid });
+    invP = UI.panel(`${G.icon} Lời mời chơi ${G.name}`, `<p class="confirm-text"><b>${esc(who)}</b> mời bạn chơi <b>${G.name}</b>${m.game === 'golf' ? ` (màn ${lv + 1} · ${MINI[lv].name})` : ''}${bet ? ` · cược <b>${fmt(bet)} xu</b>` : ' (chơi vui)'}</p>
+      ${S().coins < bet ? '<p class="game-msg">⚠️ Bạn không đủ xu</p>' : ''}
+      <div class="row-end"><button class="btn ghost" data-no>Từ chối</button><button class="btn" data-yes ${S().coins < bet ? 'disabled' : ''}>${G.icon} Chơi</button></div>`);
+    const ip = invP, tm = setTimeout(() => { if (ip.el.isConnected) { ip.close(); ssend({ op: 'decline', to: m.id, gid: m.gid, why: 'không trả lời' }); } }, 22000);
+    ip.body.querySelector('[data-no]').onclick = () => { clearTimeout(tm); ip.close(); ssend({ op: 'decline', to: m.id, gid: m.gid, why: 'từ chối' }); };
+    ip.body.querySelector('[data-yes]').onclick = () => {
+      clearTimeout(tm); ip.close();
+      if (bet && !AV.spend(bet)) return ssend({ op: 'decline', to: m.id, gid: m.gid, why: 'không đủ xu' });
+      ssend({ op: 'accept', to: m.id, gid: m.gid });
+      startNet({ gid: m.gid, opp: m.id, oppName: who, bet, game: m.game, lv, role: 1 });
+    };
+  }
+  function startNet(o) {
+    NS = { ...o, seen: Date.now(), over: false };
+    play(o.game, { net: NS });
+    UI.toast(`${GAMES[o.game].icon} Bắt đầu trận với ${o.oppName}!`, 3000);
+  }
+  function onNet(m) {
+    if (typeof NET === 'undefined' || m.to !== NET.pid) return;
+    if (m.op === 'invite') return onInvite(m);
+    if (m.op === 'accept' && invite && m.gid === invite.gid && m.id === invite.to) {
+      const iv = invite; invite = null;
+      if (iv.bet && !AV.spend(iv.bet)) { ssend({ op: 'resign', to: m.id, gid: m.gid, why: 'nopay' }); return UI.toast('Không đủ xu để vào trận'); }
+      return startNet({ gid: iv.gid, opp: m.id, oppName: iv.name, bet: iv.bet, game: iv.game, lv: iv.lv, role: 0 });
+    }
+    if ((m.op === 'decline' || m.op === 'busy') && invite && m.gid === invite.gid) { invite = null; return UI.toast(m.op === 'busy' ? '🏸 Người đó đang bận trận khác' : `Lời mời bị từ chối (${esc(m.why || 'từ chối')})`, 4000); }
+    if (!NS || m.gid !== NS.gid || m.id !== NS.opp) return;
+    NS.seen = Date.now();
+    if (m.op === 'resign') { if (!NS.over && NS.onResign) NS.onResign(m.why); return; }
+    if (m.op === 'done') { NS.oppStrokes = Math.max(1, m.strokes | 0); if (NS.onDone) NS.onDone(); return; }
+    if (open && open.net === NS && open.game.onNet) open.game.onNet(m);
+  }
+  /** danh sách người cùng khu để mời */
+  function inviteList(game) {
+    const list = (typeof NET !== 'undefined' ? NET.players() : []).filter((r) => !r.hidden && r.id);
+    const p = UI.panel('👥 Mời bạn chơi thể thao', list.length ? `<p class="muted">Người đang ở cùng khu với bạn:</p><div class="shop-list">${list.map((r, i) => `<div class="shop-row"><span class="ic">🧑</span><div class="info"><b>${esc(r.name)}</b></div><button class="btn small" data-i="${i}">🌐 Mời</button></div>`).join('')}</div>`
+      : '<p class="muted">Chưa có ai ở cùng khu. Rủ bạn bè vào 🏟️ Khu Thể Thao rồi bấm lại nhé — hoặc bấm vào nhân vật của họ → 🏸 Mời chơi thể thao.</p>');
+    p.body.querySelectorAll('[data-i]').forEach((b) => b.onclick = () => { p.close(); challenge(list[+b.dataset.i], game); });
+  }
+
   let open = null;
-  function play(id) {
+  function play(id, opt) {
     const G = GAMES[id];
     if (!G) return;
+    if (open && open.cleanup) open.cleanup();
+    const net = opt && opt.net;
     const v = document.getElementById('arcadeView');
-    v.innerHTML = `<div class="arc-bar"><b>${G.icon} ${G.name}</b><span>Khu Thể Thao · mỗi ván tốn ${G.energy || ENERGY} ⚡</span><button class="tv-x" data-close>✕ Thoát</button></div><div class="sp-stage"><canvas></canvas><div class="sp-menu"></div></div>`;
+    v.innerHTML = `<div class="arc-bar"><b>${G.icon} ${G.name}</b><span>${net ? `🌐 Đấu với ${esc(net.oppName)}${net.bet ? ` · cược ${fmt(net.bet)} xu` : ''}` : `Khu Thể Thao · mỗi ván tốn ${G.energy || ENERGY} ⚡`}</span><button class="tv-x" data-close>✕ Thoát</button></div><div class="sp-stage"><canvas></canvas><div class="sp-menu"></div></div>`;
     v.classList.add('show');
     const stage = v.querySelector('.sp-stage'), cv = v.querySelector('canvas'), g = cv.getContext('2d'), menu = v.querySelector('.sp-menu');
-    const me = { id, game: G.make(1), diff: +(D().diff || {})[id] || 1, running: false, raf: 0, last: 0 };
+    const me = { id, net, game: G.make(net && id === 'golf' ? net.lv : 1, net), diff: +(D().diff || {})[id] || 1, running: false, raf: 0, last: 0 };
     open = me;
     let k = 1, ox = 0, oy = 0, dpr = 1;
     const fit = () => {
@@ -1285,14 +1424,61 @@ const SPORTS = (() => {
     const kd = (e) => { if (!me.running) return; if ([' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) e.preventDefault(); me.game.key(e.key.length === 1 ? e.key.toLowerCase() : e.key, true); };
     const ku = (e) => { if (me.running) me.game.key(e.key.length === 1 ? e.key.toLowerCase() : e.key, false); };
     window.addEventListener('keydown', kd); window.addEventListener('keyup', ku); window.addEventListener('resize', fit);
-    const cleanup = () => { cancelAnimationFrame(me.raf); window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', fit); if (open === me) open = null; };
-    v.querySelector('[data-close]').onclick = () => { cleanup(); UI.closeArcade(); };
+    const cleanup = () => { cancelAnimationFrame(me.raf); clearInterval(watch); window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', fit); if (open === me) open = null; };
+    me.cleanup = cleanup;
+    v.querySelector('[data-close]').onclick = () => {
+      if (net && !net.over) { net.over = true; ssend({ op: 'resign', to: net.opp, gid: net.gid }); UI.toast(`🏳️ Bỏ trận${net.bet ? ` — mất ${fmt(net.bet)} xu cược` : ''}`); }
+      cleanup(); UI.closeArcade();
+    };
+    // online: đối thủ rời khu / mất kết nối quá 30 giây → xử thắng
+    const watch = net ? setInterval(() => {
+      if (net.over) return;
+      if (NET.remotes.get(net.opp)) { net.gone = 0; return; }
+      net.gone = net.gone || Date.now();
+      if (Date.now() - net.gone > 30000) netResult(1, `📴 ${esc(net.oppName)} đã rời đi — bạn thắng!`);
+    }, 2000) : 0;
+    if (net) {
+      net.onResign = (why) => {
+        if (why === 'nopay') { net.over = true; me.running = false; if (net.bet) AV.earn(net.bet); return netCard('⚠️ Huỷ trận', 'Đối thủ không đủ xu — đã trả lại tiền cược'); }
+        netResult(1, `🏳️ ${esc(net.oppName)} bỏ cuộc — bạn thắng!`);
+      };
+      net.onDone = () => { if (net.myStrokes != null) golfResolve(); };
+    }
+    function netCard(title, line, again) {
+      menu.hidden = false;
+      menu.innerHTML = `<div class="sp-card"><div class="big">${G.icon}</div><h2>${title}</h2><p class="res">${line}</p>
+        <div class="row">${again ? '<button class="btn" data-re>🔁 Mời đấu lại</button>' : ''}<button class="btn ghost" data-quit>🚪 Ra sân</button></div></div>`;
+      const re = menu.querySelector('[data-re]');
+      if (re) re.onclick = () => {
+        if (net.bet > S().coins) return UI.toast('Không đủ xu để đấu tiếp');
+        if (!NET.remotes.get(net.opp)) return UI.toast('⚠️ Đối thủ đã rời khu');
+        sendInvite({ to: net.opp, name: net.oppName, game: id, bet: net.bet, lv: net.lv }); re.disabled = true; re.textContent = '⏳ Đã mời…';
+      };
+      menu.querySelector('[data-quit]').onclick = () => { cleanup(); UI.closeArcade(); };
+    }
+    /** kết thúc trận online: r = 1 thắng · 0 hoà · −1 thua */
+    function netResult(r, why, line = '') {
+      if (net.over) return;
+      net.over = true; me.running = false;
+      const bet = net.bet || 0, d = D();
+      if (r > 0) { AV.earn(bet * 2, 20); d.nw = (d.nw || 0) + 1; AV.quest('sport'); if (NET.sendSys) NET.sendSys(`${G.icon} ${S().name} vừa thắng ${net.oppName} ở sân ${G.name}${bet ? ` (${fmt(bet)} xu)` : ''}!`); }
+      else if (r === 0) AV.earn(bet, 8);
+      else AV.earn(0, 6);
+      AV.markChanged(); UI.updateHud();
+      netCard(why || (r > 0 ? '🏆 CHIẾN THẮNG!' : r === 0 ? '🤝 Hoà!' : `😢 ${esc(net.oppName)} thắng rồi`),
+        `${line}${line ? '<br>' : ''}${r > 0 ? (bet ? `💰 +${fmt(bet * 2)} xu` : '🎉 Thắng rồi!') : r === 0 ? (bet ? `Trả lại ${fmt(bet)} xu` : '') : (bet ? `Mất ${fmt(bet)} xu cược` : 'Thua rồi — đấu lại không?')}`, true);
+    }
+    function golfResolve() {
+      if (net.over || net.myStrokes == null || net.oppStrokes == null) return;
+      const a = net.myStrokes, b = net.oppStrokes;
+      netResult(a < b ? 1 : a === b ? 0 : -1, '', `Bạn <b>${a > 8 ? 'không vào lỗ' : a + ' gậy'}</b> · ${esc(net.oppName)} <b>${b > 8 ? 'không vào lỗ' : b + ' gậy'}</b>`);
+    }
 
     function frame(now) {
       if (!cv.isConnected) return cleanup();
       const dt = Math.min(0.05, (now - (me.last || now)) / 1000); me.last = now;
       if (me.running) {
-        me.game.update(dt);
+        if (dt > 0) me.game.update(dt); // khung đầu dt = 0 → bỏ qua (tránh chia cho 0)
         if (me.game.over) { me.running = false; finish(me.game.res); }
       }
       g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = G.bg; g.fillRect(0, 0, cv.width, cv.height);
@@ -1310,10 +1496,11 @@ const SPORTS = (() => {
         ${G.vs ? `<div class="diff">${DIFFS.map((n, i) => `<button data-d="${i}" class="${i === me.diff ? 'on' : ''}">${n}<br><small>thắng +${WIN_XU[i]} xu</small></button>`).join('')}</div>` : ''}
         <p class="note">${rec} · Hôm nay còn nhận được tối đa <b>${fmt(Math.max(0, cap))}</b> xu từ thể thao</p>
         ${G.levels ? levelGrid() : ''}
-        <div class="row"><button class="btn" data-go>▶ ${G.levels ? 'Chơi màn ' + (me.diff + 1) : 'Vào sân'} (−${G.energy || ENERGY} ⚡)</button></div></div>`;
+        <div class="row"><button class="btn" data-go>▶ ${G.levels ? 'Chơi màn ' + (me.diff + 1) : 'Vào sân'} (−${G.energy || ENERGY} ⚡)</button>${ONLINE.includes(id) ? '<button class="btn ghost" data-online>🌐 Mời bạn chơi online</button>' : ''}</div></div>`;
       menu.querySelectorAll('[data-lv]').forEach((b) => b.onclick = () => { me.diff = +b.dataset.lv; showMenu(); });
       menu.querySelectorAll('[data-d]').forEach((b) => b.onclick = () => { me.diff = +b.dataset.d; D().diff = { ...(D().diff || {}), [id]: me.diff }; showMenu(); });
       menu.querySelector('[data-go]').onclick = start;
+      const on = menu.querySelector('[data-online]'); if (on) on.onclick = () => inviteList(id);
     }
     function levelGrid() {
       const st = D().golfStars || [], open = Math.min(MINI.length - 1, st.filter((v) => v > 0).length);
@@ -1326,6 +1513,15 @@ const SPORTS = (() => {
       const d = D(); d.plays[id] = (d.plays[id] || 0) + 1; AV.markChanged();
     }
     function finish(res) {
+      if (net) {
+        if (id === 'golf') {
+          net.myStrokes = res.stars ? res.strokes : 9; nsend({ op: 'done', strokes: net.myStrokes });
+          if (net.oppStrokes != null) return golfResolve();
+          menu.hidden = false; menu.innerHTML = `<div class="sp-card"><div class="big">⛳</div><h2>${res.stars ? `Vào lỗ sau ${res.strokes} gậy!` : 'Hết 8 gậy'}</h2><p class="res">⏳ Chờ ${esc(net.oppName)} đánh xong…</p></div>`;
+          return;
+        }
+        return netResult(res.win ? 1 : -1, '', `Tỉ số <b>${res.score[0]} - ${res.score[1]}</b> · loạt dài nhất ${res.bestRally} chạm`);
+      }
       const d = D();
       let coins = 0, xp = 0, title = '', line = '';
       if (id === 'golf') {
@@ -1365,7 +1561,12 @@ const SPORTS = (() => {
       menu.querySelector('[data-menu]').onclick = showMenu;
       menu.querySelector('[data-quit]').onclick = () => { cleanup(); UI.closeArcade(); };
     }
-    requestAnimationFrame(() => { fit(); showMenu(); me.raf = requestAnimationFrame(frame); });
+    requestAnimationFrame(() => {
+      fit();
+      if (net) { menu.hidden = true; me.running = true; me.last = 0; const d = D(); d.plays[id] = (d.plays[id] || 0) + 1; AV.markChanged(); }
+      else showMenu();
+      me.raf = requestAnimationFrame(frame);
+    });
   }
 
   /** bảng thành tích */
@@ -1538,5 +1739,5 @@ const SPORTS = (() => {
     return m;
   }
 
-  return { play, buildMap, records, GAMES, _game: () => open && open.game };
+  return { play, buildMap, records, GAMES, challenge, onNet, inviteList, _game: () => open && open.game, _ns: () => NS };
 })();
