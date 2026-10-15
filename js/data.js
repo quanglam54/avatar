@@ -477,6 +477,13 @@ DATA.QUESTS = [
   { id: 'eat', icon: '🍜', text: 'Ăn {n} món cho no bụng', n: 2, coins: 25, xp: 16 },
   { id: 'gift', icon: '🎁', text: 'Tặng quà cho {n} người dân (NPC)', n: 1, coins: 40, xp: 24 },
   { id: 'weed', icon: '🌿', text: 'Nhổ {n} bụi cỏ dại ở ruộng', n: 3, coins: 30, xp: 18 },
+  // 🆕 nhiệm vụ ở các khu mới — mỗi ngày luôn có ít nhất 1 cái
+  { id: 'sport', icon: '🏸', text: 'Thắng {n} ván ở Khu Thể Thao', n: 1, coins: 60, xp: 30, fresh: true },
+  { id: 'swan', icon: '🦢', text: 'Đạp vịt ở Hồ Tây {n} lần', n: 1, coins: 40, xp: 24, fresh: true },
+  { id: 'bake', icon: '🧁', text: 'Làm {n} mẻ bánh ở Tiệm bánh Vườn Nhà', n: 2, coins: 50, xp: 30, fresh: true },
+  { id: 'ship', icon: '⛵', text: 'Giao {n} đơn hàng bằng thuyền ở Bến sông', n: 1, coins: 60, xp: 30, fresh: true },
+  { id: 'view', icon: '📷', text: 'Ngắm {n} cảnh đẹp (Hồ Tây, Ba Đình)', n: 2, coins: 40, xp: 24, fresh: true },
+  { id: 'flower', icon: '💐', text: 'Mua hoa ở Chợ hoa Quảng Bá {n} lần', n: 1, coins: 40, xp: 24, fresh: true },
 ];
 
 /** Cây ăn quả trong vườn: tự ra quả, không cần trồng, quả chín để lâu không hỏng */

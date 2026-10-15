@@ -175,6 +175,7 @@ const BADINH = (() => {
     v.querySelector('[data-close]').onclick = () => { cancelAnimationFrame(raf); UI.closeArcade(); };
     v.querySelector('[data-time]').onclick = () => { late = (late + 1) % 2; };
     v.querySelector('[data-snap]').onclick = () => { cv.toBlob((b) => { if (!b) return; const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'quang-truong-ba-dinh.png'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }); UI.toast('📸 Đã chụp ảnh — ảnh được tải về máy!'); };
+    AV.quest('view');
     if (S().bdView !== today()) { S().bdView = today(); AV.earn(0, 15); AV.markChanged(); }
     const clouds = Array.from({ length: 14 }, (_, i) => ({ x: Math.random(), y: 0.05 + Math.random() * 0.35, w: 0.08 + Math.random() * 0.14, s: 0.004 + Math.random() * 0.006, k: i }));
     function frame(now) {

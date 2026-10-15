@@ -1011,6 +1011,8 @@ const MAPS = (() => {
       inter(m, { x: x - 130, y: y - 120, w: 260, h: 140, ax: x, ay: y + 40, name: name + ' — chơi với mọi người', use: () => (typeof CARDROOM !== 'undefined' ? use() : UI.toast('Bàn đang chuẩn bị, tải lại trang nhé')), arrow: { x, y: y - 135, text: label } });
     });
     m.labels.push({ text: '🕹️ Máy Game', x: 1580, y: 545 });
+    // ♟️ bàn cờ caro
+    if (typeof CARO !== 'undefined') CARO.addTo(m, { sobj, col, inter }, 840, 900);
     // bàn bi-a 2 người
     sobj(m, 1580, 724, (c) => ART.billiardTable(c, 1580, 724), { l: -170, t: -140, w: 340, h: 150 });
     col(m, 1430, 600, 300, 124);
@@ -2661,6 +2663,6 @@ const MAPS = (() => {
       return m;
     };
   });
-  Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); return m; }; });
+  Object.keys(all).forEach((k) => { const fn = all[k]; all[k] = () => { const m = fn(); halloween(m); if (typeof FEST !== 'undefined') FEST.decorate(m); return m; }; });
   return all;
 })();

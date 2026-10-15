@@ -69,8 +69,11 @@ const PHONE = (() => {
     { id: 'mobi', name: 'Mobifone', pre: ['089', '090', '093', '070', '077', '079'], col: '#005baa' },
   ];
   const SIM_PRICE = 50000;
+  /** 👑 SIM VIP do chủ game đặt giá riêng — luôn hiện đầu danh sách nhà mạng của nó (ai mua trước người đó có) */
+  const VIP_SIMS = { '0812112003': 100000000 };
   /** giá số đẹp: lặp đuôi, tiến, lộc phát, thần tài */
   function simPrice(num) {
+    if (VIP_SIMS[num]) return VIP_SIMS[num];
     const t = num.slice(3), last4 = num.slice(-4), last3 = num.slice(-3);
     if (/^(\d)\1{6}$/.test(t)) return 9000000000;
     if (/(\d)\1{4}$/.test(num)) return 1500000000;
@@ -89,7 +92,8 @@ const PHONE = (() => {
     out.push(pre() + Array.from({ length: 3 }, R).join('') + ['6868', '3979', '8686', '7979'][Math.floor(Math.random() * 4)]);
     out.push(pre() + String(R()) + String(R()) + String(s) + String(s + 1 > 9 ? 0 : s + 1) + String((s + 2) % 10) + String((s + 3) % 10) + String((s + 4) % 10));
     out.push(pre() + String(d2) + String(d).repeat(6));
-    return [...new Set(out)].map((num) => ({ num, price: simPrice(num) })).sort((a, b) => a.price - b.price);
+    const vip = Object.keys(VIP_SIMS).filter((n) => net.pre.includes(n.slice(0, 3))).map((num) => ({ num, price: VIP_SIMS[num], vip: true, net }));
+    return [...vip, ...[...new Set(out)].filter((n) => !VIP_SIMS[n]).map((num) => ({ num, price: simPrice(num) })).sort((a, b) => a.price - b.price)];
   }
   async function buySim(num, price, net) {
     if (!S().phone) return UI.toast('📱 Mua điện thoại trước rồi mới lắp SIM được');
@@ -171,11 +175,13 @@ const PHONE = (() => {
       if (ch) ch.onclick = () => { charge(100, '🔌 Đã sạc đầy pin ở cửa hàng'); render(); };
     };
     const renderSim = () => {
+      const vipUn = (st.offers || []).filter((o) => o.vip && o.taken === undefined);
+      if (vipUn.length && CLOUD.client) { vipUn.forEach((o) => { o.taken = false; }); CLOUD.client.from('phone_sims').select('num').in('num', vipUn.map((o) => o.num)).then(({ data }) => { const used = new Set((data || []).map((r) => r.num)); let ch = false; vipUn.forEach((o) => { if (used.has(o.num)) { o.taken = true; ch = true; } }); if (ch && st.simTab) renderSim(); }, () => {}); }
       p.body.innerHTML = `<div class="coins-line">💰 ${fmt(S().coins)} xu${myNum() ? ` · SIM đang dùng: <b>${pretty(myNum())}</b>` : ''} <button class="btn small ghost" data-back>‹ Về máy</button></div>
         ${model() ? '' : '<p class="wd-note">⚠️ Bạn chưa có điện thoại — mua máy trước rồi mới lắp SIM được.</p>'}
         <form class="fsearch" data-simq><input class="field" name="q" inputmode="numeric" maxlength="10" placeholder="🔍 Tìm số: nhập cả số (vd 0948988888) hoặc đuôi (vd 8888)" value="${esc(st.q || '')}"><button class="btn small">Tìm</button></form>
         <div class="tabs">${NETS.map((n) => `<button class="chip ${st.net.id === n.id ? 'on' : ''}" data-net="${n.id}">${n.name}</button>`).join('')}<button class="chip" data-more>🔄 Số khác</button></div>
-        <div class="shop-list">${st.offers.map((o) => { const nt = o.net || st.net; return `<div class="shop-row"><span class="ic">📶</span><div class="info"><b class="ph-simnum">${pretty(o.num)}</b><small>${o.price > SIM_PRICE ? '💎 Số đẹp' : 'Số thường'} · ${nt.name}</small></div>${o.taken ? '<button class="btn small ghost" disabled>Đã có người dùng</button>' : `<button class="btn small" data-buysim="${o.num}" ${model() ? '' : 'disabled'}>${fmt(o.price)} xu</button>`}</div>`; }).join('') || '<p class="muted">Không có số nào khớp.</p>'}</div>
+        <div class="shop-list">${st.offers.map((o) => { const nt = o.net || st.net; return `<div class="shop-row"><span class="ic">📶</span><div class="info"><b class="ph-simnum">${pretty(o.num)}</b><small>${o.vip ? '👑 SIM VIP độc nhất' : o.price > SIM_PRICE ? '💎 Số đẹp' : 'Số thường'} · ${nt.name}</small></div>${o.taken ? '<button class="btn small ghost" disabled>Đã có người dùng</button>' : `<button class="btn small" data-buysim="${o.num}" ${model() ? '' : 'disabled'}>${fmt(o.price)} xu</button>`}</div>`; }).join('') || '<p class="muted">Không có số nào khớp.</p>'}</div>
         <p class="muted small-note">Mỗi người 1 số, không trùng ai. Mua SIM mới thì số cũ bị thu hồi. Số đẹp (đuôi lặp, sảnh tiến, 68 · 79 · 39) giá cao hơn.</p>`;
       p.body.querySelector('[data-back]').onclick = () => { st.simTab = 0; render(); };
       p.body.querySelectorAll('[data-net]').forEach((b) => b.onclick = () => { st.net = NETS.find((n) => n.id === b.dataset.net); st.offers = simOffers(st.net); renderSim(); });

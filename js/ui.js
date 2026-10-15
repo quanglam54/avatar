@@ -472,7 +472,7 @@ const UI = (() => {
       const cur = start ? null : AV.currentMap();
       zones.innerHTML = DATA.ZONES.map((z) => `
         <button class="zone ${z.id === cur ? 'here' : ''}" data-z="${z.id}" style="left:${z.x}%;top:${z.y}%">
-          <span class="zi">${z.icon}</span>
+          <span class="zi">${z.icon}</span>${typeof NEWS !== 'undefined' && NEWS.isNew(z.id) ? '<i class="zone-new">MỚI</i>' : ''}
           <b>${z.name}</b>
           <small>${z.id === cur ? '📍 Bạn ở đây' : z.desc}</small>
           ${counts[z.id] ? `<em>👥 ${counts[z.id]}</em>` : ''}

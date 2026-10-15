@@ -1020,6 +1020,7 @@ const SPORTS = (() => {
         if (res.score >= 10) d.wins.basketball = (d.wins.basketball || 0) + 1;
       }
       const got = pay(coins, xp);
+      if (res.win) AV.quest('sport');
       AV.markChanged();
       menu.hidden = false;
       menu.innerHTML = `<div class="sp-card"><div class="big">${G.icon}</div><h2>${title}</h2><p class="res">${line}</p>

@@ -205,6 +205,12 @@ const GARDEN = (() => {
     sign: { name: 'Biển tên vườn', icon: '🪧', price: 300, box: { l: -74, t: -104, w: 148, h: 108 }, col: [12, 8], draw: (c, x, y) => { c.fillStyle = '#6b4423'; c.fillRect(x - 4, y - 60, 8, 60); rr(c, x - 70, y - 100, 140, 48, 10, '#8a5a32'); rr(c, x - 64, y - 94, 128, 36, 7, '#f3d9a4'); txt(c, '🌳 Vườn của', x, y - 85, 10, '#5c3a1e', 800); txt(c, String(AV.S.name || 'Bạn').slice(0, 16), x, y - 68, 14, '#2b8a3e'); } },
     pumpkins: { name: 'Đống bí ngô', icon: '🎃', price: 400, box: { l: -48, t: -50, w: 96, h: 54 }, draw: (c, x, y) => { [[-22, 0, 18], [20, 2, 16], [0, -14, 15]].forEach(([dx, dy, r]) => { ell(c, x + dx, y + dy - r * 0.7, r * 1.15, r * 0.85, '#e8590c'); c.strokeStyle = '#c2410c'; c.lineWidth = 1.5; c.beginPath(); c.ellipse(x + dx, y + dy - r * 0.7, r * 0.5, r * 0.85, 0, 0, Math.PI * 2); c.stroke(); c.fillStyle = '#2b8a3e'; c.fillRect(x + dx - 2, y + dy - r * 1.6, 4, 7); }); } },
     haystack: { name: 'Đống rơm', icon: '🌾', price: 350, box: { l: -54, t: -76, w: 108, h: 80 }, col: [90, 18], draw: (c, x, y) => { c.fillStyle = '#e8b923'; c.beginPath(); c.moveTo(x - 50, y); c.quadraticCurveTo(x - 50, y - 76, x, y - 74); c.quadraticCurveTo(x + 50, y - 76, x + 50, y); c.closePath(); c.fill(); c.strokeStyle = '#c99a17'; c.lineWidth = 2; for (let k = 0; k < 9; k++) { c.beginPath(); c.moveTo(x - 40 + k * 10, y - 4); c.lineTo(x - 36 + k * 9, y - 50 - (k % 3) * 6); c.stroke(); } } },
+    // 🌸 cây cảnh mua ở Chợ hoa Quảng Bá
+    dao_tet: { name: 'Cây đào Nhật Tân', icon: '🌸', price: 6000, box: { l: -90, t: -200, w: 180, h: 206 }, col: [40, 14], anim: true, draw: (c, x, y, t) => { rr(c, x - 34, y - 34, 68, 34, 8, '#b5651d'); rr(c, x - 38, y - 40, 76, 10, 4, '#c97a2a'); c.strokeStyle = '#4a2c17'; c.lineCap = 'round'; [[0, -40, -40, -120, 7], [0, -60, 46, -130, 6], [-20, -90, -66, -150, 4], [24, -96, 20, -176, 4], [0, -50, 6, -168, 6]].forEach(([x1, y1, x2, y2, w]) => { c.lineWidth = w; c.beginPath(); c.moveTo(x + x1, y + y1); c.lineTo(x + x2, y + y2); c.stroke(); }); const r = srand(Math.round(x * 3 + y)); for (let k = 0; k < 60; k++) { const a = r() * Math.PI * 2, d = 20 + r() * 64; const fx = x + Math.cos(a) * d * 0.95, fy = y - 120 + Math.sin(a) * d * 0.55; for (let p = 0; p < 5; p++) circ(c, fx + Math.cos(p * 1.256) * 3.4, fy + Math.sin(p * 1.256) * 3.4, 2.8, k % 3 ? '#ff8fab' : '#f06595'); circ(c, fx, fy, 1.6, '#fff0f6'); } for (let k = 0; k < 4; k++) { const ph = (t * 0.3 + k / 4) % 1; circ(c, x - 60 + k * 36 + Math.sin(t + k) * 8, y - 120 + ph * 116, 2.5, '#fcc2d7'); } rr(c, x - 10, y - 160, 20, 26, 3, '#e03131'); c.fillStyle = '#ffd43b'; c.font = '900 10px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('福', x, y - 147); } },
+    quat: { name: 'Cây quất Tứ Liên', icon: '🍊', price: 5000, box: { l: -70, t: -170, w: 140, h: 176 }, col: [40, 14], draw: (c, x, y) => { rr(c, x - 32, y - 34, 64, 34, 8, '#2f9e44'); rr(c, x - 36, y - 40, 72, 10, 4, '#37b24d'); c.fillStyle = '#5c3a1e'; c.fillRect(x - 4, y - 70, 8, 34); [[0, -120, 56], [-34, -96, 34], [34, -96, 34], [0, -86, 40]].forEach(([dx, dy, r2]) => circ(c, x + dx, y + dy, r2, '#2b8a3e')); [[-14, -140, 26], [20, -124, 20]].forEach(([dx, dy, r2]) => circ(c, x + dx, y + dy, r2, '#40c057')); const r = srand(Math.round(x + y * 7)); for (let k = 0; k < 34; k++) { const a = r() * Math.PI * 2, d = Math.sqrt(r()) * 52; circ(c, x + Math.cos(a) * d, y - 108 + Math.sin(a) * d * 0.75, 5, '#fd7e14'); circ(c, x + Math.cos(a) * d - 1.5, y - 109.5 + Math.sin(a) * d * 0.75, 1.6, '#ffd8a8'); } c.fillStyle = '#e03131'; c.fillRect(x + 22, y - 150, 14, 20); } },
+    mai: { name: 'Chậu mai vàng', icon: '🌼', price: 5500, box: { l: -80, t: -170, w: 160, h: 176 }, col: [40, 14], draw: (c, x, y) => { rr(c, x - 34, y - 32, 68, 32, 6, '#1c7ed6'); rr(c, x - 38, y - 38, 76, 10, 4, '#339af0'); c.strokeStyle = '#3d2410'; c.lineCap = 'round'; [[0, -38, -30, -110, 6], [0, -50, 40, -120, 5], [-20, -84, -62, -140, 3], [20, -90, 24, -160, 3]].forEach(([x1, y1, x2, y2, w]) => { c.lineWidth = w; c.beginPath(); c.moveTo(x + x1, y + y1); c.lineTo(x + x2, y + y2); c.stroke(); }); const r = srand(Math.round(x * 5 + y)); for (let k = 0; k < 50; k++) { const a = r() * Math.PI * 2, d = 16 + r() * 56, fx = x + Math.cos(a) * d * 0.9, fy = y - 112 + Math.sin(a) * d * 0.5; for (let p = 0; p < 5; p++) circ(c, fx + Math.cos(p * 1.256) * 3.2, fy + Math.sin(p * 1.256) * 3.2, 2.7, '#fcc419'); circ(c, fx, fy, 1.5, '#e8590c'); } } },
+    lan: { name: 'Lan hồ điệp', icon: '🪻', price: 3500, box: { l: -46, t: -120, w: 92, h: 126 }, col: [30, 10], draw: (c, x, y) => { rr(c, x - 24, y - 30, 48, 30, 8, '#f8f9fa'); c.strokeStyle = '#dee2e6'; c.lineWidth = 2; c.strokeRect(x - 24, y - 30, 48, 30); [[-14, -36, -30, -48], [14, -36, 30, -44]].forEach(([a, b, d, e]) => { c.fillStyle = '#2b8a3e'; c.beginPath(); c.ellipse(x + (a + d) / 2, y + (b + e) / 2, 16, 6, a < 0 ? 0.4 : -0.4, 0, Math.PI * 2); c.fill(); }); [-10, 6].forEach((dx, i) => { c.strokeStyle = '#5c940d'; c.lineWidth = 2; c.beginPath(); c.moveTo(x + dx, y - 34); c.quadraticCurveTo(x + dx - 4, y - 90, x + dx + 26, y - 110 + i * 6); c.stroke(); for (let k = 0; k < 5; k++) { const fx = x + dx + k * 6, fy = y - 70 - k * 9 + i * 6; [[-5, 0], [5, 0], [0, -5], [-4, 5], [4, 5]].forEach(([px, py]) => circ(c, fx + px, fy + py, 4, i ? '#da77f2' : '#fcc2d7')); circ(c, fx, fy, 2, '#c2255c'); } }); } },
+    cuc: { name: 'Chậu cúc vàng', icon: '🌼', price: 1200, box: { l: -42, t: -78, w: 84, h: 84 }, col: [32, 10], draw: (c, x, y) => { rr(c, x - 26, y - 28, 52, 28, 6, '#c2410c'); [[-14, -44], [12, -46], [0, -58], [-20, -58], [20, -60], [0, -40]].forEach(([dx, dy]) => circ(c, x + dx, y + dy, 13, '#2f9e44')); const r = srand(Math.round(x + y)); for (let k = 0; k < 12; k++) { const fx = x - 24 + r() * 48, fy = y - 72 + r() * 32; for (let p = 0; p < 8; p++) circ(c, fx + Math.cos(p * 0.785) * 4, fy + Math.sin(p * 0.785) * 4, 2.6, '#fcc419'); circ(c, fx, fy, 2.2, '#e67700'); } } },
   };
   const DECO_ORDER = Object.keys(DECO);
 
@@ -289,7 +295,7 @@ const GARDEN = (() => {
         if (m.q.length >= m.slots || !has(r.need) || !AV.useEnergy(1)) return;
         take(r.need);
         const s = Math.max(now(), m.q.length ? m.q[m.q.length - 1].e : 0);
-        m.q.push({ r: +b.dataset.r, s, e: s + r.t * 60e3, n: 1 }); m.last = +b.dataset.r;
+        m.q.push({ r: +b.dataset.r, s, e: s + r.t * 60e3, n: 1 }); m.last = +b.dataset.r; AV.quest('bake');
         changed(); render();
       });
     };
@@ -362,7 +368,7 @@ const GARDEN = (() => {
     if (!b || !b.trip || b.trip.e > now()) return false;
     const B = BOATS[b.k], o = b.trip.o, coins = Math.round(o.coins * (1 + B.bonus));
     if (quiet) { S().coins += coins; AV.earn(0, o.xp); } else AV.earn(coins, o.xp);
-    g.delivered = (g.delivered || 0) + 1;
+    g.delivered = (g.delivered || 0) + 1; AV.quest('ship');
     if (!quiet) { AV.floatText(`⛵ +${fmt(coins)} xu`, AV.player ? AV.player.x : 0, AV.player ? AV.player.y - 130 : 0, '#ffd43b'); UI.toast(`💰 ${B.name} giao xong đơn cho ${o.who}: +${fmt(coins)} xu, +${o.xp} XP`, 4500); }
     if (Math.random() < 0.15) { const tip = ['sugar', 'cocoa', 'butter', 'sticky_rice'][Math.floor(Math.random() * 4)]; give(tip, 3); UI.toast(`🎁 Khách tặng thêm 3 ${icon(tip)} ${nm(tip)}!`, 3500); }
     b.trip = null; changed();
@@ -864,5 +870,7 @@ const GARDEN = (() => {
       document.head.appendChild(st);
     }
   }
-  return { init, buildMap, tap, setEdit, nursery, dockPanel, decoShop, staffPanel, TREES, DECO, MACH };
+  /** món đồ trang trí mua ở nơi khác (vd. Chợ hoa) bỏ vào kho đồ vườn */
+  function addDeco(k, n = 1) { if (!DECO[k]) return false; const g = G(); g.inv[k] = (g.inv[k] || 0) + n; changed(); return true; }
+  return { init, buildMap, tap, setEdit, nursery, dockPanel, decoShop, staffPanel, addDeco, TREES, DECO, MACH };
 })();

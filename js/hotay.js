@@ -180,6 +180,7 @@ const HOTAY = (() => {
     tb('[data-lan]', () => { lantern = !lantern; });
     tb('[data-time]', () => { late = (late + 1) % 3; });
     tb('[data-snap]', () => { cv.toBlob((b) => { if (!b) return; const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'ho-tay-' + kind + '.png'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }); UI.toast('📸 Đã chụp ảnh — ảnh được tải về máy!'); });
+    AV.quest('view');
     const key = AUR ? 'htAurora' : kind === 'sunset' ? 'htSunset' : 'ht_' + kind, day = new Date().toDateString();
     if (S()[key] !== day) { S()[key] = day; AV.earn(0, 20); UI.toast(`${AUR ? '🌌' : '🌇'} Lần đầu ngắm hôm nay: +20 XP · đẹp quá trời!`, 4000); }
     const look = S().look || {};
@@ -373,6 +374,7 @@ const HOTAY = (() => {
     P.x = DOCKP.x; P.y = 500; P.boat = 'swan'; P.target = null; P.path = []; P.pending = null;
     AV.resetNav('hotay');
     if (rideBtn) rideBtn.style.display = 'block';
+    AV.quest('swan');
     UI.toast('🦢 Thuê vịt đạp 20 xu — chạm vào mặt hồ để đạp tới đó! Bấm 🦢 Cập bến để lên bờ', 5000);
     AV.sayMine('🦢 Đạp đạp đạp~');
   }
@@ -413,7 +415,7 @@ const HOTAY = (() => {
    * ==================================================================== */
   function buildMap(H) {
     const { base, ground, obj, sobj, aobj, col, inter, npc, paintGrass, paintStreet, addTree, addBench, addLamp, street } = H;
-    const W = 4400, LAKE = 655;
+    const W = 5700, LAKE = 655;
     const m = base('hotay', 'Hồ Tây', W, 1070);
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 512);
@@ -470,8 +472,8 @@ const HOTAY = (() => {
     m.colliders.push({ x: 0, y: LAKE - 50, w: W, h: 600, when: () => riding }, { x: 1170, y: 488, w: 460, h: 50 });
     inter(m, { x: 2580, y: 520, w: 180, h: 130, ax: 2670, ay: 640, name: '🦢 Bến vịt đạp Hồ Tây (thuê 20 xu, ngồi vịt đạp quanh hồ)', use: () => (riding ? endRide() : startRide()), arrow: { x: 2670, y: 500, text: 'Vịt đạp' } });
     /* hàng cây lớn + đèn + ghế */
-    for (let x = 160; x < W; x += 420) addTree(m, x, LAKE + 70, x % 840 === 160 ? 'green' : 'fruit');
-    for (let x = 370; x < W; x += 840) { addLamp(m, x, LAKE + 60); (m.lights = m.lights || []).push([x - 24, LAKE - 52, 58], [x + 24, LAKE - 52, 58]); }
+    for (let x = 160; x < 4400; x += 420) addTree(m, x, LAKE + 70, x % 840 === 160 ? 'green' : 'fruit');
+    for (let x = 370; x < 4400; x += 840) { addLamp(m, x, LAKE + 60); (m.lights = m.lights || []).push([x - 24, LAKE - 52, 58], [x + 24, LAKE - 52, 58]); }
     [600, 1700, 3000, 4000].forEach((x) => addBench(m, x, LAKE + 40));
     m.labels.push({ text: '🌅 Hồ Tây', x: 2200, y: 380 }, { text: '🎆 Khán đài pháo hoa', x: 2200, y: 690 }, { text: '🌌 Đài ngắm cực quang', x: 3560, y: 690 }, { text: '🌇 Ghế ngắm hoàng hôn', x: 900, y: 690 });
 
@@ -527,6 +529,73 @@ const HOTAY = (() => {
     col(m, BX2 - 60, BY2 - 30, 120, 24);
     inter(m, { x: BX2 - 70, y: BY2 - 170, w: 140, h: 170, ax: BX2, ay: BY2 + 26, name: 'Bánh Tôm Hồ Tây (ăn cho no, hồi ⚡)', use: () => UI.eateryPanel('sf_banhtom'), arrow: { x: BX2, y: BY2 - 190, text: 'Bánh tôm' } });
 
+    /* 💐 CHỢ HOA QUẢNG BÁ — cuối đường ven hồ */
+    const CH = 4520;
+    m.labels.push({ text: '💐 Chợ hoa Quảng Bá', x: CH + 480, y: 690 });
+    sobj(m, CH, 830, (c) => {
+      [-90, 90].forEach((dx) => { c.fillStyle = '#8a5a32'; c.fillRect(CH + dx - 7, 690, 14, 140); });
+      c.fillStyle = '#c92a2a'; c.beginPath(); c.roundRect(CH - 120, 640, 240, 58, 14); c.fill(); c.strokeStyle = '#ffd43b'; c.lineWidth = 4; c.stroke();
+      txt(c, 'CHỢ HOA', CH, 660, 20, '#ffd43b'); txt(c, 'QUẢNG BÁ', CH, 684, 15, '#fff');
+      for (let k = 0; k < 18; k++) { const a = Math.PI * (k / 17), fx = CH + Math.cos(a) * 130, fy = 668 - Math.sin(a) * 40; circ(c, fx, fy, 8, '#40c057'); circ(c, fx + 2, fy - 3, 5, ['#ff6b6b', '#ffd43b', '#f783ac', '#fff'][k % 4]); }
+    }, { l: -140, t: -200, w: 280, h: 205 });
+    col(m, CH - 97, 815, 14, 15); col(m, CH + 83, 815, 14, 15);
+    const FLOWER_ITEMS = {
+      bq_hoami: ['Bó cúc họa mi', '🤍', 200], bq_rose: ['Bó hồng đỏ', '🌹', 300], bq_tulip: ['Bó tulip', '🌷', 400], bq_sun: ['Bó hướng dương', '🌻', 250], bq_mix: ['Bó hoa mix', '💐', 500],
+    };
+    Object.entries(FLOWER_ITEMS).forEach(([id, [n, ic, p]]) => { if (!DATA.ITEMS[id]) DATA.ITEMS[id] = { name: n, icon: ic, sell: Math.round(p * 0.4), gift: 1 }; });
+    const deco = (id, n, ic, p) => ({ id, n, ic, p, kind: 'deco', d: 'Mang về trang trí Vườn Nhà' });
+    const STALLS = [
+      { x: CH + 230, name: 'Sạp hoa bó', ic: '💐', awn: '#e64980', items: Object.entries(FLOWER_ITEMS).map(([id, [n, ic, p]]) => ({ id, n, ic, p, kind: 'item', d: id === 'bq_hoami' ? 'Đặc sản mùa thu Hà Nội' : 'Tặng bạn bè, thầy cô (20/11)' })), buckets: ['#fff', '#ff6b6b', '#f783ac', '#ffd43b'] },
+      { x: CH + 470, name: 'Đào & quất', ic: '🌸', awn: '#c92a2a', items: [deco('dao_tet', 'Cây đào Nhật Tân', '🌸', 6000), deco('quat', 'Cây quất Tứ Liên', '🍊', 5000)], buckets: ['#f783ac', '#fd7e14', '#ff8fab', '#fd7e14'] },
+      { x: CH + 710, name: 'Mai · lan · cúc', ic: '🌼', awn: '#f08c00', items: [deco('mai', 'Chậu mai vàng', '🌼', 5500), deco('lan', 'Lan hồ điệp', '🪻', 3500), deco('cuc', 'Chậu cúc vàng', '🌼', 1200)], buckets: ['#fcc419', '#da77f2', '#fcc419', '#fff'] },
+      { x: CH + 950, name: 'Hạt giống hoa', ic: '🌱', awn: '#2f9e44', items: ['rose', 'daisy', 'tulip', 'sunflower', 'hibiscus'].filter((k) => DATA.CROPS[k]).map((k) => ({ id: 'seed_' + k, n: `5 hạt ${DATA.CROPS[k].name.toLowerCase()}`, ic: DATA.CROPS[k].icon, p: 60, kind: 'seed', d: 'Gieo ở vườn hoa nông trại' })), buckets: ['#ff6b6b', '#fff', '#f783ac', '#ffd43b'] },
+    ];
+    function flowerShop(s) {
+      const p = UI.panel(`${s.ic} ${s.name} · Chợ hoa Quảng Bá`, '', { wide: true });
+      const render = () => {
+        p.body.innerHTML = `<div class="coins-line">💰 ${fmt(S().coins)} xu</div><div class="shop-list">${s.items.map((it, i) => { const have = it.kind === 'deco' ? ((S().garden && S().garden.inv && S().garden.inv[it.id]) || 0) : (S().inv[it.id] || 0); return `<div class="shop-row"><span class="ic">${it.ic}</span><div class="info"><b>${it.n}</b><small>${it.d}${have ? ` · đang có ${have}` : ''}</small></div><button class="btn small" data-b="${i}">${fmt(it.p)} xu</button></div>`; }).join('')}</div>
+          <p class="muted small-note">🌸 Cây cảnh mua xong vào kho đồ Vườn Nhà — vào Vườn Nhà bấm 🎨 Trang trí vườn để đặt ra. 💐 Hoa bó dùng để tặng thầy cô dịp 20/11 hoặc ăn mừng.</p>`;
+        p.body.querySelectorAll('[data-b]').forEach((b) => b.onclick = () => {
+          const it = s.items[+b.dataset.b];
+          if (it.kind === 'deco' && (typeof GARDEN === 'undefined' || !GARDEN.addDeco)) return UI.toast('Vườn Nhà chưa mở');
+          if (!AV.spend(it.p)) return;
+          if (it.kind === 'item') AV.addItem(it.id, 1); else if (it.kind === 'seed') AV.addItem(it.id, 5); else GARDEN.addDeco(it.id, 1);
+          AV.quest('flower');
+          UI.toast(`${it.ic} Đã mua ${it.n}${it.kind === 'deco' ? ' — đã cất vào kho đồ Vườn Nhà' : ''}`, 3000);
+          render();
+        });
+      };
+      render();
+    }
+    STALLS.forEach((s) => {
+      sobj(m, s.x, 820, (c) => {
+        c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(s.x, 822, 100, 12, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#6b4423'; c.fillRect(s.x - 86, 700, 7, 120); c.fillRect(s.x + 79, 700, 7, 120);
+        for (let k = 0; k < 7; k++) { c.fillStyle = k % 2 ? '#fff' : s.awn; c.beginPath(); c.moveTo(s.x - 100 + k * 28.6, 690); c.lineTo(s.x - 100 + (k + 1) * 28.6, 690); c.lineTo(s.x - 100 + (k + 1) * 28.6, 716); c.quadraticCurveTo(s.x - 100 + (k + 0.5) * 28.6, 726, s.x - 100 + k * 28.6, 716); c.closePath(); c.fill(); }
+        c.fillStyle = '#a0703f'; c.fillRect(s.x - 90, 780, 180, 14); c.fillStyle = '#8a5a32'; c.fillRect(s.x - 86, 794, 172, 26);
+        s.buckets.forEach((col2, i) => { const bx = s.x - 66 + i * 44; c.fillStyle = '#868e96'; c.beginPath(); c.moveTo(bx - 14, 780); c.lineTo(bx + 14, 780); c.lineTo(bx + 11, 760); c.lineTo(bx - 11, 760); c.closePath(); c.fill(); for (let f = 0; f < 7; f++) { c.strokeStyle = '#2f9e44'; c.lineWidth = 1.5; const fx = bx - 12 + f * 4, fy = 734 - (f % 3) * 6; c.beginPath(); c.moveTo(bx, 762); c.lineTo(fx, fy); c.stroke(); circ(c, fx, fy, 5, col2); circ(c, fx, fy, 1.8, '#ffd43b'); } });
+        rr(c, s.x - 70, 668, 140, 24, 7, '#fff8e6'); txt(c, `${s.ic} ${s.name.toUpperCase()}`, s.x, 680, 11, '#5c3a1e');
+      }, { l: -110, t: -160, w: 220, h: 166 });
+      col(m, s.x - 90, 790, 180, 30);
+      inter(m, { x: s.x - 90, y: 668, w: 180, h: 150, ax: s.x, ay: 850, name: `${s.ic} ${s.name} (Chợ hoa Quảng Bá)`, use: () => flowerShop(s), arrow: { x: s.x, y: 652, text: s.name } });
+    });
+    // đèn dây chợ đêm
+    obj(m, 830, (c, t) => {
+      const night = isNight();
+      c.strokeStyle = '#5c3a1e'; c.lineWidth = 1.5; c.beginPath(); for (let x = CH + 120; x <= CH + 1060; x += 10) c.lineTo(x, 660 + Math.sin((x - CH) / 120 * Math.PI) ** 2 * 18); c.stroke();
+      for (let x = CH + 130; x < CH + 1060; x += 26) { const y = 664 + Math.sin((x - CH) / 120 * Math.PI) ** 2 * 18, on = !night || Math.sin(t * 3 + x) > -0.5; if (night) { c.globalAlpha = 0.25; circ(c, x, y, 10, '#ffe066'); c.globalAlpha = 1; } circ(c, x, y, 3.5, on ? ['#ffd43b', '#ff8787', '#ffe8a3'][(x / 26 | 0) % 3] : '#666'); }
+    }, [CH + 100, 640, CH + 1080, 700]);
+    // xe máy chở cành đào
+    sobj(m, CH + 1110, 860, (c) => {
+      const x = CH + 1110, y = 860;
+      circ(c, x - 34, y - 12, 12, '#212529'); circ(c, x + 34, y - 12, 12, '#212529'); c.fillStyle = '#c92a2a'; c.beginPath(); c.roundRect(x - 40, y - 40, 80, 22, 8); c.fill();
+      c.strokeStyle = '#4a2c17'; c.lineWidth = 4; c.beginPath(); c.moveTo(x - 10, y - 40); c.lineTo(x - 30, y - 130); c.moveTo(x - 10, y - 40); c.lineTo(x + 20, y - 140); c.stroke();
+      const r = ART.srand(77); for (let k = 0; k < 40; k++) { const a = r() * Math.PI * 2, d = 10 + r() * 46; circ(c, x - 6 + Math.cos(a) * d, y - 120 + Math.sin(a) * d * 0.6, 4, k % 3 ? '#ff8fab' : '#f06595'); }
+    }, { l: -70, t: -180, w: 140, h: 186 });
+    col(m, CH + 1070, 845, 80, 15);
+    // xô hoa ven đường
+    [[CH + 300, 865, '#ff6b6b'], [CH + 590, 868, '#ffd43b'], [CH + 830, 865, '#fff']].forEach(([x, y, col2]) => sobj(m, x, y, (c) => { for (let b = 0; b < 3; b++) { const bx = x - 30 + b * 30; c.fillStyle = '#495057'; c.fillRect(bx - 10, y - 20, 20, 20); for (let f = 0; f < 6; f++) { const fx = bx - 9 + f * 3.6, fy = y - 40 - (f % 3) * 5; c.strokeStyle = '#2f9e44'; c.lineWidth = 1.3; c.beginPath(); c.moveTo(bx, y - 18); c.lineTo(fx, fy); c.stroke(); circ(c, fx, fy, 4.5, b === 1 ? '#f783ac' : col2); } } }, { l: -50, t: -55, w: 100, h: 60 }));
+    npc(m, 'Cô bán hoa', { skin: '#ffe0c4', hair: 'long', hairColor: '#2b2b33', shirt: '#e64980', shirtStyle: 'plain', pants: '#343a40', hat: 'nonla' }, { l: CH + 150, t: 840, r: CH + 1000, b: 860 }, CH + 400, 850);
     /* 📷 các điểm ngắm cảnh đẹp */
     const viewSign = (x, l1, l2, bg, kind) => {
       sobj(m, x, 800, (c) => { c.fillStyle = '#5c3a1e'; c.fillRect(x - 4, 740, 8, 60); rr(c, x - 90, 690, 180, 58, 12, bg); c.strokeStyle = '#fff'; c.lineWidth = 3; c.beginPath(); c.roundRect(x - 90, 690, 180, 58, 12); c.stroke(); txt(c, l1, x, 710, 14, '#fff'); txt(c, l2, x, 730, 10, '#fff8e6', 800); }, { l: -100, t: -118, w: 200, h: 122 });

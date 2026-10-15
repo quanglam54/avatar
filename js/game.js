@@ -1067,6 +1067,9 @@
     const noBarn = !['coop', ...Object.keys(DATA.PENS)].some((k) => hasHerd(k, S));
     const others = DATA.QUESTS.filter((q) => q.id !== 'quiz' && !(noBarn && q.id === 'collect'));
     const picks = [DATA.QUESTS.find((q) => q.id === 'quiz')];
+    // luôn có ít nhất 1 nhiệm vụ ở khu mới
+    const fresh = others.filter((q) => q.fresh);
+    if (fresh.length) picks.push(others.splice(others.indexOf(fresh[Math.floor(r() * fresh.length)]), 1)[0]);
     while (picks.length < 4) picks.push(others.splice(Math.floor(r() * others.length), 1)[0]);
     S.quests = { date: key, list: picks.map((q) => ({ id: q.id, n: q.n, prog: 0, claimed: false })) };
   }
@@ -3919,6 +3922,8 @@
   if (typeof HOTAY !== 'undefined') HOTAY.init();
   if (typeof BADINH !== 'undefined') BADINH.init();
   if (typeof CLOSET !== 'undefined') CLOSET.patch();
+  if (typeof FEST !== 'undefined') FEST.init();
+  if (typeof NEWS !== 'undefined') NEWS.init();
   if (typeof FARMLIFE !== 'undefined') FARMLIFE.init();
   MUSIC.init(S.settings || {});
   SOCIAL.init();
