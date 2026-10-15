@@ -1,16 +1,47 @@
 /* Tài khoản + lưu tiến trình lên Supabase để chơi trên máy nào cũng ra đúng nhân vật.
  * Đăng nhập bằng tên đăng nhập + mật khẩu (đổi thành email nội bộ <tên>@players.avatar-game.vn, không cần email thật).
  * Cần bảng public.saves (xem SQL trong hướng dẫn) và tắt "Confirm email" trong Supabase Auth. */
-let SB_PROMISE = null;
+let SB_PROMISE = null, SB_CLIENT = null, SB_REFRESH = null, SB_WARNED = 0;
+/** Làm mới phiên đăng nhập (gộp nhiều lời gọi cùng lúc thành 1 lần) → access token mới hoặc null */
+function sbRefresh() {
+  if (!SB_CLIENT) return Promise.resolve(null);
+  SB_REFRESH = SB_REFRESH || SB_CLIENT.auth.refreshSession()
+    .then(({ data }) => (data && data.session ? data.session.access_token : null))
+    .catch(() => null)
+    .finally(() => { setTimeout(() => { SB_REFRESH = null; }, 0); });
+  return SB_REFRESH;
+}
+/** fetch bọc ngoài: máy ngủ / tab ẩn lâu làm token hết hạn ("JWT expired") → tự làm mới token rồi gửi lại 1 lần */
+async function sbFetch(input, init) {
+  const res = await fetch(input, init);
+  if (res.status !== 401 || !SB_CLIENT) return res;
+  const url = typeof input === 'string' ? input : (input && input.url) || '';
+  if (url.includes('/auth/v1/')) return res;
+  let body = '';
+  try { body = await res.clone().text(); } catch (e) { /* bỏ qua */ }
+  if (!/JWT expired|PGRST301|PGRST303|invalid jwt|jwt.*expired/i.test(body)) return res;
+  const tok = await sbRefresh();
+  if (!tok) {
+    if (Date.now() - SB_WARNED > 60000 && typeof UI !== 'undefined' && UI.toast) { SB_WARNED = Date.now(); UI.toast('🔐 Phiên đăng nhập đã hết hạn — tải lại trang (F5) rồi đăng nhập lại nhé', 6000); }
+    return res;
+  }
+  const h = new Headers((init && init.headers) || (input instanceof Request ? input.headers : undefined));
+  h.set('Authorization', `Bearer ${tok}`);
+  return fetch(input, { ...(init || {}), headers: h });
+}
 window.getSupabase = () => {
   if (SB_PROMISE) return SB_PROMISE;
   const cfg = window.AVATAR_CONFIG || {};
   if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) return (SB_PROMISE = Promise.resolve(null));
   SB_PROMISE = new Promise((resolve) => {
-    const make = () => resolve(window.supabase ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
-      auth: { persistSession: true, autoRefreshToken: true, storageKey: 'avatar_auth' },
-      realtime: { params: { eventsPerSecond: 12 } },
-    }) : null);
+    const make = () => {
+      SB_CLIENT = window.supabase ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
+        auth: { persistSession: true, autoRefreshToken: true, storageKey: 'avatar_auth' },
+        realtime: { params: { eventsPerSecond: 12 } },
+        global: { fetch: sbFetch },
+      }) : null;
+      resolve(SB_CLIENT);
+    };
     if (window.supabase) return make();
     const s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
@@ -46,6 +77,7 @@ const CLOUD = (() => {
     if (/duplicate key|unique/i.test(m)) return 'Hôm nay bạn đã tưới giúp bạn này rồi, mai quay lại nhé!';
     if (/function .* does not exist|Could not find the function|relation .*farm_helps.* does not exist|Could not find the table .*farm_helps/i.test(m)) return 'Chủ game chưa cài tính năng thăm nông trại trên Supabase (chạy file supabase/02-tham-nong-trai.sql)';
     if (/Failed to fetch|NetworkError/i.test(m)) return 'Không kết nối được máy chủ, kiểm tra mạng';
+    if (/JWT expired|jwt.*expired|invalid jwt/i.test(m)) return 'Phiên đăng nhập đã hết hạn — tải lại trang (F5) rồi thử lại nhé';
     return m || 'Có lỗi xảy ra';
   }
 
@@ -57,6 +89,19 @@ const CLOUD = (() => {
       const { data } = await client.auth.getSession();
       user = data && data.session ? data.session.user : null;
     } catch (e) { user = null; }
+    // máy ngủ dậy / quay lại tab: bộ hẹn giờ tự làm mới token có thể đã bị trình duyệt dừng → kiểm tra ngay
+    const keepFresh = async () => {
+      if (!user) return;
+      try {
+        const { data } = await client.auth.getSession();
+        const exp = data && data.session ? data.session.expires_at * 1000 : 0;
+        if (!exp || exp - Date.now() < 120000) await sbRefresh();
+      } catch (e) { /* bỏ qua */ }
+    };
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) keepFresh(); });
+    window.addEventListener('online', keepFresh);
+    window.addEventListener('focus', keepFresh);
+    setInterval(keepFresh, 60000);
     return user;
   }
 
