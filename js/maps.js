@@ -1010,7 +1010,7 @@ const MAPS = (() => {
       col(m, x - 100, y - 50, 200, 50);
       inter(m, { x: x - 130, y: y - 120, w: 260, h: 140, ax: x, ay: y + 40, name: name + ' — chơi với mọi người', use: () => (typeof CARDROOM !== 'undefined' ? use() : UI.toast('Bàn đang chuẩn bị, tải lại trang nhé')), arrow: { x, y: y - 135, text: label } });
     });
-    m.labels.push({ text: '🕹️ Máy Game', x: 1580, y: 545 });
+    m.labels.push({ text: '🕹️ Máy Game', x: 1610, y: 545 });
     // ♟️ bàn cờ caro
     if (typeof CARO !== 'undefined') CARO.addTo(m, { sobj, col, inter }, 840, 900);
     // bàn bi-a 2 người
@@ -1018,8 +1018,8 @@ const MAPS = (() => {
     col(m, 1430, 600, 300, 124);
     inter(m, { x: 1430, y: 590, w: 300, h: 136, ax: 1580, ay: 748, name: 'Bàn bi-a (2 người chơi)', use: () => BIL.openView(), arrow: { x: 1580, y: 600, text: 'Chơi bi-a' } });
     DATA.ARCADE.forEach((g, i) => {
-      const x = 1355 + i * 150, y = 470;
-      aobj(m, x, y, (c, t) => ART.arcadeCabinet(c, x, y, g.color, g.name, g.icon, t), { l: -50, t: -158, w: 100, h: 166 });
+      const x = 1312 + i * 108, y = 470;
+      aobj(m, x, y, (c, t) => ART.arcadeCabinet(c, x, y, g.color, g.short || g.name, g.icon, t), { l: -50, t: -158, w: 100, h: 166 });
       col(m, x - 38, y - 14, 76, 16);
       inter(m, { x: x - 40, y: y - 150, w: 80, h: 152, ax: x, ay: y + 30, name: `Máy game ${g.name}`, use: () => UI.arcade(g.id), arrow: { x, y: y - 160, text: 'Chơi' } });
     });
