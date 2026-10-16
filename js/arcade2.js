@@ -392,12 +392,39 @@ const ARCADE2 = (() => {
     { c: '#ff6b6b', d: '#c92a2a', s: 'heart' }, { c: '#ffd43b', d: '#e67700', s: 'star' }, { c: '#69db7c', d: '#2b8a3e', s: 'square' },
     { c: '#4dabf7', d: '#1864ab', s: 'drop' }, { c: '#b197fc', d: '#5f3dc4', s: 'diamond' }, { c: '#ffa94d', d: '#d9480f', s: 'circle' },
   ];
-  function makeCandy() {
-    const VH = 720, N = 8, MOVES = 25;
-    let grid = [], moves = MOVES, score = 0, t = 0, busy = 0, combo = 0, sel = null, drag = null, hint = 0, idle = 0, cascades = 0, maxCombo = 0;
+  /** 30 màn: đạt điểm · thu thập kẹo · xoá thạch (thạch 2 lớp từ màn 16) — 6 màn đầu 5 màu kẹo, sau đó 6 màu */
+  const JELLY = {
+    center: (r, c) => r >= 2 && r <= 5 && c >= 2 && c <= 5,
+    rows: (r) => r === 3 || r === 4,
+    cols: (r, c) => c === 1 || c === 6,
+    border: (r, c) => r === 0 || c === 0 || r === 7 || c === 7,
+    x: (r, c) => r === c || r + c === 7,
+    bottom: (r) => r >= 5,
+  };
+  const CANDY_NAMES = ['tim đỏ', 'sao vàng', 'vuông xanh lá', 'giọt nước', 'kim cương tím', 'tròn cam'];
+  const CANDY_LV = Array.from({ length: 30 }, (_, i) => {
+    const goal = i < 2 ? 'score' : ['collect', 'jelly', 'score'][(i + 1) % 3], colors = i < 6 ? 5 : 6;
+    const L = { goal, colors };
+    if (goal === 'score') { L.moves = 18 + (i % 3) * 2; L.t1 = Math.round((1100 + i * 90) / 100) * 100; }
+    if (goal === 'collect') { L.moves = 18 + (i % 4); L.k = i % colors; L.n = 9 + Math.round(i * 0.5); L.t1 = 600 + i * 30; }
+    if (goal === 'jelly') {
+      const pats = Object.keys(JELLY), p = pats[Math.floor(i / 3) % pats.length];
+      const cells = Array.from({ length: 64 }, (_, q) => JELLY[p](q >> 3, q & 7)).filter(Boolean).length;
+      L.pat = p; L.layers = i >= 15 ? 2 : 1; L.moves = 18 + Math.ceil(cells * L.layers / 3.5); L.t1 = 600 + i * 30;
+    }
+    L.t2 = Math.round(L.t1 * 1.7 / 100) * 100; L.t3 = Math.round(L.t1 * 2.5 / 100) * 100;
+    return L;
+  });
+  function makeCandy(lv) {
+    const VH = 720, N = 8, LVI = Math.max(0, Math.min(CANDY_LV.length - 1, lv | 0)), L = CANDY_LV[LVI], MOVES = L.moves;
+    let grid = [], moves = MOVES, score = 0, t = 0, busy = 0, combo = 0, sel = null, drag = null, hint = 0, idle = 0, cascades = 0, maxCombo = 0, got = 0, ending = 0;
     const fx = [], parts = [];
-    const cellOf = () => { const W = game.VW, size = Math.min((VH - 150) / N, (W - 40) / N), ox = (W - size * N) / 2, oy = 110; return { size, ox, oy }; };
-    const rndT = () => Math.floor(Math.random() * CANDY.length);
+    const jelly = Array.from({ length: N }, (_, r) => Array.from({ length: N }, (_, c) => (L.goal === 'jelly' && JELLY[L.pat](r, c) ? L.layers : 0)));
+    const jellyLeft = () => jelly.reduce((a, row) => a + row.reduce((b, v) => b + v, 0), 0), JELLY0 = jellyLeft();
+    const goalDone = () => (L.goal === 'collect' ? got >= L.n : L.goal === 'jelly' ? jellyLeft() === 0 : score >= L.t1);
+    const starsOf = () => (!goalDone() || score < L.t1 ? 0 : score >= L.t3 ? 3 : score >= L.t2 ? 2 : 1);
+    const cellOf = () => { const W = game.VW, size = Math.min((VH - 150) / N, (W - 40) / N), ox = (W - size * N) / 2, oy = 120; return { size, ox, oy }; };
+    const rndT = () => Math.floor(Math.random() * L.colors);
     function at(r, c) { return r >= 0 && r < N && c >= 0 && c < N ? grid[r][c] : null; }
     function fill() {
       grid = [];
@@ -433,6 +460,8 @@ const ARCADE2 = (() => {
         if (it.sp === 'v') for (let rr2 = 0; rr2 < N; rr2++) q.push([rr2, c]);
         if (it.sp === 'bomb') { const k = it.bk != null ? it.bk : rndT(); for (let r2 = 0; r2 < N; r2++) for (let c2 = 0; c2 < N; c2++) if (grid[r2][c2] && grid[r2][c2].k === k) q.push([r2, c2]); }
         burst(r, c, it.k >= 0 ? CANDY[it.k].c : '#fff'); grid[r][c] = null; n++;
+        if (jelly[r][c] > 0) { jelly[r][c]--; score += 30; }
+        if (L.goal === 'collect' && it.k === L.k) got++;
       }
       return n;
     }
@@ -487,11 +516,12 @@ const ARCADE2 = (() => {
       else { swapCells(a, b); A.anim = null; B.anim = null; A.shake = 0.3; B.shake = 0.3; }
     }
     let pendingSwap = null;
+    const goalText = () => (L.goal === 'collect' ? `thu ${Math.min(got, L.n)}/${L.n} kẹo ${CANDY_NAMES[L.k]}` : L.goal === 'jelly' ? `xoá ${JELLY0 - jellyLeft()}/${JELLY0} thạch` : `mục tiêu ${fmt(L.t1)} điểm`);
     const cellAt = (p) => { const { size, ox, oy } = cellOf(); const c = Math.floor((p.x - ox) / size), r = Math.floor((p.y - oy) / size); return r >= 0 && r < N && c >= 0 && c < N ? [r, c] : null; };
     fill();
     const game = {
       VW: 1280, VH, wide: true, over: false, res: null,
-      how: ['<b>Vuốt</b> một viên kẹo sang ô bên cạnh (hoặc chạm 2 viên liền nhau) để đổi chỗ', 'Xếp được <b>3 viên cùng loại</b> thẳng hàng là nổ · kẹo rơi xuống nổ dây chuyền được nhân điểm', '4 viên → 🍭 <b>kẹo sọc</b> nổ cả hàng · 5 viên → 🌈 <b>kẹo cầu vồng</b> nổ hết 1 màu', `${MOVES} lượt đổi — kiếm càng nhiều điểm càng tốt`],
+      how: [`<b>Màn ${LVI + 1}:</b> ${L.goal === 'collect' ? `thu đủ ${L.n} viên kẹo ${CANDY_NAMES[L.k]}` : L.goal === 'jelly' ? `xoá hết thạch hồng dưới kẹo${L.layers > 1 ? ' (thạch 2 lớp)' : ''}` : `đạt ${fmt(L.t1)} điểm`} trong ${MOVES} lượt`, '<b>Vuốt</b> một viên kẹo sang ô bên cạnh (hoặc chạm 2 viên liền nhau) để đổi chỗ', 'Xếp được <b>3 viên cùng loại</b> thẳng hàng là nổ · kẹo rơi xuống nổ dây chuyền được nhân điểm', '4 viên → 🍭 <b>kẹo sọc</b> nổ cả hàng · 5 viên → 🌈 <b>kẹo cầu vồng</b> nổ hết 1 màu', 'Xong nhiệm vụ sớm thì lượt dư đổi thành điểm thưởng · điểm cao được ⭐⭐⭐'],
       update(dt) {
         t += dt; idle += dt; busy = Math.max(0, busy - dt);
         for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { const it = grid[r][c]; if (!it) continue; if (it.y < r) { it.vy = (it.vy || 0) + 40 * dt; it.y = Math.min(r, it.y + it.vy * dt); if (it.y >= r) it.vy = 0; } else it.y = r; it.x = c; it.pop = Math.max(0, it.pop - dt); if (it.shake) it.shake = Math.max(0, it.shake - dt); if (it.anim) { it.anim.t += dt * 6; if (it.anim.t >= 1) it.anim = null; } }
@@ -500,7 +530,10 @@ const ARCADE2 = (() => {
           if (resolve(pendingSwap)) { pendingSwap = null; }
           else {
             pendingSwap = null;
-            if (moves <= 0) { game.over = true; game.res = { score, extra: `${MOVES} lượt · nổ dây chuyền dài nhất ×${maxCombo}` }; return; }
+            const done = L.goal !== 'score' && goalDone();
+            if (done && moves > 0 && !ending) { const b = moves * 250; score += b; fx.push({ text: `🍭 Thưởng ${moves} lượt dư +${fmt(b)}`, big: 1, t: 0, c: '#ffe066' }); moves = 0; ending = 1.4; }
+            if (ending > 0) { ending -= dt; if (ending > 0) return; }
+            if (moves <= 0) { const st = starsOf(); game.over = true; game.res = { score, lv: LVI, stars: st, win: st > 0, extra: `Màn ${LVI + 1} · ${goalText()} · nổ dây chuyền ×${maxCombo}` }; return; }
             if (!hasMove()) { fx.push({ text: '🔀 Xáo lại bàn kẹo', big: 1, t: 0, c: '#fff' }); fill(); }
             cascades = 0;
           }
@@ -527,13 +560,14 @@ const ARCADE2 = (() => {
         drag = null;
       },
       key() {},
-      _dbg: () => ({ move: hasMove(), cell: cellOf(), moves, score, busy }),
+      _dbg: () => ({ move: hasMove(), cell: cellOf(), moves, score, busy, got, jelly: jellyLeft(), L }),
       draw(g) {
         const W = game.VW, { size, ox, oy } = cellOf();
         const bg = g.createLinearGradient(0, 0, 0, VH); bg.addColorStop(0, '#f783ac'); bg.addColorStop(1, '#9775fa'); g.fillStyle = bg; g.fillRect(0, 0, W, VH);
         g.fillStyle = 'rgba(255,255,255,.12)'; for (let i = 0; i < 14; i++) { g.beginPath(); g.arc((i * 197 + t * 10) % (W + 100) - 50, (i * 131) % VH, 20 + (i % 4) * 14, 0, Math.PI * 2); g.fill(); }
         g.fillStyle = 'rgba(40,20,80,.45)'; rr(g, ox - 10, oy - 10, size * N + 20, size * N + 20, 18); g.fill();
         for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { g.fillStyle = (r + c) % 2 ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.2)'; g.fillRect(ox + c * size, oy + r * size, size, size); }
+        for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (jelly[r][c]) { g.fillStyle = jelly[r][c] > 1 ? 'rgba(230,73,128,.75)' : 'rgba(247,131,172,.6)'; rr(g, ox + c * size + 3, oy + r * size + 3, size - 6, size - 6, 10); g.fill(); g.strokeStyle = jelly[r][c] > 1 ? '#a61e4d' : 'rgba(255,255,255,.7)'; g.lineWidth = jelly[r][c] > 1 ? 3 : 2; g.stroke(); }
         if (sel) { g.fillStyle = 'rgba(255,255,255,.45)'; rr(g, ox + sel[1] * size + 2, oy + sel[0] * size + 2, size - 4, size - 4, 10); g.fill(); }
         g.save(); g.beginPath(); g.rect(ox, oy, size * N, size * N); g.clip();
         for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
@@ -550,9 +584,17 @@ const ARCADE2 = (() => {
         parts.forEach((p) => { g.globalAlpha = Math.max(0, 1 - p.t / 0.7); g.fillStyle = p.c; g.beginPath(); g.arc(p.x, p.y, 6, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; });
         fx.forEach((f) => { g.globalAlpha = Math.max(0, 1 - f.t / 1.2); if (f.big) txt(g, f.text, W / 2, VH * 0.45 - f.t * 30, 46, f.c); else txt(g, f.text, f.x, f.y - f.t * 50, 26, f.c); g.globalAlpha = 1; });
         // HUD
-        g.fillStyle = 'rgba(0,0,0,.3)'; rr(g, W / 2 - 230, 16, 220, 70, 20); g.fill(); rr(g, W / 2 + 10, 16, 220, 70, 20); g.fill();
-        txt(g, 'ĐIỂM', W / 2 - 120, 36, 14, '#ffd8f0'); txt(g, fmt(score), W / 2 - 120, 64, 28, '#fff');
-        txt(g, 'LƯỢT CÒN', W / 2 + 120, 36, 14, '#ffd8f0'); txt(g, String(moves), W / 2 + 120, 64, 28, moves <= 5 ? '#ffa8a8' : '#fff');
+        const bw = size * N;
+        g.fillStyle = 'rgba(0,0,0,.3)'; rr(g, ox - 10, 12, bw + 20, 96, 18); g.fill();
+        txt(g, `MÀN ${LVI + 1}`, ox + 52, 34, 16, '#ffd8f0'); txt(g, fmt(score), ox + 52, 66, 24, '#fff');
+        txt(g, 'LƯỢT', ox + bw - 40, 34, 14, '#ffd8f0'); txt(g, String(moves), ox + bw - 40, 66, 30, moves <= 5 ? '#ffa8a8' : '#fff');
+        const gx = ox + bw / 2;
+        if (L.goal === 'collect') { drawCandy(g, gx - 44, 44, 16, { k: L.k }, t); txt(g, `${Math.min(got, L.n)}/${L.n}`, gx + 14, 45, 24, got >= L.n ? '#8ce99a' : '#fff'); }
+        else if (L.goal === 'jelly') { g.fillStyle = 'rgba(247,131,172,.95)'; rr(g, gx - 70, 30, 30, 30, 8); g.fill(); txt(g, `Thạch ${jellyLeft()}`, gx + 14, 45, 22, jellyLeft() === 0 ? '#8ce99a' : '#fff'); }
+        else txt(g, `🎯 ${fmt(L.t1)} điểm`, gx, 45, 22, score >= L.t1 ? '#8ce99a' : '#fff');
+        const sx = gx - 110, sw2 = 220, k3 = Math.min(1, score / L.t3);
+        g.fillStyle = 'rgba(255,255,255,.25)'; rr(g, sx, 80, sw2, 12, 6); g.fill(); g.fillStyle = '#ffd43b'; rr(g, sx, 80, Math.max(12, sw2 * k3), 12, 6); g.fill();
+        [L.t1, L.t2, L.t3].forEach((tv) => { const x = sx + sw2 * tv / L.t3; txt(g, score >= tv ? '★' : '☆', x, 86, 22, score >= tv ? '#ffe066' : '#fff'); });
       },
     };
     return game;
@@ -587,7 +629,7 @@ const ARCADE2 = (() => {
     bigfish: { name: 'Cá Lớn Nuốt Cá Bé', icon: '🐟', bg: '#0b3d63', make: makeBigFish, div: 60, unit: 'điểm' },
     subway: { name: 'Chạy Tàu Điện', icon: '🚇', bg: '#74c0fc', make: makeSubway, div: 40, unit: 'điểm' },
     archery: { name: 'Bắn Cung', icon: '🏹', bg: '#2f9e44', make: makeArchery, div: 1.5, unit: 'điểm' },
-    candy: { name: 'Xếp Kẹo', icon: '🍬', bg: '#9775fa', make: makeCandy, div: 120, unit: 'điểm' },
+    candy: { name: 'Xếp Kẹo', icon: '🍬', bg: '#9775fa', make: makeCandy, div: 120, unit: 'điểm', levels: true },
   };
   if (!document.getElementById('a2-css')) {
     const st = document.createElement('style'); st.id = 'a2-css';
@@ -599,7 +641,11 @@ const ARCADE2 = (() => {
 .a2-card .big{font-size:52px;line-height:1}.a2-card h2{margin:6px 0}
 .a2-card ul{text-align:left;font-size:14px;line-height:1.5;padding-left:20px;margin:8px 0}
 .a2-card .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
-.a2-card .note{font-size:12px;color:#7a5a3a;margin:6px 0 0}.a2-card .res{font-size:18px;font-weight:800;margin:8px 0}`;
+.a2-card .note{font-size:12px;color:#7a5a3a;margin:6px 0 0}
+.a2-lv{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin:8px 0;max-height:40vh;overflow:auto;padding:2px}
+.a2-lv button{border:2px solid #2b1a10;border-radius:12px;background:linear-gradient(#fff,#ffe3ef);padding:4px 2px;display:flex;flex-direction:column;align-items:center;font-family:inherit;cursor:pointer;line-height:1.1}
+.a2-lv button b{font-size:18px}.a2-lv button i{font-style:normal;font-size:11px;letter-spacing:-1px}.a2-lv button small{font-size:10px}
+.a2-lv button.on{background:#ffd43b}.a2-lv button:disabled{opacity:.45;cursor:default}.a2-card .res{font-size:18px;font-weight:800;margin:8px 0}`;
     document.head.appendChild(st);
   }
   let open = null;
@@ -611,7 +657,10 @@ const ARCADE2 = (() => {
     v.innerHTML = `<div class="arc-bar"><b>${G.icon} ${G.name}</b><span>Điểm càng cao thưởng càng nhiều xu (tối đa 60 xu/ván)</span><button class="tv-x" data-close>✕ Thoát</button></div><div class="a2-stage"><canvas></canvas><div class="a2-menu"></div></div>`;
     v.classList.add('show');
     const stage = v.querySelector('.a2-stage'), cv = v.querySelector('canvas'), g = cv.getContext('2d'), menu = v.querySelector('.a2-menu');
-    const me = { id, game: G.make(), running: false, raf: 0, last: 0 };
+    const me = { id, game: G.make(0), running: false, raf: 0, last: 0, lv: 0 };
+    const LVD = () => { const d = D(); d.lv = d.lv || {}; d.lv[id] = d.lv[id] || []; return d.lv[id]; };
+    const unlocked = () => Math.min(CANDY_LV.length - 1, LVD().filter((v) => v > 0).length);
+    if (G.levels) me.lv = unlocked();
     open = me;
     let k = 1, ox = 0, oy = 0, dpr = 1;
     const fit = () => {
@@ -641,6 +690,7 @@ const ARCADE2 = (() => {
       me.raf = requestAnimationFrame(frame);
     }
     function showMenu() {
+      if (G.levels) return levelMenu();
       const best = D().best[id] || 0;
       menu.hidden = false;
       menu.innerHTML = `<div class="a2-card"><div class="big">${G.icon}</div><h2>${G.name}</h2><ul>${me.game.how.map((h) => `<li>${h}</li>`).join('')}</ul>
@@ -648,11 +698,27 @@ const ARCADE2 = (() => {
         <div class="row"><button class="btn" data-go>▶ Chơi ngay</button></div></div>`;
       menu.querySelector('[data-go]').onclick = start;
     }
+    /** bản đồ chọn màn (kiểu Candy Crush): màn đã qua có sao, màn chưa mở bị khoá */
+    function levelMenu() {
+      const st = LVD(), open = unlocked(), total = st.reduce((a, v) => a + (v || 0), 0);
+      if (me.lv > open) me.lv = open;
+      const L = CANDY_LV[me.lv], icon = (x) => (x.goal === 'collect' ? '🍬' : x.goal === 'jelly' ? '🟪' : '🎯');
+      menu.hidden = false;
+      menu.innerHTML = `<div class="a2-card"><div class="big">${G.icon}</div><h2>${G.name}</h2>
+        <p class="note">⭐ Đã có <b>${total}/${CANDY_LV.length * 3}</b> sao · qua màn để mở màn tiếp theo</p>
+        <div class="a2-lv">${CANDY_LV.map((x, i) => `<button data-lv="${i}" class="${i === me.lv ? 'on' : ''}" ${i > open ? 'disabled' : ''}><b>${i > open ? '🔒' : i + 1}</b><small>${i > open ? '' : icon(x)}</small><i>${i > open ? '' : '★'.repeat(st[i] || 0) + '☆'.repeat(3 - (st[i] || 0))}</i></button>`).join('')}</div>
+        <p class="res">Màn ${me.lv + 1}: ${L.goal === 'collect' ? `thu ${L.n} kẹo ${CANDY_NAMES[L.k]}` : L.goal === 'jelly' ? `xoá hết thạch${L.layers > 1 ? ' 2 lớp' : ''}` : `đạt ${fmt(L.t1)} điểm`} · ${L.moves} lượt</p>
+        <p class="note">👆 Vuốt kẹo sang ô bên cạnh · 3 viên cùng loại là nổ · 4 viên ra kẹo sọc · 5 viên ra kẹo cầu vồng</p>
+        <div class="row"><button class="btn" data-go>▶ Chơi màn ${me.lv + 1}</button></div></div>`;
+      menu.querySelectorAll('[data-lv]').forEach((b) => b.onclick = () => { me.lv = +b.dataset.lv; levelMenu(); });
+      menu.querySelector('[data-go]').onclick = start;
+    }
     function start() {
-      me.game = G.make(); fit(); if (me.game.start) me.game.start();
+      me.game = G.make(me.lv); fit(); if (me.game.start) me.game.start();
       menu.hidden = true; me.running = true; me.last = 0;
     }
     function finish(res) {
+      if (G.levels && res.lv != null) return finishLevel(res);
       const d = D(), best = d.best[id] || 0, rec = res.score > best;
       if (rec) d.best[id] = res.score;
       const coins = Math.min(60, Math.floor(res.score / G.div)), xp = Math.min(30, 3 + Math.floor(coins / 2));
@@ -667,6 +733,24 @@ const ARCADE2 = (() => {
         <div class="row"><button class="btn" data-again>🔁 Chơi lại</button><button class="btn ghost" data-quit>🚪 Thoát</button></div></div>`;
       menu.querySelector('[data-again]').onclick = start;
       menu.querySelector('[data-quit]').onclick = () => { cleanup(); UI.closeArcade(); };
+    }
+    /** hết màn: lưu sao, thưởng xu theo số sao (lần đầu qua màn thưởng thêm), mở màn sau */
+    function finishLevel(res) {
+      const st = LVD(), prev = st[res.lv] || 0, first = prev === 0 && res.stars > 0;
+      if (res.stars > prev) st[res.lv] = res.stars;
+      const coins = res.win ? Math.min(60, [0, 20, 35, 50][res.stars] + (first ? 10 : 0)) : 3, xp = res.win ? 6 + res.stars * 4 : 3;
+      AV.earn(coins, xp); if (res.win) AV.quest('arcade'); AV.markChanged(); UI.updateHud();
+      if (first && res.lv === CANDY_LV.length - 1 && typeof NET !== 'undefined' && NET.sendSys) NET.sendSys(`🍬 ${S().name} vừa phá đảo cả ${CANDY_LV.length} màn Xếp Kẹo!`);
+      if (res.win) me.lv = Math.min(CANDY_LV.length - 1, Math.max(me.lv, res.lv + 1));
+      menu.hidden = false;
+      menu.innerHTML = `<div class="a2-card"><div class="big">${res.win ? '🎉' : '😢'}</div><h2>${res.win ? `Qua màn ${res.lv + 1}!` : `Chưa qua màn ${res.lv + 1}`}</h2>
+        <p style="font-size:40px;margin:4px 0;color:#f59f00">${'★'.repeat(res.stars)}<span style="color:#ced4da">${'★'.repeat(3 - res.stars)}</span></p>
+        <p class="res">⭐ ${fmt(res.score)} điểm</p><p>${res.extra}</p>
+        <p class="res">💰 +${coins} xu · ⭐ +${xp} XP${first ? ' · 🔓 mở màn mới' : ''}</p>
+        <div class="row">${res.win && res.lv < CANDY_LV.length - 1 ? `<button class="btn" data-next>▶ Màn ${res.lv + 2}</button>` : ''}<button class="btn ${res.win ? 'ghost' : ''}" data-again>🔁 Chơi lại</button><button class="btn ghost" data-map>🗺️ Chọn màn</button></div></div>`;
+      const nx = menu.querySelector('[data-next]'); if (nx) nx.onclick = () => { me.lv = res.lv + 1; start(); };
+      menu.querySelector('[data-again]').onclick = () => { me.lv = res.lv; start(); };
+      menu.querySelector('[data-map]').onclick = levelMenu;
     }
     requestAnimationFrame(() => { fit(); showMenu(); me.raf = requestAnimationFrame(frame); });
   }
