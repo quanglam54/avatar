@@ -254,7 +254,7 @@ const BIL = (() => {
   function tick(dt) {
     if (anim) {
       anim.acc += Math.min(dt, 0.05);
-      while (anim.acc >= STEP && anim) {
+      while (anim && anim.acc >= STEP) {
         anim.acc -= STEP;
         step(anim.balls, anim.potted);
         if (!moving(anim.balls)) anim = null;

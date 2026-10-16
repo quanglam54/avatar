@@ -966,7 +966,7 @@ const MAPS = (() => {
 
   /* ---------- Trong Nhà Casino ---------- */
   function casino() {
-    const m = base('casino', 'Nhà Casino', 2000, 1000);
+    const m = base('casino', 'Nhà Casino', 2400, 1500);
     m.indoor = true;
     m.hz = 0;
     ground(m, (g) => {
@@ -974,26 +974,33 @@ const MAPS = (() => {
       // tường đỏ đô hoạ tiết vàng
       const wg = g.createLinearGradient(0, 20, 0, 240);
       wg.addColorStop(0, '#5c1232'); wg.addColorStop(1, '#3a0a20');
-      g.fillStyle = wg; g.fillRect(40, 20, 1920, 220);
+      g.fillStyle = wg; g.fillRect(40, 20, 2320, 220);
       g.strokeStyle = 'rgba(255,212,59,.22)'; g.lineWidth = 2;
-      for (let x = 40; x < 1960; x += 48) { g.beginPath(); g.moveTo(x, 20); g.lineTo(x + 24, 60); g.lineTo(x, 100); g.lineTo(x - 24, 60); g.closePath(); g.stroke(); }
-      g.fillStyle = '#ffd43b'; g.fillRect(40, 104, 1920, 6); g.fillRect(40, 226, 1920, 14);
+      for (let x = 40; x < 2360; x += 48) { g.beginPath(); g.moveTo(x, 20); g.lineTo(x + 24, 60); g.lineTo(x, 100); g.lineTo(x - 24, 60); g.closePath(); g.stroke(); }
+      g.fillStyle = '#ffd43b'; g.fillRect(40, 104, 2320, 6); g.fillRect(40, 226, 2320, 14);
       // bảng neon
       g.fillStyle = '#2b0a3d'; g.beginPath(); g.roundRect(760, 128, 480, 84, 18); g.fill();
       g.strokeStyle = '#f783ac'; g.lineWidth = 5; g.stroke();
       g.font = '900 46px "Be Vietnam Pro", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.shadowColor = '#ff8fab'; g.shadowBlur = 18; g.fillStyle = '#fff0f6'; g.fillText('🎰 CASINO', 1000, 172); g.shadowBlur = 0;
       // thảm đỏ hoa văn kim cương
-      g.fillStyle = '#8b1a2b'; g.fillRect(40, 240, 1920, 720);
+      g.fillStyle = '#8b1a2b'; g.fillRect(40, 240, 2320, 1220);
       g.strokeStyle = 'rgba(255,212,59,.14)'; g.lineWidth = 2;
-      for (let k = -720; k < 1920; k += 60) { g.beginPath(); g.moveTo(40 + k, 960); g.lineTo(40 + k + 720, 240); g.moveTo(40 + k + 720, 960); g.lineTo(40 + k, 240); g.stroke(); }
+      for (let k = -1220; k < 2320; k += 60) { g.beginPath(); g.moveTo(40 + k, 1460); g.lineTo(40 + k + 1220, 240); g.moveTo(40 + k + 1220, 1460); g.lineTo(40 + k, 240); g.stroke(); }
+      // ♟️ PHÒNG CỜ: sàn gỗ ô vuông phía dưới, có bảng tên
+      g.fillStyle = '#ffd43b'; g.beginPath(); g.roundRect(84, 1034, 2232, 392, 30); g.fill();
+      for (let y = 1040; y < 1420; y += 40) for (let x = 90; x < 2310; x += 40) { g.fillStyle = ((x - 90) / 40 + (y - 1040) / 40) % 2 ? '#a9773f' : '#c08a4f'; g.fillRect(x, y, Math.min(40, 2310 - x), Math.min(40, 1420 - y)); }
+      g.fillStyle = '#2b1a10'; g.beginPath(); g.roundRect(980, 996, 440, 64, 16); g.fill(); g.strokeStyle = '#ffd43b'; g.lineWidth = 4; g.stroke();
+      g.font = '900 32px "Be Vietnam Pro", system-ui, sans-serif'; g.fillStyle = '#fff3bf'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('♟️ PHÒNG CỜ', 1200, 1029);
       // thảm xanh dưới các bàn chơi
       [[180, 470, 520, 300], [700, 470, 480, 300], [1260, 290, 640, 260], [250, 790, 380, 160], [1050, 790, 380, 160]].forEach(([x, y, w, h]) => {
         g.fillStyle = '#ffd43b'; g.beginPath(); g.roundRect(x - 6, y - 6, w + 12, h + 12, 26); g.fill();
         g.fillStyle = '#1b5e3b'; g.beginPath(); g.roundRect(x, y, w, h, 22); g.fill();
       });
-      g.fillStyle = '#a61e4d'; g.fillRect(940, 900, 120, 46);
-      g.fillStyle = '#1a0a14'; g.fillRect(0, 960, m.w, 40); g.fillRect(0, 0, 40, m.h); g.fillRect(1960, 0, 40, m.h);
+      // khu sofa bên phải
+      g.fillStyle = '#ffd43b'; g.beginPath(); g.roundRect(1994, 434, 332, 532, 26); g.fill(); g.fillStyle = '#4a1942'; g.beginPath(); g.roundRect(2000, 440, 320, 520, 22); g.fill();
+      g.fillStyle = '#a61e4d'; g.fillRect(1140, 1414, 120, 46);
+      g.fillStyle = '#1a0a14'; g.fillRect(0, 1460, m.w, 40); g.fillRect(0, 0, 40, m.h); g.fillRect(2360, 0, 40, m.h);
     });
 
     sobj(m, 440, 640, (c) => ART.gameTable(c, 440, 640, 'baucua', 0));
@@ -1012,7 +1019,8 @@ const MAPS = (() => {
     });
     m.labels.push({ text: '🕹️ Máy Game', x: 1610, y: 545 });
     // ♟️ bàn cờ caro
-    if (typeof CARO !== 'undefined') CARO.addTo(m, { sobj, col, inter }, 840, 900);
+    if (typeof CARO !== 'undefined') CARO.addTo(m, { sobj, col, inter }, 300, 1230);
+    if (typeof BOARD !== 'undefined') [['chess', 740], ['xiangqi', 1200], ['go', 1660], ['ludo', 2100]].forEach(([id, x]) => BOARD.addTo(m, { sobj, col, inter }, id, x, 1230));
     // bàn bi-a 2 người
     sobj(m, 1580, 724, (c) => ART.billiardTable(c, 1580, 724), { l: -170, t: -140, w: 340, h: 150 });
     col(m, 1430, 600, 300, 124);
@@ -1029,15 +1037,19 @@ const MAPS = (() => {
     col(m, 1385, 805, 230, 36);
     sobj(m, 1800, 840, (c) => ART.sofa(c, 1800, 840, '#7048e8'), { l: -125, t: -85, w: 250, h: 92 });
     col(m, 1685, 805, 230, 36);
-    [[90, 330], [1910, 330], [90, 900], [1910, 900], [640, 330]].forEach(([x, y]) => { sobj(m, x, y, (c) => ART.plantPot(c, x, y), { l: -30, t: -95, w: 60, h: 100 }); col(m, x - 17, y - 12, 34, 14); });
+    sobj(m, 2160, 640, (c) => ART.sofa(c, 2160, 640, '#f08c00'), { l: -125, t: -85, w: 250, h: 92 });
+    col(m, 2045, 605, 230, 36);
+    sobj(m, 2160, 880, (c) => ART.sofa(c, 2160, 880, '#1971c2'), { l: -125, t: -85, w: 250, h: 92 });
+    col(m, 2045, 845, 230, 36);
+    [[90, 330], [2310, 330], [90, 960], [2310, 960], [640, 330], [1760, 330], [90, 1440], [2310, 1440]].forEach(([x, y]) => { sobj(m, x, y, (c) => ART.plantPot(c, x, y), { l: -30, t: -95, w: 60, h: 100 }); col(m, x - 17, y - 12, 34, 14); });
 
     npc(m, 'Chú Lộc', { skin: '#f1c27d', hair: 'short', hairColor: '#222', shirt: '#212529', shirtStyle: 'plain', pants: '#212529', hat: 'cowboy' }, { l: 680, t: 740, r: 1000, b: 860 }, 820, 790, 'none');
 
-    sobj(m, 1000, 962, (c) => ART.homeDoor(c, 1000, 962), { l: -50, t: -22, w: 100, h: 28 });
-    inter(m, { x: 940, y: 900, w: 120, h: 70, ax: 1000, ay: 930, name: 'Ra Khu giải trí', use: () => AV.leaveCasino(), arrow: { x: 1000, y: 905, text: 'Ra ngoài' } });
+    sobj(m, 1200, 1462, (c) => ART.homeDoor(c, 1200, 1462), { l: -50, t: -22, w: 100, h: 28 });
+    inter(m, { x: 1140, y: 1400, w: 120, h: 70, ax: 1200, ay: 1430, name: 'Ra Khu giải trí', use: () => AV.leaveCasino(), arrow: { x: 1200, y: 1405, text: 'Ra ngoài' } });
 
-    m.spawn = { x: 1000, y: 900 };
-    m.bounds = { l: 56, t: 262, r: m.w - 56, b: 940 };
+    m.spawn = { x: 1200, y: 1400 };
+    m.bounds = { l: 56, t: 262, r: m.w - 56, b: 1440 };
     return m;
   }
 
