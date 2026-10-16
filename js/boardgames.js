@@ -451,6 +451,13 @@ const BOARD = (() => {
       id: 'ludo', name: 'Cờ Cá Ngựa', icon: '🐴', cols: 15, rows: 15, multi: true, sides: NAME, colors: COL,
       rules: 'Bấm <b>🎲 Gieo</b> rồi chọn ngựa để đi. Gieo được <b>6</b> mới ra chuồng, gieo 6 hoặc đá được ngựa địch thì được gieo tiếp. Đi trúng ô có ngựa địch là <b>đá về chuồng</b> (trừ ô ★ và ô xuất phát). Phải gieo vừa đủ mới vào đích.',
       init: (players) => ({ players, pos: [0, 1, 2, 3].map(() => [-1, -1, -1, -1]), turn: players[0], phase: 'roll', dice: 0 }),
+      /** bỏ các màu ks khỏi bàn (người chơi thoát); tới lượt màu đó thì chuyển sang người kế tiếp */
+      drop(s0, ks) {
+        const s = { ...s0, pos: s0.pos.map((a) => a.slice()) }, old = s.players;
+        s.players = old.filter((k) => !ks.includes(k));
+        if (ks.includes(s.turn) && s.players.length) { let i = old.indexOf(s.turn); do { i = (i + 1) % old.length; } while (ks.includes(old[i])); s.turn = old[i]; s.phase = 'roll'; s.dice = 0; }
+        return s;
+      },
       turn: (s) => s.turn, legal, apply, status, ai,
       pieceSide: () => -1,
       clickMove(s, cell) {
@@ -493,10 +500,15 @@ const BOARD = (() => {
    * ==================================================================== */
   let st = null; // { id, G, mode, lv, bet, s, mine:[sides], over, msg, sel, targets, last, busy, gid, opp, oppName }
   const pref = () => { const p = S().board = S().board || {}; p.lv = p.lv || {}; p.w = p.w || {}; p.l = p.l || {}; if (p.bet == null) p.bet = 1000; p.np = p.np || 4; return p; };
-  const ctrl = (side) => (st.mode === 'pvp' ? 'me' : st.mine.includes(side) ? 'me' : st.mode === 'ai' ? 'ai' : 'net');
+  const ctrl = (side) => {
+    if (st.mode === 'pvp') return 'me';
+    if (st.room) { if (st.owner[side] !== NET.pid) return 'net'; return st.bots.includes(side) ? 'ai' : 'me'; }
+    return st.mine.includes(side) ? 'me' : st.mode === 'ai' ? 'ai' : 'net';
+  };
   const sideName = (side) => {
     const nm = st.G.sides[side];
     if (st.mode === 'pvp') return nm;
+    if (st.room) return st.mine.includes(side) ? `Bạn (${nm})` : st.bots.includes(side) ? `Máy (${nm})` : `${esc(st.names[side] || '?')} (${nm})`;
     if (st.mine.includes(side)) return `Bạn (${nm})`;
     return st.mode === 'net' ? `${esc(st.oppName)} (${nm})` : `Máy (${nm})`;
   };
@@ -522,7 +534,7 @@ const BOARD = (() => {
   }
   function leave() {
     if (st && !st.idle && !st.over) {
-      if (st.mode === 'net') { send({ op: 'resign', to: st.opp, gid: st.gid }); if (st.bet) UI.toast(`🏳️ Bỏ cuộc — mất ${fmt(st.bet)} xu cược`); }
+      if (st.mode === 'net') { send(st.room ? { op: 'quit', to: '*', gid: st.gid } : { op: 'resign', to: st.opp, gid: st.gid }); if (st.bet) UI.toast(`🏳️ Bỏ cuộc — mất ${fmt(st.bet)} xu cược`); }
       else if (st.mode === 'ai' && st.bet) UI.toast(`🏳️ Bỏ ván — mất ${fmt(st.bet)} xu cược`);
     }
   }
@@ -570,12 +582,12 @@ const BOARD = (() => {
     if (r) return finish(r);
     const turn = st.G.turn(st.s), who = ctrl(turn);
     side();
-    if (who === 'ai') { st.busy = true; side(); const cur = st; setTimeout(() => { if (st !== cur || st.over) return; st.busy = false; let m = st.G.ai(st.s, st.lv); if (m && m.roll) m = { roll: true, v: 1 + rnd(6) }; if (!m) return finish({ winner: 1 - turn, why: 'Hết nước' }); doMove(m); }, st.G.multi ? 420 : 350 + rnd(300)); return; }
+    if (who === 'ai') { st.busy = true; side(); const cur = st; setTimeout(() => { if (st !== cur || st.over) return; st.busy = false; let m = st.G.ai(st.s, st.lv); if (m && m.roll) m = { roll: true, v: 1 + rnd(6) }; if (!m) return finish({ winner: 1 - turn, why: 'Hết nước' }); doMove(m, st.mode === 'net'); }, st.G.multi ? 420 : 350 + rnd(300)); return; }
     // cá ngựa: không có ngựa nào đi được thì tự bỏ lượt (chỉ bên điều khiển lượt đó thực hiện)
     if (who === 'me' && st.G.multi && st.s.phase === 'move') { const ms = st.G.legal(st.s); if (ms[0].skip) { const cur = st; setTimeout(() => { if (st === cur && !st.over && st.s.phase === 'move') doMove({ skip: true }, true); }, 1100); } }
   }
   function doMove(m, mine) {
-    if (mine && st.mode === 'net') send({ op: 'move', to: st.opp, gid: st.gid, m });
+    if (mine && st.mode === 'net') send({ op: 'move', to: st.room ? '*' : st.opp, gid: st.gid, m });
     st.s = st.G.apply(st.s, m); st.moves++;
     if (!m.roll) st.last = m;
     st.sel = -1; st.targets = [];
@@ -585,7 +597,7 @@ const BOARD = (() => {
   function click(cell) {
     if (!st || st.idle || st.over || st.busy || cell < 0) return;
     const turn = st.G.turn(st.s);
-    if (ctrl(turn) !== 'me') return UI.toast(st.mode === 'net' ? `⏳ Chờ ${st.oppName} đi…` : '⏳ Chờ máy đi…', 1200);
+    if (ctrl(turn) !== 'me') return UI.toast(st.mode === 'net' ? `⏳ Chờ ${st.room ? sideName(turn) : st.oppName} đi…` : '⏳ Chờ máy đi…', 1200);
     if (st.G.clickMove) { const m = st.G.clickMove(st.s, cell); if (m) doMove(m, true); else if (st.G.multi && st.s.phase === 'roll') roll(); return; }
     const hit = st.targets.find((m) => m.t === cell);
     if (hit) return doMove(hit, true);
@@ -602,9 +614,9 @@ const BOARD = (() => {
     const G = st.G, turn = G.turn(st.s), dot = (k) => (G.colors ? `<b style="color:${G.colors[k]}">●</b> ` : '');
     if (st.over) {
       el.innerHTML = `<h3>${G.icon} ${G.name}</h3><p class="ca-turn">${st.msg}</p>${G.info ? `<p class="muted small-note">${G.info(st.s)}</p>` : ''}
-        ${st.mode === 'net' ? `<button class="btn" data-re>🔁 Mời đấu lại</button>` : `<button class="btn" data-again>🔁 Ván mới</button>`}<button class="btn ghost" data-menu>⚙️ Đổi chế độ</button>`;
+        ${st.room ? '' : st.mode === 'net' ? `<button class="btn" data-re>🔁 Mời đấu lại</button>` : `<button class="btn" data-again>🔁 Ván mới</button>`}<button class="btn ghost" data-menu>⚙️ Đổi chế độ</button>`;
     } else {
-      el.innerHTML = `<h3>${G.icon} ${st.mode === 'ai' ? `Đấu máy · ${LV[st.lv]}` : st.mode === 'net' ? `🌐 Đấu với ${esc(st.oppName)}` : 'Chơi chung máy'}</h3>
+      el.innerHTML = `<h3>${G.icon} ${st.mode === 'ai' ? `Đấu máy · ${LV[st.lv]}` : st.room ? `🌐 Phòng ${st.s.players.length} người` : st.mode === 'net' ? `🌐 Đấu với ${esc(st.oppName)}` : 'Chơi chung máy'}</h3>
         ${st.bet ? `<p>💰 Cược <b>${fmt(st.bet)} xu</b></p>` : ''}
         <p class="ca-turn">Lượt: ${dot(turn)}<b>${sideName(turn)}</b>${st.busy ? ' — đang nghĩ…' : ''}</p>
         ${G.multi && ctrl(turn) === 'me' ? (st.s.phase === 'roll' ? '<button class="btn" data-roll style="font-size:20px">🎲 Gieo xúc xắc</button>' : `<p class="muted">Được <b>${st.s.dice}</b> — bấm vào ngựa đang nhấp nháy để đi</p>`) : ''}
@@ -618,7 +630,7 @@ const BOARD = (() => {
     if (q('[data-pass]')) q('[data-pass]').onclick = pass;
     if (q('[data-resign]')) q('[data-resign]').onclick = () => UI.confirm(st.mode === 'pvp' ? 'Kết thúc ván này?' : 'Xin thua ván này?', '🏳️ Đồng ý', () => {
       if (!st || st.over) return;
-      if (st.mode === 'net') send({ op: 'resign', to: st.opp, gid: st.gid });
+      if (st.mode === 'net') send(st.room ? { op: 'quit', to: '*', gid: st.gid } : { op: 'resign', to: st.opp, gid: st.gid });
       if (st.mode === 'pvp') { st.over = true; st.msg = '🏳️ Đã kết thúc ván'; side(); return; }
       finish({ winner: -2, why: '🏳️ Bạn đã xin thua' });
     });
@@ -633,7 +645,7 @@ const BOARD = (() => {
     const G = st.G, p = pref(), id = G.id;
     const iWin = r.winner >= 0 && st.mine.includes(r.winner), draw = r.winner === -1;
     if (st.mode === 'pvp') { st.msg = draw ? r.why : `🏆 ${G.sides[r.winner]} thắng! ${r.why}`; side(); return; }
-    const pot = st.mode === 'net' ? st.bet * 2 : st.bet * (G.multi ? st.s.players.length : 2);
+    const pot = st.room ? st.bet * st.humans0 : st.mode === 'net' ? st.bet * 2 : st.bet * (G.multi ? st.s.players.length : 2);
     if (draw) { st.msg = `${r.why}${st.bet ? ` — trả lại ${fmt(st.bet)} xu` : ''}`; if (st.bet) AV.earn(st.bet, 5); }
     else if (iWin) {
       p.w[id] = (p.w[id] || 0) + 1; AV.earn(pot, st.mode === 'net' ? 20 : [8, 15, 25][st.lv]); AV.quest('arcade');
@@ -661,6 +673,7 @@ const BOARD = (() => {
   const send = (p) => { if (typeof NET !== 'undefined' && NET.sendBoard) NET.sendBoard(p); };
   let invite = null, invP = null;
   function inviteList(game) {
+    if (game === 'ludo') return ludoLobby(null);
     const list = (typeof NET !== 'undefined' ? NET.players() : []).filter((r) => !r.hidden && r.id);
     const p = UI.panel('👥 Mời người chơi cờ', list.length ? `<p class="muted">Người đang ở cùng khu với bạn:</p><div class="shop-list">${list.map((r, i) => `<div class="shop-row"><span class="ic">🧑</span><div class="info"><b>${esc(r.name)}</b></div><button class="btn small" data-i="${i}">♟️ Mời</button></div>`).join('')}</div>`
       : '<p class="muted">Chưa có ai ở cùng khu. Rủ bạn bè vào 🎰 Nhà Casino rồi bấm lại nhé — hoặc bấm vào nhân vật của họ → ♟️ Mời chơi cờ.</p>');
@@ -674,13 +687,14 @@ const BOARD = (() => {
       p.body.innerHTML = `<p class="muted">Chọn loại cờ và mức cược — mỗi bên đặt bằng nhau, thắng ăn cả, hoà trả lại.</p>
         <div class="chips center">${Object.values(GAMES).map((G) => `<button class="chip ${G.id === gm ? 'on' : ''}" data-g="${G.id}">${G.icon} ${G.name}</button>`).join('')}</div>
         <div class="chips center">${BETS.map((c) => `<button class="chip ${c === bet ? 'on' : ''}" data-c="${c}">${c ? '🪙 ' + fmt(c) : 'Chơi vui'}</button>`).join('')}</div>
-        <div class="row-end"><button class="btn" data-go>♟️ Gửi lời mời</button></div>`;
+        ${gm === 'ludo' ? '<p class="muted small-note">🐴 Cá ngựa chơi được tới 4 người — bấm tiếp để mời thêm bạn vào phòng.</p>' : ''}
+        <div class="row-end"><button class="btn" data-go>${gm === 'ludo' ? '🐴 Tiếp tục' : '♟️ Gửi lời mời'}</button></div>`;
       p.body.querySelectorAll('[data-g]').forEach((b) => b.onclick = () => { gm = b.dataset.g; render(); });
       p.body.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => { bet = +b.dataset.c; render(); });
       p.body.querySelector('[data-go]').onclick = () => {
         if (bet > S().coins) return UI.toast(`Không đủ xu — cần ${fmt(bet)} xu`);
         if (!NET.remotes.get(r.id)) return UI.toast('⚠️ Người này vừa rời khu rồi');
-        p.close(); sendInvite({ to: r.id, name: r.name, game: gm, bet });
+        p.close(); if (gm === 'ludo') return ludoLobby(r); sendInvite({ to: r.id, name: r.name, game: gm, bet });
       };
     };
     render();
@@ -714,8 +728,13 @@ const BOARD = (() => {
     UI.toast(`${GAMES[o.id].icon} Bắt đầu ván ${GAMES[o.id].name} với ${o.oppName}!`, 3500);
   }
   function onNet(m) {
-    if (typeof NET === 'undefined' || m.to !== NET.pid) return;
-    if (m.op === 'invite') return onInvite(m);
+    if (typeof NET === 'undefined') return;
+    if (m.to === '*') return onRoom(m);
+    if (m.to !== NET.pid) return;
+    if (m.op === 'invite') return m.room ? onRoomInvite(m) : onInvite(m);
+    if (lobby && m.gid === lobby.gid) return onLobby(m);
+    if (m.op === 'accept' && st && st.room && m.gid === st.gid) return send({ op: 'cancel', to: m.id, gid: m.gid });
+    if (m.op === 'cancel' && joining && m.gid === joining.gid) return cancelJoin('⚠️ Phòng đã bắt đầu hoặc bị huỷ — đã trả lại tiền cược');
     if (m.op === 'accept' && invite && m.gid === invite.gid && m.id === invite.to) {
       const iv = invite; invite = null;
       if (iv.bet && !AV.spend(iv.bet)) { send({ op: 'resign', to: m.id, gid: m.gid, why: 'nopay' }); return UI.toast('Không đủ xu để vào ván'); }
@@ -736,8 +755,138 @@ const BOARD = (() => {
       if (ok) doMove(ok);
     }
   }
-  /** đối thủ rời khu quá 30 giây → xử thắng */
+  /* ---------- 🐴 PHÒNG CÁ NGỰA nhiều người ---------- */
+  let lobby = null, joining = null;
+  /** chủ phòng: chọn tối đa 3 bạn, mức cược, có cho máy chơi ghế trống không */
+  function ludoLobby(pre) {
+    if (st && st.room && !st.over) return UI.toast('Bạn đang trong một ván cá ngựa rồi');
+    const list = (typeof NET !== 'undefined' ? NET.players() : []).filter((r) => !r.hidden && r.id);
+    if (pre && !list.some((r) => r.id === pre.id)) list.unshift(pre);
+    const pick = new Set(pre ? [pre.id] : []);
+    let bet = pref().bet, bots = true;
+    const p = UI.panel('🐴 Mở phòng Cờ Cá Ngựa', '');
+    const render = () => {
+      p.body.innerHTML = `<p class="muted">Chọn <b>tối đa 3 bạn</b> cùng khu để mời. Ai nhận lời sẽ vào phòng, mỗi người cược bằng nhau — <b>người thắng ăn hết</b>.</p>
+        ${list.length ? `<div class="shop-list">${list.map((r, i) => `<div class="shop-row"><span class="ic">${pick.has(r.id) ? '✅' : '🧑'}</span><div class="info"><b>${esc(r.name)}</b></div><button class="btn small ${pick.has(r.id) ? '' : 'ghost'}" data-i="${i}">${pick.has(r.id) ? 'Đã chọn' : '+ Mời'}</button></div>`).join('')}</div>` : '<p class="muted">Chưa có ai ở cùng khu — rủ bạn bè vào 🎰 Nhà Casino nhé.</p>'}
+        <div class="chips center">${BETS.map((c) => `<button class="chip ${c === bet ? 'on' : ''}" data-c="${c}">${c ? '🪙 ' + fmt(c) : 'Chơi vui'}</button>`).join('')}</div>
+        <label style="display:flex;gap:8px;align-items:center;justify-content:center;margin:8px 0"><input type="checkbox" data-bots ${bots ? 'checked' : ''}> 🤖 Ghế trống cho máy chơi (đủ 4 ngựa)</label>
+        <div class="row-end"><button class="btn" data-go ${pick.size ? '' : 'disabled'}>🐴 Mời ${pick.size} bạn</button></div>`;
+      p.body.querySelectorAll('[data-i]').forEach((b) => b.onclick = () => { const r = list[+b.dataset.i]; if (pick.has(r.id)) pick.delete(r.id); else if (pick.size < 3) pick.add(r.id); else UI.toast('Tối đa 3 bạn (đủ 4 người)'); render(); });
+      p.body.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => { bet = +b.dataset.c; render(); });
+      p.body.querySelector('[data-bots]').onchange = (e) => { bots = e.target.checked; };
+      p.body.querySelector('[data-go]').onclick = () => {
+        if (bet > S().coins) return UI.toast(`Không đủ xu — cần ${fmt(bet)} xu`);
+        const ppl = list.filter((r) => pick.has(r.id) && NET.remotes.get(r.id));
+        if (!ppl.length) return UI.toast('⚠️ Những người này vừa rời khu rồi');
+        lobby = { gid: NET.pid + '-' + Date.now(), bet, bots, panel: p, seats: ppl.map((r) => ({ id: r.id, name: r.name, st: 'wait' })) };
+        lobby.seats.forEach((sd) => send({ op: 'invite', room: 1, to: sd.id, gid: lobby.gid, bet, game: 'ludo', n: lobby.seats.length + 1, name: S().name }));
+        const gid = lobby.gid;
+        setTimeout(() => { if (lobby && lobby.gid === gid) { lobby.seats.forEach((sd) => { if (sd.st === 'wait') sd.st = 'no'; }); lobbyRender(); } }, 30000);
+        lobbyRender();
+      };
+    };
+    render();
+  }
+  function lobbyRender() {
+    if (!lobby) return;
+    const p = lobby.panel, ok = lobby.seats.filter((x) => x.st === 'ok').length, wait = lobby.seats.filter((x) => x.st === 'wait').length;
+    if (!p.el.isConnected) { lobby.panel = UI.panel('🐴 Phòng Cờ Cá Ngựa', ''); return lobbyRender(); }
+    p.body.innerHTML = `<p class="muted">Đang chờ bạn bè trả lời… ${lobby.bet ? `Cược <b>${fmt(lobby.bet)} xu</b>/người.` : 'Chơi vui.'}</p>
+      <div class="shop-list"><div class="shop-row"><span class="ic">👑</span><div class="info"><b>${esc(S().name)}</b><small>Chủ phòng</small></div></div>
+      ${lobby.seats.map((x) => `<div class="shop-row"><span class="ic">${x.st === 'ok' ? '✅' : x.st === 'no' ? '❌' : '⏳'}</span><div class="info"><b>${esc(x.name)}</b><small>${x.st === 'ok' ? 'Đã vào phòng' : x.st === 'no' ? 'Không tham gia' : 'Đang chờ trả lời…'}</small></div></div>`).join('')}</div>
+      <p class="muted small-note">${lobby.bots ? '🤖 Ghế trống sẽ do máy chơi' : 'Chỉ người thật chơi'} · tất cả trả lời xong sẽ tự bắt đầu</p>
+      <div class="row-end"><button class="btn ghost" data-cancel>Huỷ phòng</button><button class="btn" data-start ${ok ? '' : 'disabled'}>▶ Bắt đầu (${ok + 1} người)</button></div>`;
+    p.body.querySelector('[data-cancel]').onclick = () => { lobby.seats.forEach((x) => { if (x.st !== 'no') send({ op: 'cancel', to: x.id, gid: lobby.gid }); }); lobby = null; p.close(); };
+    p.body.querySelector('[data-start]').onclick = startLobby;
+    if (ok && !wait) setTimeout(() => { if (lobby && lobby.panel === p && !lobby.seats.some((x) => x.st === 'wait')) startLobby(); }, 900);
+  }
+  function onLobby(m) {
+    const x = lobby.seats.find((q) => q.id === m.id); if (!x) return;
+    if (m.op === 'accept') x.st = 'ok';
+    if (m.op === 'decline' || m.op === 'busy') { x.st = 'no'; UI.toast(`🐴 ${x.name} ${m.op === 'busy' ? 'đang bận' : 'không tham gia'}`, 2500); }
+    lobbyRender();
+  }
+  function startLobby() {
+    if (!lobby) return;
+    const L = lobby, ok = L.seats.filter((x) => x.st === 'ok');
+    if (!ok.length) return UI.toast('Chưa có ai vào phòng');
+    if (L.bet && !AV.spend(L.bet)) { ok.forEach((x) => send({ op: 'cancel', to: x.id, gid: L.gid })); lobby = null; L.panel.close(); return; }
+    L.seats.filter((x) => x.st === 'wait').forEach((x) => send({ op: 'cancel', to: x.id, gid: L.gid }));
+    const humans = [{ id: NET.pid, name: S().name }, ...ok], players = playersFor(L.bots ? 4 : Math.max(2, humans.length));
+    const seats = humans.map((h, i) => ({ id: h.id, name: String(h.name).slice(0, 16), color: players[i] }));
+    const d = { op: 'start', to: '*', gid: L.gid, bet: L.bet, seats, bots: players.slice(humans.length), host: NET.pid };
+    lobby = null; L.panel.close();
+    send(d); startRoom(d);
+  }
+  function onRoomInvite(m) {
+    const bet = Math.max(0, Math.floor(+m.bet) || 0), who = String(m.name || 'Người chơi').slice(0, 16);
+    if ((st && !st.idle && !st.over && st.mode === 'net') || joining || lobby || (invP && invP.el.isConnected)) return send({ op: 'busy', to: m.id, gid: m.gid });
+    invP = UI.panel('🐴 Lời mời chơi Cờ Cá Ngựa', `<p class="confirm-text"><b>${esc(who)}</b> mời bạn vào phòng <b>Cờ Cá Ngựa</b> (${m.n | 0} người)${bet ? ` · cược <b>${fmt(bet)} xu</b>` : ' (chơi vui)'}</p>
+      ${S().coins < bet ? '<p class="game-msg">⚠️ Bạn không đủ xu</p>' : ''}
+      <div class="row-end"><button class="btn ghost" data-no>Từ chối</button><button class="btn" data-yes ${S().coins < bet ? 'disabled' : ''}>🐴 Vào phòng</button></div>`);
+    const ip = invP, tm = setTimeout(() => { if (ip.el.isConnected) { ip.close(); send({ op: 'decline', to: m.id, gid: m.gid }); } }, 25000);
+    ip.body.querySelector('[data-no]').onclick = () => { clearTimeout(tm); ip.close(); send({ op: 'decline', to: m.id, gid: m.gid }); };
+    ip.body.querySelector('[data-yes]').onclick = () => {
+      clearTimeout(tm); ip.close();
+      if (bet && !AV.spend(bet)) return send({ op: 'decline', to: m.id, gid: m.gid });
+      joining = { gid: m.gid, host: m.id, bet };
+      send({ op: 'accept', to: m.id, gid: m.gid });
+      UI.toast(`🐴 Đã vào phòng của ${who} — chờ chủ phòng bắt đầu…`, 5000);
+      const gid = m.gid;
+      setTimeout(() => { if (joining && joining.gid === gid) cancelJoin('⌛ Chủ phòng chưa bắt đầu — đã trả lại tiền cược'); }, 60000);
+    };
+  }
+  function cancelJoin(msg) { if (joining.bet) AV.earn(joining.bet); joining = null; UI.toast(msg, 4500); }
+  function startRoom(d) {
+    if (d.host !== NET.pid) { if (!joining || joining.gid !== d.gid || joining.host !== d.host) return; if (!d.seats.some((x) => x.id === NET.pid)) return cancelJoin('⚠️ Phòng đã đủ người — đã trả lại tiền cược'); joining = null; }
+    open('ludo');
+    const owner = {}, names = {}, players = [...d.seats.map((x) => x.color), ...d.bots].sort((a, b) => a - b);
+    d.seats.forEach((x) => { owner[x.color] = x.id; names[x.color] = x.name; });
+    d.bots.forEach((k) => { owner[k] = d.host; });
+    const me = d.seats.find((x) => x.id === NET.pid);
+    st = { id: 'ludo', G: LUDO, mode: 'net', room: true, lv: 1, bet: d.bet, s: LUDO.init(players), mine: [me.color], owner, names, bots: d.bots.slice(), humans0: d.seats.length, gid: d.gid, oppName: d.seats.filter((x) => x.id !== NET.pid).map((x) => x.name).join(', '), over: false, sel: -1, targets: [], last: null, busy: false, moves: 0, flip: false, gone: {} };
+    UI.toast(`🐴 Bắt đầu! Bạn cầm ngựa ${LUDO.sides[me.color]}`, 4000);
+    side(); next();
+  }
+  /** người chơi thoát / mất kết nối: bỏ ngựa của họ khỏi bàn; nếu là chủ phòng thì người kế tiếp điều khiển máy */
+  function dropPeer(pid, why) {
+    if (!st || !st.room || st.over) return;
+    const ks = Object.keys(st.owner).map(Number).filter((k) => st.owner[k] === pid && !st.bots.includes(k) && st.s.players.includes(k));
+    if (ks.length) { UI.toast(`🚪 ${esc(st.names[ks[0]] || 'Một người')} ${why}`, 3000); st.s = LUDO.drop(st.s, ks); }
+    if (st.bots.some((k) => st.owner[k] === pid)) {
+      const heir = st.s.players.filter((k) => !st.bots.includes(k)).map((k) => st.owner[k]).filter(Boolean)[0];
+      st.bots.forEach((k) => { if (st.owner[k] === pid) st.owner[k] = heir; });
+    }
+    const humansLeft = st.s.players.filter((k) => !st.bots.includes(k));
+    if (st.s.players.length <= 1 || !humansLeft.length) return finish({ winner: st.s.players[0] ?? -1, why: '🏁 Những người khác đã rời bàn' });
+    if (humansLeft.length === 1 && humansLeft[0] === st.mine[0] && !st.s.players.some((k) => st.bots.includes(k))) return finish({ winner: st.mine[0], why: '🏁 Những người khác đã rời bàn' });
+    st.busy = false; next();
+  }
+  function onRoom(m) {
+    if (m.op === 'start') return startRoom(m);
+    if (!st || !st.room || st.idle || m.gid !== st.gid) return;
+    if (m.op === 'quit') return dropPeer(m.id, 'đã rời bàn');
+    if (m.op === 'move' && !st.over && m.m) {
+      const turn = st.G.turn(st.s);
+      if (st.owner[turn] !== m.id || ctrl(turn) !== 'net') return;
+      const mv = m.m;
+      if (mv.roll) { if (st.s.phase !== 'roll' || !(mv.v >= 1 && mv.v <= 6)) return; return doMove({ roll: true, v: mv.v | 0 }); }
+      const ok = st.G.legal(st.s).find((x) => (x.skip && mv.skip) || (x.h != null && x.h === mv.h && x.to === mv.to));
+      if (ok) doMove(ok);
+    }
+  }
+
+  /** đối thủ rời khu quá 30 giây → xử thắng (phòng cá ngựa: bỏ ngựa người đó khỏi bàn) */
   setInterval(() => {
+    if (st && st.room && !st.idle && !st.over && typeof NET !== 'undefined') {
+      [...new Set(st.s.players.filter((k) => !st.bots.includes(k)).map((k) => st.owner[k]))].forEach((pid) => {
+        if (pid === NET.pid) return;
+        if (NET.remotes.get(pid)) { st.gone[pid] = 0; return; }
+        st.gone[pid] = st.gone[pid] || Date.now();
+        if (Date.now() - st.gone[pid] > 30000) dropPeer(pid, 'đã mất kết nối');
+      });
+      return;
+    }
     if (!st || st.idle || st.mode !== 'net' || st.over || typeof NET === 'undefined') return;
     if (NET.remotes.get(st.opp)) { st.gone = 0; return; }
     st.gone = st.gone || Date.now();
@@ -767,5 +916,5 @@ const BOARD = (() => {
     H.col(m, x - 108, y - 52, 216, 52);
     H.inter(m, { x: x - 120, y: y - 145, w: 240, h: 150, ax: x, ay: y + 40, name: `${GAMES[id].icon} Bàn ${GAMES[id].name} (đấu máy / 2 người / online)`, use: () => open(id), arrow: { x, y: y - 160, text: GAMES[id].name } });
   }
-  return { open, addTo, challenge, onNet, GAMES, _st: () => st, _click: click, _roll: roll };
+  return { open, addTo, challenge, onNet, GAMES, _st: () => st, _click: click, _roll: roll, _lobby: () => lobby };
 })();
