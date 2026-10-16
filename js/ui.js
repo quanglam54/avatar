@@ -1131,6 +1131,7 @@ const UI = (() => {
   function arcade(id) {
     const g = DATA.ARCADE.find((x) => x.id === id);
     if (!g) return;
+    if (g.native) return typeof ARCADE2 !== 'undefined' ? ARCADE2.play(id) : toast('Máy game đang khởi động, tải lại trang nhé');
     try { localStorage.setItem('gh_name', JSON.stringify(AV.S.name || 'Khách')); } catch (e) { /* bỏ qua */ }
     const v = $('#arcadeView');
     v.innerHTML = `<div class="arc-bar"><b>${g.icon} ${g.name}</b><span>Điểm càng cao thưởng càng nhiều xu (tối đa 40 xu/ván)</span><button class="tv-x" data-close>✕ Thoát</button></div>
