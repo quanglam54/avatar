@@ -70,6 +70,8 @@ const DATA = {
     { id: 'goldminer', name: 'Đào Vàng', icon: '⛏️', color: '#8a4b22', div: 250 },
     { id: 'bigfish', name: 'Cá Lớn Nuốt Cá Bé', short: 'Cá Lớn', icon: '🐟', color: '#1098ad', div: 60, native: true },
     { id: 'subway', name: 'Chạy Tàu Điện', short: 'Tàu Điện', icon: '🚇', color: '#e8590c', div: 40, native: true },
+    { id: 'archery', name: 'Bắn Cung', icon: '🏹', color: '#2f9e44', div: 1.5, native: true },
+    { id: 'candy', name: 'Xếp Kẹo', icon: '🍬', color: '#e64980', div: 120, native: true },
   ],
   CROPS: {
     wheat: { name: 'Lúa mì', icon: '🌾', seed: 2, sell: 5, time: 300, xp: 4, lvl: 1, yield: 4 },

@@ -288,11 +288,306 @@ const ARCADE2 = (() => {
   }
 
   /* ======================================================================
+   * 🏹 BẮN CUNG: giữ ngón tay để giương cung, kéo để ngắm (tay hơi rung, giữ lâu quá thì rung mạnh),
+   * buông tay để bắn. Mỗi mũi tên bia lùi xa hơn và gió đổi hướng — nhớ ngắm bù gió.
+   * ==================================================================== */
+  function makeArchery() {
+    const VH = 720, N = 10;
+    let t = 0, arrow = 0, score = 0, phase = 'ready', wait = 0, hold = 0, bulls = 0;
+    const aim = { x: 0, y: 0, on: false, sx: 0, sy: 0, ax: 0, ay: 0 };
+    const hits = [], fx = [];
+    let dist = 20, wind = 0, fly = null, kx = 0, ky = 0;
+    const R0 = 230; // bán kính bia (px) ở 20 m
+    const rad = () => R0 * 20 / dist;
+    function setup() { dist = 20 + arrow * 6; wind = arrow === 0 ? 0 : Math.round((Math.random() * 2 - 1) * Math.min(6, 1 + arrow * 0.7) * 10) / 10; hits.length = 0; }
+    setup();
+    const sway = () => { const s = 6 + Math.max(0, hold - 2.2) * 26; return { x: Math.sin(t * 1.7) * s + Math.sin(t * 3.1) * s * 0.4, y: Math.cos(t * 1.3) * s * 0.8 + Math.sin(t * 2.6) * s * 0.3 }; };
+    function shoot() {
+      const W = game.VW, cx = W / 2, cy = VH * 0.45, sw = sway();
+      const px = aim.x + sw.x, py = aim.y + sw.y;
+      // gió đẩy ngang, đi càng xa trôi càng nhiều; mũi tên rơi một chút theo khoảng cách
+      const dx = wind * dist * 0.22 * rad() / 100, dy = dist * 0.12 * rad() / 100;
+      fly = { t: 0, T: 0.35 + dist / 160, x: px + dx, y: py + dy, sx: W / 2, sy: VH + 40 };
+      phase = 'fly'; aim.on = false; hold = 0;
+      void cx; void cy;
+    }
+    function land() {
+      const W = game.VW, cx = W / 2, cy = VH * 0.45, r = rad();
+      const d = Math.hypot(fly.x - cx, fly.y - cy) / r;
+      const pts = d <= 0.05 ? 10 : d > 1 ? 0 : Math.max(1, 10 - Math.floor(d * 10));
+      const X = d <= 0.05;
+      score += pts; if (X) bulls++;
+      hits.push({ x: (fly.x - cx) / r, y: (fly.y - cy) / r });
+      fx.push({ text: X ? '🎯 HỒNG TÂM!' : pts ? `+${pts}` : '❌ Trượt bia', c: X ? '#ffe066' : pts >= 8 ? '#8ce99a' : '#fff', t: 0, x: fly.x, y: fly.y - 40 });
+      if (navigator.vibrate) try { navigator.vibrate(X ? 60 : 20); } catch (e) { /* bỏ qua */ }
+      fly = null; phase = 'hit'; wait = 1.3; arrow++;
+    }
+    const game = {
+      VW: 1280, VH, wide: true, over: false, res: null,
+      how: ['<b>Giữ ngón tay</b> để giương cung, <b>kéo</b> để ngắm, <b>buông tay</b> để bắn', 'Tay sẽ rung nhẹ — giữ quá 2 giây là rung mạnh, bắn nhanh cho chuẩn', 'Mỗi mũi bia <b>lùi xa hơn</b>, có <b>gió</b> đẩy lệch: gió thổi sang phải thì ngắm lệch trái', '10 mũi tên · hồng tâm 10 điểm'],
+      update(dt) {
+        t += dt;
+        if (aim.on) hold += dt;
+        if (fly) { fly.t += dt; if (fly.t >= fly.T) land(); }
+        if (phase === 'hit' && (wait -= dt) <= 0) {
+          if (arrow >= N) { game.over = true; game.res = { score, extra: `${N} mũi tên · ${bulls} lần trúng hồng tâm 🎯` }; return; }
+          setup(); phase = 'ready';
+        }
+        fx.forEach((f) => { f.t += dt; }); while (fx.length && fx[0].t > 1.3) fx.shift();
+      },
+      down(p) { if (phase !== 'ready') return; const W = game.VW; aim.on = true; hold = 0; aim.sx = p.x; aim.sy = p.y; aim.ax = aim.x = W / 2; aim.ay = aim.y = VH * 0.45; },
+      move(p) { if (!aim.on) return; aim.x = clamp(aim.ax + (p.x - aim.sx) * 0.8, 40, game.VW - 40); aim.y = clamp(aim.ay + (p.y - aim.sy) * 0.8, 40, VH - 40); },
+      up() { if (aim.on && phase === 'ready') shoot(); },
+      key(k, on) {
+        const W = game.VW;
+        if (k === ' ' || k === 'Enter') { if (on && phase === 'ready' && !aim.on) { aim.on = true; hold = 0; aim.x = W / 2 + kx; aim.y = VH * 0.45 + ky; } else if (!on && aim.on) shoot(); return; }
+        if (!on) return;
+        if (k === 'ArrowLeft' || k === 'a') kx -= 12; if (k === 'ArrowRight' || k === 'd') kx += 12; if (k === 'ArrowUp' || k === 'w') ky -= 12; if (k === 'ArrowDown' || k === 's') ky += 12;
+        if (aim.on) { aim.x = W / 2 + kx; aim.y = VH * 0.45 + ky; }
+      },
+      draw(g) {
+        const W = game.VW, cx = W / 2, cy = VH * 0.45, r = rad();
+        const sk = g.createLinearGradient(0, 0, 0, VH * 0.6); sk.addColorStop(0, '#74c0fc'); sk.addColorStop(1, '#e7f5ff'); g.fillStyle = sk; g.fillRect(0, 0, W, VH);
+        g.fillStyle = '#8ce99a'; g.beginPath(); g.moveTo(0, VH * 0.58); for (let x = 0; x <= W; x += 60) g.lineTo(x, VH * 0.5 - Math.abs(Math.sin(x * 0.004)) * 70); g.lineTo(W, VH * 0.58); g.fill();
+        const gr = g.createLinearGradient(0, VH * 0.55, 0, VH); gr.addColorStop(0, '#69db7c'); gr.addColorStop(1, '#2f9e44'); g.fillStyle = gr; g.fillRect(0, VH * 0.55, W, VH * 0.45);
+        // cờ gió
+        for (const fxp of [W * 0.12, W * 0.88]) { g.strokeStyle = '#495057'; g.lineWidth = 4; g.beginPath(); g.moveTo(fxp, VH * 0.62); g.lineTo(fxp, VH * 0.36); g.stroke(); const wv = Math.sin(t * 8) * 4; g.fillStyle = '#ff6b6b'; g.beginPath(); g.moveTo(fxp, VH * 0.36); g.lineTo(fxp + wind * 14 + (wind ? wv : 0), VH * 0.38 + (wind ? 0 : 30)); g.lineTo(fxp, VH * 0.41); g.fill(); }
+        // giá + bia
+        g.strokeStyle = '#8a5a32'; g.lineWidth = Math.max(4, r * 0.06); g.beginPath(); g.moveTo(cx - r * 0.6, cy + r * 1.6); g.lineTo(cx, cy); g.lineTo(cx + r * 0.6, cy + r * 1.6); g.stroke();
+        g.fillStyle = 'rgba(0,0,0,.15)'; g.beginPath(); g.ellipse(cx, cy + r * 1.6, r * 0.9, r * 0.12, 0, 0, Math.PI * 2); g.fill();
+        const RING = ['#f8f9fa', '#f8f9fa', '#343a40', '#343a40', '#4dabf7', '#4dabf7', '#ff6b6b', '#ff6b6b', '#ffd43b', '#ffd43b'];
+        for (let i = 0; i < 10; i++) { g.fillStyle = RING[i]; g.beginPath(); g.arc(cx, cy, r * (1 - i / 10), 0, Math.PI * 2); g.fill(); g.strokeStyle = i === 2 || i === 3 ? '#adb5bd' : 'rgba(0,0,0,.35)'; g.lineWidth = 1; g.stroke(); }
+        g.strokeStyle = 'rgba(0,0,0,.4)'; g.beginPath(); g.moveTo(cx - 6, cy); g.lineTo(cx + 6, cy); g.moveTo(cx, cy - 6); g.lineTo(cx, cy + 6); g.stroke();
+        // mũi tên đã cắm
+        hits.forEach((h) => { const x = cx + h.x * r, y = cy + h.y * r; g.fillStyle = '#212529'; g.beginPath(); g.arc(x, y, 5, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#8a5a32'; g.lineWidth = 4; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 14, y + 22); g.stroke(); g.fillStyle = '#e64980'; g.beginPath(); g.moveTo(x + 14, y + 22); g.lineTo(x + 24, y + 26); g.lineTo(x + 18, y + 34); g.closePath(); g.fill(); });
+        // mũi tên đang bay
+        if (fly) { const k = fly.t / fly.T, e = 1 - Math.pow(1 - k, 2), x = fly.sx + (fly.x - fly.sx) * e, y = fly.sy + (fly.y - fly.sy) * e - Math.sin(k * Math.PI) * 60, s = 1 - k * 0.8; g.save(); g.translate(x, y); g.scale(s, s); g.strokeStyle = '#8a5a32'; g.lineWidth = 6; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 90); g.stroke(); g.fillStyle = '#495057'; g.beginPath(); g.moveTo(0, -14); g.lineTo(-7, 2); g.lineTo(7, 2); g.fill(); g.restore(); }
+        // tâm ngắm + cung
+        if (aim.on) {
+          const sw = sway(), x = aim.x + sw.x, y = aim.y + sw.y, shake = hold > 2.2;
+          g.strokeStyle = shake ? '#ff6b6b' : '#fff'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, 26, 0, Math.PI * 2); g.moveTo(x - 40, y); g.lineTo(x - 12, y); g.moveTo(x + 12, y); g.lineTo(x + 40, y); g.moveTo(x, y - 40); g.lineTo(x, y - 12); g.moveTo(x, y + 12); g.lineTo(x, y + 40); g.stroke();
+          g.fillStyle = shake ? '#ff6b6b' : '#fff'; g.beginPath(); g.arc(x, y, 3, 0, Math.PI * 2); g.fill();
+          // cây cung phía dưới
+          g.strokeStyle = '#7a4a1e'; g.lineWidth = 12; g.lineCap = 'round'; g.beginPath(); g.arc(W / 2 + (x - W / 2) * 0.15, VH + 120, 260, Math.PI * 1.25, Math.PI * 1.75); g.stroke();
+          const bx = W / 2 + (x - W / 2) * 0.15; g.strokeStyle = '#f1f3f5'; g.lineWidth = 2; g.beginPath(); g.moveTo(bx - 184, VH + 120 - 184); g.lineTo(bx, VH - 30 + Math.min(1, hold) * 60); g.lineTo(bx + 184, VH + 120 - 184); g.stroke();
+          if (shake) txt(g, '😮‍💨 Tay mỏi rồi — bắn đi!', W / 2, VH * 0.86, 20, '#ffc9c9');
+        }
+        fx.forEach((f) => { g.globalAlpha = Math.max(0, 1 - f.t / 1.3); txt(g, f.text, f.x, f.y - f.t * 40, 32, f.c); g.globalAlpha = 1; });
+        // HUD
+        g.fillStyle = 'rgba(0,0,0,.35)'; rr(g, 12, 12, 230, 44, 22); g.fill(); txt(g, `⭐ ${score}`, 30, 34, 22, '#ffe066', 'left');
+        g.fillStyle = 'rgba(0,0,0,.35)'; rr(g, W - 262, 12, 250, 44, 22); g.fill(); txt(g, `🏹 ${Math.min(arrow + 1, N)}/${N} · ${dist} m`, W - 26, 34, 20, '#fff', 'right');
+        g.fillStyle = 'rgba(0,0,0,.35)'; rr(g, W / 2 - 110, 12, 220, 44, 22); g.fill();
+        txt(g, wind === 0 ? '🍃 Lặng gió' : `🍃 Gió ${Math.abs(wind)} ${wind > 0 ? '→' : '←'}`, W / 2, 34, 20, wind === 0 ? '#fff' : Math.abs(wind) > 3 ? '#ffa8a8' : '#d3f9d8');
+        if (phase === 'ready' && !aim.on) txt(g, arrow === 0 ? '👆 Giữ ngón tay để giương cung · kéo để ngắm · buông tay để bắn' : '👆 Giữ để giương cung', W / 2, VH * 0.9, 22);
+      },
+    };
+    return game;
+  }
+
+  /* ======================================================================
+   * 🍬 XẾP KẸO (kiểu Candy Crush): đổi chỗ 2 viên kẹo cạnh nhau để có hàng 3 viên cùng màu.
+   * 4 viên → kẹo sọc (nổ cả hàng/cột) · 5 viên → kẹo cầu vồng (đổi với viên nào là nổ hết màu đó). 25 lượt.
+   * ==================================================================== */
+  const CANDY = [
+    { c: '#ff6b6b', d: '#c92a2a', s: 'heart' }, { c: '#ffd43b', d: '#e67700', s: 'star' }, { c: '#69db7c', d: '#2b8a3e', s: 'square' },
+    { c: '#4dabf7', d: '#1864ab', s: 'drop' }, { c: '#b197fc', d: '#5f3dc4', s: 'diamond' }, { c: '#ffa94d', d: '#d9480f', s: 'circle' },
+  ];
+  function makeCandy() {
+    const VH = 720, N = 8, MOVES = 25;
+    let grid = [], moves = MOVES, score = 0, t = 0, busy = 0, combo = 0, sel = null, drag = null, hint = 0, idle = 0, cascades = 0, maxCombo = 0;
+    const fx = [], parts = [];
+    const cellOf = () => { const W = game.VW, size = Math.min((VH - 150) / N, (W - 40) / N), ox = (W - size * N) / 2, oy = 110; return { size, ox, oy }; };
+    const rndT = () => Math.floor(Math.random() * CANDY.length);
+    function at(r, c) { return r >= 0 && r < N && c >= 0 && c < N ? grid[r][c] : null; }
+    function fill() {
+      grid = [];
+      for (let r = 0; r < N; r++) { grid.push([]); for (let c = 0; c < N; c++) { let k; do { k = rndT(); } while ((c >= 2 && grid[r][c - 1].k === k && grid[r][c - 2].k === k) || (r >= 2 && grid[r - 1][c].k === k && grid[r - 2][c].k === k)); grid[r].push({ k, sp: null, y: r - N - 2, x: c, pop: 0 }); } }
+      if (!hasMove()) fill();
+    }
+    /** tìm các nhóm ≥3 viên liên tiếp cùng màu */
+    function findRuns() {
+      const runs = [];
+      for (let r = 0; r < N; r++) for (let c = 0; c < N;) { const k = grid[r][c] && grid[r][c].k; let e = c; while (e + 1 < N && grid[r][e + 1] && k != null && k >= 0 && grid[r][e + 1].k === k) e++; if (e - c + 1 >= 3) runs.push({ cells: Array.from({ length: e - c + 1 }, (_, i) => [r, c + i]), dir: 'h' }); c = e + 1; }
+      for (let c = 0; c < N; c++) for (let r = 0; r < N;) { const k = grid[r][c] && grid[r][c].k; let e = r; while (e + 1 < N && grid[e + 1][c] && k != null && k >= 0 && grid[e + 1][c].k === k) e++; if (e - r + 1 >= 3) runs.push({ cells: Array.from({ length: e - r + 1 }, (_, i) => [r + i, c]), dir: 'v' }); r = e + 1; }
+      return runs;
+    }
+    function swapCells(a, b) { const tmp = grid[a[0]][a[1]]; grid[a[0]][a[1]] = grid[b[0]][b[1]]; grid[b[0]][b[1]] = tmp; }
+    function hasMove() {
+      for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) for (const [dr, dc] of [[0, 1], [1, 0]]) {
+        const r2 = r + dr, c2 = c + dc; if (r2 >= N || c2 >= N) continue;
+        if (grid[r][c].sp === 'bomb' || grid[r2][c2].sp === 'bomb') return [[r, c], [r2, c2]];
+        swapCells([r, c], [r2, c2]); const ok = findRuns().length > 0; swapCells([r, c], [r2, c2]);
+        if (ok) return [[r, c], [r2, c2]];
+      }
+      return null;
+    }
+    function burst(r, c, col) { const { size, ox, oy } = cellOf(); for (let i = 0; i < 6; i++) parts.push({ x: ox + (c + 0.5) * size, y: oy + (r + 0.5) * size, vx: rnd(-220, 220), vy: rnd(-260, 80), c: col, t: 0 }); }
+    /** xoá các ô (kèm hiệu ứng kẹo đặc biệt), trả về số viên đã xoá */
+    function clearCells(list) {
+      const seen = new Set(), q = list.slice();
+      let n = 0;
+      while (q.length) {
+        const [r, c] = q.shift(), key = r * N + c, it = at(r, c);
+        if (!it || seen.has(key)) continue; seen.add(key);
+        if (it.sp === 'h') for (let cc = 0; cc < N; cc++) q.push([r, cc]);
+        if (it.sp === 'v') for (let rr2 = 0; rr2 < N; rr2++) q.push([rr2, c]);
+        if (it.sp === 'bomb') { const k = it.bk != null ? it.bk : rndT(); for (let r2 = 0; r2 < N; r2++) for (let c2 = 0; c2 < N; c2++) if (grid[r2][c2] && grid[r2][c2].k === k) q.push([r2, c2]); }
+        burst(r, c, it.k >= 0 ? CANDY[it.k].c : '#fff'); grid[r][c] = null; n++;
+      }
+      return n;
+    }
+    function resolve(swapped) {
+      const runs = findRuns();
+      if (!runs.length) return false;
+      combo++; cascades++; maxCombo = Math.max(maxCombo, combo);
+      const toClear = [], specials = [];
+      runs.forEach((run) => {
+        run.cells.forEach((p) => toClear.push(p));
+        if (run.cells.length >= 4) {
+          // kẹo đặc biệt sinh ra ở chỗ vừa đổi (nếu nằm trong nhóm), không thì ở giữa nhóm
+          const pos = (swapped && run.cells.find((p) => swapped.some((s) => s[0] === p[0] && s[1] === p[1]))) || run.cells[Math.floor(run.cells.length / 2)];
+          const k = grid[pos[0]][pos[1]].k;
+          specials.push({ pos, k, sp: run.cells.length >= 5 ? 'bomb' : run.dir === 'h' ? 'v' : 'h' });
+        }
+      });
+      const keep = new Set(specials.map((s) => s.pos[0] * N + s.pos[1]));
+      const n = clearCells(toClear.filter((p) => !keep.has(p[0] * N + p[1])));
+      specials.forEach((s) => { grid[s.pos[0]][s.pos[1]] = { k: s.sp === 'bomb' ? -1 : s.k, sp: s.sp, y: s.pos[0], x: s.pos[1], pop: 0.3 }; });
+      const pts = (n + specials.length) * 20 * Math.min(6, combo);
+      score += pts;
+      const { size, ox, oy } = cellOf(), p0 = runs[0].cells[0];
+      fx.push({ text: `+${pts}${combo > 1 ? ' ×' + Math.min(6, combo) : ''}`, x: ox + (p0[1] + 0.5) * size, y: oy + (p0[0] + 0.5) * size, c: combo > 2 ? '#ffe066' : '#fff', t: 0 });
+      if (combo === 3) fx.push({ text: '🍬 Ngon!', big: 1, t: 0, c: '#ff8787' }); else if (combo === 4) fx.push({ text: '🌟 Tuyệt vời!', big: 1, t: 0, c: '#ffe066' }); else if (combo >= 5) fx.push({ text: '🔥 Siêu đỉnh!', big: 1, t: 0, c: '#ff922b' });
+      drop();
+      return true;
+    }
+    function drop() {
+      for (let c = 0; c < N; c++) {
+        let w = N - 1;
+        for (let r = N - 1; r >= 0; r--) if (grid[r][c]) { const it = grid[r][c]; grid[r][c] = null; grid[w][c] = it; w--; }
+        for (let r = w, k = 0; r >= 0; r--, k++) grid[r][c] = { k: rndT(), sp: null, y: -1 - k, x: c, pop: 0 };
+      }
+      busy = 0.35;
+    }
+    function trySwap(a, b) {
+      if (busy > 0 || moves <= 0) return;
+      const A = at(...a), B = at(...b); if (!A || !B) return;
+      sel = null; idle = 0;
+      // kẹo cầu vồng: đổi với viên nào thì nổ hết màu đó
+      if (A.sp === 'bomb' || B.sp === 'bomb') {
+        moves--; combo = 0;
+        const bomb = A.sp === 'bomb' ? a : b, other = A.sp === 'bomb' ? B : A;
+        grid[bomb[0]][bomb[1]].bk = other.sp === 'bomb' ? null : other.k;
+        const n = clearCells([bomb]); score += n * 30; fx.push({ text: '🌈 BÙM!', big: 1, t: 0, c: '#ffe066' }); fx.push({ text: `+${n * 30}`, t: 0, c: '#fff', x: game.VW / 2, y: VH / 2 });
+        drop(); return;
+      }
+      swapCells(a, b); A.anim = { from: a, t: 0 }; B.anim = { from: b, t: 0 };
+      combo = 0;
+      if (findRuns().length) { moves--; busy = 0.18; pendingSwap = [a, b]; }
+      else { swapCells(a, b); A.anim = null; B.anim = null; A.shake = 0.3; B.shake = 0.3; }
+    }
+    let pendingSwap = null;
+    const cellAt = (p) => { const { size, ox, oy } = cellOf(); const c = Math.floor((p.x - ox) / size), r = Math.floor((p.y - oy) / size); return r >= 0 && r < N && c >= 0 && c < N ? [r, c] : null; };
+    fill();
+    const game = {
+      VW: 1280, VH, wide: true, over: false, res: null,
+      how: ['<b>Vuốt</b> một viên kẹo sang ô bên cạnh (hoặc chạm 2 viên liền nhau) để đổi chỗ', 'Xếp được <b>3 viên cùng loại</b> thẳng hàng là nổ · kẹo rơi xuống nổ dây chuyền được nhân điểm', '4 viên → 🍭 <b>kẹo sọc</b> nổ cả hàng · 5 viên → 🌈 <b>kẹo cầu vồng</b> nổ hết 1 màu', `${MOVES} lượt đổi — kiếm càng nhiều điểm càng tốt`],
+      update(dt) {
+        t += dt; idle += dt; busy = Math.max(0, busy - dt);
+        for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { const it = grid[r][c]; if (!it) continue; if (it.y < r) { it.vy = (it.vy || 0) + 40 * dt; it.y = Math.min(r, it.y + it.vy * dt); if (it.y >= r) it.vy = 0; } else it.y = r; it.x = c; it.pop = Math.max(0, it.pop - dt); if (it.shake) it.shake = Math.max(0, it.shake - dt); if (it.anim) { it.anim.t += dt * 6; if (it.anim.t >= 1) it.anim = null; } }
+        const settled = grid.every((row, r) => row.every((it) => it && it.y >= r && !it.anim));
+        if (busy <= 0 && settled) {
+          if (resolve(pendingSwap)) { pendingSwap = null; }
+          else {
+            pendingSwap = null;
+            if (moves <= 0) { game.over = true; game.res = { score, extra: `${MOVES} lượt · nổ dây chuyền dài nhất ×${maxCombo}` }; return; }
+            if (!hasMove()) { fx.push({ text: '🔀 Xáo lại bàn kẹo', big: 1, t: 0, c: '#fff' }); fill(); }
+            cascades = 0;
+          }
+        }
+        parts.forEach((p) => { p.t += dt; p.vy += 900 * dt; p.x += p.vx * dt; p.y += p.vy * dt; }); while (parts.length && parts[0].t > 0.7) parts.shift();
+        fx.forEach((f) => { f.t += dt; }); while (fx.length && fx[0].t > 1.2) fx.shift();
+        hint = idle > 6 ? hasMove() : null;
+      },
+      down(p) { const c = cellAt(p); if (!c) return; drag = { cell: c, x: p.x, y: p.y, done: false }; },
+      move(p) {
+        if (!drag || drag.done) return;
+        const dx = p.x - drag.x, dy = p.y - drag.y, { size } = cellOf();
+        if (Math.hypot(dx, dy) < size * 0.35) return;
+        drag.done = true;
+        const [r, c] = drag.cell, to = Math.abs(dx) > Math.abs(dy) ? [r, c + Math.sign(dx)] : [r + Math.sign(dy), c];
+        if (at(...to)) trySwap(drag.cell, to);
+      },
+      up() {
+        if (drag && !drag.done) {
+          const c = drag.cell;
+          if (sel && Math.abs(sel[0] - c[0]) + Math.abs(sel[1] - c[1]) === 1) trySwap(sel, c);
+          else sel = sel && sel[0] === c[0] && sel[1] === c[1] ? null : c;
+        }
+        drag = null;
+      },
+      key() {},
+      _dbg: () => ({ move: hasMove(), cell: cellOf(), moves, score, busy }),
+      draw(g) {
+        const W = game.VW, { size, ox, oy } = cellOf();
+        const bg = g.createLinearGradient(0, 0, 0, VH); bg.addColorStop(0, '#f783ac'); bg.addColorStop(1, '#9775fa'); g.fillStyle = bg; g.fillRect(0, 0, W, VH);
+        g.fillStyle = 'rgba(255,255,255,.12)'; for (let i = 0; i < 14; i++) { g.beginPath(); g.arc((i * 197 + t * 10) % (W + 100) - 50, (i * 131) % VH, 20 + (i % 4) * 14, 0, Math.PI * 2); g.fill(); }
+        g.fillStyle = 'rgba(40,20,80,.45)'; rr(g, ox - 10, oy - 10, size * N + 20, size * N + 20, 18); g.fill();
+        for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { g.fillStyle = (r + c) % 2 ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.2)'; g.fillRect(ox + c * size, oy + r * size, size, size); }
+        if (sel) { g.fillStyle = 'rgba(255,255,255,.45)'; rr(g, ox + sel[1] * size + 2, oy + sel[0] * size + 2, size - 4, size - 4, 10); g.fill(); }
+        g.save(); g.beginPath(); g.rect(ox, oy, size * N, size * N); g.clip();
+        for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+          const it = grid[r][c]; if (!it) continue;
+          let x = c, y = it.y;
+          if (it.anim) { const k = Math.min(1, it.anim.t); x = it.anim.from[1] + (c - it.anim.from[1]) * k; y = it.anim.from[0] + (r - it.anim.from[0]) * k; }
+          let px = ox + (x + 0.5) * size, py = oy + (y + 0.5) * size;
+          if (it.shake) px += Math.sin(it.shake * 60) * 5;
+          const isHint = hint && hint.some((h) => h[0] === r && h[1] === c);
+          const s = size * 0.42 * (1 + it.pop * 0.8) * (isHint ? 1 + Math.sin(t * 8) * 0.08 : 1);
+          drawCandy(g, px, py, s, it, t);
+        }
+        g.restore();
+        parts.forEach((p) => { g.globalAlpha = Math.max(0, 1 - p.t / 0.7); g.fillStyle = p.c; g.beginPath(); g.arc(p.x, p.y, 6, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; });
+        fx.forEach((f) => { g.globalAlpha = Math.max(0, 1 - f.t / 1.2); if (f.big) txt(g, f.text, W / 2, VH * 0.45 - f.t * 30, 46, f.c); else txt(g, f.text, f.x, f.y - f.t * 50, 26, f.c); g.globalAlpha = 1; });
+        // HUD
+        g.fillStyle = 'rgba(0,0,0,.3)'; rr(g, W / 2 - 230, 16, 220, 70, 20); g.fill(); rr(g, W / 2 + 10, 16, 220, 70, 20); g.fill();
+        txt(g, 'ĐIỂM', W / 2 - 120, 36, 14, '#ffd8f0'); txt(g, fmt(score), W / 2 - 120, 64, 28, '#fff');
+        txt(g, 'LƯỢT CÒN', W / 2 + 120, 36, 14, '#ffd8f0'); txt(g, String(moves), W / 2 + 120, 64, 28, moves <= 5 ? '#ffa8a8' : '#fff');
+      },
+    };
+    return game;
+  }
+  function drawCandy(g, x, y, s, it, t) {
+    g.save(); g.translate(x, y);
+    if (it.sp === 'bomb') {
+      const gr = g.createRadialGradient(-s * 0.3, -s * 0.3, s * 0.1, 0, 0, s); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#343a40'); g.fillStyle = gr; g.beginPath(); g.arc(0, 0, s * 0.9, 0, Math.PI * 2); g.fill();
+      CANDY.forEach((cd, i) => { const a = i / CANDY.length * Math.PI * 2 + t * 2; g.fillStyle = cd.c; g.beginPath(); g.arc(Math.cos(a) * s * 0.55, Math.sin(a) * s * 0.55, s * 0.16, 0, Math.PI * 2); g.fill(); });
+      g.restore(); return;
+    }
+    const cd = CANDY[it.k];
+    g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(0, s * 0.85, s * 0.7, s * 0.18, 0, 0, Math.PI * 2); g.fill();
+    const gr = g.createLinearGradient(0, -s, 0, s); gr.addColorStop(0, cd.c); gr.addColorStop(1, cd.d); g.fillStyle = gr; g.strokeStyle = cd.d; g.lineWidth = 2;
+    g.beginPath();
+    if (cd.s === 'heart') { g.moveTo(0, s * 0.85); g.bezierCurveTo(-s * 1.2, -s * 0.1, -s * 0.6, -s * 1.05, 0, -s * 0.45); g.bezierCurveTo(s * 0.6, -s * 1.05, s * 1.2, -s * 0.1, 0, s * 0.85); }
+    else if (cd.s === 'star') { for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr2 = i % 2 ? s * 0.45 : s; g.lineTo(Math.cos(a) * rr2, Math.sin(a) * rr2); } g.closePath(); }
+    else if (cd.s === 'square') { g.roundRect(-s * 0.78, -s * 0.78, s * 1.56, s * 1.56, s * 0.3); }
+    else if (cd.s === 'drop') { g.moveTo(0, -s); g.bezierCurveTo(s * 0.9, -s * 0.1, s * 0.8, s * 0.9, 0, s * 0.9); g.bezierCurveTo(-s * 0.8, s * 0.9, -s * 0.9, -s * 0.1, 0, -s); }
+    else if (cd.s === 'diamond') { g.moveTo(0, -s); g.lineTo(s * 0.85, 0); g.lineTo(0, s); g.lineTo(-s * 0.85, 0); g.closePath(); }
+    else g.arc(0, 0, s * 0.85, 0, Math.PI * 2);
+    g.fill(); g.stroke();
+    g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(-s * 0.28, -s * 0.38, s * 0.24, s * 0.13, -0.6, 0, Math.PI * 2); g.fill();
+    if (it.sp === 'h' || it.sp === 'v') { g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = s * 0.14; for (const k of [-0.4, 0, 0.4]) { g.beginPath(); if (it.sp === 'h') { g.moveTo(-s * 0.7, k * s); g.lineTo(s * 0.7, k * s); } else { g.moveTo(k * s, -s * 0.7); g.lineTo(k * s, s * 0.7); } g.stroke(); } }
+    g.restore();
+  }
+
+  /* ======================================================================
    * Khung chơi: menu → chơi → kết quả + thưởng xu
    * ==================================================================== */
   const GAMES = {
     bigfish: { name: 'Cá Lớn Nuốt Cá Bé', icon: '🐟', bg: '#0b3d63', make: makeBigFish, div: 60, unit: 'điểm' },
     subway: { name: 'Chạy Tàu Điện', icon: '🚇', bg: '#74c0fc', make: makeSubway, div: 40, unit: 'điểm' },
+    archery: { name: 'Bắn Cung', icon: '🏹', bg: '#2f9e44', make: makeArchery, div: 1.5, unit: 'điểm' },
+    candy: { name: 'Xếp Kẹo', icon: '🍬', bg: '#9775fa', make: makeCandy, div: 120, unit: 'điểm' },
   };
   if (!document.getElementById('a2-css')) {
     const st = document.createElement('style'); st.id = 'a2-css';
@@ -364,7 +659,7 @@ const ARCADE2 = (() => {
       if (coins > 0) AV.earn(coins, xp); else AV.earn(0, xp);
       AV.quest('arcade'); AV.markChanged(); UI.updateHud();
       if (rec && res.score >= G.div * 40 && typeof NET !== 'undefined' && NET.sendSys) NET.sendSys(`${G.icon} ${S().name} vừa lập kỷ lục ${fmt(res.score)} điểm ở máy ${G.name}!`);
-      const extra = id === 'subway' ? `Chạy ${fmt(res.dist)} m · nhặt ${res.coins} 🪙` : `Lên tới cấp ${res.level}`;
+      const extra = res.extra || (id === 'subway' ? `Chạy ${fmt(res.dist)} m · nhặt ${res.coins} 🪙` : `Lên tới cấp ${res.level}`);
       menu.hidden = false;
       menu.innerHTML = `<div class="a2-card"><div class="big">${G.icon}</div><h2>${rec ? '🎉 Kỷ lục mới!' : 'Hết ván!'}</h2>
         <p class="res">⭐ ${fmt(res.score)} ${G.unit}</p><p>${extra}</p>
