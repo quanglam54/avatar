@@ -1019,8 +1019,8 @@ const MAPS = (() => {
     });
     m.labels.push({ text: '🕹️ Máy Game', x: 1610, y: 545 });
     // ♟️ bàn cờ caro
-    if (typeof CARO !== 'undefined') CARO.addTo(m, { sobj, col, inter }, 300, 1230);
-    if (typeof BOARD !== 'undefined') [['chess', 740], ['xiangqi', 1200], ['go', 1660], ['ludo', 2100]].forEach(([id, x]) => BOARD.addTo(m, { sobj, col, inter }, id, x, 1230));
+    if (typeof CARO !== 'undefined') CARO.addTo(m, { sobj, col, inter }, 250, 1230);
+    if (typeof BOARD !== 'undefined') [['chess', 630], ['xiangqi', 1010], ['go', 1390], ['ludo', 1770], ['typhu', 2150]].forEach(([id, x]) => BOARD.addTo(m, { sobj, col, inter }, id, x, 1230));
     // bàn bi-a 2 người
     sobj(m, 1580, 724, (c) => ART.billiardTable(c, 1580, 724), { l: -170, t: -140, w: 340, h: 150 });
     col(m, 1430, 600, 300, 124);

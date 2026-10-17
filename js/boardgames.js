@@ -1,4 +1,4 @@
-/* ♟️ PHÒNG CỜ trong Nhà Casino: Cờ Vua · Cờ Tướng · Cờ Vây (9×9) · Cờ Cá Ngựa.
+/* ♟️ PHÒNG CỜ trong Nhà Casino: Cờ Vua · Cờ Tướng · Cờ Vây (9×9) · Cờ Cá Ngựa · Cờ Tỷ Phú.
  * Mỗi trò: đấu với máy (Dễ / Vừa / Khó, có cược xu), chơi chung 1 máy, hoặc mời người cùng khu chơi online (mỗi bên cược bằng nhau, thắng ăn cả).
  * Mỗi trò khai báo: init · legal (nước đi hợp lệ của bên tới lượt) · apply (trả về thế cờ mới) · status (thắng/hoà) · ai · draw · hit (toạ độ → ô). */
 const BOARD = (() => {
@@ -493,13 +493,239 @@ const BOARD = (() => {
     };
   })();
 
-  const GAMES = { chess: CHESS, xiangqi: XQ, go: GO, ludo: LUDO };
+  /* ======================================================================
+   * 🎩 CỜ TỶ PHÚ (kiểu Monopoly) — 2 đến 4 người, đất là các địa danh Việt Nam.
+   * Tiền trong ván tính bằng nghìn đồng (15.000 = 15 triệu). Gieo 2 xúc xắc, mua đất, thu tiền thuê, gom đủ màu thì xây nhà → khách sạn.
+   * Mọi thứ ngẫu nhiên (xúc xắc do người gieo gửi kèm, bộ thẻ Cơ hội / Khí vận xáo theo hạt giống chung) nên chơi online các máy luôn khớp nhau.
+   * ==================================================================== */
+  const TYPHU = (() => {
+    const COL = ['#e03131', '#2f9e44', '#f59f00', '#1c7ed6'], NAME = ['Đỏ', 'Xanh lá', 'Vàng', 'Xanh dương'];
+    const GROUP = { br: '#8d5524', lb: '#74c0fc', pk: '#e64980', or: '#fd7e14', rd: '#e03131', ye: '#fcc419', gr: '#2b8a3e', db: '#1c3faa' };
+    const HOUSE = { br: 500, lb: 500, pk: 1000, or: 1000, rd: 1500, ye: 1500, gr: 2000, db: 2000 };
+    const P = (name, g, price, rent) => ({ t: 'prop', name, g, price, rent });
+    const CELLS = [
+      { t: 'go', name: 'XUẤT PHÁT' }, P('Cà Mau', 'br', 600, [20, 100, 300, 900, 1600, 2500]), { t: 'chest', name: 'Khí vận' }, P('Bạc Liêu', 'br', 600, [40, 200, 600, 1800, 3200, 4500]), { t: 'tax', name: 'Thuế thu nhập', amt: 2000 },
+      { t: 'st', name: 'Sân bay Nội Bài', price: 2000 }, P('Cần Thơ', 'lb', 1000, [60, 300, 900, 2700, 4000, 5500]), { t: 'chance', name: 'Cơ hội' }, P('Châu Đốc', 'lb', 1000, [60, 300, 900, 2700, 4000, 5500]), P('Vĩnh Long', 'lb', 1200, [80, 400, 1000, 3000, 4500, 6000]),
+      { t: 'jail', name: 'NHÀ TÙ' }, P('Phan Thiết', 'pk', 1400, [100, 500, 1500, 4500, 6250, 7500]), { t: 'ut', name: 'Công ty Điện', price: 1500 }, P('Đà Lạt', 'pk', 1400, [100, 500, 1500, 4500, 6250, 7500]), P('Nha Trang', 'pk', 1600, [120, 600, 1800, 5000, 7000, 9000]),
+      { t: 'st', name: 'Sân bay Đà Nẵng', price: 2000 }, P('Quy Nhơn', 'or', 1800, [140, 700, 2000, 5500, 7500, 9500]), { t: 'chest', name: 'Khí vận' }, P('Hội An', 'or', 1800, [140, 700, 2000, 5500, 7500, 9500]), P('Huế', 'or', 2000, [160, 800, 2200, 6000, 8000, 10000]),
+      { t: 'park', name: 'BÃI ĐỖ XE' }, P('Đà Nẵng', 'rd', 2200, [180, 900, 2500, 7000, 8750, 10500]), { t: 'chance', name: 'Cơ hội' }, P('Hạ Long', 'rd', 2200, [180, 900, 2500, 7000, 8750, 10500]), P('Sa Pa', 'rd', 2400, [200, 1000, 3000, 7500, 9250, 11000]),
+      { t: 'st', name: 'Sân bay Tân Sơn Nhất', price: 2000 }, P('Phú Quốc', 'ye', 2600, [220, 1100, 3300, 8000, 9750, 11500]), P('Vũng Tàu', 'ye', 2600, [220, 1100, 3300, 8000, 9750, 11500]), { t: 'ut', name: 'Công ty Nước', price: 1500 }, P('Ninh Bình', 'ye', 2800, [240, 1200, 3600, 8500, 10250, 12000]),
+      { t: 'gojail', name: 'VÀO TÙ' }, P('Chợ Bến Thành', 'gr', 3000, [260, 1300, 3900, 9000, 11000, 12750]), P('Phố đi bộ Nguyễn Huệ', 'gr', 3000, [260, 1300, 3900, 9000, 11000, 12750]), { t: 'chest', name: 'Khí vận' }, P('Landmark 81', 'gr', 3200, [280, 1500, 4500, 10000, 12000, 14000]),
+      { t: 'st', name: 'Sân bay Phú Quốc', price: 2000 }, { t: 'chance', name: 'Cơ hội' }, P('Hồ Tây', 'db', 3500, [350, 1750, 5000, 11000, 13000, 15000]), { t: 'tax', name: 'Thuế xa xỉ', amt: 1000 }, P('Hồ Gươm', 'db', 4000, [500, 2000, 6000, 14000, 17000, 20000]),
+    ];
+    const SHORT = { 'Phố đi bộ Nguyễn Huệ': 'Nguyễn Huệ', 'Sân bay Nội Bài': '✈ Nội Bài', 'Sân bay Đà Nẵng': '✈ Đà Nẵng', 'Sân bay Tân Sơn Nhất': '✈ Tân Sơn Nhất', 'Sân bay Phú Quốc': '✈ Phú Quốc', 'Công ty Điện': '💡 Điện', 'Công ty Nước': '🚰 Nước', 'Thuế thu nhập': '💸 Thuế', 'Thuế xa xỉ': '💎 Thuế', 'Chợ Bến Thành': 'Bến Thành' };
+    const CHANCE = [
+      ['Đi thẳng về Ô Xuất Phát, lĩnh 2 triệu', { go: 0 }], ['Đi du lịch Hồ Gươm', { go: 39 }], ['Bay vào Sân bay Tân Sơn Nhất', { go: 25 }], ['Lên Đà Lạt ngắm hoa', { go: 13 }],
+      ['Ra vịnh Hạ Long', { go: 23 }], ['Lùi lại 3 ô', { back: 3 }], ['Vượt đèn đỏ — vào tù!', { jail: 1 }], ['Ngân hàng trả cổ tức +500k', { m: 500 }],
+      ['Trúng vé số +1,5 triệu', { m: 1500 }], ['Phạt đỗ xe sai chỗ −150k', { m: -150 }], ['Đóng học phí −1,5 triệu', { m: -1500 }], ['Bao cả bàn trà sữa: trả mỗi người 500k', { each: -500 }],
+    ];
+    const CHEST = [
+      ['Về Ô Xuất Phát, lĩnh 2 triệu', { go: 0 }], ['Ngân hàng tính nhầm có lợi cho bạn +2 triệu', { m: 2000 }], ['Tiền khám bệnh −500k', { m: -500 }], ['Bán cổ phiếu +500k', { m: 500 }],
+      ['Trốn thuế bị phát hiện — vào tù!', { jail: 1 }], ['Hoàn thuế +200k', { m: 200 }], ['Sinh nhật: mỗi người mừng bạn 100k', { each: 100 }], ['Bảo hiểm đáo hạn +1 triệu', { m: 1000 }],
+      ['Đóng viện phí −1 triệu', { m: -1000 }], ['Giải nhì cuộc thi nhan sắc +100k', { m: 100 }], ['Được thừa kế +1 triệu', { m: 1000 }], ['Sửa nhà: mỗi nhà 250k, khách sạn 1 triệu', { repair: 1 }],
+    ];
+    const START = 15000, SALARY = 2000, JAILFINE = 500;
+    const buyable = (i) => ['prop', 'st', 'ut'].includes(CELLS[i].t);
+    const groupCells = (g) => CELLS.map((c, i) => (c.g === g ? i : -1)).filter((i) => i >= 0);
+    const money = (v) => { const a = Math.abs(v), sg = v < 0 ? '−' : ''; return a >= 1000 ? `${sg}${(a / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}tr` : `${sg}${a}k`; };
+    function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+    const shuffle = (n, r) => { const a = [...Array(n).keys()]; for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    function init(players, seed, opt = {}) {
+      const r = rng(seed || 1);
+      return { players: players.slice(), turn: players[0], phase: 'roll', dice: [0, 0], dbl: 0, pos: [0, 0, 0, 0], money: [START, START, START, START], jail: [0, 0, 0, 0], own: Array(40).fill(-1), houses: Array(40).fill(0), mort: Array(40).fill(false), dc: shuffle(CHANCE.length, r), dk: shuffle(CHEST.length, r), ci: 0, ki: 0, round: 1, maxRounds: opt.rounds || 20, log: ['🎩 Ván mới bắt đầu — mỗi người có 15 triệu'], extra: false };
+    }
+    const clone = (s) => ({ ...s, players: s.players.slice(), pos: s.pos.slice(), money: s.money.slice(), jail: s.jail.slice(), own: s.own.slice(), houses: s.houses.slice(), mort: s.mort.slice(), log: s.log.slice(-5) });
+    const say = (s, t) => { s.log.push(t); if (s.log.length > 6) s.log.shift(); };
+    const fullGroup = (s, g, k) => groupCells(g).every((i) => s.own[i] === k);
+    function rentOf(s, i) {
+      const c = CELLS[i], o = s.own[i];
+      if (c.t === 'st') { const n = [5, 15, 25, 35].filter((j) => s.own[j] === o && !s.mort[j]).length; return 250 * Math.pow(2, n - 1); }
+      if (c.t === 'ut') { const n = [12, 28].filter((j) => s.own[j] === o).length; return (s.dice[0] + s.dice[1]) * (n === 2 ? 100 : 40); }
+      const h = s.houses[i]; return h ? c.rent[h] : c.rent[0] * (fullGroup(s, c.g, o) ? 2 : 1);
+    }
+    function pay(s, k, amt, to) { s.money[k] -= amt; if (to != null && to >= 0) s.money[to] += amt; }
+    function afterPay(s) { s.phase = s.money[s.turn] < 0 ? 'debt' : 'manage'; if (s.phase === 'debt') say(s, `⚠️ ${NAME[s.turn]} thiếu tiền — bán nhà / cầm cố đất hoặc phá sản`); }
+    function toJail(s, k) { s.pos[k] = 10; s.jail[k] = 1; s.dbl = 0; s.extra = false; s.phase = 'manage'; say(s, `🚔 ${NAME[k]} vào tù!`); }
+    function moveTo(s, k, to, salary) { if (salary && to < s.pos[k]) { s.money[k] += SALARY; say(s, `💵 ${NAME[k]} qua Xuất Phát +2tr`); } s.pos[k] = to; land(s, k); }
+    function land(s, k) {
+      const i = s.pos[k], c = CELLS[i];
+      if (buyable(i)) {
+        const o = s.own[i];
+        if (o < 0) { s.phase = 'buy'; return; }
+        if (o === k || s.mort[i] || !s.players.includes(o)) { s.phase = 'manage'; return; }
+        const r = rentOf(s, i); pay(s, k, r, o); say(s, `🏠 ${NAME[k]} trả ${money(r)} tiền thuê ${c.name} cho ${NAME[o]}`); return afterPay(s);
+      }
+      if (c.t === 'tax') { pay(s, k, c.amt); say(s, `💸 ${NAME[k]} nộp ${c.name} ${money(c.amt)}`); return afterPay(s); }
+      if (c.t === 'gojail') return toJail(s, k);
+      if (c.t === 'chance' || c.t === 'chest') {
+        const ch = c.t === 'chance', deck = ch ? CHANCE : CHEST, idx = ch ? s.dc[s.ci++ % s.dc.length] : s.dk[s.ki++ % s.dk.length], [txt, ef] = deck[idx];
+        say(s, `${ch ? '❓ Cơ hội' : '🎁 Khí vận'}: ${txt}`); s.card = { ch, txt };
+        if (ef.go != null) return moveTo(s, k, ef.go, true);
+        if (ef.back) { s.pos[k] = (s.pos[k] + 37) % 40; return land(s, k); }
+        if (ef.jail) return toJail(s, k);
+        if (ef.m) { s.money[k] += ef.m; return afterPay(s); }
+        if (ef.each) { s.players.forEach((o) => { if (o !== k) { s.money[o] -= ef.each; s.money[k] += ef.each; } }); return afterPay(s); }
+        if (ef.repair) { let cost = 0; s.own.forEach((o, j) => { if (o === k) cost += s.houses[j] === 5 ? 1000 : s.houses[j] * 250; }); pay(s, k, cost); return afterPay(s); }
+      }
+      s.phase = 'manage';
+    }
+    /** các việc quản lý đất làm được lúc này (xây / bán nhà / cầm cố / chuộc) */
+    function manageMoves(s, k, debt) {
+      const out = [];
+      for (let i = 0; i < 40; i++) {
+        if (s.own[i] !== k) continue;
+        const c = CELLS[i];
+        if (c.t === 'prop') {
+          const gc = groupCells(c.g), hs = gc.map((j) => s.houses[j]);
+          if (s.houses[i] > 0 && s.houses[i] === Math.max(...hs)) out.push({ sell: i });
+          if (!debt && fullGroup(s, c.g, k) && gc.every((j) => !s.mort[j]) && s.houses[i] < 5 && s.houses[i] === Math.min(...hs) && s.money[k] >= HOUSE[c.g]) out.push({ build: i });
+        }
+        const grpHouses = c.t === 'prop' ? groupCells(c.g).some((j) => s.houses[j] > 0) : false;
+        if (!s.mort[i] && !grpHouses) out.push({ mort: i });
+        if (!debt && s.mort[i] && s.money[k] >= Math.ceil(c.price * 0.55)) out.push({ unmort: i });
+      }
+      return out;
+    }
+    function legal(s) {
+      const k = s.turn;
+      if (s.phase === 'roll') return s.jail[k] && s.money[k] >= JAILFINE ? [{ roll: true }, { payjail: true }] : [{ roll: true }];
+      if (s.phase === 'buy') return [{ buy: true }, { pass: true }];
+      if (s.phase === 'debt') return [...manageMoves(s, k, true), { bankrupt: true }];
+      return [{ end: true }, ...manageMoves(s, k, false)];
+    }
+    function nextTurn(s) {
+      const i = s.players.indexOf(s.turn), n = s.players[(i + 1) % s.players.length];
+      if (s.players.indexOf(n) <= i) s.round++;
+      s.turn = n; s.phase = 'roll'; s.dbl = 0; s.extra = false; s.card = null;
+    }
+    function release(s, k) { for (let i = 0; i < 40; i++) if (s.own[i] === k) { s.own[i] = -1; s.houses[i] = 0; s.mort[i] = false; } }
+    function apply(s0, m) {
+      const s = clone(s0), k = s.turn, c = CELLS[s.pos[k]];
+      s.card = null;
+      if (m.roll) {
+        const [a, b] = m.d; s.dice = [a, b]; const dbl = a === b;
+        if (s.jail[k]) {
+          if (dbl) { s.jail[k] = 0; say(s, `🎲 ${NAME[k]} gieo đôi ${a}-${b}, ra tù!`); }
+          else if (s.jail[k] >= 3) { s.jail[k] = 0; pay(s, k, JAILFINE); say(s, `🎲 ${a}-${b} — ${NAME[k]} nộp phạt 500k rồi ra tù`); }
+          else { s.jail[k]++; say(s, `🎲 ${a}-${b} — ${NAME[k]} vẫn ngồi tù`); s.phase = 'manage'; return s; }
+          s.extra = false;
+        } else if (dbl) { s.dbl++; if (s.dbl >= 3) { say(s, `🎲 ${NAME[k]} gieo đôi 3 lần liền — vào tù!`); toJail(s, k); return s; } s.extra = true; }
+        else s.extra = false;
+        if (!s.jail[k] && !dbl) say(s, `🎲 ${NAME[k]} gieo ${a}-${b}`); else if (dbl && !s.jail[k]) say(s, `🎲 ${NAME[k]} gieo đôi ${a}-${b} — được gieo thêm`);
+        const to = (s.pos[k] + a + b) % 40;
+        if (to < s.pos[k]) { s.money[k] += SALARY; say(s, `💵 ${NAME[k]} qua Xuất Phát +2tr`); }
+        s.pos[k] = to; land(s, k);
+        if (s.phase === 'manage' && s.money[k] < 0) s.phase = 'debt';
+        return s;
+      }
+      if (m.payjail) { pay(s, k, JAILFINE); s.jail[k] = 0; say(s, `🔓 ${NAME[k]} nộp 500k ra tù`); return s; }
+      if (m.buy) { const i = s.pos[k], cc = CELLS[i]; pay(s, k, cc.price); s.own[i] = k; say(s, `🏷️ ${NAME[k]} mua ${cc.name} giá ${money(cc.price)}`); s.phase = 'manage'; return s; }
+      if (m.pass) { s.phase = 'manage'; return s; }
+      if (m.build != null) { const cc = CELLS[m.build]; pay(s, k, HOUSE[cc.g]); s.houses[m.build]++; say(s, `🔨 ${NAME[k]} xây ${s.houses[m.build] === 5 ? 'khách sạn' : 'nhà'} ở ${cc.name}`); return s; }
+      if (m.sell != null) { const cc = CELLS[m.sell]; s.houses[m.sell]--; s.money[k] += HOUSE[cc.g] / 2; say(s, `🏚️ ${NAME[k]} bán 1 nhà ở ${cc.name}`); if (s.phase === 'debt' && s.money[k] >= 0) s.phase = 'manage'; return s; }
+      if (m.mort != null) { const cc = CELLS[m.mort]; s.mort[m.mort] = true; s.money[k] += cc.price / 2; say(s, `📜 ${NAME[k]} cầm cố ${cc.name} +${money(cc.price / 2)}`); if (s.phase === 'debt' && s.money[k] >= 0) s.phase = 'manage'; return s; }
+      if (m.unmort != null) { const cc = CELLS[m.unmort]; pay(s, k, Math.ceil(cc.price * 0.55)); s.mort[m.unmort] = false; say(s, `📜 ${NAME[k]} chuộc lại ${cc.name}`); return s; }
+      if (m.bankrupt) { say(s, `💀 ${NAME[k]} phá sản!`); release(s, k); const old = s.players.slice(); nextTurn(s); s.players = old.filter((x) => x !== k); if (s.turn === k) s.turn = s.players[0]; return s; }
+      if (m.end) { if (s.extra && !s.jail[k]) { s.phase = 'roll'; s.extra = false; return s; } nextTurn(s); return s; }
+      void c;
+      return s;
+    }
+    const worth = (s, k) => s.money[k] + s.own.reduce((a, o, i) => a + (o === k ? (s.mort[i] ? CELLS[i].price / 2 : CELLS[i].price) + s.houses[i] * HOUSE[CELLS[i].g || 'br'] : 0), 0);
+    function status(s) {
+      if (s.players.length === 1) return { winner: s.players[0], why: `🎩 ${NAME[s.players[0]]} là tỷ phú cuối cùng!` };
+      if (s.round > s.maxRounds) { const w = s.players.slice().sort((a, b) => worth(s, b) - worth(s, a))[0]; return { winner: w, why: `🏁 Hết ${s.maxRounds} vòng — ${NAME[w]} giàu nhất (${money(worth(s, w))})` }; }
+      return null;
+    }
+    function ai(s, lv) {
+      const k = s.turn, ms = legal(s), M = s.money[k], reserve = [800, 1500, 2500][lv];
+      if (s.phase === 'roll') return s.jail[k] && M > 6000 && s.round < 10 ? { payjail: true } : { roll: true };
+      if (s.phase === 'buy') { const pr = CELLS[s.pos[k]].price; return M - pr >= reserve * (lv === 0 ? 0.3 : 0.6) ? { buy: true } : { pass: true }; }
+      if (s.phase === 'debt') { const sell = ms.find((m) => m.sell != null); if (sell) return sell; const mo = ms.filter((m) => m.mort != null).sort((a, b) => CELLS[a.mort].price - CELLS[b.mort].price)[0]; return mo || { bankrupt: true }; }
+      const b = ms.filter((m) => m.build != null && M - HOUSE[CELLS[m.build].g] >= reserve).sort((x, y) => CELLS[y.build].price - CELLS[x.build].price)[0];
+      if (b && Math.random() < [0.5, 0.85, 1][lv]) return b;
+      const u = ms.find((m) => m.unmort != null && M - CELLS[m.unmort].price > reserve * 2); if (u) return u;
+      return { end: true };
+    }
+    /* ---------- vẽ bàn: 11×11 ô, góc dưới phải là Xuất Phát ---------- */
+    const cellRC = (i) => (i <= 10 ? [10, 10 - i] : i <= 20 ? [20 - i, 0] : i <= 30 ? [0, i - 20] : [i - 30, 10]);
+    const pipDots = { 1: [[0, 0]], 2: [[-1, -1], [1, 1]], 3: [[-1, -1], [0, 0], [1, 1]], 4: [[-1, -1], [1, -1], [-1, 1], [1, 1]], 5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]], 6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]] };
+    function die(g, x, y, sz, v) { g.fillStyle = '#fff'; g.strokeStyle = '#495057'; g.lineWidth = 2; g.beginPath(); g.roundRect(x - sz / 2, y - sz / 2, sz, sz, sz * 0.18); g.fill(); g.stroke(); g.fillStyle = '#212529'; (pipDots[v] || []).forEach(([a, b]) => { g.beginPath(); g.arc(x + a * sz * 0.26, y + b * sz * 0.26, sz * 0.08, 0, Math.PI * 2); g.fill(); }); }
+    function wrap(g, t, maxW) { const w = t.split(' '), lines = []; let cur = ''; w.forEach((x) => { const tt = cur ? cur + ' ' + x : x; if (g.measureText(tt).width > maxW && cur) { lines.push(cur); cur = x; } else cur = tt; }); if (cur) lines.push(cur); return lines.slice(0, 3); }
+    function draw(g, W, H, s, v) {
+      const q = W / 11;
+      g.fillStyle = '#d3f9d8'; g.fillRect(0, 0, W, H);
+      for (let i = 0; i < 40; i++) {
+        const [r, c] = cellRC(i), x = c * q, y = r * q, C = CELLS[i];
+        g.fillStyle = s.mort[i] ? '#dee2e6' : '#fffdf5'; g.fillRect(x, y, q, q); g.strokeStyle = '#343a40'; g.lineWidth = 1; g.strokeRect(x, y, q, q);
+        if (C.g) { g.fillStyle = GROUP[C.g]; g.fillRect(x + 1, y + 1, q - 2, q * 0.24); }
+        const o = s.own[i];
+        if (o >= 0) { g.strokeStyle = COL[o]; g.lineWidth = Math.max(2, q * 0.07); g.strokeRect(x + 2, y + 2, q - 4, q - 4); }
+        g.fillStyle = '#212529'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        const nm = SHORT[C.name] || C.name;
+        if (['go', 'jail', 'park', 'gojail'].includes(C.t)) { g.font = FONT(q * 0.2); const ic = { go: '🏁', jail: '🚔', park: '🅿️', gojail: '👮' }[C.t]; g.font = `${q * 0.38}px system-ui,"Segoe UI Emoji"`; g.fillText(ic, x + q / 2, y + q * 0.42); g.font = FONT(q * 0.13); g.fillText(C.name, x + q / 2, y + q * 0.82); }
+        else if (C.t === 'chance' || C.t === 'chest') { g.font = `${q * 0.4}px system-ui,"Segoe UI Emoji"`; g.fillText(C.t === 'chance' ? '❓' : '🎁', x + q / 2, y + q * 0.45); g.font = FONT(q * 0.14, 800); g.fillText(C.name, x + q / 2, y + q * 0.84); }
+        else {
+          g.font = FONT(Math.max(7, q * 0.15), 800); const ls = wrap(g, nm, q * 0.92), y0 = y + (C.g ? q * 0.42 : q * 0.3);
+          ls.forEach((l, j) => g.fillText(l, x + q / 2, y0 + j * q * 0.17));
+          if (C.price || C.amt) { g.font = FONT(Math.max(7, q * 0.13), 700); g.fillStyle = C.amt ? '#c92a2a' : '#495057'; g.fillText(money(C.price || C.amt), x + q / 2, y + q * 0.86); }
+        }
+        const h = s.houses[i]; if (h) { if (h === 5) { g.fillStyle = '#e03131'; g.fillRect(x + q * 0.3, y + q * 0.03, q * 0.4, q * 0.17); } else for (let j = 0; j < h; j++) { g.fillStyle = '#2f9e44'; g.fillRect(x + q * 0.08 + j * q * 0.22, y + q * 0.04, q * 0.17, q * 0.15); } }
+        if (v.sel === i) { g.strokeStyle = '#7048e8'; g.lineWidth = 4; g.strokeRect(x + 1, y + 1, q - 2, q - 2); }
+      }
+      // giữa bàn
+      g.fillStyle = '#ebfbee'; g.fillRect(q, q, q * 9, q * 9);
+      g.font = FONT(q * 0.62); g.fillStyle = '#c92a2a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('CỜ TỶ PHÚ', W / 2, q * 2.1);
+      g.font = FONT(q * 0.24, 700); g.fillStyle = '#495057'; g.fillText(`Vòng ${Math.min(s.round, s.maxRounds)}/${s.maxRounds}`, W / 2, q * 2.75);
+      if (s.dice[0]) { die(g, W / 2 - q * 0.6, q * 3.8, q * 0.9, s.dice[0]); die(g, W / 2 + q * 0.6, q * 3.8, q * 0.9, s.dice[1]); }
+      if (s.card) { g.fillStyle = s.card.ch ? '#fff3bf' : '#e7f5ff'; g.strokeStyle = '#495057'; g.lineWidth = 2; g.beginPath(); g.roundRect(q * 2.2, q * 4.6, q * 6.6, q * 1.5, 12); g.fill(); g.stroke(); g.fillStyle = '#212529'; g.font = FONT(q * 0.24, 800); wrap(g, (s.card.ch ? '❓ ' : '🎁 ') + s.card.txt, q * 6.2).forEach((l, j) => g.fillText(l, W / 2, q * 5.05 + j * q * 0.32)); }
+      g.font = FONT(q * 0.2, 600); g.fillStyle = '#343a40'; g.textAlign = 'left';
+      s.log.slice(-5).forEach((l, j) => { const t = g.measureText(l).width > q * 8.4 ? l.slice(0, 52) + '…' : l; g.fillText(t, q * 1.3, q * 6.6 + j * q * 0.36); });
+      // quân cờ
+      const at = {}; s.players.forEach((k) => { (at[s.pos[k]] = at[s.pos[k]] || []).push(k); });
+      Object.entries(at).forEach(([i, ks]) => { const [r, c] = cellRC(+i); ks.forEach((k, j) => { const x = c * q + q * (0.28 + (j % 2) * 0.44), y = r * q + q * (0.5 + Math.floor(j / 2) * 0.28) + (s.jail[k] ? 0 : 0); const pulse = k === s.turn ? 1 + 0.12 * Math.sin(v.t * 6) : 1; g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.arc(x + 1.5, y + 2, q * 0.15 * pulse, 0, Math.PI * 2); g.fill(); g.fillStyle = COL[k]; g.beginPath(); g.arc(x, y, q * 0.15 * pulse, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke(); if (s.jail[k]) { g.strokeStyle = '#212529'; g.lineWidth = 1.5; for (let b = -1; b <= 1; b++) { g.beginPath(); g.moveTo(x + b * q * 0.07, y - q * 0.15); g.lineTo(x + b * q * 0.07, y + q * 0.15); g.stroke(); } } }); });
+    }
+    const MV = (m) => (m.build != null ? `🔨 Xây ${CELLS[m.build].name}` : m.sell != null ? `🏚️ Bán nhà ${CELLS[m.sell].name}` : m.mort != null ? `📜 Cầm cố ${CELLS[m.mort].name} (+${money(CELLS[m.mort].price / 2)})` : m.unmort != null ? `📜 Chuộc ${CELLS[m.unmort].name}` : '');
+    return {
+      id: 'typhu', name: 'Cờ Tỷ Phú', icon: '🎩', cols: 11, rows: 11, multi: true, rounds: true, sides: NAME, colors: COL,
+      rules: 'Gieo 2 xúc xắc đi quanh bàn. Vào đất chưa ai mua thì được <b>mua</b> · vào đất người khác thì <b>trả tiền thuê</b> · gom đủ 1 màu thì <b>xây nhà → khách sạn</b> (tiền thuê tăng vọt). Gieo đôi được gieo thêm. Hết tiền thì bán nhà / cầm cố, không trả nổi là phá sản. Hết số vòng ai giàu nhất thắng.',
+      init, turn: (s) => s.turn, legal, apply, status, ai, draw,
+      rollMove: () => ({ roll: true, d: [1 + rnd(6), 1 + rnd(6)] }),
+      okRoll: (mv) => Array.isArray(mv.d) && mv.d.length === 2 && mv.d.every((x) => x >= 1 && x <= 6) && { roll: true, d: [mv.d[0] | 0, mv.d[1] | 0] },
+      drop(s0, ks) { let s = clone(s0); ks.forEach((k) => release(s, k)); const old = s.players; if (ks.includes(s.turn)) { let i = old.indexOf(s.turn); do { i = (i + 1) % old.length; } while (ks.includes(old[i])); s.turn = old[i]; s.phase = 'roll'; s.dbl = 0; s.extra = false; } s.players = old.filter((k) => !ks.includes(k)); return s; },
+      pieceSide: () => -1,
+      hit(x, y, W) { const q = W / 11, c = Math.floor(x / q), r = Math.floor(y / q); for (let i = 0; i < 40; i++) { const [rr, cc] = cellRC(i); if (rr === r && cc === c) return i; } return -1; },
+      clickMove: () => null,
+      cellInfo(s, i) {
+        const C = CELLS[i]; if (!C) return '';
+        if (!buyable(i)) return `<b>${C.name}</b>${C.amt ? ` — nộp ${money(C.amt)}` : ''}`;
+        const o = s.own[i], own = o >= 0 ? `<span style="color:${COL[o]}">●</span> của ${NAME[o]}${s.mort[i] ? ' (đang cầm cố)' : ''}` : 'Chưa có chủ';
+        const rent = C.t === 'prop' ? `Thuê: ${money(C.rent[0])} · 1 nhà ${money(C.rent[1])} · 2 nhà ${money(C.rent[2])} · 3 nhà ${money(C.rent[3])} · 4 nhà ${money(C.rent[4])} · KS ${money(C.rent[5])} · xây ${money(HOUSE[C.g])}/nhà` : C.t === 'st' ? 'Thuê: 250k / 500k / 1tr / 2tr theo số sân bay sở hữu' : 'Thuê: tổng xúc xắc × 40k (đủ 2 công ty × 100k)';
+        return `<b>${C.name}</b> · giá ${money(C.price)}<br>${own}${s.houses[i] ? ` · ${s.houses[i] === 5 ? '🏨 khách sạn' : `🏠 ${s.houses[i]} nhà`}` : ''}<br><small>${rent}</small>`;
+      },
+      info(s) { return s.players.map((k) => `<span style="color:${COL[k]}">●</span> ${NAME[k]}: <b>${money(s.money[k])}</b> · ${s.own.filter((o) => o === k).length} đất${s.jail[k] ? ' · 🚔' : ''}`).join('<br>'); },
+      /** các nút hành động cho người đang tới lượt */
+      panel(s) {
+        const k = s.turn, ms = legal(s), b = [];
+        if (s.phase === 'roll') { b.push({ l: s.jail[k] ? '🎲 Gieo (ra đôi thì ra tù)' : '🎲 Gieo xúc xắc', m: { roll: true }, big: 1 }); if (ms.some((m) => m.payjail)) b.push({ l: '🔓 Nộp 500k ra tù', m: { payjail: true } }); }
+        else if (s.phase === 'buy') { const C = CELLS[s.pos[k]]; b.push({ l: `🏷️ Mua ${C.name} (${money(C.price)})`, m: { buy: true }, big: 1, dis: s.money[k] < C.price }); b.push({ l: 'Không mua', m: { pass: true } }); }
+        else {
+          if (s.phase === 'debt') b.push({ l: `💀 Tuyên bố phá sản`, m: { bankrupt: true } });
+          else b.push({ l: s.extra ? '🎲 Gieo tiếp (được đôi)' : '✅ Kết thúc lượt', m: { end: true }, big: 1 });
+          ms.filter((m) => !m.end && !m.bankrupt).slice(0, 12).forEach((m) => b.push({ l: MV(m), m, small: 1 }));
+        }
+        return { text: s.phase === 'debt' ? `⚠️ Bạn đang nợ ${money(-s.money[k])} — bán nhà hoặc cầm cố đất để trả` : s.phase === 'buy' ? `Bạn vào ô <b>${CELLS[s.pos[k]].name}</b> chưa ai mua` : '', buttons: b };
+      },
+      waitText: (s) => (s.phase === 'buy' ? 'đang cân nhắc mua đất…' : ''),
+    };
+  })();
+
+  const GAMES = { chess: CHESS, xiangqi: XQ, go: GO, ludo: LUDO, typhu: TYPHU };
 
   /* ======================================================================
    * Khung chơi chung
    * ==================================================================== */
   let st = null; // { id, G, mode, lv, bet, s, mine:[sides], over, msg, sel, targets, last, busy, gid, opp, oppName }
-  const pref = () => { const p = S().board = S().board || {}; p.lv = p.lv || {}; p.w = p.w || {}; p.l = p.l || {}; if (p.bet == null) p.bet = 1000; p.np = p.np || 4; return p; };
+  const pref = () => { const p = S().board = S().board || {}; p.lv = p.lv || {}; p.w = p.w || {}; p.l = p.l || {}; if (p.bet == null) p.bet = 1000; p.np = p.np || 4; p.rounds = p.rounds || 20; return p; };
   const ctrl = (side) => {
     if (st.mode === 'pvp') return 'me';
     if (st.room) { if (st.owner[side] !== NET.pid) return 'net'; return st.bots.includes(side) ? 'ai' : 'me'; }
@@ -546,6 +772,7 @@ const BOARD = (() => {
     side.innerHTML = `<h3>${G.icon} ${G.name}</h3><p class="muted">${G.rules}</p>
       <label>Độ khó của máy</label><div class="chips">${LV.map((n, i) => `<button class="chip ${lv === i ? 'on' : ''}" data-lv="${i}">${n}</button>`).join('')}</div>
       ${G.multi ? `<label>Số người chơi</label><div class="chips">${[2, 3, 4].map((n) => `<button class="chip ${p.np === n ? 'on' : ''}" data-np="${n}">${n} người</button>`).join('')}</div>` : ''}
+      ${G.rounds ? `<label>Số vòng (hết vòng ai giàu nhất thắng)</label><div class="chips">${[10, 20, 30].map((n) => `<button class="chip ${p.rounds === n ? 'on' : ''}" data-rd="${n}">${n} vòng</button>`).join('')}</div>` : ''}
       <label>Tiền cược</label><div class="chips">${BETS.map((b) => `<button class="chip ${p.bet === b ? 'on' : ''}" data-bet="${b}">${b ? fmt(b) : 'Chơi vui'}</button>`).join('')}</div>
       <p class="muted small-note">Đấu máy: thắng nhận ${G.multi ? '<b>cược × số người</b>' : 'gấp đôi tiền cược'} · hoà trả lại · thua mất cược. Đã thắng ${p.w[G.id] || 0} · thua ${p.l[G.id] || 0}.</p>
       <button class="btn" data-ai>🤖 Đấu với máy</button>
@@ -553,6 +780,7 @@ const BOARD = (() => {
       <button class="btn ghost" data-pvp>👥 Chơi chung 1 máy${G.multi ? ' (2–4 người)' : ''}</button>`;
     side.querySelectorAll('[data-lv]').forEach((b) => b.onclick = () => { p.lv[G.id] = +b.dataset.lv; menu(); });
     side.querySelectorAll('[data-np]').forEach((b) => b.onclick = () => { p.np = +b.dataset.np; menu(); });
+    side.querySelectorAll('[data-rd]').forEach((b) => b.onclick = () => { p.rounds = +b.dataset.rd; menu(); });
     side.querySelectorAll('[data-bet]').forEach((b) => b.onclick = () => { p.bet = +b.dataset.bet; menu(); });
     side.querySelector('[data-ai]').onclick = () => start('ai');
     side.querySelector('[data-pvp]').onclick = () => start('pvp');
@@ -566,13 +794,13 @@ const BOARD = (() => {
     let mine, s;
     if (G.multi) {
       const players = mode === 'net' ? [0, 2] : playersFor(p.np);
-      s = G.init(players);
+      s = G.init(players, 1 + rnd(1e9), { rounds: p.rounds });
       mine = mode === 'net' ? [o.role === 0 ? 0 : 2] : mode === 'ai' ? [0] : players.slice();
     } else {
       s = G.init();
       mine = mode === 'net' ? [o.side] : mode === 'ai' ? [Math.random() < 0.5 ? 0 : 1] : [0, 1];
     }
-    st = { id: G.id, G, mode, lv: p.lv[G.id] ?? 1, bet, s, mine, over: false, sel: -1, targets: [], last: null, busy: false, moves: 0, flip: !G.multi && mode !== 'pvp' && mine[0] === 1, gid: o.gid, opp: o.opp, oppName: o.oppName, seen: Date.now() };
+    st = { id: G.id, G, mode, lv: p.lv[G.id] ?? 1, bet, s, mine, over: false, sel: -1, targets: [], last: null, busy: false, moves: 0, flip: !G.multi && mode !== 'pvp' && mine[0] === 1, n0: G.multi ? s.players.length : 2, gid: o.gid, opp: o.opp, oppName: o.oppName, seen: Date.now() };
     side(); next();
   }
   /** sau mỗi nước: kiểm tra thắng thua, tới lượt máy thì cho máy đi */
@@ -582,7 +810,7 @@ const BOARD = (() => {
     if (r) return finish(r);
     const turn = st.G.turn(st.s), who = ctrl(turn);
     side();
-    if (who === 'ai') { st.busy = true; side(); const cur = st; setTimeout(() => { if (st !== cur || st.over) return; st.busy = false; let m = st.G.ai(st.s, st.lv); if (m && m.roll) m = { roll: true, v: 1 + rnd(6) }; if (!m) return finish({ winner: 1 - turn, why: 'Hết nước' }); doMove(m, st.mode === 'net'); }, st.G.multi ? 420 : 350 + rnd(300)); return; }
+    if (who === 'ai') { st.busy = true; side(); const cur = st; setTimeout(() => { if (st !== cur || st.over) return; st.busy = false; let m = st.G.ai(st.s, st.lv); if (m && m.roll) m = st.G.rollMove ? st.G.rollMove() : { roll: true, v: 1 + rnd(6) }; if (!m) return finish({ winner: 1 - turn, why: 'Hết nước' }); doMove(m, st.mode === 'net'); }, st.G.multi ? 420 : 350 + rnd(300)); return; }
     // cá ngựa: không có ngựa nào đi được thì tự bỏ lượt (chỉ bên điều khiển lượt đó thực hiện)
     if (who === 'me' && st.G.multi && st.s.phase === 'move') { const ms = st.G.legal(st.s); if (ms[0].skip) { const cur = st; setTimeout(() => { if (st === cur && !st.over && st.s.phase === 'move') doMove({ skip: true }, true); }, 1100); } }
   }
@@ -595,6 +823,7 @@ const BOARD = (() => {
     next();
   }
   function click(cell) {
+    if (st && !st.idle && st.G.cellInfo && cell >= 0) { st.sel = cell; st.infoCell = cell; side(); return; }
     if (!st || st.idle || st.over || st.busy || cell < 0) return;
     const turn = st.G.turn(st.s);
     if (ctrl(turn) !== 'me') return UI.toast(st.mode === 'net' ? `⏳ Chờ ${st.room ? sideName(turn) : st.oppName} đi…` : '⏳ Chờ máy đi…', 1200);
@@ -606,7 +835,7 @@ const BOARD = (() => {
   }
   function roll() {
     if (!st || st.over || !st.G.multi || st.s.phase !== 'roll' || ctrl(st.s.turn) !== 'me') return;
-    doMove({ roll: true, v: 1 + rnd(6) }, true);
+    doMove(st.G.rollMove ? st.G.rollMove() : { roll: true, v: 1 + rnd(6) }, true);
   }
   function pass() { if (!st || st.over || !st.G.canPass || ctrl(st.G.turn(st.s)) !== 'me') return; doMove({ pass: true, p: -1 }, true); }
   function side() {
@@ -619,13 +848,15 @@ const BOARD = (() => {
       el.innerHTML = `<h3>${G.icon} ${st.mode === 'ai' ? `Đấu máy · ${LV[st.lv]}` : st.room ? `🌐 Phòng ${st.s.players.length} người` : st.mode === 'net' ? `🌐 Đấu với ${esc(st.oppName)}` : 'Chơi chung máy'}</h3>
         ${st.bet ? `<p>💰 Cược <b>${fmt(st.bet)} xu</b></p>` : ''}
         <p class="ca-turn">Lượt: ${dot(turn)}<b>${sideName(turn)}</b>${st.busy ? ' — đang nghĩ…' : ''}</p>
-        ${G.multi && ctrl(turn) === 'me' ? (st.s.phase === 'roll' ? '<button class="btn" data-roll style="font-size:20px">🎲 Gieo xúc xắc</button>' : `<p class="muted">Được <b>${st.s.dice}</b> — bấm vào ngựa đang nhấp nháy để đi</p>`) : ''}
+        ${G.panel && ctrl(turn) === 'me' ? panelHtml() : G.panel ? `<p class="muted">${(G.waitText && G.waitText(st.s)) || 'đang đi…'}</p>` : G.multi && ctrl(turn) === 'me' ? (st.s.phase === 'roll' ? '<button class="btn" data-roll style="font-size:20px">🎲 Gieo xúc xắc</button>' : `<p class="muted">Được <b>${st.s.dice}</b> — bấm vào ngựa đang nhấp nháy để đi</p>`) : ''}
         ${G.canPass && ctrl(turn) === 'me' ? '<button class="btn ghost" data-pass>⏭️ Bỏ lượt</button>' : ''}
         ${G.info ? `<p class="muted small-note">${G.info(st.s)}</p>` : ''}
+        ${G.cellInfo && st.infoCell != null ? `<p class="small-note" style="background:#fff3bf;border-radius:10px;padding:6px">${G.cellInfo(st.s, st.infoCell)}</p>` : G.cellInfo ? '<p class="muted small-note">👆 Bấm vào ô đất trên bàn để xem giá & tiền thuê</p>' : ''}
         ${!G.multi && st.mode !== 'pvp' ? `<p class="muted small-note">Bạn cầm quân <b>${G.sides[st.mine[0]]}</b>${st.mine[0] === 0 ? ' · đi trước' : ''}</p>` : ''}
         <button class="btn ghost" data-resign>🏳️ ${st.mode === 'pvp' ? 'Kết thúc ván' : 'Xin thua'}</button>`;
     }
     const q = (s) => el.querySelector(s);
+    el.querySelectorAll('[data-mv]').forEach((b) => b.onclick = () => { if (!st || st.over || ctrl(st.G.turn(st.s)) !== 'me') return; const m = JSON.parse(b.dataset.mv); if (m.roll) return roll(); doMove(m, true); });
     if (q('[data-roll]')) q('[data-roll]').onclick = roll;
     if (q('[data-pass]')) q('[data-pass]').onclick = pass;
     if (q('[data-resign]')) q('[data-resign]').onclick = () => UI.confirm(st.mode === 'pvp' ? 'Kết thúc ván này?' : 'Xin thua ván này?', '🏳️ Đồng ý', () => {
@@ -638,6 +869,10 @@ const BOARD = (() => {
     if (q('[data-menu]')) q('[data-menu]').onclick = menu;
     if (q('[data-re]')) q('[data-re]').onclick = () => { if (st.bet > S().coins) return UI.toast('Không đủ xu để đấu tiếp'); if (!NET.remotes.get(st.opp)) return UI.toast('⚠️ Đối thủ đã rời khu'); sendInvite({ to: st.opp, name: st.oppName, game: st.id, bet: st.bet }); };
   }
+  function panelHtml() {
+    const P = st.G.panel(st.s);
+    return `${P.text ? `<p class="muted">${P.text}</p>` : ''}${P.buttons.map((b) => `<button class="btn ${b.big ? '' : 'ghost'}" style="${b.big ? 'font-size:17px' : b.small ? 'font-size:12px;padding:6px 8px' : ''}" data-mv='${JSON.stringify(b.m)}' ${b.dis ? 'disabled' : ''}>${b.l}</button>`).join('')}`;
+  }
   /** kết thúc ván. r.winner: bên thắng · −1 hoà · −2 mình xin thua */
   function finish(r) {
     if (st.over) return;
@@ -645,7 +880,7 @@ const BOARD = (() => {
     const G = st.G, p = pref(), id = G.id;
     const iWin = r.winner >= 0 && st.mine.includes(r.winner), draw = r.winner === -1;
     if (st.mode === 'pvp') { st.msg = draw ? r.why : `🏆 ${G.sides[r.winner]} thắng! ${r.why}`; side(); return; }
-    const pot = st.room ? st.bet * st.humans0 : st.mode === 'net' ? st.bet * 2 : st.bet * (G.multi ? st.s.players.length : 2);
+    const pot = st.room ? st.bet * st.humans0 : st.mode === 'net' ? st.bet * 2 : st.bet * (G.multi ? st.n0 || st.s.players.length : 2);
     if (draw) { st.msg = `${r.why}${st.bet ? ` — trả lại ${fmt(st.bet)} xu` : ''}`; if (st.bet) AV.earn(st.bet, 5); }
     else if (iWin) {
       p.w[id] = (p.w[id] || 0) + 1; AV.earn(pot, st.mode === 'net' ? 20 : [8, 15, 25][st.lv]); AV.quest('arcade');
@@ -660,7 +895,7 @@ const BOARD = (() => {
   function draw() {
     const cv = document.querySelector('.bg-wrap .ca-board canvas'); if (!cv || !st) return;
     const G = st.G, box = cv.parentElement.getBoundingClientRect(), asp = G.rows / G.cols;
-    const W = Math.max(200, Math.min(box.width - 8, (box.height - 8) / asp)), H = W * asp, dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = Math.max(200, window.innerWidth <= 700 ? Math.min(box.width - 8, window.innerHeight * 0.62 / asp) : Math.min(box.width - 8, (box.height - 8) / asp)), H = W * asp, dpr = Math.min(2, window.devicePixelRatio || 1);
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.style.width = W + 'px'; cv.style.height = H + 'px'; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const s = st.s || (G.multi ? G.init([0, 1, 2, 3]) : G.init());
@@ -673,7 +908,7 @@ const BOARD = (() => {
   const send = (p) => { if (typeof NET !== 'undefined' && NET.sendBoard) NET.sendBoard(p); };
   let invite = null, invP = null;
   function inviteList(game) {
-    if (game === 'ludo') return ludoLobby(null);
+    if (GAMES[game] && GAMES[game].multi) return ludoLobby(null, game);
     const list = (typeof NET !== 'undefined' ? NET.players() : []).filter((r) => !r.hidden && r.id);
     const p = UI.panel('👥 Mời người chơi cờ', list.length ? `<p class="muted">Người đang ở cùng khu với bạn:</p><div class="shop-list">${list.map((r, i) => `<div class="shop-row"><span class="ic">🧑</span><div class="info"><b>${esc(r.name)}</b></div><button class="btn small" data-i="${i}">♟️ Mời</button></div>`).join('')}</div>`
       : '<p class="muted">Chưa có ai ở cùng khu. Rủ bạn bè vào 🎰 Nhà Casino rồi bấm lại nhé — hoặc bấm vào nhân vật của họ → ♟️ Mời chơi cờ.</p>');
@@ -687,14 +922,14 @@ const BOARD = (() => {
       p.body.innerHTML = `<p class="muted">Chọn loại cờ và mức cược — mỗi bên đặt bằng nhau, thắng ăn cả, hoà trả lại.</p>
         <div class="chips center">${Object.values(GAMES).map((G) => `<button class="chip ${G.id === gm ? 'on' : ''}" data-g="${G.id}">${G.icon} ${G.name}</button>`).join('')}</div>
         <div class="chips center">${BETS.map((c) => `<button class="chip ${c === bet ? 'on' : ''}" data-c="${c}">${c ? '🪙 ' + fmt(c) : 'Chơi vui'}</button>`).join('')}</div>
-        ${gm === 'ludo' ? '<p class="muted small-note">🐴 Cá ngựa chơi được tới 4 người — bấm tiếp để mời thêm bạn vào phòng.</p>' : ''}
-        <div class="row-end"><button class="btn" data-go>${gm === 'ludo' ? '🐴 Tiếp tục' : '♟️ Gửi lời mời'}</button></div>`;
+        ${GAMES[gm].multi ? `<p class="muted small-note">${GAMES[gm].icon} ${GAMES[gm].name} chơi được tới 4 người — bấm tiếp để mời thêm bạn vào phòng.</p>` : ''}
+        <div class="row-end"><button class="btn" data-go>${GAMES[gm].multi ? `${GAMES[gm].icon} Tiếp tục` : '♟️ Gửi lời mời'}</button></div>`;
       p.body.querySelectorAll('[data-g]').forEach((b) => b.onclick = () => { gm = b.dataset.g; render(); });
       p.body.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => { bet = +b.dataset.c; render(); });
       p.body.querySelector('[data-go]').onclick = () => {
         if (bet > S().coins) return UI.toast(`Không đủ xu — cần ${fmt(bet)} xu`);
         if (!NET.remotes.get(r.id)) return UI.toast('⚠️ Người này vừa rời khu rồi');
-        p.close(); if (gm === 'ludo') return ludoLobby(r); sendInvite({ to: r.id, name: r.name, game: gm, bet });
+        p.close(); if (GAMES[gm].multi) return ludoLobby(r, gm); sendInvite({ to: r.id, name: r.name, game: gm, bet });
       };
     };
     render();
@@ -758,19 +993,20 @@ const BOARD = (() => {
   /* ---------- 🐴 PHÒNG CÁ NGỰA nhiều người ---------- */
   let lobby = null, joining = null;
   /** chủ phòng: chọn tối đa 3 bạn, mức cược, có cho máy chơi ghế trống không */
-  function ludoLobby(pre) {
+  function ludoLobby(pre, game = 'ludo') {
+    const GG = GAMES[game];
     if (st && st.room && !st.over) return UI.toast('Bạn đang trong một ván cá ngựa rồi');
     const list = (typeof NET !== 'undefined' ? NET.players() : []).filter((r) => !r.hidden && r.id);
     if (pre && !list.some((r) => r.id === pre.id)) list.unshift(pre);
     const pick = new Set(pre ? [pre.id] : []);
     let bet = pref().bet, bots = true;
-    const p = UI.panel('🐴 Mở phòng Cờ Cá Ngựa', '');
+    const p = UI.panel(`${GG.icon} Mở phòng ${GG.name}`, '');
     const render = () => {
       p.body.innerHTML = `<p class="muted">Chọn <b>tối đa 3 bạn</b> cùng khu để mời. Ai nhận lời sẽ vào phòng, mỗi người cược bằng nhau — <b>người thắng ăn hết</b>.</p>
         ${list.length ? `<div class="shop-list">${list.map((r, i) => `<div class="shop-row"><span class="ic">${pick.has(r.id) ? '✅' : '🧑'}</span><div class="info"><b>${esc(r.name)}</b></div><button class="btn small ${pick.has(r.id) ? '' : 'ghost'}" data-i="${i}">${pick.has(r.id) ? 'Đã chọn' : '+ Mời'}</button></div>`).join('')}</div>` : '<p class="muted">Chưa có ai ở cùng khu — rủ bạn bè vào 🎰 Nhà Casino nhé.</p>'}
         <div class="chips center">${BETS.map((c) => `<button class="chip ${c === bet ? 'on' : ''}" data-c="${c}">${c ? '🪙 ' + fmt(c) : 'Chơi vui'}</button>`).join('')}</div>
-        <label style="display:flex;gap:8px;align-items:center;justify-content:center;margin:8px 0"><input type="checkbox" data-bots ${bots ? 'checked' : ''}> 🤖 Ghế trống cho máy chơi (đủ 4 ngựa)</label>
-        <div class="row-end"><button class="btn" data-go ${pick.size ? '' : 'disabled'}>🐴 Mời ${pick.size} bạn</button></div>`;
+        <label style="display:flex;gap:8px;align-items:center;justify-content:center;margin:8px 0"><input type="checkbox" data-bots ${bots ? 'checked' : ''}> 🤖 Ghế trống cho máy chơi (đủ 4 người)</label>
+        <div class="row-end"><button class="btn" data-go ${pick.size ? '' : 'disabled'}>${GG.icon} Mời ${pick.size} bạn</button></div>`;
       p.body.querySelectorAll('[data-i]').forEach((b) => b.onclick = () => { const r = list[+b.dataset.i]; if (pick.has(r.id)) pick.delete(r.id); else if (pick.size < 3) pick.add(r.id); else UI.toast('Tối đa 3 bạn (đủ 4 người)'); render(); });
       p.body.querySelectorAll('[data-c]').forEach((b) => b.onclick = () => { bet = +b.dataset.c; render(); });
       p.body.querySelector('[data-bots]').onchange = (e) => { bots = e.target.checked; };
@@ -778,8 +1014,8 @@ const BOARD = (() => {
         if (bet > S().coins) return UI.toast(`Không đủ xu — cần ${fmt(bet)} xu`);
         const ppl = list.filter((r) => pick.has(r.id) && NET.remotes.get(r.id));
         if (!ppl.length) return UI.toast('⚠️ Những người này vừa rời khu rồi');
-        lobby = { gid: NET.pid + '-' + Date.now(), bet, bots, panel: p, seats: ppl.map((r) => ({ id: r.id, name: r.name, st: 'wait' })) };
-        lobby.seats.forEach((sd) => send({ op: 'invite', room: 1, to: sd.id, gid: lobby.gid, bet, game: 'ludo', n: lobby.seats.length + 1, name: S().name }));
+        lobby = { game, rounds: pref().rounds, gid: NET.pid + '-' + Date.now(), bet, bots, panel: p, seats: ppl.map((r) => ({ id: r.id, name: r.name, st: 'wait' })) };
+        lobby.seats.forEach((sd) => send({ op: 'invite', room: 1, to: sd.id, gid: lobby.gid, bet, game, n: lobby.seats.length + 1, name: S().name }));
         const gid = lobby.gid;
         setTimeout(() => { if (lobby && lobby.gid === gid) { lobby.seats.forEach((sd) => { if (sd.st === 'wait') sd.st = 'no'; }); lobbyRender(); } }, 30000);
         lobbyRender();
@@ -790,7 +1026,7 @@ const BOARD = (() => {
   function lobbyRender() {
     if (!lobby) return;
     const p = lobby.panel, ok = lobby.seats.filter((x) => x.st === 'ok').length, wait = lobby.seats.filter((x) => x.st === 'wait').length;
-    if (!p.el.isConnected) { lobby.panel = UI.panel('🐴 Phòng Cờ Cá Ngựa', ''); return lobbyRender(); }
+    if (!p.el.isConnected) { lobby.panel = UI.panel(`${GAMES[lobby.game].icon} Phòng ${GAMES[lobby.game].name}`, ''); return lobbyRender(); }
     p.body.innerHTML = `<p class="muted">Đang chờ bạn bè trả lời… ${lobby.bet ? `Cược <b>${fmt(lobby.bet)} xu</b>/người.` : 'Chơi vui.'}</p>
       <div class="shop-list"><div class="shop-row"><span class="ic">👑</span><div class="info"><b>${esc(S().name)}</b><small>Chủ phòng</small></div></div>
       ${lobby.seats.map((x) => `<div class="shop-row"><span class="ic">${x.st === 'ok' ? '✅' : x.st === 'no' ? '❌' : '⏳'}</span><div class="info"><b>${esc(x.name)}</b><small>${x.st === 'ok' ? 'Đã vào phòng' : x.st === 'no' ? 'Không tham gia' : 'Đang chờ trả lời…'}</small></div></div>`).join('')}</div>
@@ -814,16 +1050,17 @@ const BOARD = (() => {
     L.seats.filter((x) => x.st === 'wait').forEach((x) => send({ op: 'cancel', to: x.id, gid: L.gid }));
     const humans = [{ id: NET.pid, name: S().name }, ...ok], players = playersFor(L.bots ? 4 : Math.max(2, humans.length));
     const seats = humans.map((h, i) => ({ id: h.id, name: String(h.name).slice(0, 16), color: players[i] }));
-    const d = { op: 'start', to: '*', gid: L.gid, bet: L.bet, seats, bots: players.slice(humans.length), host: NET.pid };
+    const d = { op: 'start', to: '*', game: L.game, rounds: L.rounds, seed: 1 + rnd(1e9), gid: L.gid, bet: L.bet, seats, bots: players.slice(humans.length), host: NET.pid };
     lobby = null; L.panel.close();
     send(d); startRoom(d);
   }
   function onRoomInvite(m) {
     const bet = Math.max(0, Math.floor(+m.bet) || 0), who = String(m.name || 'Người chơi').slice(0, 16);
     if ((st && !st.idle && !st.over && st.mode === 'net') || joining || lobby || (invP && invP.el.isConnected)) return send({ op: 'busy', to: m.id, gid: m.gid });
-    invP = UI.panel('🐴 Lời mời chơi Cờ Cá Ngựa', `<p class="confirm-text"><b>${esc(who)}</b> mời bạn vào phòng <b>Cờ Cá Ngựa</b> (${m.n | 0} người)${bet ? ` · cược <b>${fmt(bet)} xu</b>` : ' (chơi vui)'}</p>
+    const GG = GAMES[m.game] || LUDO;
+    invP = UI.panel(`${GG.icon} Lời mời chơi ${GG.name}`, `<p class="confirm-text"><b>${esc(who)}</b> mời bạn vào phòng <b>${GG.name}</b> (${m.n | 0} người)${bet ? ` · cược <b>${fmt(bet)} xu</b>` : ' (chơi vui)'}</p>
       ${S().coins < bet ? '<p class="game-msg">⚠️ Bạn không đủ xu</p>' : ''}
-      <div class="row-end"><button class="btn ghost" data-no>Từ chối</button><button class="btn" data-yes ${S().coins < bet ? 'disabled' : ''}>🐴 Vào phòng</button></div>`);
+      <div class="row-end"><button class="btn ghost" data-no>Từ chối</button><button class="btn" data-yes ${S().coins < bet ? 'disabled' : ''}>${GG.icon} Vào phòng</button></div>`);
     const ip = invP, tm = setTimeout(() => { if (ip.el.isConnected) { ip.close(); send({ op: 'decline', to: m.id, gid: m.gid }); } }, 25000);
     ip.body.querySelector('[data-no]').onclick = () => { clearTimeout(tm); ip.close(); send({ op: 'decline', to: m.id, gid: m.gid }); };
     ip.body.querySelector('[data-yes]').onclick = () => {
@@ -831,7 +1068,7 @@ const BOARD = (() => {
       if (bet && !AV.spend(bet)) return send({ op: 'decline', to: m.id, gid: m.gid });
       joining = { gid: m.gid, host: m.id, bet };
       send({ op: 'accept', to: m.id, gid: m.gid });
-      UI.toast(`🐴 Đã vào phòng của ${who} — chờ chủ phòng bắt đầu…`, 5000);
+      UI.toast(`${GG.icon} Đã vào phòng của ${who} — chờ chủ phòng bắt đầu…`, 5000);
       const gid = m.gid;
       setTimeout(() => { if (joining && joining.gid === gid) cancelJoin('⌛ Chủ phòng chưa bắt đầu — đã trả lại tiền cược'); }, 60000);
     };
@@ -839,20 +1076,21 @@ const BOARD = (() => {
   function cancelJoin(msg) { if (joining.bet) AV.earn(joining.bet); joining = null; UI.toast(msg, 4500); }
   function startRoom(d) {
     if (d.host !== NET.pid) { if (!joining || joining.gid !== d.gid || joining.host !== d.host) return; if (!d.seats.some((x) => x.id === NET.pid)) return cancelJoin('⚠️ Phòng đã đủ người — đã trả lại tiền cược'); joining = null; }
-    open('ludo');
+    const GG = GAMES[d.game] || LUDO;
+    open(GG.id);
     const owner = {}, names = {}, players = [...d.seats.map((x) => x.color), ...d.bots].sort((a, b) => a - b);
     d.seats.forEach((x) => { owner[x.color] = x.id; names[x.color] = x.name; });
     d.bots.forEach((k) => { owner[k] = d.host; });
     const me = d.seats.find((x) => x.id === NET.pid);
-    st = { id: 'ludo', G: LUDO, mode: 'net', room: true, lv: 1, bet: d.bet, s: LUDO.init(players), mine: [me.color], owner, names, bots: d.bots.slice(), humans0: d.seats.length, gid: d.gid, oppName: d.seats.filter((x) => x.id !== NET.pid).map((x) => x.name).join(', '), over: false, sel: -1, targets: [], last: null, busy: false, moves: 0, flip: false, gone: {} };
-    UI.toast(`🐴 Bắt đầu! Bạn cầm ngựa ${LUDO.sides[me.color]}`, 4000);
+    st = { id: GG.id, G: GG, mode: 'net', room: true, lv: 1, bet: d.bet, s: GG.init(players, d.seed, { rounds: d.rounds }), mine: [me.color], n0: players.length, owner, names, bots: d.bots.slice(), humans0: d.seats.length, gid: d.gid, oppName: d.seats.filter((x) => x.id !== NET.pid).map((x) => x.name).join(', '), over: false, sel: -1, targets: [], last: null, busy: false, moves: 0, flip: false, gone: {} };
+    UI.toast(`${GG.icon} Bắt đầu! Bạn là ${GG.sides[me.color]}`, 4000);
     side(); next();
   }
   /** người chơi thoát / mất kết nối: bỏ ngựa của họ khỏi bàn; nếu là chủ phòng thì người kế tiếp điều khiển máy */
   function dropPeer(pid, why) {
     if (!st || !st.room || st.over) return;
     const ks = Object.keys(st.owner).map(Number).filter((k) => st.owner[k] === pid && !st.bots.includes(k) && st.s.players.includes(k));
-    if (ks.length) { UI.toast(`🚪 ${esc(st.names[ks[0]] || 'Một người')} ${why}`, 3000); st.s = LUDO.drop(st.s, ks); }
+    if (ks.length) { UI.toast(`🚪 ${esc(st.names[ks[0]] || 'Một người')} ${why}`, 3000); st.s = st.G.drop(st.s, ks); }
     if (st.bots.some((k) => st.owner[k] === pid)) {
       const heir = st.s.players.filter((k) => !st.bots.includes(k)).map((k) => st.owner[k]).filter(Boolean)[0];
       st.bots.forEach((k) => { if (st.owner[k] === pid) st.owner[k] = heir; });
@@ -870,8 +1108,9 @@ const BOARD = (() => {
       const turn = st.G.turn(st.s);
       if (st.owner[turn] !== m.id || ctrl(turn) !== 'net') return;
       const mv = m.m;
-      if (mv.roll) { if (st.s.phase !== 'roll' || !(mv.v >= 1 && mv.v <= 6)) return; return doMove({ roll: true, v: mv.v | 0 }); }
-      const ok = st.G.legal(st.s).find((x) => (x.skip && mv.skip) || (x.h != null && x.h === mv.h && x.to === mv.to));
+      if (mv.roll) { if (st.s.phase !== 'roll') return; if (st.G.okRoll) { const r = st.G.okRoll(mv); return r && doMove(r); } if (!(mv.v >= 1 && mv.v <= 6)) return; return doMove({ roll: true, v: mv.v | 0 }); }
+      const key = (o) => JSON.stringify(Object.keys(o).sort().reduce((a, k2) => (o[k2] === undefined ? a : { ...a, [k2]: o[k2] }), {}));
+      const ok = st.G.legal(st.s).find((x) => (x.skip && mv.skip) || (x.h != null && x.h === mv.h && x.to === mv.to) || (!x.roll && x.h == null && key(x) === key(mv)));
       if (ok) doMove(ok);
     }
   }
@@ -906,6 +1145,7 @@ const BOARD = (() => {
     if (id === 'chess') { for (let r = 0; r < 8; r++) for (let k = 0; k < 8; k++) quad(k / 8, r / 8, (k + 1) / 8, (r + 1) / 8, (r + k) % 2 ? '#b58863' : '#f0d9b5'); c.font = '16px "Segoe UI Symbol",serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#111'; c.fillText('♚ ♛', x - 30, y - 92); c.fillStyle = '#fff'; c.strokeStyle = '#111'; c.lineWidth = 1; c.strokeText('♔ ♕', x + 30, y - 58); c.fillText('♔ ♕', x + 30, y - 58); }
     else if (id === 'xiangqi') { quad(0, 0, 1, 1, '#f2cf8d'); c.strokeStyle = '#7a4a1e'; c.lineWidth = 1; for (let k = 0; k <= 8; k++) { const a = P(k / 8, 0), b = P(k / 8, 1); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } for (let r = 0; r <= 9; r++) { const a = P(0, r / 9), b = P(1, r / 9); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } [[0.3, 0.2, '#c92a2a'], [0.6, 0.3, '#212529'], [0.45, 0.75, '#c92a2a'], [0.7, 0.8, '#212529']].forEach(([u, v, col]) => { const [px, py] = P(u, v); c.fillStyle = '#fff4e0'; c.beginPath(); c.ellipse(px, py, 7, 4, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = col; c.lineWidth = 1.5; c.stroke(); }); }
     else if (id === 'go') { quad(0, 0, 1, 1, '#e3b56a'); c.strokeStyle = '#5c3a1e'; c.lineWidth = 1; for (let k = 0; k <= 8; k++) { let a = P(k / 8, 0), b = P(k / 8, 1); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); a = P(0, k / 8); b = P(1, k / 8); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } [[0.25, 0.25, '#111'], [0.5, 0.375, '#fff'], [0.625, 0.625, '#111'], [0.375, 0.75, '#fff'], [0.75, 0.25, '#111']].forEach(([u, v, col]) => { const [px, py] = P(u, v); c.fillStyle = col; c.beginPath(); c.ellipse(px, py, 6, 3.5, 0, 0, Math.PI * 2); c.fill(); }); }
+    else if (id === 'typhu') { quad(0, 0, 1, 1, '#d3f9d8'); const cols = ['#8d5524', '#74c0fc', '#e64980', '#fd7e14', '#e03131', '#fcc419', '#2b8a3e', '#1c3faa']; for (let k = 0; k < 8; k++) { const u = k / 8; quad(u, 0, u + 0.125, 0.14, cols[k]); quad(u, 0.86, u + 0.125, 1, cols[7 - k]); } quad(0.15, 0.25, 0.85, 0.75, '#ebfbee'); const [px, py] = P(0.5, 0.5); c.font = '900 10px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#c92a2a'; c.fillText('TỶ PHÚ', px, py); }
     else if (id === 'ludo') { quad(0, 0, 1, 1, '#fff'); [[0, 0, '#e03131'], [0.6, 0, '#2f9e44'], [0.6, 0.6, '#f59f00'], [0, 0.6, '#1c7ed6']].forEach(([u, v, col]) => quad(u, v, u + 0.4, v + 0.4, col)); const [px, py] = P(0.5, 0.5); c.font = '16px system-ui,"Segoe UI Emoji"'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🎲', px, py); }
     c.fillStyle = '#1b2f48'; c.beginPath(); c.roundRect(x - 70, y - 140, 140, 28, 9); c.fill(); c.fillStyle = '#ffd43b'; c.font = '900 14px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(`${G.icon} ${G.name.toUpperCase()}`, x, y - 126);
     // ghế 2 bên
@@ -915,6 +1155,11 @@ const BOARD = (() => {
     H.sobj(m, x, y, (c) => tableArt(c, x, y, id), { l: -155, t: -150, w: 310, h: 158 });
     H.col(m, x - 108, y - 52, 216, 52);
     H.inter(m, { x: x - 120, y: y - 145, w: 240, h: 150, ax: x, ay: y + 40, name: `${GAMES[id].icon} Bàn ${GAMES[id].name} (đấu máy / 2 người / online)`, use: () => open(id), arrow: { x, y: y - 160, text: GAMES[id].name } });
+  }
+  if (!document.getElementById('bg-css')) {
+    const st2 = document.createElement('style'); st2.id = 'bg-css';
+    st2.textContent = '.bg-wrap .ca-side{max-height:100%;overflow:auto}@media (max-width:700px){.bg-wrap{flex-direction:column;padding:4px;gap:6px}.bg-wrap .ca-board{order:1;flex:none;min-height:0}.bg-wrap .ca-side{order:2;width:auto;max-height:none;flex:1;overflow:auto}}';
+    document.head.appendChild(st2);
   }
   return { open, addTo, challenge, onNet, GAMES, _st: () => st, _click: click, _roll: roll, _lobby: () => lobby };
 })();
