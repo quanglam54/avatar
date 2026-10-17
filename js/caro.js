@@ -1,7 +1,7 @@
-/* ♟️ CỜ CARO ở Nhà Casino — bàn 15×15, 5 quân liên tiếp là thắng (luật Việt Nam: bị chặn cả 2 đầu thì không tính).
+/* ♟️ CỜ CARO ở Nhà Casino — bàn 20×20, 5 quân liên tiếp là thắng (luật Việt Nam: bị chặn cả 2 đầu thì không tính).
  * Đấu với máy (Dễ / Vừa / Khó, cược xu — thắng ăn gấp đôi, hoà trả lại) hoặc 2 người chơi chung 1 máy. */
 const CARO = (() => {
-  const N = 15, S = () => AV.S;
+  const N = 20, S = () => AV.S;
   const fmt = (n) => Number(n).toLocaleString('vi-VN');
   const DIRS = [[1, 0], [0, 1], [1, 1], [1, -1]];
   const LV = ['😊 Dễ', '😤 Vừa', '🔥 Khó'], BETS = [0, 1000, 5000, 20000, 100000];
@@ -48,7 +48,7 @@ const CARO = (() => {
       const atk = lineScore(b, x, y, me), def = lineScore(b, x, y, opp);
       cand.push({ x, y, s: atk * [0.8, 1.05, 1.15][lv] + def * [0.55, 0.9, 1.0][lv] + Math.random() * [400, 60, 5][lv] });
     }
-    if (!any || !cand.length) return { x: 7, y: 7 };
+    if (!any || !cand.length) return { x: N >> 1, y: N >> 1 };
     cand.sort((p, q) => q.s - p.s);
     if (lv === 0 && cand.length > 2 && Math.random() < 0.35 && cand[0].s < 2e5) return cand[1 + Math.floor(Math.random() * Math.min(3, cand.length - 1))];
     return cand[0];
@@ -58,20 +58,64 @@ const CARO = (() => {
   function open() {
     const v = document.getElementById('arcadeView');
     v.innerHTML = `<div class="arc-bar"><b>♟️ Cờ Caro</b><span>5 quân liên tiếp · chặn 2 đầu không tính</span><button class="tv-x" data-close>✕ Thoát</button></div>
-      <div class="ca-wrap"><div class="ca-side"></div><div class="ca-board"><canvas></canvas></div></div>`;
+      <div class="ca-wrap caro-wrap"><div class="ca-side"></div><div class="ca-board"><canvas></canvas><div class="ca-zoom"><button data-zi title="Phóng to">＋</button><button data-zo title="Thu nhỏ">－</button><button data-zr title="Xem cả bàn">⟲</button></div></div></div>`;
     v.classList.add('show');
     v.querySelector('[data-close]').onclick = () => { leave(); UI.closeArcade(); };
     const cv = v.querySelector('canvas');
+    // chạm nhanh = đặt quân · kéo 1 ngón = di chuyển bàn (khi đang phóng to) · chụm 2 ngón / lăn chuột = phóng to thu nhỏ
+    const ptrs = new Map();
+    let tap = null, pinch = null;
+    const loc = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
     cv.addEventListener('pointerdown', (e) => {
-      if (!st || st.over || st.busy) return;
-      const r = cv.getBoundingClientRect(), cell = r.width / N, x = Math.floor((e.clientX - r.left) / cell), y = Math.floor((e.clientY - r.top) / cell);
-      if (x < 0 || y < 0 || x >= N || y >= N || st.b[y * N + x]) return;
-      if ((st.mode === 'ai' || st.mode === 'net') && st.turn !== st.me) return UI.toast(st.mode === 'net' ? `⏳ Chờ ${st.oppName} đi…` : '⏳ Chờ máy đi…', 1500);
-      if (st.mode === 'net') send({ op: 'move', to: st.opp, gid: st.gid, x, y });
-      play(x, y);
+      e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (er) { /* bỏ qua */ }
+      ptrs.set(e.pointerId, loc(e));
+      if (ptrs.size === 1) { const p = loc(e); tap = { x: p.x, y: p.y, vx: view.x, vy: view.y, moved: false }; pinch = null; }
+      else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: view.z, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, vx: view.x, vy: view.y }; tap = null; }
     });
+    cv.addEventListener('pointermove', (e) => {
+      if (!ptrs.has(e.pointerId)) return;
+      ptrs.set(e.pointerId, loc(e));
+      if (pinch && ptrs.size >= 2) {
+        const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        const z = Math.max(1, Math.min(3.5, pinch.z * d / Math.max(10, pinch.d)));
+        view.x = mx - (pinch.mx - pinch.vx) * z / pinch.z; view.y = my - (pinch.my - pinch.vy) * z / pinch.z; view.z = z; clampView(); draw();
+      } else if (tap) {
+        const p = loc(e), dx = p.x - tap.x, dy = p.y - tap.y;
+        if (Math.hypot(dx, dy) > 8) tap.moved = true;
+        if (tap.moved && view.z > 1) { view.x = tap.vx + dx; view.y = tap.vy + dy; clampView(); draw(); }
+      }
+    });
+    const up = (e) => {
+      if (!ptrs.has(e.pointerId)) return;
+      const p = loc(e); ptrs.delete(e.pointerId);
+      if (ptrs.size === 0) { if (tap && !tap.moved && !pinch) place(p.x, p.y); tap = null; pinch = null; }
+    };
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+    cv.addEventListener('wheel', (e) => { e.preventDefault(); const p = loc(e); zoomAt(p.x, p.y, e.deltaY < 0 ? 1.2 : 1 / 1.2); }, { passive: false });
+    v.querySelector('[data-zi]').onclick = () => zoomAt(view.size / 2, view.size / 2, 1.35);
+    v.querySelector('[data-zo]').onclick = () => zoomAt(view.size / 2, view.size / 2, 1 / 1.35);
+    v.querySelector('[data-zr]').onclick = () => { view.z = 1; view.x = view.y = 0; draw(); };
+    view.z = 1; view.x = view.y = 0; view.auto = true;
     window.addEventListener('resize', draw);
     menu();
+  }
+  /* ---------- phóng to / kéo bàn ---------- */
+  const view = { z: 1, x: 0, y: 0, size: 400, auto: true };
+  function clampView() { const sz = view.size; view.x = Math.min(0, Math.max(sz - sz * view.z, view.x)); view.y = Math.min(0, Math.max(sz - sz * view.z, view.y)); }
+  function zoomAt(px, py, k) { const z = Math.max(1, Math.min(3.5, view.z * k)); view.x = px - (px - view.x) * z / view.z; view.y = py - (py - view.y) * z / view.z; view.z = z; clampView(); draw(); }
+  /** ô vừa đánh nằm ngoài vùng đang xem thì kéo bàn tới đó */
+  function follow(x, y) {
+    if (view.z <= 1) return;
+    const c = view.size / N * view.z, px = view.x + (x + 0.5) * c, py = view.y + (y + 0.5) * c, m = c * 1.5;
+    if (px < m || py < m || px > view.size - m || py > view.size - m) { view.x = view.size / 2 - (x + 0.5) * c; view.y = view.size / 2 - (y + 0.5) * c; clampView(); }
+  }
+  function place(px, py) {
+    if (!st || st.over || st.busy) return;
+    const cell = view.size / N * view.z, x = Math.floor((px - view.x) / cell), y = Math.floor((py - view.y) / cell);
+    if (x < 0 || y < 0 || x >= N || y >= N || st.b[y * N + x]) return;
+    if ((st.mode === 'ai' || st.mode === 'net') && st.turn !== st.me) return UI.toast(st.mode === 'net' ? `⏳ Chờ ${st.oppName} đi…` : '⏳ Chờ máy đi…', 1500);
+    if (st.mode === 'net') send({ op: 'move', to: st.opp, gid: st.gid, x, y });
+    play(x, y);
   }
   /** rời ván đang chơi (online thì báo bỏ cuộc) */
   function leave() {
@@ -125,7 +169,7 @@ const CARO = (() => {
   }
   function play(x, y) {
     const p = st.turn;
-    st.b[y * N + x] = p; st.last = [x, y]; st.moves++;
+    st.b[y * N + x] = p; st.last = [x, y]; st.moves++; follow(x, y);
     const line = winLine(st.b, x, y, p);
     if (line) return finish(p, line);
     if (st.moves >= N * N) return finish(0);
@@ -150,11 +194,21 @@ const CARO = (() => {
   function draw() {
     const cv = document.querySelector('.ca-board canvas'); if (!cv) return;
     const box = cv.parentElement.getBoundingClientRect(), size = Math.max(200, Math.min(box.width, box.height) - 8), dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (Math.abs(view.size - size) > 1) {
+      const k = size / view.size; view.x *= k; view.y *= k; view.size = size;
+      // điện thoại: ô quá nhỏ thì tự phóng to lúc đầu cho dễ bấm
+      if (view.auto && size / N < 26) { view.z = Math.min(3.5, 30 / (size / N)); view.x = view.y = (size - size * view.z) / 2; }
+      view.auto = false; clampView();
+    }
     cv.style.width = cv.style.height = size + 'px'; cv.width = cv.height = Math.round(size * dpr);
-    const g = cv.getContext('2d'), c = size / N; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const g = cv.getContext('2d'), c = size / N;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = '#e9cd94'; g.fillRect(0, 0, size, size);
+    g.setTransform(dpr * view.z, 0, 0, dpr * view.z, dpr * view.x, dpr * view.y);
     g.fillStyle = '#f3d9a4'; g.fillRect(0, 0, size, size);
     g.strokeStyle = 'rgba(92,58,30,.45)'; g.lineWidth = 1;
+    g.lineWidth = 1 / view.z;
     for (let i = 0; i <= N; i++) { g.beginPath(); g.moveTo(i * c, 0); g.lineTo(i * c, size); g.moveTo(0, i * c); g.lineTo(size, i * c); g.stroke(); }
+    g.fillStyle = 'rgba(92,58,30,.55)'; [[3, 3], [3, 16], [16, 3], [16, 16], [10, 10]].forEach(([x, y]) => { g.beginPath(); g.arc(x * c, y * c, c * 0.09, 0, Math.PI * 2); g.fill(); });
     if (!st) { g.fillStyle = 'rgba(92,58,30,.25)'; g.font = `900 ${c * 1.6}px "Be Vietnam Pro", system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('✕ ◯', size / 2, size / 2); return; }
     if (st.last) { g.fillStyle = 'rgba(255,212,59,.45)'; g.fillRect(st.last[0] * c, st.last[1] * c, c, c); }
     if (st.win) { g.fillStyle = 'rgba(105,219,124,.55)'; st.win.forEach(([x, y]) => g.fillRect(x * c, y * c, c, c)); }
@@ -162,7 +216,7 @@ const CARO = (() => {
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
       const p = st.b[y * N + x]; if (!p) continue;
       const cx = x * c + c / 2, cy = y * c + c / 2, r = c * 0.32;
-      g.lineWidth = Math.max(2, c * 0.12);
+      g.lineWidth = Math.max(2 / view.z, c * 0.12);
       if (p === 1) { g.strokeStyle = '#e03131'; g.beginPath(); g.moveTo(cx - r, cy - r); g.lineTo(cx + r, cy + r); g.moveTo(cx + r, cy - r); g.lineTo(cx - r, cy + r); g.stroke(); }
       else { g.strokeStyle = '#1c7ed6'; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke(); }
     }
@@ -304,7 +358,15 @@ const CARO = (() => {
 .ca-side h3{margin:0}.ca-side label{font-weight:800;font-size:13px}.ca-side .btn{width:100%}.ca-turn{font-size:17px;font-weight:800;margin:4px 0}
 .ca-board{flex:1;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;touch-action:none}
 .ca-board canvas{border:4px solid #5c3a1e;border-radius:8px;box-shadow:0 6px 0 #2b1a10;cursor:pointer}
-@media (max-width:700px){.ca-wrap{flex-direction:column-reverse}.ca-side{width:auto;align-self:stretch}.ca-board{min-height:62vw}}`;
+@media (max-width:700px){.ca-wrap{flex-direction:column-reverse}.ca-side{width:auto;align-self:stretch}.ca-board{min-height:62vw}}
+.caro-wrap{gap:10px;padding:8px}
+.caro-wrap .ca-side{width:220px;padding:10px;gap:6px;font-size:14px;max-height:100%;overflow:auto}
+.caro-wrap .ca-side h3{font-size:17px}.caro-wrap .ca-side .chips{gap:4px}.caro-wrap .ca-side .chip{padding:4px 8px;font-size:12px}
+.caro-wrap .ca-board{position:relative}
+.caro-wrap .ca-board canvas{border-width:3px;cursor:crosshair}
+.ca-zoom{position:absolute;right:8px;bottom:8px;display:flex;flex-direction:column;gap:6px}
+.ca-zoom button{width:42px;height:42px;border-radius:50%;border:2px solid #2b1a10;background:#fffaf0;font-size:22px;font-weight:900;cursor:pointer;box-shadow:0 3px 0 #2b1a10;line-height:1}
+@media (max-width:700px){.caro-wrap{flex-direction:column;padding:4px;gap:6px}.caro-wrap .ca-board{flex:1;min-height:0;order:1}.caro-wrap .ca-side{order:2;width:auto;max-height:34vh;flex:none}.ca-zoom{right:6px;bottom:6px}}`;
     document.head.appendChild(s);
   }
   return { open, addTo, challenge, onNet };
