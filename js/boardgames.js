@@ -1,4 +1,4 @@
-/* ♟️ PHÒNG CỜ trong Nhà Casino: Cờ Vua · Cờ Tướng · Cờ Vây (9×9) · Cờ Cá Ngựa · Cờ Tỷ Phú · Hải Chiến · Ô Ăn Quan · Poker.
+/* ♟️ PHÒNG CỜ trong Nhà Casino: Cờ Vua · Cờ Tướng · Cờ Vây (9×9) · Cờ Cá Ngựa · Cờ Tỷ Phú · Hải Chiến · Ô Ăn Quan · Poker · Liêng.
  * Mỗi trò: đấu với máy (Dễ / Vừa / Khó, có cược xu), chơi chung 1 máy, hoặc mời người cùng khu chơi online (mỗi bên cược bằng nhau, thắng ăn cả).
  * Mỗi trò khai báo: init · legal (nước đi hợp lệ của bên tới lượt) · apply (trả về thế cờ mới) · status (thắng/hoà) · ai · draw · hit (toạ độ → ô). */
 const BOARD = (() => {
@@ -1295,7 +1295,261 @@ const BOARD = (() => {
     };
   })();
 
-  const GAMES = { chess: CHESS, xiangqi: XQ, go: GO, oaq: OAQ, ludo: LUDO, typhu: TYPHU, battle: BATTLE, poker: POKER };
+  const LIENG = (() => {
+    const COL = ['#e03131', '#2f9e44', '#f59f00', '#1c7ed6'], NAME = ['Đỏ', 'Xanh lá', 'Vàng', 'Xanh dương'];
+    const RANKS = '23456789TJQKA', SUITS = ['♠', '♥', '♦', '♣'], START = 2000;
+    const HAND = ['Mậu thầu', 'Đôi', 'Thú (2 đôi)', 'Sám cô', 'Sảnh', 'Thùng', 'Cù lũ', 'Tứ quý', 'Thùng phá sảnh'];
+    const rank = (c) => c % 13, suit = (c) => Math.floor(c / 13);
+    function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+    /* ---------- chấm bài: 5 lá → điểm số (càng lớn càng mạnh) ---------- */
+    function eval5(cs) {
+      const r = cs.map(rank).sort((a, b) => b - a), fl = cs.every((c) => suit(c) === suit(cs[0]));
+      const cnt = {}; r.forEach((x) => { cnt[x] = (cnt[x] || 0) + 1; });
+      const groups = Object.entries(cnt).map(([x, n]) => [n, +x]).sort((a, b) => b[0] - a[0] || b[1] - a[1]);
+      const uniq = [...new Set(r)];
+      let st = -1;
+      if (uniq.length === 5) { if (uniq[0] - uniq[4] === 4) st = uniq[0]; else if (uniq.join() === '12,3,2,1,0') st = 3; }
+      const code = (cat, ks) => ks.reduce((a, k) => a * 16 + k, cat);
+      if (st >= 0 && fl) return code(8, [st, 0, 0, 0, 0]);
+      if (groups[0][0] === 4) return code(7, [groups[0][1], groups[1][1], 0, 0, 0]);
+      if (groups[0][0] === 3 && groups[1][0] === 2) return code(6, [groups[0][1], groups[1][1], 0, 0, 0]);
+      if (fl) return code(5, r);
+      if (st >= 0) return code(4, [st, 0, 0, 0, 0]);
+      if (groups[0][0] === 3) return code(3, [groups[0][1], ...groups.slice(1).map((g) => g[1]), 0, 0].slice(0, 5));
+      if (groups[0][0] === 2 && groups[1][0] === 2) return code(2, [groups[0][1], groups[1][1], groups[2][1], 0, 0]);
+      if (groups[0][0] === 2) return code(1, [groups[0][1], ...groups.slice(1).map((g) => g[1]), 0].slice(0, 5));
+      return code(0, r);
+    }
+    const catOf = (v) => Math.floor(v / Math.pow(16, 5));
+    /* ---------- chấm bài Liêng (3 lá) ---------- */
+    const SR = [0, 2, 3, 1]; // chất: ♦ > ♥ > ♣ > ♠
+    const hi = (c) => (rank(c) === 12 ? 14 : rank(c) + 2) * 4 + SR[suit(c)]; // lá cao nhất để so khi bằng nhau (A lớn nhất)
+    const pt = (c) => { const r = rank(c) + 2; return r === 14 ? 1 : r >= 10 ? 0 : r; };
+    function ev3(cs) {
+      const rv = cs.map((c) => (rank(c) === 12 ? 14 : rank(c) + 2)).sort((a, b) => a - b), top = Math.max(...cs.map(hi));
+      if (rv[0] === rv[2]) return 3e6 + rv[0] * 1000 + top;                                  // Sáp
+      if (rv[1] === rv[0] + 1 && rv[2] === rv[1] + 1) return 2e6 + rv[2] * 1000 + top;       // Liêng
+      if (rv[0] === 2 && rv[1] === 3 && rv[2] === 14) return 2e6 + 3 * 1000 + top;           // Liêng A-2-3 (nhỏ nhất)
+      if (rv.every((r) => r >= 11 && r <= 13)) return 1e6 + top;                             // Ảnh (3 lá J Q K)
+      return (cs.reduce((a, c) => a + pt(c), 0) % 10) * 1000 + top;                          // Điểm
+    }
+    function handName(v) { if (v >= 3e6) return 'Sáp'; if (v >= 2e6) return 'Liêng'; if (v >= 1e6) return 'Ảnh (3 tây)'; const d = Math.floor(v / 1000); return d === 0 ? 'Bù (0 điểm)' : d + ' điểm'; }
+    function best7(cs) { let b = -1; for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) { const five = cs.filter((_, k) => k !== i && k !== j); if (five.length === 5) { const v = eval5(five); if (v > b) b = v; } } return b; }
+    /* ---------- trạng thái ---------- */
+    const anteAt = (h) => 20 * Math.pow(2, Math.floor((h - 1) / 5));
+    function init(players, seed, opt = {}) {
+      const s = { players: players.slice(), seat: players.slice(), stack: [0, 0, 0, 0], seed: seed || 1, hand: 0, maxHands: opt.rounds || 20, dealer: -1, log: [], phase: 'show', turn: players[0] };
+      players.forEach((k) => { s.stack[k] = START; });
+      return newHand(s);
+    }
+    const clone = (s) => ({ ...s, players: s.players.slice(), stack: s.stack.slice(), cards: s.cards ? s.cards.map((c) => c.slice()) : null, board: s.board ? s.board.slice() : [], deck: s.deck ? s.deck.slice() : [], bet: s.bet ? s.bet.slice() : [0, 0, 0, 0], tot: s.tot ? s.tot.slice() : [0, 0, 0, 0], folded: s.folded ? s.folded.slice() : [], allin: s.allin ? s.allin.slice() : [], acted: s.acted ? s.acted.slice() : [], log: s.log.slice(-6) });
+    const say = (s, t) => { s.log.push(t); if (s.log.length > 7) s.log.shift(); };
+    const nextOf = (s, k, pred) => { const ps = s.players; let i = ps.indexOf(k); for (let n = 0; n < ps.length; n++) { i = (i + 1) % ps.length; if (pred(ps[i])) return ps[i]; } return -1; };
+    const live = (s) => s.players.filter((k) => !s.folded[k]);
+    const canAct = (s, k) => !s.folded[k] && !s.allin[k];
+    function put(s, k, amt) { amt = Math.min(amt, s.stack[k]); s.stack[k] -= amt; s.bet[k] += amt; s.tot[k] += amt; if (s.stack[k] === 0) s.allin[k] = true; return amt; }
+    function newHand(s0) {
+      const s = clone(s0);
+      s.players = s.players.filter((k) => s.stack[k] > 0);
+      if (s.players.length < 2) { s.phase = 'over'; return s; }
+      s.hand++; s.bb = anteAt(s.hand); s.sb = s.bb;
+      { const order = s.seat; let i = order.indexOf(s.dealer); do { i = (i + 1) % order.length; } while (!s.players.includes(order[i])); s.dealer = order[i]; }
+      const r = rng(s.seed * 1009 + s.hand * 7919), deck = [...Array(52).keys()];
+      for (let i = 51; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
+      s.deck = deck; s.cards = [[], [], [], []]; s.board = [];
+      s.bet = [0, 0, 0, 0]; s.tot = [0, 0, 0, 0]; s.folded = [true, true, true, true]; s.allin = [false, false, false, false]; s.acted = [false, false, false, false];
+      s.players.forEach((k) => { s.folded[k] = false; });
+      for (let n = 0; n < 3; n++) s.players.forEach((k) => s.cards[k].push(s.deck.pop()));
+      // ai cũng góp tiền gà rồi mới cược
+      s.players.forEach((k) => put(s, k, s.bb)); s.bet = [0, 0, 0, 0];
+      s.cur = 0; s.minR = s.bb * 2; s.street = 0; s.phase = 'bet'; s.result = null;
+      s.turn = nextOf(s, s.dealer, (k) => canAct(s, k));
+      say(s, `🎴 Ván ${s.hand} · tiền gà ${s.bb}/người`);
+      if (s.turn < 0 || s.players.filter((k) => canAct(s, k)).length <= 1) return endStreet(s);
+      return s;
+    }
+    const pot = (s) => s.tot.reduce((a, b) => a + b, 0);
+    function legal(s) {
+      if (s.phase === 'show') return [{ next: true }];
+      if (s.phase !== 'bet') return [];
+      const k = s.turn, toCall = s.cur - s.bet[k], st = s.stack[k], out = [];
+      if (toCall > 0) out.push({ fold: true });
+      out.push(toCall > 0 ? { call: true } : { check: true });
+      const maxTo = s.bet[k] + st, minTo = s.cur + s.minR, P = pot(s) + toCall;
+      if (maxTo > s.cur) {
+        const sizes = new Set();
+        if (minTo < maxTo) { sizes.add(minTo); [Math.round(s.cur + P / 2), s.cur + P].forEach((x) => { if (x > minTo && x < maxTo) sizes.add(x); }); }
+        sizes.add(maxTo);
+        [...sizes].sort((a, b) => a - b).forEach((x) => out.push({ raise: x }));
+      }
+      return out;
+    }
+    function award(s, k, amt, why) { s.stack[k] += amt; s.result.push({ k, amt, why }); }
+    function showdown(s) {
+      s.result = []; s.reveal = true;
+      const lv = live(s), val = {}; lv.forEach((k) => { val[k] = ev3(s.cards[k]); });
+      const levels = [...new Set(s.players.map((k) => s.tot[k]).filter((x) => x > 0))].sort((a, b) => a - b);
+      let prev = 0;
+      levels.forEach((L) => {
+        const contrib = s.players.reduce((a, k) => a + Math.max(0, Math.min(s.tot[k], L) - prev), 0);
+        const elig = lv.filter((k) => s.tot[k] >= L);
+        if (contrib > 0 && elig.length) {
+          const top = Math.max(...elig.map((k) => val[k])), win = elig.filter((k) => val[k] === top), each = Math.floor(contrib / win.length);
+          win.forEach((k, i) => award(s, k, each + (i === 0 ? contrib - each * win.length : 0), handName(top)));
+        } else if (contrib > 0) { const k = lv[0]; award(s, k, contrib, ''); }
+        prev = L;
+      });
+      const merged = {}; s.result.forEach((r) => { merged[r.k] = merged[r.k] ? { ...merged[r.k], amt: merged[r.k].amt + r.amt } : { ...r }; });
+      s.result = Object.values(merged);
+      s.result.forEach((r) => say(s, `🏆 ${NAME[r.k]} ăn ${r.amt} chip${r.why ? ` (${r.why})` : ''}`));
+      s.vals = val; finishHand(s);
+    }
+    function finishHand(s) { s.phase = 'show'; s.bet = [0, 0, 0, 0]; s.turn = s.players.find((k) => s.stack[k] > 0) ?? s.players[0]; }
+    function endStreet(s) {
+      s.bet = [0, 0, 0, 0]; s.cur = 0; s.minR = s.bb * 2; s.acted = [false, false, false, false];
+      const lv = live(s);
+      if (lv.length === 1) { s.result = []; s.reveal = false; award(s, lv[0], pot(s), ''); say(s, `🏆 ${NAME[lv[0]]} ăn ${pot(s)} chip (mọi người bỏ bài)`); finishHand(s); return s; }
+      showdown(s); return s; // Liêng chỉ 1 vòng cược rồi lật bài
+    }
+    function advance(s) {
+      const lv = live(s);
+      if (lv.length === 1) return endStreet(s);
+      const need = (k) => canAct(s, k) && (!s.acted[k] || s.bet[k] < s.cur);
+      const n = nextOf(s, s.turn, need);
+      if (n < 0) return endStreet(s);
+      s.turn = n; return s;
+    }
+    function apply(s0, m) {
+      if (m.next) return newHand(s0);
+      const s = clone(s0), k = s.turn, toCall = s.cur - s.bet[k];
+      if (m.fold) { s.folded[k] = true; say(s, `${NAME[k]} úp bỏ`); }
+      else if (m.check) { say(s, `${NAME[k]} chưa tố (xem)`); }
+      else if (m.call) { const a = put(s, k, toCall); say(s, `${NAME[k]} theo ${a}${s.allin[k] ? ' (all-in)' : ''}`); }
+      else if (m.raise != null) {
+        const to = Math.min(m.raise, s.bet[k] + s.stack[k]); put(s, k, to - s.bet[k]);
+        if (to - s.cur >= s.minR) { s.minR = to - s.cur; s.players.forEach((o) => { if (o !== k) s.acted[o] = false; }); }
+        else if (to > s.cur) s.players.forEach((o) => { if (o !== k && s.bet[o] < to) s.acted[o] = false; });
+        s.cur = Math.max(s.cur, to); say(s, `${NAME[k]} ${s.allin[k] ? 'TỐ TẤT' : 'tố'} lên ${to}`);
+      }
+      s.acted[k] = true;
+      return advance(s);
+    }
+    const alive = (s) => s.players.filter((k) => s.stack[k] > 0);
+    function status(s) {
+      if (s.phase === 'over' || (s.phase === 'show' && (alive(s).length <= 1 || s.hand >= s.maxHands))) {
+        const w = s.seat.slice().sort((a, b) => s.stack[b] - s.stack[a])[0];
+        return { winner: w, why: alive(s).length <= 1 ? `🎴 ${NAME[w]} gom hết chip!` : `🏁 Hết ${s.maxHands} ván — ${NAME[w]} nhiều chip nhất (${s.stack[w]})` };
+      }
+      return null;
+    }
+    /* ---------- máy chơi: ước lượng tỉ lệ thắng bằng mô phỏng ---------- */
+    function equity(s, k, sims) {
+      const known = new Set([...s.cards[k], ...s.board]), rest = [...Array(52).keys()].filter((c) => !known.has(c));
+      const opp = live(s).filter((o) => o !== k).length;
+      let win = 0;
+      for (let t = 0; t < sims; t++) {
+        const d = rest.slice(); for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
+        let p = 0; const me = ev3(s.cards[k]); let best = true, tie = false;
+        for (let o = 0; o < opp; o++) { const v = ev3([d[p++], d[p++], d[p++]]); if (v > me) { best = false; break; } if (v === me) tie = true; }
+        if (best) win += tie ? 0.5 : 1;
+      }
+      return win / sims;
+    }
+    function ai(s, lv) {
+      if (s.phase === 'show') return { next: true };
+      const k = s.turn, ms = legal(s), toCall = s.cur - s.bet[k], P = pot(s);
+      const e = equity(s, k, [150, 400, 900][lv]) + (Math.random() - 0.5) * [0.25, 0.1, 0.04][lv];
+      const odds = toCall / Math.max(1, P + toCall);
+      const raises = ms.filter((m) => m.raise != null);
+      const pick = (frac) => raises.length ? raises[Math.min(raises.length - 1, Math.floor(frac * raises.length))] : null;
+      const strong = 0.5 + 0.35 / live(s).length;
+      if (e > strong + 0.15 && raises.length && Math.random() < 0.8) return pick(e > 0.85 ? 0.99 : 0.4) || ms.find((m) => m.call || m.check);
+      if (e > strong && raises.length && toCall === 0 && Math.random() < 0.6) return pick(0.2);
+      if (toCall === 0) return lv < 2 && Math.random() < 0.08 && raises.length ? pick(0) : { check: true };
+      if (e >= odds + [0.02, 0.05, 0.07][lv]) return { call: true };
+      if (Math.random() < [0.12, 0.05, 0.02][lv] && raises.length) return pick(0);
+      return { fold: true };
+    }
+    /* ---------- vẽ bàn ---------- */
+    function card(g, x, y, w, c, up) {
+      const h = w * 1.4;
+      g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.roundRect(x + 2, y + 3, w, h, w * 0.12); g.fill();
+      if (!up) { g.fillStyle = '#1864ab'; g.beginPath(); g.roundRect(x, y, w, h, w * 0.12); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.roundRect(x + w * 0.1, y + w * 0.1, w * 0.8, h - w * 0.2, w * 0.08); g.stroke(); g.fillStyle = 'rgba(255,255,255,.25)'; g.font = FONT(w * 0.45); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('♠', x + w / 2, y + h / 2); return; }
+      g.fillStyle = '#fff'; g.beginPath(); g.roundRect(x, y, w, h, w * 0.12); g.fill(); g.strokeStyle = '#adb5bd'; g.lineWidth = 1; g.stroke();
+      const red = suit(c) === 1 || suit(c) === 2; g.fillStyle = red ? '#e03131' : '#212529';
+      const rk = RANKS[rank(c)] === 'T' ? '10' : RANKS[rank(c)];
+      g.font = FONT(w * 0.42); g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(rk, x + w * 0.08, y + w * 0.06);
+      g.font = `${w * 0.62}px system-ui,"Segoe UI Symbol"`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(SUITS[suit(c)], x + w / 2, y + h * 0.62);
+    }
+    function draw(g, W, H, s, v) {
+      const me = v.me ?? 0, cx = W / 2, cy = H / 2;
+      g.fillStyle = '#2b1a10'; g.fillRect(0, 0, W, H);
+      g.fillStyle = '#6b3f1c'; g.beginPath(); g.ellipse(cx, cy, W * 0.47, H * 0.42, 0, 0, Math.PI * 2); g.fill();
+      const fe = g.createRadialGradient(cx, cy, 10, cx, cy, W * 0.45); fe.addColorStop(0, '#2f9e44'); fe.addColorStop(1, '#1b5e2b');
+      g.fillStyle = fe; g.beginPath(); g.ellipse(cx, cy, W * 0.43, H * 0.37, 0, 0, Math.PI * 2); g.fill();
+      const cw = W * 0.075;
+      // giữa bàn: chồng chip + pot
+      for (let i = 0; i < 6; i++) { g.fillStyle = ['#e03131', '#1c7ed6', '#f59f00'][i % 3]; g.beginPath(); g.ellipse(cx - cw * 0.6 + (i % 3) * cw * 0.6, cy - (i >> 1) * 5, cw * 0.32, cw * 0.14, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 2; g.stroke(); }
+      g.font = FONT(W * 0.026); g.fillStyle = '#ffe066'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(s.phase === 'show' ? `Ván ${s.hand}/${s.maxHands}` : `💰 Pot ${pot(s)} chip`, cx, cy - cw * 0.9);
+      g.font = FONT(W * 0.019, 700); g.fillStyle = 'rgba(255,255,255,.75)'; g.fillText(`Tiền gà ${s.bb} · ván ${s.hand}/${s.maxHands}`, cx, cy - cw * 1.45);
+      // ghế: người xem luôn ở dưới
+      const spots = [[cx, H * 0.82], [W * 0.12, cy], [cx, H * 0.16], [W * 0.88, cy]];
+      s.seat.forEach((k) => {
+        const [x, y] = spots[(k - me + 4) % 4], out = !s.players.includes(k) || s.stack[k] <= 0 && !s.tot[k], turn = s.phase === 'bet' && s.turn === k;
+        g.globalAlpha = out ? 0.4 : 1;
+        if (turn) { g.fillStyle = `rgba(255,212,59,${0.45 + 0.25 * Math.sin(v.t * 6)})`; g.beginPath(); g.roundRect(x - W * 0.11, y - H * 0.11, W * 0.22, H * 0.22, 14); g.fill(); }
+        // bài trên tay
+        const showUp = k === me || (s.phase === 'show' && s.reveal && !s.folded[k]);
+        if (s.cards && s.cards[k] && s.cards[k].length && !s.folded[k]) s.cards[k].forEach((c, i) => card(g, x - cw * 1.6 + i * cw * 1.1, y - cw * 1.55, cw, c, showUp));
+        g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.roundRect(x - W * 0.1, y + cw * 0.05, W * 0.2, H * 0.085, 10); g.fill();
+        g.fillStyle = COL[k]; g.beginPath(); g.arc(x - W * 0.085, y + cw * 0.05 + H * 0.0425, W * 0.012, 0, Math.PI * 2); g.fill();
+        g.font = FONT(W * 0.017, 800); g.fillStyle = '#fff'; g.textAlign = 'center';
+        g.fillText(String(v.label ? v.label(k) : NAME[k]).replace(/<[^>]+>/g, '').slice(0, 22), x + W * 0.005, y + cw * 0.05 + H * 0.025);
+        g.font = FONT(W * 0.02); g.fillStyle = '#ffe066'; g.fillText(`${s.stack[k]} chip${s.folded[k] && s.phase === 'bet' ? ' · bỏ' : s.allin[k] ? ' · TỐ TẤT' : ''}`, x, y + cw * 0.05 + H * 0.062);
+        if (s.bet && s.bet[k]) { g.font = FONT(W * 0.018); g.fillStyle = '#fff'; g.fillText(`🪙 ${s.bet[k]}`, x + (cx - x) * 0.4, y + (cy - y) * 0.4); }
+        if (k === s.dealer) { g.fillStyle = '#fff'; g.beginPath(); g.arc(x + W * 0.115, y - cw * 0.4, W * 0.016, 0, Math.PI * 2); g.fill(); g.fillStyle = '#212529'; g.font = FONT(W * 0.016); g.fillText('D', x + W * 0.115, y - cw * 0.4); }
+        if (s.phase === 'show' && s.result) { const r = s.result.find((q) => q.k === k); if (r) { g.font = FONT(W * 0.022); g.fillStyle = '#8ce99a'; g.fillText(`+${r.amt}${r.why ? ' · ' + r.why : ''}`, x, y - cw * 1.85); } else if (s.reveal && !s.folded[k] && s.vals && s.vals[k] != null) { g.font = FONT(W * 0.018, 700); g.fillStyle = '#ced4da'; g.fillText(handName(s.vals[k]), x, y - cw * 1.85); } }
+        g.globalAlpha = 1;
+      });
+      g.font = FONT(W * 0.016, 600); g.textAlign = 'left'; g.fillStyle = 'rgba(255,255,255,.8)';
+      (s.log || []).slice(-4).forEach((l, i) => g.fillText(l, W * 0.015, H * 0.03 + i * W * 0.022));
+    }
+    return {
+      id: 'lieng', name: 'Liêng', icon: '🎴', cols: 16, rows: 10, multi: true, rounds: true, roundsLabel: 'Số ván (hết ván ai nhiều chip nhất thắng)', sides: NAME, colors: COL,
+      rules:'Mỗi người <b>3 lá</b>, ai cũng góp <b>tiền gà</b> rồi lần lượt <b>Tố · Theo · Úp bỏ · Tố tất</b>. Lật bài so: <b>Sáp</b> (3 lá giống nhau) › <b>Liêng</b> (3 lá liên tiếp, Q-K-A lớn nhất, A-2-3 nhỏ nhất) › <b>Ảnh</b> (3 lá J/Q/K) › <b>Điểm</b> (cộng điểm lấy hàng đơn vị, A = 1, 10/J/Q/K = 0, 9 điểm cao nhất). Bằng nhau thì so lá cao nhất (A lớn nhất, chất ♦ › ♥ › ♣ › ♠). Mỗi người 2.000 chip.',
+            init, turn: (s) => s.turn, legal, apply, status, ai, draw,
+      pieceSide: () => -1, clickMove: () => null,
+      hit: () => -1,
+      drop(s0, ks) {
+        let s = clone(s0);
+        ks.forEach((k) => { if (s.phase === 'bet' && !s.folded[k]) { s.folded[k] = true; } s.stack[k] = 0; });
+        s.players = s.players.filter((k) => !ks.includes(k) || s.tot[k] > 0);
+        if (s.phase === 'bet') { if (ks.includes(s.turn) || !canAct(s, s.turn)) { s.acted[s.turn] = true; s = advance(s); } }
+        else if (ks.includes(s.turn)) s.turn = s.players.find((k) => !ks.includes(k)) ?? s.turn;
+        return s;
+      },
+      autoMove: (s) => (s.phase === 'show' ? { m: { next: true }, ms: 4500 } : null),
+      aiDelay: (s) => (s.phase === 'show' ? 4200 : 900),
+      info: (s) => s.seat.map((k) => `<span style="color:${COL[k]}">●</span> ${NAME[k]}: <b>${s.stack[k]}</b> chip`).join('<br>'),
+      panel(s) {
+        const k = s.turn, ms = legal(s), toCall = s.cur - s.bet[k];
+        if (s.phase === 'show') return { text: 'Ván kết thúc — ván mới tự bắt đầu sau vài giây', buttons: [{ l: '▶ Ván tiếp ngay', m: { next: true }, big: 1 }] };
+        const b = [];
+        const hand = s.cards[k].length === 3 ? handName(ev3(s.cards[k])) : '';
+        if (ms.find((m) => m.check)) b.push({ l: '✋ Chưa tố (xem)', m: { check: true }, big: 1 });
+        if (ms.find((m) => m.call)) b.push({ l: `✅ Theo ${Math.min(toCall, s.stack[k])}`, m: { call: true }, big: 1 });
+        ms.filter((m) => m.raise != null).forEach((m) => b.push({ l: m.raise >= s.bet[k] + s.stack[k] ? `🔥 TỐ TẤT (${m.raise})` : `⬆️ Tố lên ${m.raise}`, m }));
+        if (ms.find((m) => m.fold)) b.push({ l: '🏳️ Úp bỏ', m: { fold: true } });
+        return { text: `${hand ? `Bài bạn: <b>${hand}</b> · ` : ''}${toCall > 0 ? `Cần theo <b>${toCall}</b>` : 'Chưa ai tố'} · pot ${pot(s)}`, buttons: b };
+      },
+      waitText: (s) => (s.phase === 'show' ? 'ván mới sắp bắt đầu…' : 'đang suy nghĩ…'),
+      _ev3: ev3, _name: handName,
+    };
+  })();
+
+
+  const GAMES = { chess: CHESS, xiangqi: XQ, go: GO, oaq: OAQ, ludo: LUDO, typhu: TYPHU, battle: BATTLE, poker: POKER, lieng: LIENG };
 
   /* ======================================================================
    * Khung chơi chung
@@ -1348,7 +1602,7 @@ const BOARD = (() => {
     side.innerHTML = `<h3>${G.icon} ${G.name}</h3><p class="muted">${G.rules}</p>
       <label>Độ khó của máy</label><div class="chips">${LV.map((n, i) => `<button class="chip ${lv === i ? 'on' : ''}" data-lv="${i}">${n}</button>`).join('')}</div>
       ${G.multi ? `<label>Số người chơi</label><div class="chips">${[2, 3, 4].map((n) => `<button class="chip ${p.np === n ? 'on' : ''}" data-np="${n}">${n} người</button>`).join('')}</div>` : ''}
-      ${G.rounds ? `<label>${G.roundsLabel || 'Số vòng (hết vòng ai giàu nhất thắng)'}</label><div class="chips">${[10, 20, 30].map((n) => `<button class="chip ${p.rounds === n ? 'on' : ''}" data-rd="${n}">${n} ${G.id === 'poker' ? 'ván' : 'vòng'}</button>`).join('')}</div>` : ''}
+      ${G.rounds ? `<label>${G.roundsLabel || 'Số vòng (hết vòng ai giàu nhất thắng)'}</label><div class="chips">${[10, 20, 30].map((n) => `<button class="chip ${p.rounds === n ? 'on' : ''}" data-rd="${n}">${n} ${G.id === 'poker' || G.id === 'lieng' ? 'ván' : 'vòng'}</button>`).join('')}</div>` : ''}
       <label>Tiền cược</label><div class="chips">${BETS.map((b) => `<button class="chip ${p.bet === b ? 'on' : ''}" data-bet="${b}">${b ? fmt(b) : 'Chơi vui'}</button>`).join('')}</div>
       <p class="muted small-note">Đấu máy: thắng nhận ${G.multi ? '<b>cược × số người</b>' : 'gấp đôi tiền cược'} · hoà trả lại · thua mất cược. Đã thắng ${p.w[G.id] || 0} · thua ${p.l[G.id] || 0}.</p>
       <button class="btn" data-ai>🤖 Đấu với máy</button>
@@ -1728,6 +1982,7 @@ const BOARD = (() => {
     else if (id === 'xiangqi') { quad(0, 0, 1, 1, '#f2cf8d'); c.strokeStyle = '#7a4a1e'; c.lineWidth = 1; for (let k = 0; k <= 8; k++) { const a = P(k / 8, 0), b = P(k / 8, 1); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } for (let r = 0; r <= 9; r++) { const a = P(0, r / 9), b = P(1, r / 9); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } [[0.3, 0.2, '#c92a2a'], [0.6, 0.3, '#212529'], [0.45, 0.75, '#c92a2a'], [0.7, 0.8, '#212529']].forEach(([u, v, col]) => { const [px, py] = P(u, v); c.fillStyle = '#fff4e0'; c.beginPath(); c.ellipse(px, py, 7, 4, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = col; c.lineWidth = 1.5; c.stroke(); }); }
     else if (id === 'go') { quad(0, 0, 1, 1, '#e3b56a'); c.strokeStyle = '#5c3a1e'; c.lineWidth = 1; for (let k = 0; k <= 8; k++) { let a = P(k / 8, 0), b = P(k / 8, 1); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); a = P(0, k / 8); b = P(1, k / 8); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } [[0.25, 0.25, '#111'], [0.5, 0.375, '#fff'], [0.625, 0.625, '#111'], [0.375, 0.75, '#fff'], [0.75, 0.25, '#111']].forEach(([u, v, col]) => { const [px, py] = P(u, v); c.fillStyle = col; c.beginPath(); c.ellipse(px, py, 6, 3.5, 0, 0, Math.PI * 2); c.fill(); }); }
     else if (id === 'oaq') { quad(0.04, 0.15, 0.96, 0.85, '#c99a5b'); c.strokeStyle = '#3d2410'; c.lineWidth = 1.2; for (let k = 1; k <= 6; k++) { const a = P(k / 7, 0.15), b = P(k / 7, 0.85); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } { const a = P(1 / 7, 0.5), b = P(6 / 7, 0.5); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } for (let k = 1; k <= 5; k++) for (const v of [0.32, 0.68]) { const [px, py] = P((k + 0.5) / 7, v); c.fillStyle = '#868e96'; for (let j = 0; j < 3; j++) { c.beginPath(); c.ellipse(px - 3 + j * 3, py + (j % 2), 2, 1.4, 0, 0, Math.PI * 2); c.fill(); } } [[0.5 / 7, 0.5], [6.5 / 7, 0.5]].forEach(([u, v]) => { const [px, py] = P(u, v); c.fillStyle = '#495057'; c.beginPath(); c.ellipse(px, py, 5, 3.5, 0, 0, Math.PI * 2); c.fill(); }); }
+    else if (id === 'lieng') { quad(0.05, 0.05, 0.95, 0.95, '#7a1f2b'); quad(0.1, 0.12, 0.9, 0.88, '#a61e4d'); [[0.2, 0.3], [0.55, 0.65], [0.62, 0.25]].forEach(([u, v]) => { for (let j = 0; j < 3; j++) quad(u + j * 0.07, v, u + j * 0.07 + 0.09, v + 0.22, '#fff'); }); }
     else if (id === 'poker') { quad(0.05, 0.05, 0.95, 0.95, '#1b5e2b'); quad(0.1, 0.12, 0.9, 0.88, '#2f9e44'); [0.3, 0.42, 0.54, 0.66].forEach((u) => quad(u, 0.38, u + 0.09, 0.62, '#fff')); [[0.2, 0.8, '#e03131'], [0.8, 0.25, '#1c7ed6'], [0.25, 0.25, '#f59f00']].forEach(([u, v, col]) => { const [px, py] = P(u, v); c.fillStyle = col; c.beginPath(); c.ellipse(px, py, 5, 3, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 1; c.stroke(); }); }
     else if (id === 'battle') { quad(0, 0, 0.48, 1, '#4dabf7'); quad(0.52, 0, 1, 1, '#4dabf7'); c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 1; for (let k = 0; k <= 6; k++) for (const u0 of [0, 0.52]) { let a = P(u0 + 0.48 * k / 6, 0), b = P(u0 + 0.48 * k / 6, 1); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); a = P(u0, k / 6); b = P(u0 + 0.48, k / 6); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } quad(0.08, 0.2, 0.34, 0.33, '#495057'); quad(0.6, 0.55, 0.68, 0.9, '#495057'); [[0.75, 0.3], [0.2, 0.7], [0.85, 0.75]].forEach(([u, v]) => { const [px, py] = P(u, v); c.fillStyle = '#e03131'; c.beginPath(); c.ellipse(px, py, 4, 2.5, 0, 0, Math.PI * 2); c.fill(); }); }
     else if (id === 'typhu') { quad(0, 0, 1, 1, '#d3f9d8'); const cols = ['#8d5524', '#74c0fc', '#e64980', '#fd7e14', '#e03131', '#fcc419', '#2b8a3e', '#1c3faa']; for (let k = 0; k < 8; k++) { const u = k / 8; quad(u, 0, u + 0.125, 0.14, cols[k]); quad(u, 0.86, u + 0.125, 1, cols[7 - k]); } quad(0.15, 0.25, 0.85, 0.75, '#ebfbee'); const [px, py] = P(0.5, 0.5); c.font = '900 10px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#c92a2a'; c.fillText('TỶ PHÚ', px, py); }
