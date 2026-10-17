@@ -895,8 +895,8 @@ const BOARD = (() => {
   const OAQ = (() => {
     const ownerOf = (i) => (i >= 1 && i <= 5 ? 0 : i >= 7 && i <= 11 ? 1 : -1);
     const QV = 10;
-    const init = () => ({ d: [0, 5, 5, 5, 5, 5, 0, 5, 5, 5, 5, 5], q: [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], cap: [0, 0], capQ: [0, 0], side: 0, debt: [0, 0], n: 0, path: [], ate: [] });
-    const clone = (s) => ({ ...s, d: s.d.slice(), q: s.q.slice(), cap: s.cap.slice(), capQ: s.capQ.slice(), debt: s.debt.slice(), path: [], ate: [] });
+    const init = () => ({ d: [0, 5, 5, 5, 5, 5, 0, 5, 5, 5, 5, 5], q: [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], cap: [0, 0], capQ: [0, 0], side: 0, debt: [0, 0], n: 0, path: [], ate: [], ev: [] });
+    const clone = (s) => ({ ...s, d: s.d.slice(), q: s.q.slice(), cap: s.cap.slice(), capQ: s.capQ.slice(), debt: s.debt.slice(), path: [], ate: [], ev: [], note: '' });
     function legal(s) {
       const out = [];
       for (let i = 1; i < 12; i++) if (ownerOf(i) === s.side && s.d[i] > 0) for (const dir of [1, -1]) out.push({ c: i, dir, t: (i + dir + 12) % 12, cap: 0 });
@@ -914,24 +914,26 @@ const BOARD = (() => {
     function apply(s0, m) {
       const s = clone(s0), k = s.side;
       s.refilled = -1; s.n++;
-      let i = m.c, hand = s.d[i]; s.d[i] = 0;
+      let i = m.c, hand = s.d[i]; s.d[i] = 0; s.ev.push({ p: i });
+      const c0 = s.cap[k], q0 = s.capQ[k];
       for (let guard = 0; guard < 400; guard++) {
-        while (hand > 0) { i = (i + m.dir + 12) % 12; s.d[i]++; hand--; s.path.push(i); }
+        while (hand > 0) { i = (i + m.dir + 12) % 12; s.d[i]++; hand--; s.path.push(i); s.ev.push({ d: i }); }
         const nx = (i + m.dir + 12) % 12;
         if ((nx === 0 || nx === 6) && s.d[nx] + s.q[nx] > 0) break; // gặp ô quan còn quân → mất lượt
-        if (s.d[nx] > 0) { hand = s.d[nx]; s.d[nx] = 0; i = nx; continue; }
+        if (s.d[nx] > 0) { hand = s.d[nx]; s.d[nx] = 0; i = nx; s.ev.push({ p: nx }); continue; }
         // ô kế trống → ăn liên tiếp
         let e = nx;
         while (true) {
           const tgt = (e + m.dir + 12) % 12;
           if (s.d[e] !== 0 || s.q[e] !== 0) break;
           if (s.d[tgt] + s.q[tgt] === 0) break;
-          s.cap[k] += s.d[tgt]; s.capQ[k] += s.q[tgt]; s.ate.push(tgt); s.d[tgt] = 0; s.q[tgt] = 0;
+          s.cap[k] += s.d[tgt]; s.capQ[k] += s.q[tgt]; s.ate.push(tgt); s.ev.push({ e: tgt }); s.d[tgt] = 0; s.q[tgt] = 0;
           e = (tgt + m.dir + 12) % 12;
         }
         break;
       }
       s.last = { c: m.c, dir: m.dir };
+      { const dd = s.cap[k] - c0, dq = s.capQ[k] - q0, SN = ['Phe Đỏ', 'Phe Xanh']; s.note = dd || dq ? `🍽️ ${SN[k]} ăn ${dd ? dd + ' dân' : ''}${dd && dq ? ' + ' : ''}${dq ? dq + ' QUAN' : ''}!` : `${SN[k]} rải xong, không ăn được gì`; }
       if (over(s)) {
         // hết quan: quân còn lại trên ô ai người nấy hưởng
         for (let j = 1; j < 12; j++) { const o = ownerOf(j); if (o >= 0) { s.cap[o] += s.d[j]; s.d[j] = 0; } }
@@ -955,8 +957,9 @@ const BOARD = (() => {
     }
     function ai(s, lv) {
       const ms = legal(s), depth = [1, 2, 4][lv];
+      if (Math.random() < [0.55, 0.15, 0][lv]) return ms[Math.floor(Math.random() * ms.length)];
       let best = ms[0], bv = -Infinity;
-      for (const m of ms) { const v = search(apply(s, m), depth - 1, s.side) + Math.random() * [6, 1.5, 0.2][lv]; if (v > bv) { bv = v; best = m; } }
+      for (const m of ms) { const v = search(apply(s, m), depth - 1, s.side) + Math.random() * [8, 4, 0.2][lv]; if (v > bv) { bv = v; best = m; } }
       return best;
     }
     /* ---------- vẽ: bàn 7 cột × 2 hàng, quan là nửa hình tròn 2 đầu ---------- */
@@ -975,8 +978,18 @@ const BOARD = (() => {
       const cols = ['#adb5bd', '#868e96', '#ced4da', '#e9ecef', '#dee2e6'];
       for (let j = 0; j < Math.min(n, 30); j++) { const a = (seed * 7 + j * 2.399) % (Math.PI * 2), d = Math.sqrt((j + 0.5) / Math.max(6, Math.min(n, 30))) * r; g.fillStyle = cols[(j + seed) % cols.length]; g.beginPath(); g.ellipse(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.8, r * 0.13, r * 0.11, a, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 1; g.stroke(); }
     }
-    function draw(g, W, H, s, v) {
+    const STEP = 0.17;
+    const animMs = (s) => (s.ev ? s.ev.length * STEP * 1000 + 300 : 0);
+    function draw(g, W, H, s0, v) {
       const { q, y0, pos } = geom(W, v.flip);
+      // đang phát hoạt ảnh: dựng lại bàn từ thế trước + các bước đã diễn ra
+      let s = s0, cur = -1, hand = 0, anim = false;
+      if (v.prev && s0.ev && s0.ev.length && v.animT != null && v.animT * 1000 < animMs(s0) - 300) {
+        anim = true;
+        const d = v.prev.d.slice(), qq = v.prev.q.slice(), upto = Math.floor(v.animT / STEP), ate = [];
+        for (let j = 0; j <= Math.min(upto, s0.ev.length - 1); j++) { const e = s0.ev[j]; if (e.p != null) { hand = d[e.p]; d[e.p] = 0; cur = e.p; } else if (e.d != null) { d[e.d]++; hand--; cur = e.d; } else if (e.e != null) { d[e.e] = 0; qq[e.e] = 0; cur = e.e; ate.push(e.e); } }
+        s = { ...v.prev, d, q: qq, path: [], ate };
+      }
       g.fillStyle = '#5c3a1e'; g.fillRect(0, 0, W, H);
       g.fillStyle = '#c99a5b'; g.beginPath(); g.roundRect(q * 0.08, y0 - q * 0.05, W - q * 0.16, q * 2.1, q * 0.9); g.fill();
       g.strokeStyle = '#3d2410'; g.lineWidth = Math.max(2, q * 0.05);
@@ -986,7 +999,8 @@ const BOARD = (() => {
       for (let i = 0; i < 12; i++) {
         const p = pos(i), quan = i === 0 || i === 6;
         if (v.sel === i) { g.fillStyle = 'rgba(105,219,124,.45)'; g.fillRect(p.x - q / 2 + 3, p.y - q / 2 + 3, q - 6, q - 6); }
-        if (s.path && s.path.length && s.path[s.path.length - 1] === i) { g.strokeStyle = '#ffd43b'; g.lineWidth = 3; g.strokeRect(p.x - q / 2 + 4, p.y - q / 2 + 4, q - 8, q - 8); }
+        if (anim && i === cur) { g.fillStyle = 'rgba(255,212,59,.5)'; g.fillRect(p.x - q / 2 + 3, p.y - q / 2 + 3, q - 6, q - 6); }
+        if (!anim && s.path && s.path.length && s.path[s.path.length - 1] === i) { g.strokeStyle = '#ffd43b'; g.lineWidth = 3; g.strokeRect(p.x - q / 2 + 4, p.y - q / 2 + 4, q - 8, q - 8); }
         if (s.ate && s.ate.includes(i)) { g.fillStyle = 'rgba(255,107,107,.35)'; g.fillRect(p.x - q / 2 + 3, p.y - q / 2 + 3, q - 6, q - 6); }
         if (quan && s.q[i]) { g.fillStyle = '#495057'; g.beginPath(); g.ellipse(p.x, p.y - q * 0.25, q * 0.24, q * 0.18, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(255,255,255,.3)'; g.beginPath(); g.ellipse(p.x - q * 0.07, p.y - q * 0.31, q * 0.08, q * 0.05, 0, 0, Math.PI * 2); g.fill(); }
         stones(g, p.x, p.y + (quan ? q * 0.25 : 0), s.d[i], q * (quan ? 0.3 : 0.36), i);
@@ -994,7 +1008,9 @@ const BOARD = (() => {
         const lbl = quan ? `${s.q[i] ? 'QUAN' : ''}${s.d[i] ? ` +${s.d[i]}` : ''}` : String(s.d[i]);
         if (lbl) { g.strokeText(lbl, p.x, p.y + q * 0.38); g.fillText(lbl, p.x, p.y + q * 0.38); }
       }
-      (v.targets || []).forEach((m) => { const a = pos(m.c), b = pos(m.t); g.strokeStyle = '#69db7c'; g.lineWidth = q * 0.07; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); g.fillStyle = '#69db7c'; g.beginPath(); g.arc(b.x, b.y, q * 0.13, 0, Math.PI * 2); g.fill(); });
+      if (anim && cur >= 0 && hand > 0) { const p = pos(cur); g.font = FONT(q * 0.26); g.fillStyle = '#fff'; g.strokeStyle = 'rgba(0,0,0,.7)'; g.lineWidth = 4; g.textAlign = 'center'; g.strokeText(`✋ ${hand}`, p.x, p.y - q * 0.42); g.fillText(`✋ ${hand}`, p.x, p.y - q * 0.42); }
+      if (!anim && s.note && s.ate && s.ate.length) s.ate.forEach((i) => { const p = pos(i); g.font = FONT(q * 0.24); g.fillStyle = '#ffe066'; g.strokeStyle = 'rgba(0,0,0,.7)'; g.lineWidth = 4; g.textAlign = 'center'; g.strokeText('🍽️ ĂN!', p.x, p.y - q * 0.3); g.fillText('🍽️ ĂN!', p.x, p.y - q * 0.3); });
+      if (!anim) (v.targets || []).forEach((m) => { const a = pos(m.c), b = pos(m.t); g.strokeStyle = '#69db7c'; g.lineWidth = q * 0.07; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); g.fillStyle = '#69db7c'; g.beginPath(); g.arc(b.x, b.y, q * 0.13, 0, Math.PI * 2); g.fill(); });
       // điểm 2 bên
       const me = v.flip ? 1 : 0;
       g.font = FONT(q * 0.24); g.fillStyle = '#ffe8cc'; g.textAlign = 'center';
@@ -1004,17 +1020,26 @@ const BOARD = (() => {
     }
     return {
       id: 'oaq', name: 'Ô Ăn Quan', icon: '🪨', cols: 7, rows: 3.1, sides: ['Phe Đỏ', 'Phe Xanh'],
-      rules: 'Bấm 1 ô dân của mình còn quân, rồi bấm ô bên cạnh (mũi tên xanh) để chọn hướng rải. Rải hết quân mà gặp <b>ô dân có quân</b> thì bốc rải tiếp · gặp <b>ô trống</b> thì <b>ăn</b> ô sau nó (ăn dây được) · gặp ô quan thì mất lượt. 1 quan = 10 điểm. Hết 2 quan thì đếm điểm.',
+      rules: 'Bấm 1 ô dân của mình còn quân, rồi bấm <b>⬅️ / ➡️</b> để chọn hướng rải (bí thì bấm 💡 Gợi ý). Rải hết quân mà gặp <b>ô dân có quân</b> thì bốc rải tiếp · gặp <b>ô trống</b> thì <b>ăn</b> ô sau nó (ăn dây được) · gặp ô quan thì mất lượt. 1 quan = 10 điểm. Hết 2 quan thì đếm điểm.',
       init, turn: (s) => s.side, legal, apply, status, ai, draw,
       pieceSide: (s, cell) => (cell >= 0 && s.d[cell] > 0 ? ownerOf(cell) : -1),
       movesFrom: (s, cell) => legal(s).filter((m) => m.c === cell),
       okMove: (s, mv) => legal(s).find((x) => x.c === mv.c && x.dir === mv.dir) || null,
+      animMs, aiDelay: (s) => animMs(s) + 600,
+      localAct(st2, m) { if (m.hint) { const b = ai(st2.s, 2); st2.sel = b.c; st2.targets = legal(st2.s).filter((x) => x.c === b.c && x.dir === b.dir); return true; } return false; },
+      panel(s, st2) {
+        const sel = st2.sel, ms = sel >= 0 ? legal(s).filter((x) => x.c === sel) : [];
+        if (!ms.length) return { text: `👆 Bấm 1 ô dân <b>có quân</b> ở <b>hàng của bạn</b>${s.note ? `<br><small>${s.note}</small>` : ''}`, buttons: [{ l: '💡 Gợi ý nước hay', m: { hint: true } }] };
+        const { pos } = geom(100, st2.flip), xc = pos(sel).x;
+        const btn = ms.map((x) => ({ x, left: pos(x.t).x < xc })).sort((a, b) => (a.left ? -1 : 1) - (b.left ? -1 : 1));
+        return { text: `Ô đã chọn có <b>${s.d[sel]}</b> quân — rải về hướng nào?`, buttons: [...btn.map((o) => ({ l: o.left ? '⬅️ Rải sang trái' : 'Rải sang phải ➡️', m: { c: o.x.c, dir: o.x.dir }, big: 1 })), { l: '💡 Gợi ý nước hay', m: { hint: true } }] };
+      },
       hit(x, y, W, H, flip) {
         const { q, pos } = geom(W, flip); let best = -1, bd = q * 0.6;
         for (let i = 0; i < 12; i++) { const p = pos(i), d = Math.hypot(p.x - x, p.y - y); if (d < bd) { bd = d; best = i; } }
         return best;
       },
-      info: (s) => `🔴 Phe Đỏ: ${score(s, 0)} điểm · 🔵 Phe Xanh: ${score(s, 1)} điểm${s.refilled >= 0 ? `<br>♻️ ${s.refilled === 0 ? 'Phe Đỏ' : 'Phe Xanh'} hết dân — lấy 5 quân đã ăn rải lại` : ''}`,
+      info: (s) => `${s.note ? s.note + '<br>' : ''}🔴 Phe Đỏ: ${score(s, 0)} điểm · 🔵 Phe Xanh: ${score(s, 1)} điểm${s.refilled >= 0 ? `<br>♻️ ${s.refilled === 0 ? 'Phe Đỏ' : 'Phe Xanh'} hết dân — lấy 5 quân đã ăn rải lại` : ''}`,
     };
   })();
 
@@ -1368,6 +1393,7 @@ const BOARD = (() => {
   }
   function doMove(m, mine) {
     if (mine && st.mode === 'net') send({ op: 'move', to: st.room ? '*' : st.opp, gid: st.gid, m });
+    st.prev = st.s; st.animAt = performance.now();
     st.s = st.G.apply(st.s, m); st.moves++;
     if (m.place) { st.preview = null; st.selShip = -1; }
     if (!m.roll) st.last = m;
@@ -1378,6 +1404,7 @@ const BOARD = (() => {
   function click(cell) {
     if (st && !st.idle && st.G.cellInfo && cell >= 0) { st.sel = cell; st.infoCell = cell; side(); return; }
     if (!st || st.idle || st.over || st.busy || cell < 0) return;
+    if (st.G.animMs && performance.now() - (st.animAt || 0) < st.G.animMs(st.s)) return;
     const turn = st.G.turn(st.s);
     if (ctrl(turn) !== 'me') return UI.toast(st.mode === 'net' ? `⏳ Chờ ${st.room ? sideName(turn) : st.oppName} đi…` : '⏳ Chờ máy đi…', 1200);
     if (st.G.localClick && st.G.localClick(st, cell)) { side(); return; }
@@ -1386,6 +1413,7 @@ const BOARD = (() => {
     if (hit) return doMove(hit, true);
     if (st.G.pieceSide(st.s, cell) === turn) { st.sel = cell; st.targets = st.G.movesFrom(st.s, cell); if (!st.targets.length) UI.toast('Quân này chưa đi được', 1000); }
     else { st.sel = -1; st.targets = []; }
+    if (st.G.panel) side();
   }
   function roll() {
     if (!st || st.over || !st.G.multi || st.s.phase !== 'roll' || ctrl(st.s.turn) !== 'me') return;
@@ -1410,7 +1438,7 @@ const BOARD = (() => {
         <button class="btn ghost" data-resign>🏳️ ${st.mode === 'pvp' ? 'Kết thúc ván' : 'Xin thua'}</button>`;
     }
     const q = (s) => el.querySelector(s);
-    el.querySelectorAll('[data-mv]').forEach((b) => b.onclick = () => { if (!st || st.over || ctrl(st.G.turn(st.s)) !== 'me') return; const m = JSON.parse(b.dataset.mv); if (st.G.localAct && st.G.localAct(st, m)) return side(); if (m.roll) return roll(); doMove(m, true); });
+    el.querySelectorAll('[data-mv]').forEach((b) => b.onclick = () => { if (!st || st.over || ctrl(st.G.turn(st.s)) !== 'me') return; const m = JSON.parse(b.dataset.mv); if (st.G.localAct && st.G.localAct(st, m)) return side(); if (st.G.animMs && performance.now() - (st.animAt || 0) < st.G.animMs(st.s)) return; if (m.roll) return roll(); doMove(m, true); });
     if (q('[data-roll]')) q('[data-roll]').onclick = roll;
     if (q('[data-pass]')) q('[data-pass]').onclick = pass;
     if (q('[data-resign]')) q('[data-resign]').onclick = () => UI.confirm(st.mode === 'pvp' ? 'Kết thúc ván này?' : 'Xin thua ván này?', '🏳️ Đồng ý', () => {
@@ -1454,7 +1482,7 @@ const BOARD = (() => {
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const s = st.s || (G.multi ? G.init([0, 1, 2, 3]) : G.init());
     const myTurn = !st.idle && !st.over && ctrl(G.turn(s)) === 'me';
-    G.draw(g, W, H, s, { label: st.idle ? null : sideName, me: st.idle ? 0 : st.mode === 'pvp' ? G.turn(s) : st.mine[0], preview: st.preview, selShip: st.selShip ?? -1, sel: st.sel ?? -1, targets: st.targets || [], last: st.last, flip: st.flip, hover, myTurn, t: performance.now() / 1000, check: G.checkSq && !st.idle ? G.checkSq(s) : -1 });
+    G.draw(g, W, H, s, { prev: st.prev, animT: st.animAt ? (performance.now() - st.animAt) / 1000 : null, label: st.idle ? null : sideName, me: st.idle ? 0 : st.mode === 'pvp' ? G.turn(s) : st.mine[0], preview: st.preview, selShip: st.selShip ?? -1, sel: st.sel ?? -1, targets: st.targets || [], last: st.last, flip: st.flip, hover, myTurn, t: performance.now() / 1000, check: G.checkSq && !st.idle ? G.checkSq(s) : -1 });
     if (st.idle) { g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, W, H); g.font = FONT(Math.max(16, W / 18)); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.fillText('👈 Chọn chế độ chơi', W / 2, H / 2); }
   }
 
