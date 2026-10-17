@@ -627,15 +627,48 @@ const ARCADE2 = (() => {
    * Chạm người đi đường → biến họ thành zombie (đàn đông thêm) · đàn ≥ số zombie ghi trên ô tô thì húc nát xe lấy xu, ít hơn thì mất 1 con.
    * Rào chắn đụng là mất con đó · rơi xuống hố là mất · 🍔 ăn vào thành zombie khổng lồ 6 giây phá hết. Hết zombie là thua.
    * ==================================================================== */
+  /** zombie hoạt hình: đầu xanh to, 2 mắt lồi (1 to 1 nhỏ), tay giơ ra trước, áo màu + quần jean. Gốc toạ độ ở chân, mặt quay sang phải */
+  const ZSHIRT = ['#868e96', '#c92a2a', '#5f3dc4', '#e8590c', '#1971c2', '#2b8a3e', '#f08c00'], ZIRIS = ['#e8590c', '#7048e8', '#868e96', '#d6336c', '#1c7ed6', '#2f9e44'];
+  function drawZom(g, x, y, sc, t, id) {
+    const run = Math.sin(t * 13 + id * 1.7), bob = Math.abs(Math.cos(t * 13 + id * 1.7)) * 3;
+    const shirt = ZSHIRT[id % ZSHIRT.length], iris = ZIRIS[(id * 3 + 1) % ZIRIS.length], big = 0.9 + ((id * 7) % 4) * 0.06;
+    g.save(); g.translate(x, y); g.scale(sc, sc);
+    g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(0, 0, 24, 6, 0, 0, Math.PI * 2); g.fill();
+    g.translate(0, -bob);
+    const limb = (x0, y0, ang, len, w, col, foot) => { g.save(); g.translate(x0, y0); g.rotate(ang); g.fillStyle = col; g.beginPath(); g.roundRect(-w / 2, 0, w, len, w / 2); g.fill(); if (foot) { g.fillStyle = foot; g.beginPath(); g.ellipse(4, len, w * 0.8, w * 0.45, 0, 0, Math.PI * 2); g.fill(); } g.restore(); };
+    // chân (quần jean) + bàn chân xanh
+    limb(-6, -26, run * 0.6, 22, 11, '#3b5bdb', '#5c940d'); limb(6, -26, -run * 0.6, 22, 11, '#364fc7', '#5c940d');
+    // thân (áo)
+    g.fillStyle = shirt; g.beginPath(); g.roundRect(-14, -52, 28, 30, 9); g.fill();
+    g.fillStyle = 'rgba(0,0,0,.15)'; g.fillRect(-14, -28, 28, 5);
+    // tay sau
+    limb(4, -48, -1.45 + run * 0.15, 30, 9, '#74b816');
+    // đầu: to, xanh, hơi chúi về trước
+    g.save(); g.translate(8, -74); g.rotate(0.12 + run * 0.04); g.scale(big, big);
+    const hg = g.createRadialGradient(-6, -12, 4, 0, 0, 36); hg.addColorStop(0, '#c0eb75'); hg.addColorStop(1, '#5c940d');
+    g.fillStyle = hg; g.beginPath(); g.ellipse(0, 0, 32, 27, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(0,0,0,.12)'; g.beginPath(); g.ellipse(4, 14, 26, 10, 0, 0, Math.PI); g.fill();
+    // miệng + răng
+    g.fillStyle = '#2b2b2b'; g.beginPath(); g.moveTo(10, 10); g.quadraticCurveTo(26, 18, 31, 6); g.lineTo(31, 12); g.quadraticCurveTo(24, 24, 8, 14); g.closePath(); g.fill();
+    g.fillStyle = '#fff'; g.beginPath(); g.moveTo(16, 12); g.lineTo(19, 17); g.lineTo(21, 13); g.moveTo(24, 11); g.lineTo(26, 15); g.lineTo(28, 10); g.fill();
+    // 2 mắt lồi
+    const eye = (ex, ey, r, look) => { g.fillStyle = '#fff'; g.beginPath(); g.arc(ex, ey, r, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 1.5; g.stroke(); g.fillStyle = iris; g.beginPath(); g.arc(ex + look, ey + 1, r * 0.48, 0, Math.PI * 2); g.fill(); g.fillStyle = '#111'; g.beginPath(); g.arc(ex + look + 1, ey + 1, r * 0.22, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(ex + look - r * 0.15, ey - r * 0.2, r * 0.1, 0, Math.PI * 2); g.fill(); };
+    eye(4, -12, 15, 4); eye(26, -10, 11, 2);
+    g.restore();
+    // tay trước (giơ ra phía trước kiểu zombie)
+    limb(-2, -46, -1.5 - run * 0.15, 32, 9, '#82c91e');
+    g.fillStyle = '#82c91e'; g.beginPath(); g.arc(30, -48 + run * 4, 6, 0, Math.PI * 2); g.fill();
+    g.restore();
+  }
   function makeZombie() {
     const VH = 720, GY = 600, G = 2600, JV = -980;
     let t = 0, speed = 300, dist = 0, coins = 0, eaten = 0, over = false, deathT = 0, giant = 0, nextObj = 600, msgT = 0, msg = '';
     const hist = []; // lịch sử độ cao con đầu đàn → con sau đi lại đúng đường
     const lead = { y: GY, vy: 0, onGround: true };
-    let horde = [{ off: 0, alive: true, fall: 0 }];
+    let horde = [{ off: 0, alive: true, fall: 0, id: 0 }], nextId = 1;
     const objs = [], fx = [];
     const H0 = () => horde.filter((z) => z.alive && !z.dead).length;
-    function addZombie() { const n = horde.length; horde.push({ off: n, alive: true, fall: 0, born: 0.4 }); }
+    function addZombie() { const n = horde.length; horde.push({ off: n, alive: true, fall: 0, born: 0.4, id: nextId++ }); }
     function spawn() {
       const W = game.VW, x = W + 80, r = Math.random(), n = H0();
       if (r < 0.32) { const k = 1 + rnd(0, 3) | 0; for (let i = 0; i < k; i++) objs.push({ type: 'human', x: x + i * 46, y: GY, ph: Math.random() * 6, ic: ['🧍', '🧑', '👩', '🧓', '👮', '🧑‍🍳'][rnd(0, 6) | 0] }); }
@@ -645,7 +678,7 @@ const ARCADE2 = (() => {
       else if (r < 0.9) objs.push({ type: 'burger', x, y: GY - 150 });
       else for (let i = 0; i < 6; i++) objs.push({ type: 'coin', x: x + i * 40, y: GY - 60 - Math.sin(i / 5 * Math.PI) * 120 });
     }
-    const zx = (z) => 260 - z.off * Math.min(26, 230 / Math.max(1, horde.length));
+    const zx = (z) => 300 - z.off * Math.min(36, 280 / Math.max(1, horde.length));
     const zy = (z) => { const k = Math.floor(z.off * 0.09 / (1 / 60)); return hist[k] ?? GY; };
     function overHole(x) { return objs.some((o) => o.type === 'hole' && x > o.x + 8 && x < o.x + o.w - 8); }
     const game = {
@@ -692,10 +725,17 @@ const ARCADE2 = (() => {
       key(k, on) { if (on && (k === ' ' || k === 'ArrowUp' || k === 'w')) game.down(); },
       draw(g) {
         const W = game.VW;
-        const sk = g.createLinearGradient(0, 0, 0, VH); sk.addColorStop(0, '#2b1d4d'); sk.addColorStop(0.6, '#7048e8'); sk.addColorStop(1, '#f783ac'); g.fillStyle = sk; g.fillRect(0, 0, W, VH);
-        g.fillStyle = '#fff3bf'; g.beginPath(); g.arc(W * 0.8, 120, 50, 0, Math.PI * 2); g.fill();
+        const sk = g.createLinearGradient(0, 0, 0, GY - 120); sk.addColorStop(0, '#339af0'); sk.addColorStop(1, '#d0ebff'); g.fillStyle = sk; g.fillRect(0, 0, W, VH);
+        g.fillStyle = '#fff9db'; g.beginPath(); g.arc(W * 0.82, 110, 46, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.85)'; for (let i = 0; i < 6; i++) { const cx = ((i * 260 - dist * 0.05) % (W + 300) + W + 300) % (W + 300) - 150, cy = 80 + (i % 3) * 50; [[0, 0, 34], [32, 8, 26], [-30, 10, 24]].forEach(([dx, dy, r]) => { g.beginPath(); g.arc(cx + dx, cy + dy, r, 0, Math.PI * 2); g.fill(); }); }
+        g.fillStyle = '#74b816'; for (let i = 0; i < 6; i++) { const x = ((i * 420 - dist * 0.12) % (W + 500) + W + 500) % (W + 500) - 250; g.beginPath(); g.ellipse(x, GY - 150, 160, 50 + (i % 3) * 15, 0, Math.PI, 0); g.fill(); }
+        const sea = g.createLinearGradient(0, GY - 150, 0, GY - 50); sea.addColorStop(0, '#1c7ed6'); sea.addColorStop(1, '#4dabf7'); g.fillStyle = sea; g.fillRect(0, GY - 150, W, 100);
+        g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 2; for (let i = 0; i < 18; i++) { const x = ((i * 97 - dist * 0.3) % (W + 100) + W + 100) % (W + 100) - 50, y = GY - 140 + (i * 23) % 80; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 12, y - 5, x + 24, y); g.stroke(); }
+        g.fillStyle = '#5c940d'; g.fillRect(0, GY - 52, W, 52);
+        g.fillStyle = '#2b8a3e'; for (let x = -((dist * 0.9) % 90); x < W + 90; x += 90) { g.beginPath(); g.arc(x, GY - 50, 34, Math.PI, 0); g.arc(x + 40, GY - 46, 26, Math.PI, 0); g.fill(); }
+        if (false)
         for (const [k, col, hmin] of [[0.2, '#3b2a6b', 160], [0.5, '#2b1d4d', 220]]) { g.fillStyle = col; for (let i = 0; i < 20; i++) { const bw = 90 + (i * 37) % 60, x = ((i * 140 - dist * k) % (W + 300) + W + 300) % (W + 300) - 150, h = hmin + (i * 53) % 150; g.fillRect(x, GY - h, bw, h); g.fillStyle = 'rgba(255,224,102,.5)'; for (let wy = GY - h + 15; wy < GY - 20; wy += 28) for (let wx = x + 12; wx < x + bw - 12; wx += 24) if ((wx + wy + i) % 3) g.fillRect(wx, wy, 10, 12); g.fillStyle = col; } }
-        g.fillStyle = '#495057'; g.fillRect(0, GY, W, VH - GY); g.fillStyle = '#868e96'; for (let x = -(dist % 80); x < W; x += 80) g.fillRect(x, GY + 40, 40, 6);
+        g.fillStyle = '#868e96'; g.fillRect(0, GY - 6, W, 10); g.fillStyle = '#495057'; g.fillRect(0, GY + 4, W, VH - GY); g.fillStyle = '#fcc419'; for (let x = -(dist % 90); x < W; x += 90) g.fillRect(x, GY + 52, 54, 7);
         objs.forEach((o) => { if (o.type === 'hole') { g.fillStyle = '#1a0a14'; g.fillRect(o.x, GY, o.w, VH - GY); g.fillStyle = '#343a40'; g.fillRect(o.x - 6, GY, 6, VH - GY); g.fillRect(o.x + o.w, GY, 6, VH - GY); } });
         objs.forEach((o) => {
           if (o.type === 'human') txt(g, o.ic, o.x, GY - 38 + Math.abs(Math.sin(o.ph * 8)) * -4, 66, '#fff', 'center', false);
@@ -707,10 +747,7 @@ const ARCADE2 = (() => {
         // đàn zombie (vẽ con sau trước)
         horde.slice().reverse().forEach((z) => {
           const x = zx(z), y = z.fall ? z.fy : zy(z), s = giant && z === horde[0] ? 2.4 : 1, b = z.born ? 1 + z.born : 1;
-          g.save(); g.translate(x, y); g.scale(s * b, s * b);
-          g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(0, 0, 22, 6, 0, 0, Math.PI * 2); g.fill();
-          txt(g, '🧟', 0, -38 + Math.sin(t * 14 + z.off) * 3, 72, '#fff', 'center', false);
-          g.restore();
+          drawZom(g, x, y, s * b * 1.3, t, z.id);
         });
         fx.forEach((f) => { g.globalAlpha = Math.max(0, 1 - f.t); txt(g, f.text, f.x, f.y - f.t * 50, 26, f.c); g.globalAlpha = 1; });
         // HUD
