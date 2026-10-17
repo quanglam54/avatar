@@ -1,4 +1,4 @@
-/* ♟️ PHÒNG CỜ trong Nhà Casino: Cờ Vua · Cờ Tướng · Cờ Vây (9×9) · Cờ Cá Ngựa · Cờ Tỷ Phú · Hải Chiến.
+/* ♟️ PHÒNG CỜ trong Nhà Casino: Cờ Vua · Cờ Tướng · Cờ Vây (9×9) · Cờ Cá Ngựa · Cờ Tỷ Phú · Hải Chiến · Ô Ăn Quan · Poker.
  * Mỗi trò: đấu với máy (Dễ / Vừa / Khó, có cược xu), chơi chung 1 máy, hoặc mời người cùng khu chơi online (mỗi bên cược bằng nhau, thắng ăn cả).
  * Mỗi trò khai báo: init · legal (nước đi hợp lệ của bên tới lượt) · apply (trả về thế cờ mới) · status (thắng/hoà) · ai · draw · hit (toạ độ → ô). */
 const BOARD = (() => {
@@ -854,7 +854,392 @@ const BOARD = (() => {
     };
   })();
 
-  const GAMES = { chess: CHESS, xiangqi: XQ, go: GO, ludo: LUDO, typhu: TYPHU, battle: BATTLE };
+  /* ======================================================================
+   * 🪨 Ô ĂN QUAN — 10 ô dân (mỗi ô 5 quân) + 2 ô quan (mỗi ô 1 quan = 10 điểm).
+   * Ô theo vòng: 0 = quan trái · 1..5 = hàng dưới (bên 0) · 6 = quan phải · 7..11 = hàng trên (bên 1).
+   * Lượt đi: chọn 1 ô dân của mình còn quân + hướng rải. Rải mỗi ô 1 quân; hết quân thì xét ô kế tiếp:
+   *   ô dân còn quân → bốc lên rải tiếp · ô quan → mất lượt · ô trống → ăn ô sau nó (nếu có quân), rồi xét tiếp "trống – có quân" để ăn dây.
+   * Hết quân 5 ô của mình thì lấy 5 quân đã ăn rải lại (không đủ thì vay). Hết cả 2 quan thì kết thúc, quân còn trên ô ai người nấy hưởng.
+   * ==================================================================== */
+  const OAQ = (() => {
+    const ownerOf = (i) => (i >= 1 && i <= 5 ? 0 : i >= 7 && i <= 11 ? 1 : -1);
+    const QV = 10;
+    const init = () => ({ d: [0, 5, 5, 5, 5, 5, 0, 5, 5, 5, 5, 5], q: [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], cap: [0, 0], capQ: [0, 0], side: 0, debt: [0, 0], n: 0, path: [], ate: [] });
+    const clone = (s) => ({ ...s, d: s.d.slice(), q: s.q.slice(), cap: s.cap.slice(), capQ: s.capQ.slice(), debt: s.debt.slice(), path: [], ate: [] });
+    function legal(s) {
+      const out = [];
+      for (let i = 1; i < 12; i++) if (ownerOf(i) === s.side && s.d[i] > 0) for (const dir of [1, -1]) out.push({ c: i, dir, t: (i + dir + 12) % 12, cap: 0 });
+      return out;
+    }
+    /** đầu lượt: 5 ô của mình trống thì rải lại 5 quân đã ăn (thiếu thì vay đối thủ) */
+    function refill(s) {
+      const k = s.side, cells = k === 0 ? [1, 2, 3, 4, 5] : [7, 8, 9, 10, 11];
+      if (cells.some((i) => s.d[i] > 0)) return;
+      if (s.cap[k] >= 5) s.cap[k] -= 5; else { const need = 5 - s.cap[k]; s.cap[k] = 0; s.cap[1 - k] -= need; s.debt[k] += need; }
+      cells.forEach((i) => { s.d[i] = 1; });
+      s.refilled = k;
+    }
+    const over = (s) => s.q[0] === 0 && s.q[6] === 0 && s.d[0] === 0 && s.d[6] === 0;
+    function apply(s0, m) {
+      const s = clone(s0), k = s.side;
+      s.refilled = -1; s.n++;
+      let i = m.c, hand = s.d[i]; s.d[i] = 0;
+      for (let guard = 0; guard < 400; guard++) {
+        while (hand > 0) { i = (i + m.dir + 12) % 12; s.d[i]++; hand--; s.path.push(i); }
+        const nx = (i + m.dir + 12) % 12;
+        if ((nx === 0 || nx === 6) && s.d[nx] + s.q[nx] > 0) break; // gặp ô quan còn quân → mất lượt
+        if (s.d[nx] > 0) { hand = s.d[nx]; s.d[nx] = 0; i = nx; continue; }
+        // ô kế trống → ăn liên tiếp
+        let e = nx;
+        while (true) {
+          const tgt = (e + m.dir + 12) % 12;
+          if (s.d[e] !== 0 || s.q[e] !== 0) break;
+          if (s.d[tgt] + s.q[tgt] === 0) break;
+          s.cap[k] += s.d[tgt]; s.capQ[k] += s.q[tgt]; s.ate.push(tgt); s.d[tgt] = 0; s.q[tgt] = 0;
+          e = (tgt + m.dir + 12) % 12;
+        }
+        break;
+      }
+      s.last = { c: m.c, dir: m.dir };
+      if (over(s)) {
+        // hết quan: quân còn lại trên ô ai người nấy hưởng
+        for (let j = 1; j < 12; j++) { const o = ownerOf(j); if (o >= 0) { s.cap[o] += s.d[j]; s.d[j] = 0; } }
+        s.done = true; return s;
+      }
+      s.side = 1 - k; refill(s);
+      return s;
+    }
+    const score = (s, k) => s.cap[k] + s.capQ[k] * QV;
+    function status(s) {
+      if (!s.done && s.n < 400) return null;
+      const a = score(s, 0), b = score(s, 1);
+      return { winner: a === b ? -1 : a > b ? 0 : 1, why: `Phe Đỏ ${a} điểm – Phe Xanh ${b} điểm` };
+    }
+    function search(s, depth, me) {
+      if (depth === 0 || s.done) return score(s, me) - score(s, 1 - me);
+      const ms = legal(s); if (!ms.length) return score(s, me) - score(s, 1 - me);
+      let best = s.side === me ? -Infinity : Infinity;
+      for (const m of ms) { const v = search(apply(s, m), depth - 1, me); best = s.side === me ? Math.max(best, v) : Math.min(best, v); }
+      return best;
+    }
+    function ai(s, lv) {
+      const ms = legal(s), depth = [1, 2, 4][lv];
+      let best = ms[0], bv = -Infinity;
+      for (const m of ms) { const v = search(apply(s, m), depth - 1, s.side) + Math.random() * [6, 1.5, 0.2][lv]; if (v > bv) { bv = v; best = m; } }
+      return best;
+    }
+    /* ---------- vẽ: bàn 7 cột × 2 hàng, quan là nửa hình tròn 2 đầu ---------- */
+    function geom(W, flip) {
+      const q = W / 7, y0 = q * 0.6;
+      const pos = (i) => {
+        let col, row;
+        if (i === 0) { col = 0; row = 0.5; } else if (i === 6) { col = 6; row = 0.5; }
+        else if (i <= 5) { col = i; row = 1; } else { col = 12 - i; row = 0; }
+        if (flip) { col = 6 - col; row = 1 - row; }
+        return { x: (col + 0.5) * q, y: y0 + (row + 0.5) * q, q };
+      };
+      return { q, y0, pos };
+    }
+    function stones(g, cx, cy, n, r, seed) {
+      const cols = ['#adb5bd', '#868e96', '#ced4da', '#e9ecef', '#dee2e6'];
+      for (let j = 0; j < Math.min(n, 30); j++) { const a = (seed * 7 + j * 2.399) % (Math.PI * 2), d = Math.sqrt((j + 0.5) / Math.max(6, Math.min(n, 30))) * r; g.fillStyle = cols[(j + seed) % cols.length]; g.beginPath(); g.ellipse(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.8, r * 0.13, r * 0.11, a, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 1; g.stroke(); }
+    }
+    function draw(g, W, H, s, v) {
+      const { q, y0, pos } = geom(W, v.flip);
+      g.fillStyle = '#5c3a1e'; g.fillRect(0, 0, W, H);
+      g.fillStyle = '#c99a5b'; g.beginPath(); g.roundRect(q * 0.08, y0 - q * 0.05, W - q * 0.16, q * 2.1, q * 0.9); g.fill();
+      g.strokeStyle = '#3d2410'; g.lineWidth = Math.max(2, q * 0.05);
+      g.beginPath(); g.roundRect(q * 0.08, y0 - q * 0.05, W - q * 0.16, q * 2.1, q * 0.9); g.stroke();
+      for (let c = 1; c <= 6; c++) { g.beginPath(); g.moveTo(c * q, y0); g.lineTo(c * q, y0 + q * 2); g.stroke(); }
+      g.beginPath(); g.moveTo(q, y0 + q); g.lineTo(6 * q, y0 + q); g.stroke();
+      for (let i = 0; i < 12; i++) {
+        const p = pos(i), quan = i === 0 || i === 6;
+        if (v.sel === i) { g.fillStyle = 'rgba(105,219,124,.45)'; g.fillRect(p.x - q / 2 + 3, p.y - q / 2 + 3, q - 6, q - 6); }
+        if (s.path && s.path.length && s.path[s.path.length - 1] === i) { g.strokeStyle = '#ffd43b'; g.lineWidth = 3; g.strokeRect(p.x - q / 2 + 4, p.y - q / 2 + 4, q - 8, q - 8); }
+        if (s.ate && s.ate.includes(i)) { g.fillStyle = 'rgba(255,107,107,.35)'; g.fillRect(p.x - q / 2 + 3, p.y - q / 2 + 3, q - 6, q - 6); }
+        if (quan && s.q[i]) { g.fillStyle = '#495057'; g.beginPath(); g.ellipse(p.x, p.y - q * 0.25, q * 0.24, q * 0.18, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(255,255,255,.3)'; g.beginPath(); g.ellipse(p.x - q * 0.07, p.y - q * 0.31, q * 0.08, q * 0.05, 0, 0, Math.PI * 2); g.fill(); }
+        stones(g, p.x, p.y + (quan ? q * 0.25 : 0), s.d[i], q * (quan ? 0.3 : 0.36), i);
+        g.font = FONT(q * 0.22); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 3;
+        const lbl = quan ? `${s.q[i] ? 'QUAN' : ''}${s.d[i] ? ` +${s.d[i]}` : ''}` : String(s.d[i]);
+        if (lbl) { g.strokeText(lbl, p.x, p.y + q * 0.38); g.fillText(lbl, p.x, p.y + q * 0.38); }
+      }
+      (v.targets || []).forEach((m) => { const a = pos(m.c), b = pos(m.t); g.strokeStyle = '#69db7c'; g.lineWidth = q * 0.07; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); g.fillStyle = '#69db7c'; g.beginPath(); g.arc(b.x, b.y, q * 0.13, 0, Math.PI * 2); g.fill(); });
+      // điểm 2 bên
+      const me = v.flip ? 1 : 0;
+      g.font = FONT(q * 0.24); g.fillStyle = '#ffe8cc'; g.textAlign = 'center';
+      const SN = ['Phe Đỏ', 'Phe Xanh'];
+      g.fillStyle = me === 1 ? '#ffc9c9' : '#a5d8ff'; g.fillText(`${SN[1 - me]}: ${s.cap[1 - me]} dân · ${s.capQ[1 - me]} quan = ${score(s, 1 - me)} điểm`, W / 2, y0 * 0.45);
+      g.fillStyle = me === 0 ? '#ffc9c9' : '#a5d8ff'; g.fillText(`${SN[me]}: ${s.cap[me]} dân · ${s.capQ[me]} quan = ${score(s, me)} điểm`, W / 2, y0 + q * 2.45);
+    }
+    return {
+      id: 'oaq', name: 'Ô Ăn Quan', icon: '🪨', cols: 7, rows: 3.1, sides: ['Phe Đỏ', 'Phe Xanh'],
+      rules: 'Bấm 1 ô dân của mình còn quân, rồi bấm ô bên cạnh (mũi tên xanh) để chọn hướng rải. Rải hết quân mà gặp <b>ô dân có quân</b> thì bốc rải tiếp · gặp <b>ô trống</b> thì <b>ăn</b> ô sau nó (ăn dây được) · gặp ô quan thì mất lượt. 1 quan = 10 điểm. Hết 2 quan thì đếm điểm.',
+      init, turn: (s) => s.side, legal, apply, status, ai, draw,
+      pieceSide: (s, cell) => (cell >= 0 && s.d[cell] > 0 ? ownerOf(cell) : -1),
+      movesFrom: (s, cell) => legal(s).filter((m) => m.c === cell),
+      okMove: (s, mv) => legal(s).find((x) => x.c === mv.c && x.dir === mv.dir) || null,
+      hit(x, y, W, H, flip) {
+        const { q, pos } = geom(W, flip); let best = -1, bd = q * 0.6;
+        for (let i = 0; i < 12; i++) { const p = pos(i), d = Math.hypot(p.x - x, p.y - y); if (d < bd) { bd = d; best = i; } }
+        return best;
+      },
+      info: (s) => `🔴 Phe Đỏ: ${score(s, 0)} điểm · 🔵 Phe Xanh: ${score(s, 1)} điểm${s.refilled >= 0 ? `<br>♻️ ${s.refilled === 0 ? 'Phe Đỏ' : 'Phe Xanh'} hết dân — lấy 5 quân đã ăn rải lại` : ''}`,
+    };
+  })();
+
+  /* ======================================================================
+   * ♠️ POKER TEXAS HOLD'EM — 2 đến 4 người, mỗi người 2.000 chip, mù 10/20 (cứ 5 ván tăng gấp đôi).
+   * Đủ vòng cược: trước flop · flop · turn · river, có all-in và chia pot phụ. Bài chia theo hạt giống chung nên chơi online các máy khớp nhau.
+   * Hết số ván (hoặc chỉ còn 1 người có chip) thì ai nhiều chip nhất thắng.
+   * ==================================================================== */
+  const POKER = (() => {
+    const COL = ['#e03131', '#2f9e44', '#f59f00', '#1c7ed6'], NAME = ['Đỏ', 'Xanh lá', 'Vàng', 'Xanh dương'];
+    const RANKS = '23456789TJQKA', SUITS = ['♠', '♥', '♦', '♣'], START = 2000;
+    const HAND = ['Mậu thầu', 'Đôi', 'Thú (2 đôi)', 'Sám cô', 'Sảnh', 'Thùng', 'Cù lũ', 'Tứ quý', 'Thùng phá sảnh'];
+    const rank = (c) => c % 13, suit = (c) => Math.floor(c / 13);
+    function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+    /* ---------- chấm bài: 5 lá → điểm số (càng lớn càng mạnh) ---------- */
+    function eval5(cs) {
+      const r = cs.map(rank).sort((a, b) => b - a), fl = cs.every((c) => suit(c) === suit(cs[0]));
+      const cnt = {}; r.forEach((x) => { cnt[x] = (cnt[x] || 0) + 1; });
+      const groups = Object.entries(cnt).map(([x, n]) => [n, +x]).sort((a, b) => b[0] - a[0] || b[1] - a[1]);
+      const uniq = [...new Set(r)];
+      let st = -1;
+      if (uniq.length === 5) { if (uniq[0] - uniq[4] === 4) st = uniq[0]; else if (uniq.join() === '12,3,2,1,0') st = 3; }
+      const code = (cat, ks) => ks.reduce((a, k) => a * 16 + k, cat);
+      if (st >= 0 && fl) return code(8, [st, 0, 0, 0, 0]);
+      if (groups[0][0] === 4) return code(7, [groups[0][1], groups[1][1], 0, 0, 0]);
+      if (groups[0][0] === 3 && groups[1][0] === 2) return code(6, [groups[0][1], groups[1][1], 0, 0, 0]);
+      if (fl) return code(5, r);
+      if (st >= 0) return code(4, [st, 0, 0, 0, 0]);
+      if (groups[0][0] === 3) return code(3, [groups[0][1], ...groups.slice(1).map((g) => g[1]), 0, 0].slice(0, 5));
+      if (groups[0][0] === 2 && groups[1][0] === 2) return code(2, [groups[0][1], groups[1][1], groups[2][1], 0, 0]);
+      if (groups[0][0] === 2) return code(1, [groups[0][1], ...groups.slice(1).map((g) => g[1]), 0].slice(0, 5));
+      return code(0, r);
+    }
+    const catOf = (v) => Math.floor(v / Math.pow(16, 5));
+    function best7(cs) { let b = -1; for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) { const five = cs.filter((_, k) => k !== i && k !== j); if (five.length === 5) { const v = eval5(five); if (v > b) b = v; } } return b; }
+    /* ---------- trạng thái ---------- */
+    const blindAt = (h) => 20 * Math.pow(2, Math.floor((h - 1) / 5));
+    function init(players, seed, opt = {}) {
+      const s = { players: players.slice(), seat: players.slice(), stack: [0, 0, 0, 0], seed: seed || 1, hand: 0, maxHands: opt.rounds || 20, dealer: -1, log: [], phase: 'show', turn: players[0] };
+      players.forEach((k) => { s.stack[k] = START; });
+      return newHand(s);
+    }
+    const clone = (s) => ({ ...s, players: s.players.slice(), stack: s.stack.slice(), cards: s.cards ? s.cards.map((c) => c.slice()) : null, board: s.board ? s.board.slice() : [], deck: s.deck ? s.deck.slice() : [], bet: s.bet ? s.bet.slice() : [0, 0, 0, 0], tot: s.tot ? s.tot.slice() : [0, 0, 0, 0], folded: s.folded ? s.folded.slice() : [], allin: s.allin ? s.allin.slice() : [], acted: s.acted ? s.acted.slice() : [], log: s.log.slice(-6) });
+    const say = (s, t) => { s.log.push(t); if (s.log.length > 7) s.log.shift(); };
+    const nextOf = (s, k, pred) => { const ps = s.players; let i = ps.indexOf(k); for (let n = 0; n < ps.length; n++) { i = (i + 1) % ps.length; if (pred(ps[i])) return ps[i]; } return -1; };
+    const live = (s) => s.players.filter((k) => !s.folded[k]);
+    const canAct = (s, k) => !s.folded[k] && !s.allin[k];
+    function put(s, k, amt) { amt = Math.min(amt, s.stack[k]); s.stack[k] -= amt; s.bet[k] += amt; s.tot[k] += amt; if (s.stack[k] === 0) s.allin[k] = true; return amt; }
+    function newHand(s0) {
+      const s = clone(s0);
+      s.players = s.players.filter((k) => s.stack[k] > 0);
+      if (s.players.length < 2) { s.phase = 'over'; return s; }
+      s.hand++; s.bb = blindAt(s.hand); s.sb = s.bb / 2;
+      { const order = s.seat; let i = order.indexOf(s.dealer); do { i = (i + 1) % order.length; } while (!s.players.includes(order[i])); s.dealer = order[i]; }
+      const r = rng(s.seed * 1009 + s.hand * 7919), deck = [...Array(52).keys()];
+      for (let i = 51; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
+      s.deck = deck; s.cards = [[], [], [], []]; s.board = [];
+      s.bet = [0, 0, 0, 0]; s.tot = [0, 0, 0, 0]; s.folded = [true, true, true, true]; s.allin = [false, false, false, false]; s.acted = [false, false, false, false];
+      s.players.forEach((k) => { s.folded[k] = false; });
+      for (let n = 0; n < 2; n++) s.players.forEach((k) => s.cards[k].push(s.deck.pop()));
+      const heads = s.players.length === 2, sbP = heads ? s.dealer : nextOf(s, s.dealer, () => true), bbP = nextOf(s, sbP, () => true);
+      put(s, sbP, s.sb); put(s, bbP, s.bb);
+      s.cur = s.bb; s.minR = s.bb; s.street = 0; s.phase = 'bet'; s.result = null; s.sbP = sbP; s.bbP = bbP;
+      s.turn = nextOf(s, bbP, (k) => canAct(s, k));
+      say(s, `🃏 Ván ${s.hand} · mù ${s.sb}/${s.bb}`);
+      if (s.turn < 0 || s.players.filter((k) => canAct(s, k)).length <= 1 && s.bet[s.turn] >= s.cur) return endStreet(s);
+      return s;
+    }
+    const pot = (s) => s.tot.reduce((a, b) => a + b, 0);
+    function legal(s) {
+      if (s.phase === 'show') return [{ next: true }];
+      if (s.phase !== 'bet') return [];
+      const k = s.turn, toCall = s.cur - s.bet[k], st = s.stack[k], out = [];
+      if (toCall > 0) out.push({ fold: true });
+      out.push(toCall > 0 ? { call: true } : { check: true });
+      const maxTo = s.bet[k] + st, minTo = s.cur + s.minR, P = pot(s) + toCall;
+      if (maxTo > s.cur) {
+        const sizes = new Set();
+        if (minTo < maxTo) { sizes.add(minTo); [Math.round(s.cur + P / 2), s.cur + P].forEach((x) => { if (x > minTo && x < maxTo) sizes.add(x); }); }
+        sizes.add(maxTo);
+        [...sizes].sort((a, b) => a - b).forEach((x) => out.push({ raise: x }));
+      }
+      return out;
+    }
+    function award(s, k, amt, why) { s.stack[k] += amt; s.result.push({ k, amt, why }); }
+    function showdown(s) {
+      while (s.board.length < 5) s.board.push(s.deck.pop());
+      s.result = []; s.reveal = true;
+      const lv = live(s), val = {}; lv.forEach((k) => { val[k] = best7([...s.cards[k], ...s.board]); });
+      const levels = [...new Set(s.players.map((k) => s.tot[k]).filter((x) => x > 0))].sort((a, b) => a - b);
+      let prev = 0;
+      levels.forEach((L) => {
+        const contrib = s.players.reduce((a, k) => a + Math.max(0, Math.min(s.tot[k], L) - prev), 0);
+        const elig = lv.filter((k) => s.tot[k] >= L);
+        if (contrib > 0 && elig.length) {
+          const top = Math.max(...elig.map((k) => val[k])), win = elig.filter((k) => val[k] === top), each = Math.floor(contrib / win.length);
+          win.forEach((k, i) => award(s, k, each + (i === 0 ? contrib - each * win.length : 0), HAND[catOf(top)]));
+        } else if (contrib > 0) { const k = lv[0]; award(s, k, contrib, ''); }
+        prev = L;
+      });
+      const merged = {}; s.result.forEach((r) => { merged[r.k] = merged[r.k] ? { ...merged[r.k], amt: merged[r.k].amt + r.amt } : { ...r }; });
+      s.result = Object.values(merged);
+      s.result.forEach((r) => say(s, `🏆 ${NAME[r.k]} ăn ${r.amt} chip${r.why ? ` (${r.why})` : ''}`));
+      s.vals = val; finishHand(s);
+    }
+    function finishHand(s) { s.phase = 'show'; s.bet = [0, 0, 0, 0]; s.turn = s.players.find((k) => s.stack[k] > 0) ?? s.players[0]; }
+    function endStreet(s) {
+      s.bet = [0, 0, 0, 0]; s.cur = 0; s.minR = s.bb; s.acted = [false, false, false, false];
+      const lv = live(s);
+      if (lv.length === 1) { s.result = []; s.reveal = false; award(s, lv[0], pot(s), ''); say(s, `🏆 ${NAME[lv[0]]} ăn ${pot(s)} chip (mọi người bỏ bài)`); finishHand(s); return s; }
+      if (s.street >= 3 || lv.filter((k) => !s.allin[k]).length <= 1) { showdown(s); return s; }
+      s.street++;
+      if (s.street === 1) s.board.push(s.deck.pop(), s.deck.pop(), s.deck.pop()); else s.board.push(s.deck.pop());
+      say(s, ['', '🃏 Lật 3 lá (flop)', '🃏 Lá thứ 4 (turn)', '🃏 Lá cuối (river)'][s.street]);
+      s.turn = nextOf(s, s.dealer, (k) => canAct(s, k));
+      return s;
+    }
+    function advance(s) {
+      const lv = live(s);
+      if (lv.length === 1) return endStreet(s);
+      const need = (k) => canAct(s, k) && (!s.acted[k] || s.bet[k] < s.cur);
+      const n = nextOf(s, s.turn, need);
+      if (n < 0) return endStreet(s);
+      s.turn = n; return s;
+    }
+    function apply(s0, m) {
+      if (m.next) return newHand(s0);
+      const s = clone(s0), k = s.turn, toCall = s.cur - s.bet[k];
+      if (m.fold) { s.folded[k] = true; say(s, `${NAME[k]} bỏ bài`); }
+      else if (m.check) { say(s, `${NAME[k]} xem bài (check)`); }
+      else if (m.call) { const a = put(s, k, toCall); say(s, `${NAME[k]} theo ${a}${s.allin[k] ? ' (all-in)' : ''}`); }
+      else if (m.raise != null) {
+        const to = Math.min(m.raise, s.bet[k] + s.stack[k]); put(s, k, to - s.bet[k]);
+        if (to - s.cur >= s.minR) { s.minR = to - s.cur; s.players.forEach((o) => { if (o !== k) s.acted[o] = false; }); }
+        else if (to > s.cur) s.players.forEach((o) => { if (o !== k && s.bet[o] < to) s.acted[o] = false; });
+        s.cur = Math.max(s.cur, to); say(s, `${NAME[k]} ${s.allin[k] ? 'ALL-IN' : 'tố'} lên ${to}`);
+      }
+      s.acted[k] = true;
+      return advance(s);
+    }
+    const alive = (s) => s.players.filter((k) => s.stack[k] > 0);
+    function status(s) {
+      if (s.phase === 'over' || (s.phase === 'show' && (alive(s).length <= 1 || s.hand >= s.maxHands))) {
+        const w = s.seat.slice().sort((a, b) => s.stack[b] - s.stack[a])[0];
+        return { winner: w, why: alive(s).length <= 1 ? `♠️ ${NAME[w]} gom hết chip!` : `🏁 Hết ${s.maxHands} ván — ${NAME[w]} nhiều chip nhất (${s.stack[w]})` };
+      }
+      return null;
+    }
+    /* ---------- máy chơi: ước lượng tỉ lệ thắng bằng mô phỏng ---------- */
+    function equity(s, k, sims) {
+      const known = new Set([...s.cards[k], ...s.board]), rest = [...Array(52).keys()].filter((c) => !known.has(c));
+      const opp = live(s).filter((o) => o !== k).length;
+      let win = 0;
+      for (let t = 0; t < sims; t++) {
+        const d = rest.slice(); for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
+        let p = 0; const bd = [...s.board]; while (bd.length < 5) bd.push(d[p++]);
+        const me = best7([...s.cards[k], ...bd]); let best = true, tie = false;
+        for (let o = 0; o < opp; o++) { const v = best7([d[p++], d[p++], ...bd]); if (v > me) { best = false; break; } if (v === me) tie = true; }
+        if (best) win += tie ? 0.5 : 1;
+      }
+      return win / sims;
+    }
+    function ai(s, lv) {
+      if (s.phase === 'show') return { next: true };
+      const k = s.turn, ms = legal(s), toCall = s.cur - s.bet[k], P = pot(s);
+      const e = equity(s, k, [60, 140, 260][lv]) + (Math.random() - 0.5) * [0.25, 0.1, 0.04][lv];
+      const odds = toCall / Math.max(1, P + toCall);
+      const raises = ms.filter((m) => m.raise != null);
+      const pick = (frac) => raises.length ? raises[Math.min(raises.length - 1, Math.floor(frac * raises.length))] : null;
+      const strong = 0.5 + 0.35 / live(s).length;
+      if (e > strong + 0.15 && raises.length && Math.random() < 0.8) return pick(e > 0.85 ? 0.99 : 0.4) || ms.find((m) => m.call || m.check);
+      if (e > strong && raises.length && toCall === 0 && Math.random() < 0.6) return pick(0.2);
+      if (toCall === 0) return lv < 2 && Math.random() < 0.08 && raises.length ? pick(0) : { check: true };
+      if (e >= odds + [0.02, 0.05, 0.07][lv]) return { call: true };
+      if (Math.random() < [0.12, 0.05, 0.02][lv] && raises.length) return pick(0);
+      return { fold: true };
+    }
+    /* ---------- vẽ bàn ---------- */
+    function card(g, x, y, w, c, up) {
+      const h = w * 1.4;
+      g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.roundRect(x + 2, y + 3, w, h, w * 0.12); g.fill();
+      if (!up) { g.fillStyle = '#1864ab'; g.beginPath(); g.roundRect(x, y, w, h, w * 0.12); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.roundRect(x + w * 0.1, y + w * 0.1, w * 0.8, h - w * 0.2, w * 0.08); g.stroke(); g.fillStyle = 'rgba(255,255,255,.25)'; g.font = FONT(w * 0.45); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('♠', x + w / 2, y + h / 2); return; }
+      g.fillStyle = '#fff'; g.beginPath(); g.roundRect(x, y, w, h, w * 0.12); g.fill(); g.strokeStyle = '#adb5bd'; g.lineWidth = 1; g.stroke();
+      const red = suit(c) === 1 || suit(c) === 2; g.fillStyle = red ? '#e03131' : '#212529';
+      const rk = RANKS[rank(c)] === 'T' ? '10' : RANKS[rank(c)];
+      g.font = FONT(w * 0.42); g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(rk, x + w * 0.08, y + w * 0.06);
+      g.font = `${w * 0.62}px system-ui,"Segoe UI Symbol"`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(SUITS[suit(c)], x + w / 2, y + h * 0.62);
+    }
+    function draw(g, W, H, s, v) {
+      const me = v.me ?? 0, cx = W / 2, cy = H / 2;
+      g.fillStyle = '#2b1a10'; g.fillRect(0, 0, W, H);
+      g.fillStyle = '#6b3f1c'; g.beginPath(); g.ellipse(cx, cy, W * 0.47, H * 0.42, 0, 0, Math.PI * 2); g.fill();
+      const fe = g.createRadialGradient(cx, cy, 10, cx, cy, W * 0.45); fe.addColorStop(0, '#2f9e44'); fe.addColorStop(1, '#1b5e2b');
+      g.fillStyle = fe; g.beginPath(); g.ellipse(cx, cy, W * 0.43, H * 0.37, 0, 0, Math.PI * 2); g.fill();
+      const cw = W * 0.075;
+      // bài chung + pot
+      for (let i = 0; i < 5; i++) { const x = cx - cw * 2.75 + i * cw * 1.12; if (s.board && s.board[i] != null) card(g, x, cy - cw * 0.9, cw, s.board[i], true); else { g.strokeStyle = 'rgba(255,255,255,.25)'; g.lineWidth = 2; g.beginPath(); g.roundRect(x, cy - cw * 0.9, cw, cw * 1.4, cw * 0.12); g.stroke(); } }
+      g.font = FONT(W * 0.026); g.fillStyle = '#ffe066'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(s.phase === 'show' ? `Ván ${s.hand}/${s.maxHands}` : `💰 Pot ${pot(s)} chip`, cx, cy - cw * 1.35);
+      g.font = FONT(W * 0.019, 700); g.fillStyle = 'rgba(255,255,255,.75)'; g.fillText(`Mù ${s.sb}/${s.bb} · ván ${s.hand}/${s.maxHands}`, cx, cy + cw * 0.85);
+      // ghế: người xem luôn ở dưới
+      const spots = [[cx, H * 0.82], [W * 0.12, cy], [cx, H * 0.16], [W * 0.88, cy]];
+      s.seat.forEach((k) => {
+        const [x, y] = spots[(k - me + 4) % 4], out = !s.players.includes(k) || s.stack[k] <= 0 && !s.tot[k], turn = s.phase === 'bet' && s.turn === k;
+        g.globalAlpha = out ? 0.4 : 1;
+        if (turn) { g.fillStyle = `rgba(255,212,59,${0.45 + 0.25 * Math.sin(v.t * 6)})`; g.beginPath(); g.roundRect(x - W * 0.11, y - H * 0.11, W * 0.22, H * 0.22, 14); g.fill(); }
+        // bài trên tay
+        const showUp = k === me || (s.phase === 'show' && s.reveal && !s.folded[k]);
+        if (s.cards && s.cards[k] && s.cards[k].length && !s.folded[k]) s.cards[k].forEach((c, i) => card(g, x - cw * 1.05 + i * cw * 1.1, y - cw * 1.55, cw, c, showUp));
+        g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.roundRect(x - W * 0.1, y + cw * 0.05, W * 0.2, H * 0.085, 10); g.fill();
+        g.fillStyle = COL[k]; g.beginPath(); g.arc(x - W * 0.085, y + cw * 0.05 + H * 0.0425, W * 0.012, 0, Math.PI * 2); g.fill();
+        g.font = FONT(W * 0.017, 800); g.fillStyle = '#fff'; g.textAlign = 'center';
+        g.fillText(String(v.label ? v.label(k) : NAME[k]).replace(/<[^>]+>/g, '').slice(0, 22), x + W * 0.005, y + cw * 0.05 + H * 0.025);
+        g.font = FONT(W * 0.02); g.fillStyle = '#ffe066'; g.fillText(`${s.stack[k]} chip${s.folded[k] && s.phase === 'bet' ? ' · bỏ' : s.allin[k] ? ' · ALL-IN' : ''}`, x, y + cw * 0.05 + H * 0.062);
+        if (s.bet && s.bet[k]) { g.font = FONT(W * 0.018); g.fillStyle = '#fff'; g.fillText(`🪙 ${s.bet[k]}`, x + (cx - x) * 0.4, y + (cy - y) * 0.4); }
+        if (k === s.dealer) { g.fillStyle = '#fff'; g.beginPath(); g.arc(x + W * 0.115, y - cw * 0.4, W * 0.016, 0, Math.PI * 2); g.fill(); g.fillStyle = '#212529'; g.font = FONT(W * 0.016); g.fillText('D', x + W * 0.115, y - cw * 0.4); }
+        if (s.phase === 'show' && s.result) { const r = s.result.find((q) => q.k === k); if (r) { g.font = FONT(W * 0.022); g.fillStyle = '#8ce99a'; g.fillText(`+${r.amt}${r.why ? ' · ' + r.why : ''}`, x, y - cw * 1.85); } else if (s.reveal && !s.folded[k] && s.vals && s.vals[k] != null) { g.font = FONT(W * 0.018, 700); g.fillStyle = '#ced4da'; g.fillText(HAND[catOf(s.vals[k])], x, y - cw * 1.85); } }
+        g.globalAlpha = 1;
+      });
+      g.font = FONT(W * 0.016, 600); g.textAlign = 'left'; g.fillStyle = 'rgba(255,255,255,.8)';
+      (s.log || []).slice(-4).forEach((l, i) => g.fillText(l, W * 0.015, H * 0.03 + i * W * 0.022));
+    }
+    return {
+      id: 'poker', name: 'Poker', icon: '♠️', cols: 16, rows: 10, multi: true, rounds: true, roundsLabel: 'Số ván (hết ván ai nhiều chip nhất thắng)', sides: NAME, colors: COL,
+      rules: '<b>Texas Hold\'em</b>: mỗi người 2 lá tẩy + 5 lá chung, ghép 5 lá mạnh nhất. Lần lượt <b>Theo · Xem · Tố · Bỏ</b> qua 4 vòng cược. Thứ tự mạnh: Thùng phá sảnh › Tứ quý › Cù lũ › Thùng › Sảnh › Sám cô › Thú › Đôi › Mậu thầu. Mỗi người 2.000 chip, mù tăng dần.',
+      init, turn: (s) => s.turn, legal, apply, status, ai, draw,
+      pieceSide: () => -1, clickMove: () => null,
+      hit: () => -1,
+      drop(s0, ks) {
+        let s = clone(s0);
+        ks.forEach((k) => { if (s.phase === 'bet' && !s.folded[k]) { s.folded[k] = true; } s.stack[k] = 0; });
+        s.players = s.players.filter((k) => !ks.includes(k) || s.tot[k] > 0);
+        if (s.phase === 'bet') { if (ks.includes(s.turn) || !canAct(s, s.turn)) { s.acted[s.turn] = true; s = advance(s); } }
+        else if (ks.includes(s.turn)) s.turn = s.players.find((k) => !ks.includes(k)) ?? s.turn;
+        return s;
+      },
+      autoMove: (s) => (s.phase === 'show' ? { m: { next: true }, ms: 4500 } : null),
+      aiDelay: (s) => (s.phase === 'show' ? 4200 : 900),
+      info: (s) => s.seat.map((k) => `<span style="color:${COL[k]}">●</span> ${NAME[k]}: <b>${s.stack[k]}</b> chip`).join('<br>'),
+      panel(s) {
+        const k = s.turn, ms = legal(s), toCall = s.cur - s.bet[k];
+        if (s.phase === 'show') return { text: 'Ván kết thúc — ván mới tự bắt đầu sau vài giây', buttons: [{ l: '▶ Ván tiếp ngay', m: { next: true }, big: 1 }] };
+        const b = [];
+        const hand = s.cards[k].length ? (s.board.length >= 3 ? HAND[catOf(best7([...s.cards[k], ...s.board]))] : '') : '';
+        if (ms.find((m) => m.check)) b.push({ l: '✋ Xem bài (Check)', m: { check: true }, big: 1 });
+        if (ms.find((m) => m.call)) b.push({ l: `✅ Theo ${Math.min(toCall, s.stack[k])}`, m: { call: true }, big: 1 });
+        ms.filter((m) => m.raise != null).forEach((m) => b.push({ l: m.raise >= s.bet[k] + s.stack[k] ? `🔥 ALL-IN (${m.raise})` : `⬆️ Tố lên ${m.raise}`, m }));
+        if (ms.find((m) => m.fold)) b.push({ l: '🏳️ Bỏ bài', m: { fold: true } });
+        return { text: `${hand ? `Bài bạn: <b>${hand}</b> · ` : ''}${toCall > 0 ? `Cần theo <b>${toCall}</b>` : 'Chưa ai tố'} · pot ${pot(s)}`, buttons: b };
+      },
+      waitText: (s) => (s.phase === 'show' ? 'ván mới sắp bắt đầu…' : 'đang suy nghĩ…'),
+      _eval: best7, _HAND: HAND, _catOf: catOf,
+    };
+  })();
+
+  const GAMES = { chess: CHESS, xiangqi: XQ, go: GO, oaq: OAQ, ludo: LUDO, typhu: TYPHU, battle: BATTLE, poker: POKER };
 
   /* ======================================================================
    * Khung chơi chung
@@ -907,7 +1292,7 @@ const BOARD = (() => {
     side.innerHTML = `<h3>${G.icon} ${G.name}</h3><p class="muted">${G.rules}</p>
       <label>Độ khó của máy</label><div class="chips">${LV.map((n, i) => `<button class="chip ${lv === i ? 'on' : ''}" data-lv="${i}">${n}</button>`).join('')}</div>
       ${G.multi ? `<label>Số người chơi</label><div class="chips">${[2, 3, 4].map((n) => `<button class="chip ${p.np === n ? 'on' : ''}" data-np="${n}">${n} người</button>`).join('')}</div>` : ''}
-      ${G.rounds ? `<label>Số vòng (hết vòng ai giàu nhất thắng)</label><div class="chips">${[10, 20, 30].map((n) => `<button class="chip ${p.rounds === n ? 'on' : ''}" data-rd="${n}">${n} vòng</button>`).join('')}</div>` : ''}
+      ${G.rounds ? `<label>${G.roundsLabel || 'Số vòng (hết vòng ai giàu nhất thắng)'}</label><div class="chips">${[10, 20, 30].map((n) => `<button class="chip ${p.rounds === n ? 'on' : ''}" data-rd="${n}">${n} ${G.id === 'poker' ? 'ván' : 'vòng'}</button>`).join('')}</div>` : ''}
       <label>Tiền cược</label><div class="chips">${BETS.map((b) => `<button class="chip ${p.bet === b ? 'on' : ''}" data-bet="${b}">${b ? fmt(b) : 'Chơi vui'}</button>`).join('')}</div>
       <p class="muted small-note">Đấu máy: thắng nhận ${G.multi ? '<b>cược × số người</b>' : 'gấp đôi tiền cược'} · hoà trả lại · thua mất cược. Đã thắng ${p.w[G.id] || 0} · thua ${p.l[G.id] || 0}.</p>
       <button class="btn" data-ai>🤖 Đấu với máy</button>
@@ -945,7 +1330,8 @@ const BOARD = (() => {
     if (r) return finish(r);
     const turn = st.G.turn(st.s), who = ctrl(turn);
     side();
-    if (who === 'ai') { st.busy = true; side(); const cur = st; setTimeout(() => { if (st !== cur || st.over) return; st.busy = false; let m = st.G.ai(st.s, st.lv); if (m && m.roll) m = st.G.rollMove ? st.G.rollMove() : { roll: true, v: 1 + rnd(6) }; if (!m) return finish({ winner: 1 - turn, why: 'Hết nước' }); doMove(m, st.mode === 'net'); }, st.G.multi ? 420 : 350 + rnd(300)); return; }
+    if (who === 'ai') { st.busy = true; side(); const cur = st; setTimeout(() => { if (st !== cur || st.over) return; st.busy = false; let m = st.G.ai(st.s, st.lv); if (m && m.roll) m = st.G.rollMove ? st.G.rollMove() : { roll: true, v: 1 + rnd(6) }; if (!m) return finish({ winner: 1 - turn, why: 'Hết nước' }); doMove(m, st.mode === 'net'); }, st.G.aiDelay ? st.G.aiDelay(st.s) : st.G.multi ? 420 : 350 + rnd(300)); return; }
+    if (who === 'me' && st.G.autoMove) { const a = st.G.autoMove(st.s), cur = st, snap = st.s; if (a) setTimeout(() => { if (st === cur && !st.over && st.s === snap) doMove(a.m, true); }, a.ms); }
     // cá ngựa: không có ngựa nào đi được thì tự bỏ lượt (chỉ bên điều khiển lượt đó thực hiện)
     if (who === 'me' && st.G.multi && st.s.phase === 'move') { const ms = st.G.legal(st.s); if (ms[0].skip) { const cur = st; setTimeout(() => { if (st === cur && !st.over && st.s.phase === 'move') doMove({ skip: true }, true); }, 1100); } }
   }
@@ -1036,7 +1422,7 @@ const BOARD = (() => {
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const s = st.s || (G.multi ? G.init([0, 1, 2, 3]) : G.init());
     const myTurn = !st.idle && !st.over && ctrl(G.turn(s)) === 'me';
-    G.draw(g, W, H, s, { me: st.idle ? 0 : st.mode === 'pvp' ? G.turn(s) : st.mine[0], preview: st.preview, sel: st.sel ?? -1, targets: st.targets || [], last: st.last, flip: st.flip, hover, myTurn, t: performance.now() / 1000, check: G.checkSq && !st.idle ? G.checkSq(s) : -1 });
+    G.draw(g, W, H, s, { label: st.idle ? null : sideName, me: st.idle ? 0 : st.mode === 'pvp' ? G.turn(s) : st.mine[0], preview: st.preview, sel: st.sel ?? -1, targets: st.targets || [], last: st.last, flip: st.flip, hover, myTurn, t: performance.now() / 1000, check: G.checkSq && !st.idle ? G.checkSq(s) : -1 });
     if (st.idle) { g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, W, H); g.font = FONT(Math.max(16, W / 18)); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.fillText('👈 Chọn chế độ chơi', W / 2, H / 2); }
   }
 
@@ -1281,6 +1667,8 @@ const BOARD = (() => {
     if (id === 'chess') { for (let r = 0; r < 8; r++) for (let k = 0; k < 8; k++) quad(k / 8, r / 8, (k + 1) / 8, (r + 1) / 8, (r + k) % 2 ? '#b58863' : '#f0d9b5'); c.font = '16px "Segoe UI Symbol",serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#111'; c.fillText('♚ ♛', x - 30, y - 92); c.fillStyle = '#fff'; c.strokeStyle = '#111'; c.lineWidth = 1; c.strokeText('♔ ♕', x + 30, y - 58); c.fillText('♔ ♕', x + 30, y - 58); }
     else if (id === 'xiangqi') { quad(0, 0, 1, 1, '#f2cf8d'); c.strokeStyle = '#7a4a1e'; c.lineWidth = 1; for (let k = 0; k <= 8; k++) { const a = P(k / 8, 0), b = P(k / 8, 1); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } for (let r = 0; r <= 9; r++) { const a = P(0, r / 9), b = P(1, r / 9); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } [[0.3, 0.2, '#c92a2a'], [0.6, 0.3, '#212529'], [0.45, 0.75, '#c92a2a'], [0.7, 0.8, '#212529']].forEach(([u, v, col]) => { const [px, py] = P(u, v); c.fillStyle = '#fff4e0'; c.beginPath(); c.ellipse(px, py, 7, 4, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = col; c.lineWidth = 1.5; c.stroke(); }); }
     else if (id === 'go') { quad(0, 0, 1, 1, '#e3b56a'); c.strokeStyle = '#5c3a1e'; c.lineWidth = 1; for (let k = 0; k <= 8; k++) { let a = P(k / 8, 0), b = P(k / 8, 1); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); a = P(0, k / 8); b = P(1, k / 8); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } [[0.25, 0.25, '#111'], [0.5, 0.375, '#fff'], [0.625, 0.625, '#111'], [0.375, 0.75, '#fff'], [0.75, 0.25, '#111']].forEach(([u, v, col]) => { const [px, py] = P(u, v); c.fillStyle = col; c.beginPath(); c.ellipse(px, py, 6, 3.5, 0, 0, Math.PI * 2); c.fill(); }); }
+    else if (id === 'oaq') { quad(0.04, 0.15, 0.96, 0.85, '#c99a5b'); c.strokeStyle = '#3d2410'; c.lineWidth = 1.2; for (let k = 1; k <= 6; k++) { const a = P(k / 7, 0.15), b = P(k / 7, 0.85); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } { const a = P(1 / 7, 0.5), b = P(6 / 7, 0.5); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } for (let k = 1; k <= 5; k++) for (const v of [0.32, 0.68]) { const [px, py] = P((k + 0.5) / 7, v); c.fillStyle = '#868e96'; for (let j = 0; j < 3; j++) { c.beginPath(); c.ellipse(px - 3 + j * 3, py + (j % 2), 2, 1.4, 0, 0, Math.PI * 2); c.fill(); } } [[0.5 / 7, 0.5], [6.5 / 7, 0.5]].forEach(([u, v]) => { const [px, py] = P(u, v); c.fillStyle = '#495057'; c.beginPath(); c.ellipse(px, py, 5, 3.5, 0, 0, Math.PI * 2); c.fill(); }); }
+    else if (id === 'poker') { quad(0.05, 0.05, 0.95, 0.95, '#1b5e2b'); quad(0.1, 0.12, 0.9, 0.88, '#2f9e44'); [0.3, 0.42, 0.54, 0.66].forEach((u) => quad(u, 0.38, u + 0.09, 0.62, '#fff')); [[0.2, 0.8, '#e03131'], [0.8, 0.25, '#1c7ed6'], [0.25, 0.25, '#f59f00']].forEach(([u, v, col]) => { const [px, py] = P(u, v); c.fillStyle = col; c.beginPath(); c.ellipse(px, py, 5, 3, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 1; c.stroke(); }); }
     else if (id === 'battle') { quad(0, 0, 0.48, 1, '#4dabf7'); quad(0.52, 0, 1, 1, '#4dabf7'); c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 1; for (let k = 0; k <= 6; k++) for (const u0 of [0, 0.52]) { let a = P(u0 + 0.48 * k / 6, 0), b = P(u0 + 0.48 * k / 6, 1); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); a = P(u0, k / 6); b = P(u0 + 0.48, k / 6); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } quad(0.08, 0.2, 0.34, 0.33, '#495057'); quad(0.6, 0.55, 0.68, 0.9, '#495057'); [[0.75, 0.3], [0.2, 0.7], [0.85, 0.75]].forEach(([u, v]) => { const [px, py] = P(u, v); c.fillStyle = '#e03131'; c.beginPath(); c.ellipse(px, py, 4, 2.5, 0, 0, Math.PI * 2); c.fill(); }); }
     else if (id === 'typhu') { quad(0, 0, 1, 1, '#d3f9d8'); const cols = ['#8d5524', '#74c0fc', '#e64980', '#fd7e14', '#e03131', '#fcc419', '#2b8a3e', '#1c3faa']; for (let k = 0; k < 8; k++) { const u = k / 8; quad(u, 0, u + 0.125, 0.14, cols[k]); quad(u, 0.86, u + 0.125, 1, cols[7 - k]); } quad(0.15, 0.25, 0.85, 0.75, '#ebfbee'); const [px, py] = P(0.5, 0.5); c.font = '900 10px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#c92a2a'; c.fillText('TỶ PHÚ', px, py); }
     else if (id === 'ludo') { quad(0, 0, 1, 1, '#fff'); [[0, 0, '#e03131'], [0.6, 0, '#2f9e44'], [0.6, 0.6, '#f59f00'], [0, 0.6, '#1c7ed6']].forEach(([u, v, col]) => quad(u, v, u + 0.4, v + 0.4, col)); const [px, py] = P(0.5, 0.5); c.font = '16px system-ui,"Segoe UI Emoji"'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🎲', px, py); }

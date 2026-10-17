@@ -966,7 +966,7 @@ const MAPS = (() => {
 
   /* ---------- Trong Nhà Casino ---------- */
   function casino() {
-    const m = base('casino', 'Nhà Casino', 2400, 1500);
+    const m = base('casino', 'Nhà Casino', 2400, 1800);
     m.indoor = true;
     m.hz = 0;
     ground(m, (g) => {
@@ -984,12 +984,12 @@ const MAPS = (() => {
       g.font = '900 46px "Be Vietnam Pro", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.shadowColor = '#ff8fab'; g.shadowBlur = 18; g.fillStyle = '#fff0f6'; g.fillText('🎰 CASINO', 1000, 172); g.shadowBlur = 0;
       // thảm đỏ hoa văn kim cương
-      g.fillStyle = '#8b1a2b'; g.fillRect(40, 240, 2320, 1220);
+      g.fillStyle = '#8b1a2b'; g.fillRect(40, 240, 2320, 1520);
       g.strokeStyle = 'rgba(255,212,59,.14)'; g.lineWidth = 2;
-      for (let k = -1220; k < 2320; k += 60) { g.beginPath(); g.moveTo(40 + k, 1460); g.lineTo(40 + k + 1220, 240); g.moveTo(40 + k + 1220, 1460); g.lineTo(40 + k, 240); g.stroke(); }
+      for (let k = -1520; k < 2320; k += 60) { g.beginPath(); g.moveTo(40 + k, 1760); g.lineTo(40 + k + 1520, 240); g.moveTo(40 + k + 1520, 1760); g.lineTo(40 + k, 240); g.stroke(); }
       // ♟️ PHÒNG CỜ: sàn gỗ ô vuông phía dưới, có bảng tên
-      g.fillStyle = '#ffd43b'; g.beginPath(); g.roundRect(84, 1034, 2232, 392, 30); g.fill();
-      for (let y = 1040; y < 1420; y += 40) for (let x = 90; x < 2310; x += 40) { g.fillStyle = ((x - 90) / 40 + (y - 1040) / 40) % 2 ? '#a9773f' : '#c08a4f'; g.fillRect(x, y, Math.min(40, 2310 - x), Math.min(40, 1420 - y)); }
+      g.fillStyle = '#ffd43b'; g.beginPath(); g.roundRect(84, 1034, 2232, 692, 30); g.fill();
+      for (let y = 1040; y < 1720; y += 40) for (let x = 90; x < 2310; x += 40) { g.fillStyle = ((x - 90) / 40 + (y - 1040) / 40) % 2 ? '#a9773f' : '#c08a4f'; g.fillRect(x, y, Math.min(40, 2310 - x), Math.min(40, 1720 - y)); }
       g.fillStyle = '#2b1a10'; g.beginPath(); g.roundRect(980, 996, 440, 64, 16); g.fill(); g.strokeStyle = '#ffd43b'; g.lineWidth = 4; g.stroke();
       g.font = '900 32px "Be Vietnam Pro", system-ui, sans-serif'; g.fillStyle = '#fff3bf'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('♟️ PHÒNG CỜ', 1200, 1029);
       // thảm xanh dưới các bàn chơi
@@ -999,8 +999,8 @@ const MAPS = (() => {
       });
       // khu sofa bên phải
       g.fillStyle = '#ffd43b'; g.beginPath(); g.roundRect(1994, 434, 332, 532, 26); g.fill(); g.fillStyle = '#4a1942'; g.beginPath(); g.roundRect(2000, 440, 320, 520, 22); g.fill();
-      g.fillStyle = '#a61e4d'; g.fillRect(1140, 1414, 120, 46);
-      g.fillStyle = '#1a0a14'; g.fillRect(0, 1460, m.w, 40); g.fillRect(0, 0, 40, m.h); g.fillRect(2360, 0, 40, m.h);
+      g.fillStyle = '#a61e4d'; g.fillRect(1140, 1714, 120, 46);
+      g.fillStyle = '#1a0a14'; g.fillRect(0, 1760, m.w, 40); g.fillRect(0, 0, 40, m.h); g.fillRect(2360, 0, 40, m.h);
     });
 
     sobj(m, 440, 640, (c) => ART.gameTable(c, 440, 640, 'baucua', 0));
@@ -1017,10 +1017,14 @@ const MAPS = (() => {
       col(m, x - 100, y - 50, 200, 50);
       inter(m, { x: x - 130, y: y - 120, w: 260, h: 140, ax: x, ay: y + 40, name: name + ' — chơi với mọi người', use: () => (typeof CARDROOM !== 'undefined' ? use() : UI.toast('Bàn đang chuẩn bị, tải lại trang nhé')), arrow: { x, y: y - 135, text: label } });
     });
+    // 💰 sân khấu Ai Là Triệu Phú dưới bảng neon
+    if (typeof MIL !== 'undefined') MIL.addTo(m, { aobj, col, inter }, 960, 432);
     m.labels.push({ text: '🕹️ Máy Game', x: 1610, y: 545 });
     // ♟️ bàn cờ caro
     if (typeof CARO !== 'undefined') CARO.addTo(m, { sobj, col, inter }, 250, 1230);
     if (typeof BOARD !== 'undefined') [['chess', 630], ['xiangqi', 1010], ['go', 1390], ['ludo', 1770], ['typhu', 2150]].forEach(([id, x]) => BOARD.addTo(m, { sobj, col, inter }, id, x, 1230));
+    // hàng 2: Ô Ăn Quan · Poker (chừa lối đi giữa ra cửa)
+    if (typeof BOARD !== 'undefined' && BOARD.GAMES.oaq) [['oaq', 640], ['poker', 1760]].forEach(([id, x]) => BOARD.addTo(m, { sobj, col, inter }, id, x, 1560));
     // bàn bi-a 2 người
     sobj(m, 1580, 724, (c) => ART.billiardTable(c, 1580, 724), { l: -170, t: -140, w: 340, h: 150 });
     col(m, 1430, 600, 300, 124);
@@ -1041,15 +1045,15 @@ const MAPS = (() => {
     if (typeof BOARD !== 'undefined') BOARD.addTo(m, { sobj, col, inter }, 'battle', 2160, 690);
     sobj(m, 2160, 920, (c) => ART.sofa(c, 2160, 920, '#1971c2'), { l: -125, t: -85, w: 250, h: 92 });
     col(m, 2045, 885, 230, 36);
-    [[90, 330], [2310, 330], [90, 960], [2310, 960], [640, 330], [1760, 330], [90, 1440], [2310, 1440]].forEach(([x, y]) => { sobj(m, x, y, (c) => ART.plantPot(c, x, y), { l: -30, t: -95, w: 60, h: 100 }); col(m, x - 17, y - 12, 34, 14); });
+    [[90, 330], [2310, 330], [90, 960], [2310, 960], [640, 330], [1760, 330], [90, 1740], [2310, 1740]].forEach(([x, y]) => { sobj(m, x, y, (c) => ART.plantPot(c, x, y), { l: -30, t: -95, w: 60, h: 100 }); col(m, x - 17, y - 12, 34, 14); });
 
     npc(m, 'Chú Lộc', { skin: '#f1c27d', hair: 'short', hairColor: '#222', shirt: '#212529', shirtStyle: 'plain', pants: '#212529', hat: 'cowboy' }, { l: 680, t: 740, r: 1000, b: 860 }, 820, 790, 'none');
 
-    sobj(m, 1200, 1462, (c) => ART.homeDoor(c, 1200, 1462), { l: -50, t: -22, w: 100, h: 28 });
-    inter(m, { x: 1140, y: 1400, w: 120, h: 70, ax: 1200, ay: 1430, name: 'Ra Khu giải trí', use: () => AV.leaveCasino(), arrow: { x: 1200, y: 1405, text: 'Ra ngoài' } });
+    sobj(m, 1200, 1762, (c) => ART.homeDoor(c, 1200, 1762), { l: -50, t: -22, w: 100, h: 28 });
+    inter(m, { x: 1140, y: 1700, w: 120, h: 70, ax: 1200, ay: 1730, name: 'Ra Khu giải trí', use: () => AV.leaveCasino(), arrow: { x: 1200, y: 1705, text: 'Ra ngoài' } });
 
-    m.spawn = { x: 1200, y: 1400 };
-    m.bounds = { l: 56, t: 262, r: m.w - 56, b: 1440 };
+    m.spawn = { x: 1200, y: 1700 };
+    m.bounds = { l: 56, t: 262, r: m.w - 56, b: 1740 };
     return m;
   }
 

@@ -2545,7 +2545,7 @@
   AV.enterHome = () => VISIT ? UI.toast((() => { const h = DATA.HOUSE_LEVELS[(VISIT.data.house || 1) - 1]; return `${h.icon} ${h.name} của ${VISIT.data.name} — chủ nhà đang khoá cửa, chỉ ngắm bên ngoài thôi nha`; })(), 4000) : AV.teleport('home', false, 800, 900, '🏠 Vào nhà…');
   AV.enterClass = () => AV.teleport('classroom', false, 800, 880, '🏫 Vào lớp học…');
   AV.leaveClass = () => AV.teleport('school', false, 420, 590, '🌳 Ra sân trường…');
-  AV.enterCasino = () => AV.teleport('casino', false, 1200, 1390, '🎰 Vào Nhà Casino…');
+  AV.enterCasino = () => AV.teleport('casino', false, 1200, 1690, '🎰 Vào Nhà Casino…');
   AV.enterArena = () => AV.teleport('arena', false, 1000, 990, '⚔️ Vào Đấu Trường MMA…');
   /** Rạp QL Cinema: vé 60 xu dùng cả ngày */
   AV.enterBoxing = () => AV.teleport('boxing', false, 1000, 1000, '🥊 Vào Võ Đài…');
