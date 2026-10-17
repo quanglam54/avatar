@@ -623,12 +623,202 @@ const ARCADE2 = (() => {
   }
 
   /* ======================================================================
+   * 🧟 ZOMBIE TSUNAMI — cả đàn zombie chạy sang phải. Chạm / Space = cả đàn nhảy (con sau nhảy theo con trước).
+   * Chạm người đi đường → biến họ thành zombie (đàn đông thêm) · đàn ≥ số zombie ghi trên ô tô thì húc nát xe lấy xu, ít hơn thì mất 1 con.
+   * Rào chắn đụng là mất con đó · rơi xuống hố là mất · 🍔 ăn vào thành zombie khổng lồ 6 giây phá hết. Hết zombie là thua.
+   * ==================================================================== */
+  function makeZombie() {
+    const VH = 720, GY = 600, G = 2600, JV = -980;
+    let t = 0, speed = 300, dist = 0, coins = 0, eaten = 0, over = false, deathT = 0, giant = 0, nextObj = 600, msgT = 0, msg = '';
+    const hist = []; // lịch sử độ cao con đầu đàn → con sau đi lại đúng đường
+    const lead = { y: GY, vy: 0, onGround: true };
+    let horde = [{ off: 0, alive: true, fall: 0 }];
+    const objs = [], fx = [];
+    const H0 = () => horde.filter((z) => z.alive && !z.dead).length;
+    function addZombie() { const n = horde.length; horde.push({ off: n, alive: true, fall: 0, born: 0.4 }); }
+    function spawn() {
+      const W = game.VW, x = W + 80, r = Math.random(), n = H0();
+      if (r < 0.32) { const k = 1 + rnd(0, 3) | 0; for (let i = 0; i < k; i++) objs.push({ type: 'human', x: x + i * 46, y: GY, ph: Math.random() * 6, ic: ['🧍', '🧑', '👩', '🧓', '👮', '🧑‍🍳'][rnd(0, 6) | 0] }); }
+      else if (r < 0.48) objs.push({ type: 'car', x, need: Math.max(3, Math.min(12, Math.round(n * rnd(0.6, 1.3)))), ic: ['🚗', '🚙', '🚕'][rnd(0, 3) | 0] });
+      else if (r < 0.68) objs.push({ type: 'bar', x, h: rnd(40, 70) });
+      else if (r < 0.84) objs.push({ type: 'hole', x, w: rnd(110, 170) });
+      else if (r < 0.9) objs.push({ type: 'burger', x, y: GY - 150 });
+      else for (let i = 0; i < 6; i++) objs.push({ type: 'coin', x: x + i * 40, y: GY - 60 - Math.sin(i / 5 * Math.PI) * 120 });
+    }
+    const zx = (z) => 260 - z.off * Math.min(26, 230 / Math.max(1, horde.length));
+    const zy = (z) => { const k = Math.floor(z.off * 0.09 / (1 / 60)); return hist[k] ?? GY; };
+    function overHole(x) { return objs.some((o) => o.type === 'hole' && x > o.x + 8 && x < o.x + o.w - 8); }
+    const game = {
+      VW: 1280, VH, wide: true, over: false, res: null,
+      how: ['<b>Chạm màn hình / Space</b> để cả đàn zombie nhảy', 'Chạm người đi đường → họ thành zombie, đàn đông thêm', 'Đàn đủ đông (≥ số trên xe) thì húc nát ô tô lấy xu · rào chắn và hố làm mất zombie', '🍔 ăn vào thành <b>zombie khổng lồ</b> 6 giây · hết zombie là thua'],
+      update(dt) {
+        t += dt;
+        if (over) { deathT += dt; if (deathT > 1.2) { game.over = true; game.res = { score: Math.floor(dist / 10) + coins * 5 + eaten * 10, extra: `Chạy ${Math.floor(dist / 10)} m · ăn ${eaten} người · ${coins} 🪙` }; } return; }
+        speed = Math.min(620, 300 + t * 4); dist += speed * dt; giant = Math.max(0, giant - dt); msgT = Math.max(0, msgT - dt);
+        // đầu đàn: nhảy theo lực hấp dẫn, rơi xuống hố thì không có đất đỡ
+        lead.vy += G * dt; lead.y += lead.vy * dt;
+        if (lead.y >= GY) { lead.y = GY; lead.vy = 0; lead.onGround = true; } else lead.onGround = false;
+        hist.unshift(lead.y); if (hist.length > 400) hist.pop();
+        for (const o of objs) o.x -= speed * dt;
+        // từng zombie
+        horde.forEach((z) => {
+          if (!z.alive) return; if (z.born) z.born = Math.max(0, z.born - dt);
+          const x = zx(z), y = z.fall ? z.fy : zy(z);
+          if (!z.fall && overHole(x) && y >= GY - 2) { z.fall = 1; z.fy = GY; }
+          if (z.fall) { z.fall += dt; z.fy += 700 * dt; if (z.fy > VH + 60) z.alive = false; return; }
+          for (const o of objs) {
+            if (o.gone) continue;
+            if (o.type === 'human' && Math.abs(o.x - x) < 26 && y > GY - 60) { o.gone = true; eaten++; addZombie(); fx.push({ text: '+1 🧟', x: o.x, y: GY - 90, t: 0, c: '#8ce99a' }); }
+            if (o.type === 'coin' && Math.abs(o.x - x) < 26 && Math.abs(o.y - (y - 30)) < 40) { o.gone = true; coins++; }
+            if (o.type === 'burger' && Math.abs(o.x - x) < 34 && Math.abs(o.y - (y - 30)) < 50) { o.gone = true; giant = 6; msg = '🍔 ZOMBIE KHỔNG LỒ!'; msgT = 1.5; }
+            if (o.type === 'bar' && x > o.x - 10 && x < o.x + 30 && y > GY - o.h) { if (giant) { o.gone = true; fx.push({ text: '💥', x: o.x, y: GY - 60, t: 0, c: '#fff' }); } else z.alive = false; }
+            if (o.type === 'car' && x > o.x - 50 && x < o.x + 50 && y > GY - 70 && !o.hit) {
+              o.hit = true;
+              if (giant || H0() >= o.need) { o.gone = true; coins += 5; fx.push({ text: `💥 +5 🪙`, x: o.x, y: GY - 120, t: 0, c: '#ffe066' }); }
+              else { z.alive = false; fx.push({ text: `Cần ${o.need} 🧟!`, x: o.x, y: GY - 120, t: 0, c: '#ffa8a8' }); }
+            }
+          }
+        });
+        // gom lại hàng: zombie chết thì những con sau dồn lên
+        horde = horde.filter((z) => z.alive); horde.forEach((z, i) => { z.off += (i - z.off) * Math.min(1, dt * 3); });
+        for (let i = objs.length - 1; i >= 0; i--) if (objs[i].gone || objs[i].x < -260) objs.splice(i, 1);
+        if ((nextObj -= speed * dt) <= 0) { nextObj = rnd(300, 560) + speed * 0.3; spawn(); }
+        objs.forEach((o) => { if (o.type === 'human') o.ph += dt; });
+        fx.forEach((f) => { f.t += dt; }); while (fx.length && fx[0].t > 1) fx.shift();
+        if (!horde.length) over = true;
+      },
+      down() { if (over) return; if (lead.onGround || lead.y >= GY - 1) { lead.vy = JV; lead.onGround = false; } },
+      move() {}, up() {},
+      key(k, on) { if (on && (k === ' ' || k === 'ArrowUp' || k === 'w')) game.down(); },
+      draw(g) {
+        const W = game.VW;
+        const sk = g.createLinearGradient(0, 0, 0, VH); sk.addColorStop(0, '#2b1d4d'); sk.addColorStop(0.6, '#7048e8'); sk.addColorStop(1, '#f783ac'); g.fillStyle = sk; g.fillRect(0, 0, W, VH);
+        g.fillStyle = '#fff3bf'; g.beginPath(); g.arc(W * 0.8, 120, 50, 0, Math.PI * 2); g.fill();
+        for (const [k, col, hmin] of [[0.2, '#3b2a6b', 160], [0.5, '#2b1d4d', 220]]) { g.fillStyle = col; for (let i = 0; i < 20; i++) { const bw = 90 + (i * 37) % 60, x = ((i * 140 - dist * k) % (W + 300) + W + 300) % (W + 300) - 150, h = hmin + (i * 53) % 150; g.fillRect(x, GY - h, bw, h); g.fillStyle = 'rgba(255,224,102,.5)'; for (let wy = GY - h + 15; wy < GY - 20; wy += 28) for (let wx = x + 12; wx < x + bw - 12; wx += 24) if ((wx + wy + i) % 3) g.fillRect(wx, wy, 10, 12); g.fillStyle = col; } }
+        g.fillStyle = '#495057'; g.fillRect(0, GY, W, VH - GY); g.fillStyle = '#868e96'; for (let x = -(dist % 80); x < W; x += 80) g.fillRect(x, GY + 40, 40, 6);
+        objs.forEach((o) => { if (o.type === 'hole') { g.fillStyle = '#1a0a14'; g.fillRect(o.x, GY, o.w, VH - GY); g.fillStyle = '#343a40'; g.fillRect(o.x - 6, GY, 6, VH - GY); g.fillRect(o.x + o.w, GY, 6, VH - GY); } });
+        objs.forEach((o) => {
+          if (o.type === 'human') txt(g, o.ic, o.x, GY - 38 + Math.abs(Math.sin(o.ph * 8)) * -4, 66, '#fff', 'center', false);
+          if (o.type === 'coin') { g.fillStyle = '#fcc419'; g.beginPath(); g.ellipse(o.x, o.y, 12 * Math.abs(Math.cos(t * 5 + o.x * 0.01)) + 2, 14, 0, 0, Math.PI * 2); g.fill(); }
+          if (o.type === 'burger') txt(g, '🍔', o.x, o.y + Math.sin(t * 4) * 8, 50, '#fff', 'center', false);
+          if (o.type === 'bar') { g.fillStyle = '#fff'; g.fillRect(o.x, GY - o.h, 30, o.h); g.fillStyle = '#e03131'; for (let y = GY - o.h; y < GY; y += 16) g.fillRect(o.x, y, 30, 8); }
+          if (o.type === 'car') { g.save(); g.translate(o.x, GY - 38); g.scale(-1, 1); txt(g, o.ic, 0, 0, 96, '#fff', 'center', false); g.restore(); g.fillStyle = H0() >= o.need ? '#2b8a3e' : '#c92a2a'; rr(g, o.x - 34, GY - 120, 68, 30, 10); g.fill(); txt(g, `${o.need} 🧟`, o.x, GY - 105, 18, '#fff'); }
+        });
+        // đàn zombie (vẽ con sau trước)
+        horde.slice().reverse().forEach((z) => {
+          const x = zx(z), y = z.fall ? z.fy : zy(z), s = giant && z === horde[0] ? 2.4 : 1, b = z.born ? 1 + z.born : 1;
+          g.save(); g.translate(x, y); g.scale(s * b, s * b);
+          g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(0, 0, 22, 6, 0, 0, Math.PI * 2); g.fill();
+          txt(g, '🧟', 0, -38 + Math.sin(t * 14 + z.off) * 3, 72, '#fff', 'center', false);
+          g.restore();
+        });
+        fx.forEach((f) => { g.globalAlpha = Math.max(0, 1 - f.t); txt(g, f.text, f.x, f.y - f.t * 50, 26, f.c); g.globalAlpha = 1; });
+        // HUD
+        g.fillStyle = 'rgba(0,0,0,.4)'; rr(g, 12, 12, 330, 44, 22); g.fill(); txt(g, `🧟 ×${H0()}   🪙 ${coins}   🏃 ${Math.floor(dist / 10)} m`, 30, 34, 22, '#fff', 'left');
+        if (giant) txt(g, `🍔 Khổng lồ ${Math.ceil(giant)}s`, W / 2, 34, 22, '#ffe066');
+        if (msgT) txt(g, msg, W / 2, VH * 0.3, 40, '#ffe066');
+        if (t < 4) txt(g, '👆 Chạm màn hình để cả đàn nhảy · ăn người cho đàn đông thêm!', W / 2, VH * 0.18, 24);
+      },
+    };
+    for (let i = 0; i < 3; i++) addZombie();
+    return game;
+  }
+
+  /* ======================================================================
+   * 🍉 CHÉM HOA QUẢ (kiểu Fruit Ninja) — vuốt ngón tay để chém trái cây tung lên. Chém nhiều quả trong 1 nhát = combo.
+   * Để rơi 3 quả là thua · chém trúng 💣 bom là thua ngay.
+   * ==================================================================== */
+  function makeFruit() {
+    const VH = 720, G = 900;
+    const FRUITS = ['🍉', '🍎', '🍊', '🍌', '🍍', '🥝', '🍓', '🍑', '🥭', '🍋', '🍐', '🥥'];
+    const JUICE = { '🍉': '#ff6b6b', '🍎': '#fa5252', '🍊': '#ff922b', '🍌': '#ffe066', '🍍': '#fcc419', '🥝': '#94d82d', '🍓': '#f03e3e', '🍑': '#ffa94d', '🥭': '#ffa94d', '🍋': '#ffec99', '🍐': '#c0eb75', '🥥': '#f8f9fa' };
+    let t = 0, score = 0, miss = 0, over = false, deathT = 0, wave = 1.2, combo = null, best = 0, why = '';
+    const items = [], halves = [], splats = [], trail = [], fx = [];
+    let down = false, lastP = null, cutThisSwipe = [];
+    function toss() {
+      const W = game.VW, n = 1 + Math.min(4, Math.floor(t / 15) + (Math.random() < 0.4 ? 1 : 0));
+      for (let i = 0; i < n; i++) {
+        const bomb = Math.random() < Math.min(0.22, 0.06 + t / 400);
+        const x = rnd(W * 0.15, W * 0.85);
+        items.push({ x, y: VH + 40, vx: (W / 2 - x) * rnd(0.2, 0.6) + rnd(-80, 80), vy: -rnd(900, 1150), r: 40, rot: 0, vr: rnd(-4, 4), ic: bomb ? '💣' : FRUITS[rnd(0, FRUITS.length) | 0], bomb, delay: i * 0.15 });
+      }
+    }
+    function slice(o, ax, ay, bx, by) {
+      o.cut = true;
+      if (o.bomb) { over = true; why = '💣 Chém trúng bom!'; fx.push({ text: '💥 BÙM!', x: o.x, y: o.y, t: 0, c: '#ff6b6b', big: 1 }); if (navigator.vibrate) try { navigator.vibrate(200); } catch (e) { /* bỏ qua */ } return; }
+      score++; cutThisSwipe.push(o);
+      const ang = Math.atan2(by - ay, bx - ax);
+      for (const s of [-1, 1]) halves.push({ x: o.x, y: o.y, vx: o.vx + Math.cos(ang + Math.PI / 2) * 160 * s, vy: o.vy * 0.5 - 100, rot: o.rot, vr: o.vr + s * 3, ic: o.ic, side: s, ang });
+      splats.push({ x: o.x, y: o.y, c: JUICE[o.ic] || '#ff6b6b', t: 0, r: rnd(40, 70) });
+    }
+    const game = {
+      VW: 1280, VH, wide: true, over: false, res: null,
+      _dbg: () => ({ items, score, miss }),
+      how: ['<b>Vuốt ngón tay</b> (giữ chuột kéo) cắt ngang trái cây', 'Một nhát chém trúng 3 quả trở lên = <b>COMBO</b> cộng thêm điểm', 'Để rơi <b>3 quả</b> là thua · chém trúng <b>💣 bom</b> là thua ngay'],
+      update(dt) {
+        t += dt;
+        if (over) { deathT += dt; if (deathT > 1.4) { game.over = true; game.res = { score, extra: `${why || 'Rơi 3 quả'} · combo lớn nhất ${best}` }; } }
+        if (!over && (wave -= dt) <= 0) { wave = Math.max(0.9, 2.1 - t / 60); toss(); }
+        for (const o of items) {
+          if (o.delay > 0) { o.delay -= dt; continue; }
+          o.vy += G * dt; o.x += o.vx * dt; o.y += o.vy * dt; o.rot += o.vr * dt;
+          if (!o.cut && o.vy > 0 && o.y > VH + 60) { o.cut = true; if (!o.bomb && !over) { miss++; fx.push({ text: '❌', x: o.x, y: VH - 50, t: 0, c: '#ff6b6b' }); if (miss >= 3) { over = true; why = '😵 Để rơi 3 quả'; } } }
+        }
+        for (let i = items.length - 1; i >= 0; i--) if (items[i].cut) items.splice(i, 1);
+        halves.forEach((h) => { h.vy += G * dt; h.x += h.vx * dt; h.y += h.vy * dt; h.rot += h.vr * dt; });
+        for (let i = halves.length - 1; i >= 0; i--) if (halves[i].y > VH + 100) halves.splice(i, 1);
+        splats.forEach((s) => { s.t += dt; }); while (splats.length && splats[0].t > 2.5) splats.shift();
+        for (let i = trail.length - 1; i >= 0; i--) { trail[i].t += dt; if (trail[i].t > 0.18) trail.splice(i, 1); }
+        fx.forEach((f) => { f.t += dt; }); while (fx.length && fx[0].t > 1.2) fx.shift();
+      },
+      down(p) { down = true; lastP = p; cutThisSwipe = []; trail.push({ x: p.x, y: p.y, t: 0 }); },
+      move(p, held) {
+        if (!held || !down || over) return;
+        trail.push({ x: p.x, y: p.y, t: 0 });
+        if (lastP) {
+          const ax = lastP.x, ay = lastP.y, bx = p.x, by = p.y, dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+          if (l2 > 16) for (const o of items) {
+            if (o.cut || o.delay > 0) continue;
+            const k = Math.max(0, Math.min(1, ((o.x - ax) * dx + (o.y - ay) * dy) / l2)), d = Math.hypot(o.x - ax - dx * k, o.y - ay - dy * k);
+            if (d < o.r) slice(o, ax, ay, bx, by);
+          }
+        }
+        lastP = p;
+      },
+      up() {
+        if (cutThisSwipe.length >= 3) { const bonus = cutThisSwipe.length; score += bonus; best = Math.max(best, cutThisSwipe.length); const c = cutThisSwipe[cutThisSwipe.length - 1]; fx.push({ text: `🔥 COMBO ${cutThisSwipe.length} quả! +${bonus}`, x: c.x, y: c.y - 60, t: 0, c: '#ffe066', big: 1 }); }
+        else if (cutThisSwipe.length) best = Math.max(best, cutThisSwipe.length);
+        down = false; lastP = null; cutThisSwipe = [];
+      },
+      key() {},
+      draw(g) {
+        const W = game.VW;
+        const bg = g.createLinearGradient(0, 0, 0, VH); bg.addColorStop(0, '#6b3f1c'); bg.addColorStop(1, '#3d2410'); g.fillStyle = bg; g.fillRect(0, 0, W, VH);
+        g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 3; for (let x = 0; x < W; x += 140) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 20, VH); g.stroke(); }
+        splats.forEach((s) => { g.globalAlpha = Math.max(0, 0.6 - s.t / 4); g.fillStyle = s.c; g.beginPath(); for (let a = 0; a < Math.PI * 2; a += 0.6) { const rr2 = s.r * (0.6 + 0.4 * Math.sin(a * 3 + s.x)); g.lineTo(s.x + Math.cos(a) * rr2, s.y + Math.sin(a) * rr2); } g.fill(); g.globalAlpha = 1; });
+        items.forEach((o) => { if (o.delay > 0) return; g.save(); g.translate(o.x, o.y); g.rotate(o.rot); if (o.bomb) { g.shadowColor = '#ff6b6b'; g.shadowBlur = 20 + Math.sin(t * 12) * 10; } txt(g, o.ic, 0, 0, 84, '#fff', 'center', false); g.restore(); });
+        // nửa quả: vẽ emoji rồi cắt theo đường chém
+        halves.forEach((h) => { g.save(); g.translate(h.x, h.y); g.rotate(h.rot); g.beginPath(); g.rect(h.side < 0 ? -60 : 0, -60, 60, 120); g.clip(); txt(g, h.ic, 0, 0, 84, '#fff', 'center', false); g.restore(); });
+        // vệt chém
+        if (trail.length > 1) { g.lineCap = 'round'; for (let i = 1; i < trail.length; i++) { const a = trail[i - 1], b = trail[i], k = 1 - b.t / 0.18; g.strokeStyle = `rgba(255,255,255,${k})`; g.lineWidth = 2 + k * 10; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); } }
+        fx.forEach((f) => { g.globalAlpha = Math.max(0, 1 - f.t / 1.2); txt(g, f.text, f.x, f.y - f.t * 40, f.big ? 34 : 30, f.c); g.globalAlpha = 1; });
+        g.fillStyle = 'rgba(0,0,0,.4)'; rr(g, 12, 12, 200, 44, 22); g.fill(); txt(g, `🍉 ${score}`, 30, 34, 24, '#ffe066', 'left');
+        txt(g, '❌'.repeat(miss) + '✖️'.repeat(Math.max(0, 3 - miss)), W - 20, 34, 26, '#fff', 'right', false);
+        if (t < 4) txt(g, '👆 Vuốt ngón tay để chém trái cây · tránh 💣!', W / 2, VH * 0.85, 24);
+      },
+    };
+    return game;
+  }
+
+  /* ======================================================================
    * Khung chơi: menu → chơi → kết quả + thưởng xu
    * ==================================================================== */
   const GAMES = {
     bigfish: { name: 'Cá Lớn Nuốt Cá Bé', icon: '🐟', bg: '#0b3d63', make: makeBigFish, div: 60, unit: 'điểm' },
     subway: { name: 'Chạy Tàu Điện', icon: '🚇', bg: '#74c0fc', make: makeSubway, div: 40, unit: 'điểm' },
     archery: { name: 'Bắn Cung', icon: '🏹', bg: '#2f9e44', make: makeArchery, div: 1.5, unit: 'điểm' },
+    zombie: { name: 'Zombie Tsunami', icon: '🧟', bg: '#2b1d4d', make: makeZombie, div: 50, unit: 'điểm' },
+    fruit: { name: 'Chém Hoa Quả', icon: '🍉', bg: '#3d2410', make: makeFruit, div: 2.5, unit: 'điểm' },
     candy: { name: 'Xếp Kẹo', icon: '🍬', bg: '#9775fa', make: makeCandy, div: 120, unit: 'điểm', levels: true },
   };
   if (!document.getElementById('a2-css')) {

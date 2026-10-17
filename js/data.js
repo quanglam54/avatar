@@ -72,6 +72,8 @@ const DATA = {
     { id: 'subway', name: 'Chạy Tàu Điện', short: 'Tàu Điện', icon: '🚇', color: '#e8590c', div: 40, native: true },
     { id: 'archery', name: 'Bắn Cung', icon: '🏹', color: '#2f9e44', div: 1.5, native: true },
     { id: 'candy', name: 'Xếp Kẹo', icon: '🍬', color: '#e64980', div: 120, native: true },
+    { id: 'zombie', name: 'Zombie Tsunami', short: 'Zombie', icon: '🧟', color: '#5c940d', div: 50, native: true },
+    { id: 'fruit', name: 'Chém Hoa Quả', short: 'Chém Quả', icon: '🍉', color: '#e8590c', div: 2.5, native: true },
   ],
   CROPS: {
     wheat: { name: 'Lúa mì', icon: '🌾', seed: 2, sell: 5, time: 300, xp: 4, lvl: 1, yield: 4 },
