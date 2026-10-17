@@ -746,6 +746,22 @@ const BOARD = (() => {
       }
       return [[0, 1, 2, 3], [16, 17, 18], [32, 33, 34], [48, 49], [62, 63]];
     }
+    const shipCells = (start, L, hor) => { const [r, c] = rc(start); if (hor ? c + L > N : r + L > N) return null; return Array.from({ length: L }, (_, j) => (hor ? start + j : start + j * N)); };
+    /** tàu i đặt vào các ô cells có hợp lệ không (không chồng, không sát tàu khác) */
+    function fits(fl, i, cells) {
+      return cells.every((x) => { const [r, c] = rc(x); for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const r2 = r + dr, c2 = c + dc; if (r2 < 0 || r2 >= N || c2 < 0 || c2 >= N) continue; if (fl.some((sh, j) => j !== i && sh.includes(r2 * N + c2))) return false; } return true; });
+    }
+    /** xoay tàu i quanh ô đầu (thử lùi dần nếu chạm mép) */
+    function turnShip(fl, i) {
+      const sh = fl[i], hor = Math.floor(sh[0] / N) === Math.floor(sh[1] / N);
+      for (let back = 0; back < sh.length; back++) {
+        const [r, c] = rc(sh[0]), start = hor ? (r - back) * N + c : r * N + c - back;
+        if (hor ? r - back < 0 : c - back < 0) break;
+        const cells = shipCells(start, sh.length, !hor);
+        if (cells && fits(fl, i, cells)) { fl[i] = cells; return true; }
+      }
+      return false;
+    }
     /** kiểm tra đội hình đối thủ gửi qua mạng */
     function validFleet(f) {
       if (!Array.isArray(f) || f.length !== SHIPS.length) return false;
@@ -826,12 +842,13 @@ const BOARD = (() => {
       g.fillStyle = '#0b2545'; g.fillRect(0, 0, W, H);
       sea(g, 0, y0, q, '🛳️ Biển của bạn', '#d0ebff'); sea(g, 9 * q, y0, q, '🎯 Biển đối thủ', '#ffc9c9');
       const myFleet = s.fleets[me] || v.preview;
-      if (myFleet) myFleet.forEach((sh) => hull(g, 0, y0, q, sh, sunk(s, me, sh) && s.phase === 'play' ? '#868e96' : '#495057'));
+      if (myFleet) myFleet.forEach((sh, i) => hull(g, 0, y0, q, sh, s.phase === 'place' && i === v.selShip ? '#f59f00' : sunk(s, me, sh) && s.phase === 'play' ? '#868e96' : '#495057'));
+      if (s.phase === 'place' && v.myTurn && v.hover >= 100) { const [r, c] = rc(v.hover - 100); g.strokeStyle = '#fff'; g.lineWidth = 2; g.strokeRect(c * q + 2, y0 + r * q + 2, q - 4, q - 4); }
       marks(g, 0, y0, q, s.shots[me], v.t);
       if (s.phase === 'play') s.fleets[op].forEach((sh) => { if (sunk(s, op, sh)) hull(g, 9 * q, y0, q, sh, '#a61e4d'); });
       marks(g, 9 * q, y0, q, s.shots[op], v.t);
       if (s.last >= 0) { const [r, c] = rc(s.last), x0 = s.lastBy === me ? 9 * q : 0; g.strokeStyle = '#ffd43b'; g.lineWidth = 3; g.strokeRect(x0 + c * q + 2, y0 + r * q + 2, q - 4, q - 4); }
-      if (v.myTurn && s.phase === 'play' && v.hover >= 0 && !s.shots[op][v.hover]) { const [r, c] = rc(v.hover); g.strokeStyle = '#fff'; g.lineWidth = 3; const x = 9 * q + (c + 0.5) * q, y = y0 + (r + 0.5) * q; g.beginPath(); g.arc(x, y, q * 0.34, 0, Math.PI * 2); g.moveTo(x - q * 0.45, y); g.lineTo(x + q * 0.45, y); g.moveTo(x, y - q * 0.45); g.lineTo(x, y + q * 0.45); g.stroke(); }
+      if (v.myTurn && s.phase === 'play' && v.hover >= 0 && v.hover < N * N && !s.shots[op][v.hover]) { const [r, c] = rc(v.hover); g.strokeStyle = '#fff'; g.lineWidth = 3; const x = 9 * q + (c + 0.5) * q, y = y0 + (r + 0.5) * q; g.beginPath(); g.arc(x, y, q * 0.34, 0, Math.PI * 2); g.moveTo(x - q * 0.45, y); g.lineTo(x + q * 0.45, y); g.moveTo(x, y - q * 0.45); g.lineTo(x, y + q * 0.45); g.stroke(); }
       const left = (k) => s.fleets[k] ? s.fleets[k].filter((sh) => !sunk(s, k, sh)).length : SHIPS.length;
       g.font = FONT(q * 0.3, 700); g.fillStyle = '#fff'; g.textAlign = 'center';
       g.fillText(`Còn ${left(me)}/${SHIPS.length} tàu`, q * 4, y0 + q * N + q * 0.75); g.fillText(`Đối thủ còn ${left(op)}/${SHIPS.length} tàu`, q * 13, y0 + q * N + q * 0.75);
@@ -842,12 +859,26 @@ const BOARD = (() => {
       rules: 'Mỗi bên giấu 5 tàu (dài 4·3·3·2·2) trong vùng biển 8×8. Lần lượt bấm ô bên <b>Biển đối thủ</b> để bắn: <b>trúng 🔥 được bắn tiếp</b>, trượt 💦 thì mất lượt. Đánh chìm hết tàu đối thủ trước là thắng.',
       init, turn, legal, apply, status, ai, draw,
       pieceSide: () => -1,
-      hit(x, y, W) { const q = W / 17, c = Math.floor(x / q) - 9, r = Math.floor((y - q * 1.1) / q); return c < 0 || c >= N || r < 0 || r >= N ? -1 : r * N + c; },
-      clickMove: (s, cell) => (s.phase === 'play' && cell >= 0 && !s.shots[1 - s.side][cell] ? { shot: cell } : null),
+      // ô bên biển đối thủ: 0..63 · ô bên biển của mình: 100..163 (dùng lúc xếp tàu)
+      hit(x, y, W) { const q = W / 17, cc = Math.floor(x / q), r = Math.floor((y - q * 1.1) / q); if (r < 0 || r >= N) return -1; if (cc >= 9 && cc < 9 + N) return r * N + cc - 9; if (cc >= 0 && cc < N) return 100 + r * N + cc; return -1; },
+      /** xếp tàu bằng tay: bấm tàu để chọn · bấm ô trống để dời tàu đang chọn tới · bấm lại tàu đang chọn để xoay */
+      localClick(st2, cell) {
+        const s = st2.s; if (s.phase !== 'place' || cell < 100) return false;
+        const fl = st2.preview || (st2.preview = randomFleet()), c = cell - 100, at = fl.findIndex((sh) => sh.includes(c));
+        if (st2.selShip == null || st2.selShip < 0) { if (at >= 0) st2.selShip = at; return true; }
+        const i = st2.selShip, sh = fl[i];
+        if (at === i) { if (!turnShip(fl, i)) UI.toast('Không xoay được ở chỗ này — dời tàu ra chỗ rộng hơn', 1800); return true; }
+        if (at >= 0) { st2.selShip = at; return true; }
+        const hor = sh.length === 1 || Math.floor(sh[0] / N) === Math.floor(sh[1] / N), cells = shipCells(c, sh.length, hor);
+        if (cells && fits(fl, i, cells)) { fl[i] = cells; st2.selShip = -1; }
+        else UI.toast('Không đặt được ở đây (ra ngoài biển hoặc sát tàu khác)', 1800);
+        return true;
+      },
+      clickMove: (s, cell) => (s.phase === 'play' && cell >= 0 && cell < N * N && !s.shots[1 - s.side][cell] ? { shot: cell } : null),
       okMove(s, mv) { if (mv.place) return s.phase === 'place' && validFleet(mv.fleet) ? { place: true, fleet: mv.fleet } : null; return legal(s).find((x) => x.shot === mv.shot) || null; },
-      localAct(st2, m) { if (m.reroll) { st2.preview = randomFleet(); return true; } return false; },
+      localAct(st2, m) { if (m.reroll) { st2.preview = randomFleet(); st2.selShip = -1; return true; } if (m.rotate) { if (st2.preview && st2.selShip >= 0 && !turnShip(st2.preview, st2.selShip)) UI.toast('Không xoay được ở chỗ này', 1500); return true; } return false; },
       panel(s, st2) {
-        if (s.phase === 'place') { if (!st2.preview) st2.preview = randomFleet(); return { text: '🛳️ Xếp hạm đội của bạn — bấm <b>Xếp lại</b> tới khi ưng ý', buttons: [{ l: '🎲 Xếp lại', m: { reroll: true } }, { l: '✅ Vào trận!', m: { place: true, fleet: st2.preview }, big: 1 }] }; }
+        if (s.phase === 'place') { if (!st2.preview) st2.preview = randomFleet(); const sel = st2.selShip >= 0; return { text: sel ? `🛳️ Đang chọn tàu dài <b>${st2.preview[st2.selShip].length}</b> ô — bấm ô trống để dời tới, bấm lại tàu để xoay` : '🛳️ Tự xếp hạm đội: <b>bấm 1 tàu</b> bên Biển của bạn để chọn, rồi bấm ô trống để dời · bấm lại tàu để xoay ngang/dọc', buttons: [...(sel ? [{ l: '🔄 Xoay tàu đang chọn', m: { rotate: true } }] : []), { l: '🎲 Xếp ngẫu nhiên', m: { reroll: true } }, { l: '✅ Vào trận!', m: { place: true, fleet: st2.preview }, big: 1 }] }; }
         return { text: s.lastHit && s.lastBy === s.side && s.n > 2 ? '🔥 Trúng rồi — bắn tiếp!' : '🎯 Bấm 1 ô bên <b>Biển đối thủ</b> để bắn', buttons: [] };
       },
       waitText: (s) => (s.phase === 'place' ? 'đang xếp tàu…' : 'đang ngắm bắn…'),
@@ -1338,7 +1369,7 @@ const BOARD = (() => {
   function doMove(m, mine) {
     if (mine && st.mode === 'net') send({ op: 'move', to: st.room ? '*' : st.opp, gid: st.gid, m });
     st.s = st.G.apply(st.s, m); st.moves++;
-    if (m.place) st.preview = null;
+    if (m.place) { st.preview = null; st.selShip = -1; }
     if (!m.roll) st.last = m;
     st.sel = -1; st.targets = [];
     if (st.G.multi && st.s.kick) UI.toast(`💥 Đá ngựa ${st.G.sides[st.s.kick.o]} về chuồng!`, 1600);
@@ -1349,6 +1380,7 @@ const BOARD = (() => {
     if (!st || st.idle || st.over || st.busy || cell < 0) return;
     const turn = st.G.turn(st.s);
     if (ctrl(turn) !== 'me') return UI.toast(st.mode === 'net' ? `⏳ Chờ ${st.room ? sideName(turn) : st.oppName} đi…` : '⏳ Chờ máy đi…', 1200);
+    if (st.G.localClick && st.G.localClick(st, cell)) { side(); return; }
     if (st.G.clickMove) { const m = st.G.clickMove(st.s, cell); if (m) doMove(m, true); else if (st.G.multi && st.s.phase === 'roll') roll(); return; }
     const hit = st.targets.find((m) => m.t === cell);
     if (hit) return doMove(hit, true);
@@ -1422,7 +1454,7 @@ const BOARD = (() => {
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const s = st.s || (G.multi ? G.init([0, 1, 2, 3]) : G.init());
     const myTurn = !st.idle && !st.over && ctrl(G.turn(s)) === 'me';
-    G.draw(g, W, H, s, { label: st.idle ? null : sideName, me: st.idle ? 0 : st.mode === 'pvp' ? G.turn(s) : st.mine[0], preview: st.preview, sel: st.sel ?? -1, targets: st.targets || [], last: st.last, flip: st.flip, hover, myTurn, t: performance.now() / 1000, check: G.checkSq && !st.idle ? G.checkSq(s) : -1 });
+    G.draw(g, W, H, s, { label: st.idle ? null : sideName, me: st.idle ? 0 : st.mode === 'pvp' ? G.turn(s) : st.mine[0], preview: st.preview, selShip: st.selShip ?? -1, sel: st.sel ?? -1, targets: st.targets || [], last: st.last, flip: st.flip, hover, myTurn, t: performance.now() / 1000, check: G.checkSq && !st.idle ? G.checkSq(s) : -1 });
     if (st.idle) { g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, W, H); g.font = FONT(Math.max(16, W / 18)); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.fillText('👈 Chọn chế độ chơi', W / 2, H / 2); }
   }
 
