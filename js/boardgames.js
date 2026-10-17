@@ -1,4 +1,4 @@
-/* ♟️ PHÒNG CỜ trong Nhà Casino: Cờ Vua · Cờ Tướng · Cờ Vây (9×9) · Cờ Cá Ngựa · Cờ Tỷ Phú.
+/* ♟️ PHÒNG CỜ trong Nhà Casino: Cờ Vua · Cờ Tướng · Cờ Vây (9×9) · Cờ Cá Ngựa · Cờ Tỷ Phú · Hải Chiến.
  * Mỗi trò: đấu với máy (Dễ / Vừa / Khó, có cược xu), chơi chung 1 máy, hoặc mời người cùng khu chơi online (mỗi bên cược bằng nhau, thắng ăn cả).
  * Mỗi trò khai báo: init · legal (nước đi hợp lệ của bên tới lượt) · apply (trả về thế cờ mới) · status (thắng/hoà) · ai · draw · hit (toạ độ → ô). */
 const BOARD = (() => {
@@ -719,7 +719,142 @@ const BOARD = (() => {
     };
   })();
 
-  const GAMES = { chess: CHESS, xiangqi: XQ, go: GO, ludo: LUDO, typhu: TYPHU };
+  /* ======================================================================
+   * ⚓ HẢI CHIẾN (Bắn Tàu) — mỗi bên 1 vùng biển 8×8 có 5 tàu (dài 4·3·3·2·2), tàu không được nằm sát nhau.
+   * Lần lượt chọn ô bắn vào biển đối thủ: trúng 🔥 thì được bắn tiếp, trượt 💦 thì mất lượt. Đánh chìm hết tàu đối thủ là thắng.
+   * Giai đoạn xếp tàu: mỗi bên xếp xong gửi đội hình (bên 0 xếp trước rồi tới bên 1).
+   * ==================================================================== */
+  const BATTLE = (() => {
+    const N = 8, SHIPS = [4, 3, 3, 2, 2];
+    const rc = (i) => [Math.floor(i / N), i % N];
+    function randomFleet() {
+      for (let tries = 0; tries < 500; tries++) {
+        const taken = new Set(), ships = [];
+        let ok = true;
+        for (const L of SHIPS) {
+          let placed = false;
+          for (let k = 0; k < 200 && !placed; k++) {
+            const hor = Math.random() < 0.5, r = rnd(hor ? N : N - L + 1), c = rnd(hor ? N - L + 1 : N);
+            const cells = Array.from({ length: L }, (_, j) => (hor ? r * N + c + j : (r + j) * N + c));
+            // không chồng và không sát tàu khác (kể cả chéo)
+            if (cells.some((x) => { const [rr, cc] = rc(x); for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const r2 = rr + dr, c2 = cc + dc; if (r2 >= 0 && r2 < N && c2 >= 0 && c2 < N && taken.has(r2 * N + c2)) return true; } return false; })) continue;
+            cells.forEach((x) => taken.add(x)); ships.push(cells); placed = true;
+          }
+          if (!placed) { ok = false; break; }
+        }
+        if (ok) return ships;
+      }
+      return [[0, 1, 2, 3], [16, 17, 18], [32, 33, 34], [48, 49], [62, 63]];
+    }
+    /** kiểm tra đội hình đối thủ gửi qua mạng */
+    function validFleet(f) {
+      if (!Array.isArray(f) || f.length !== SHIPS.length) return false;
+      const all = new Set();
+      return f.every((sh, i) => Array.isArray(sh) && sh.length === SHIPS[i] && sh.every((x) => Number.isInteger(x) && x >= 0 && x < N * N && !all.has(x) && all.add(x)) && (sh.every((x) => Math.floor(x / N) === Math.floor(sh[0] / N)) || sh.every((x) => x % N === sh[0] % N)));
+    }
+    const init = () => ({ fleets: [null, null], shots: [Array(N * N).fill(0), Array(N * N).fill(0)], side: 0, phase: 'place', last: -1, n: 0 });
+    const turn = (s) => (s.phase === 'place' ? (s.fleets[0] ? 1 : 0) : s.side);
+    /** shots[k] = các phát bắn VÀO biển của bên k (0 chưa bắn · 1 trượt · 2 trúng) */
+    const sunk = (s, k, sh) => sh.every((x) => s.shots[k][x] === 2);
+    function legal(s) {
+      if (s.phase === 'place') return [{ place: true }];
+      const t = 1 - s.side, out = [];
+      for (let i = 0; i < N * N; i++) if (!s.shots[t][i]) out.push({ shot: i });
+      return out;
+    }
+    function apply(s0, m) {
+      const s = { ...s0, fleets: s0.fleets.slice(), shots: [s0.shots[0].slice(), s0.shots[1].slice()], n: s0.n + 1 };
+      if (m.place) { const k = turn(s0); s.fleets[k] = m.fleet; if (s.fleets[0] && s.fleets[1]) { s.phase = 'play'; s.side = 0; } return s; }
+      const t = 1 - s.side, hit = s.fleets[t].some((sh) => sh.includes(m.shot));
+      s.shots[t][m.shot] = hit ? 2 : 1; s.last = m.shot; s.lastBy = s.side; s.lastHit = hit;
+      s.justSunk = hit ? s.fleets[t].find((sh) => sh.includes(m.shot) && sunk(s, t, sh)) || null : null;
+      // tàu chìm: các ô quanh tàu chắc chắn không có tàu → tự đánh dấu trượt cho đỡ phí đạn
+      if (s.justSunk) s.justSunk.forEach((x) => { const [r, c] = rc(x); for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const r2 = r + dr, c2 = c + dc; if (r2 >= 0 && r2 < N && c2 >= 0 && c2 < N && !s.shots[t][r2 * N + c2]) s.shots[t][r2 * N + c2] = 1; } });
+      if (!hit) s.side = t;
+      return s;
+    }
+    function status(s) {
+      if (s.phase !== 'play') return null;
+      for (const k of [0, 1]) if (s.fleets[k].every((sh) => sunk(s, k, sh))) return { winner: 1 - k, why: '⚓ Đánh chìm toàn bộ hạm đội!' };
+      return null;
+    }
+    /** máy bắn: Dễ = bắn bừa · Vừa = săn quanh ô trúng · Khó = thêm tính xác suất chỗ tàu có thể nằm */
+    function ai(s, lv) {
+      if (s.phase === 'place') return { place: true, fleet: randomFleet() };
+      const t = 1 - s.side, sh = s.shots[t], free = legal(s).map((m) => m.shot);
+      if (lv === 0 && Math.random() < 0.6) return { shot: free[rnd(free.length)] };
+      // các ô trúng mà tàu chưa chìm
+      const open = []; for (let i = 0; i < N * N; i++) if (sh[i] === 2 && !s.fleets[t].some((x) => x.includes(i) && sunk(s, t, x))) open.push(i);
+      const left = SHIPS.filter((_, j) => !sunk(s, t, s.fleets[t][j]));
+      const score = Array(N * N).fill(0);
+      for (const L of left) for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) for (const hor of [true, false]) {
+        if (hor ? c + L > N : r + L > N) continue;
+        const cells = Array.from({ length: L }, (_, j) => (hor ? r * N + c + j : (r + j) * N + c));
+        if (cells.some((x) => sh[x] === 1 || (sh[x] === 2 && !open.includes(x)))) continue;
+        const cover = cells.filter((x) => open.includes(x)).length;
+        if (open.length && !cover) { if (lv < 2) continue; }
+        cells.forEach((x) => { if (!sh[x]) score[x] += 1 + cover * 30; });
+      }
+      let best = free[0], bv = -1;
+      free.forEach((x) => { const v = score[x] + Math.random() * (lv === 2 ? 0.5 : 3); if (v > bv) { bv = v; best = x; } });
+      return { shot: best };
+    }
+    /* ---------- vẽ: trái = biển của mình, phải = biển đối thủ ---------- */
+    function sea(g, x0, y0, q, title, col) {
+      const gr = g.createLinearGradient(0, y0, 0, y0 + q * N); gr.addColorStop(0, '#74c0fc'); gr.addColorStop(1, '#1c7ed6'); g.fillStyle = gr; g.fillRect(x0, y0, q * N, q * N);
+      g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 1;
+      for (let k = 0; k <= N; k++) { g.beginPath(); g.moveTo(x0 + k * q, y0); g.lineTo(x0 + k * q, y0 + q * N); g.moveTo(x0, y0 + k * q); g.lineTo(x0 + q * N, y0 + k * q); g.stroke(); }
+      g.font = FONT(q * 0.42); g.fillStyle = col; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(title, x0 + q * N / 2, y0 - q * 0.5);
+      g.font = FONT(q * 0.26, 700); g.fillStyle = 'rgba(255,255,255,.75)';
+      for (let k = 0; k < N; k++) { g.fillText('ABCDEFGH'[k], x0 + (k + 0.5) * q, y0 + q * N + q * 0.3); }
+    }
+    function hull(g, x0, y0, q, sh, color) {
+      const [r0, c0] = rc(Math.min(...sh)), [r1, c1] = rc(Math.max(...sh));
+      const x = x0 + c0 * q + q * 0.12, y = y0 + r0 * q + q * 0.12, w = (c1 - c0 + 1) * q - q * 0.24, h = (r1 - r0 + 1) * q - q * 0.24;
+      g.fillStyle = color; g.beginPath(); g.roundRect(x, y, w, h, q * 0.35); g.fill(); g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 2; g.stroke();
+      g.fillStyle = 'rgba(255,255,255,.35)'; sh.forEach((i) => { const [r, c] = rc(i); g.beginPath(); g.arc(x0 + (c + 0.5) * q, y0 + (r + 0.5) * q, q * 0.13, 0, Math.PI * 2); g.fill(); });
+    }
+    function marks(g, x0, y0, q, shots, t) {
+      for (let i = 0; i < N * N; i++) {
+        const [r, c] = rc(i), x = x0 + (c + 0.5) * q, y = y0 + (r + 0.5) * q;
+        if (shots[i] === 1) { g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.arc(x, y, q * 0.12, 0, Math.PI * 2); g.fill(); }
+        if (shots[i] === 2) { const f = 1 + Math.sin(t * 9 + i) * 0.12; g.fillStyle = '#ff6b6b'; g.beginPath(); g.arc(x, y, q * 0.3 * f, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ffd43b'; g.beginPath(); g.arc(x, y, q * 0.16 * f, 0, Math.PI * 2); g.fill(); }
+      }
+    }
+    function draw(g, W, H, s, v) {
+      const q = W / 17, y0 = q * 1.1, me = v.me ?? 0, op = 1 - me;
+      g.fillStyle = '#0b2545'; g.fillRect(0, 0, W, H);
+      sea(g, 0, y0, q, '🛳️ Biển của bạn', '#d0ebff'); sea(g, 9 * q, y0, q, '🎯 Biển đối thủ', '#ffc9c9');
+      const myFleet = s.fleets[me] || v.preview;
+      if (myFleet) myFleet.forEach((sh) => hull(g, 0, y0, q, sh, sunk(s, me, sh) && s.phase === 'play' ? '#868e96' : '#495057'));
+      marks(g, 0, y0, q, s.shots[me], v.t);
+      if (s.phase === 'play') s.fleets[op].forEach((sh) => { if (sunk(s, op, sh)) hull(g, 9 * q, y0, q, sh, '#a61e4d'); });
+      marks(g, 9 * q, y0, q, s.shots[op], v.t);
+      if (s.last >= 0) { const [r, c] = rc(s.last), x0 = s.lastBy === me ? 9 * q : 0; g.strokeStyle = '#ffd43b'; g.lineWidth = 3; g.strokeRect(x0 + c * q + 2, y0 + r * q + 2, q - 4, q - 4); }
+      if (v.myTurn && s.phase === 'play' && v.hover >= 0 && !s.shots[op][v.hover]) { const [r, c] = rc(v.hover); g.strokeStyle = '#fff'; g.lineWidth = 3; const x = 9 * q + (c + 0.5) * q, y = y0 + (r + 0.5) * q; g.beginPath(); g.arc(x, y, q * 0.34, 0, Math.PI * 2); g.moveTo(x - q * 0.45, y); g.lineTo(x + q * 0.45, y); g.moveTo(x, y - q * 0.45); g.lineTo(x, y + q * 0.45); g.stroke(); }
+      const left = (k) => s.fleets[k] ? s.fleets[k].filter((sh) => !sunk(s, k, sh)).length : SHIPS.length;
+      g.font = FONT(q * 0.3, 700); g.fillStyle = '#fff'; g.textAlign = 'center';
+      g.fillText(`Còn ${left(me)}/${SHIPS.length} tàu`, q * 4, y0 + q * N + q * 0.75); g.fillText(`Đối thủ còn ${left(op)}/${SHIPS.length} tàu`, q * 13, y0 + q * N + q * 0.75);
+      if (s.phase === 'play' && s.justSunk) { g.font = FONT(q * 0.6); g.fillStyle = '#ffd43b'; g.fillText('💥 CHÌM TÀU!', W / 2, y0 + q * 4); }
+    }
+    return {
+      id: 'battle', name: 'Hải Chiến', icon: '⚓', cols: 17, rows: 10.4, sides: ['Hạm đội Xanh', 'Hạm đội Đỏ'],
+      rules: 'Mỗi bên giấu 5 tàu (dài 4·3·3·2·2) trong vùng biển 8×8. Lần lượt bấm ô bên <b>Biển đối thủ</b> để bắn: <b>trúng 🔥 được bắn tiếp</b>, trượt 💦 thì mất lượt. Đánh chìm hết tàu đối thủ trước là thắng.',
+      init, turn, legal, apply, status, ai, draw,
+      pieceSide: () => -1,
+      hit(x, y, W) { const q = W / 17, c = Math.floor(x / q) - 9, r = Math.floor((y - q * 1.1) / q); return c < 0 || c >= N || r < 0 || r >= N ? -1 : r * N + c; },
+      clickMove: (s, cell) => (s.phase === 'play' && cell >= 0 && !s.shots[1 - s.side][cell] ? { shot: cell } : null),
+      okMove(s, mv) { if (mv.place) return s.phase === 'place' && validFleet(mv.fleet) ? { place: true, fleet: mv.fleet } : null; return legal(s).find((x) => x.shot === mv.shot) || null; },
+      localAct(st2, m) { if (m.reroll) { st2.preview = randomFleet(); return true; } return false; },
+      panel(s, st2) {
+        if (s.phase === 'place') { if (!st2.preview) st2.preview = randomFleet(); return { text: '🛳️ Xếp hạm đội của bạn — bấm <b>Xếp lại</b> tới khi ưng ý', buttons: [{ l: '🎲 Xếp lại', m: { reroll: true } }, { l: '✅ Vào trận!', m: { place: true, fleet: st2.preview }, big: 1 }] }; }
+        return { text: s.lastHit && s.lastBy === s.side && s.n > 2 ? '🔥 Trúng rồi — bắn tiếp!' : '🎯 Bấm 1 ô bên <b>Biển đối thủ</b> để bắn', buttons: [] };
+      },
+      waitText: (s) => (s.phase === 'place' ? 'đang xếp tàu…' : 'đang ngắm bắn…'),
+    };
+  })();
+
+  const GAMES = { chess: CHESS, xiangqi: XQ, go: GO, ludo: LUDO, typhu: TYPHU, battle: BATTLE };
 
   /* ======================================================================
    * Khung chơi chung
@@ -817,6 +952,7 @@ const BOARD = (() => {
   function doMove(m, mine) {
     if (mine && st.mode === 'net') send({ op: 'move', to: st.room ? '*' : st.opp, gid: st.gid, m });
     st.s = st.G.apply(st.s, m); st.moves++;
+    if (m.place) st.preview = null;
     if (!m.roll) st.last = m;
     st.sel = -1; st.targets = [];
     if (st.G.multi && st.s.kick) UI.toast(`💥 Đá ngựa ${st.G.sides[st.s.kick.o]} về chuồng!`, 1600);
@@ -856,7 +992,7 @@ const BOARD = (() => {
         <button class="btn ghost" data-resign>🏳️ ${st.mode === 'pvp' ? 'Kết thúc ván' : 'Xin thua'}</button>`;
     }
     const q = (s) => el.querySelector(s);
-    el.querySelectorAll('[data-mv]').forEach((b) => b.onclick = () => { if (!st || st.over || ctrl(st.G.turn(st.s)) !== 'me') return; const m = JSON.parse(b.dataset.mv); if (m.roll) return roll(); doMove(m, true); });
+    el.querySelectorAll('[data-mv]').forEach((b) => b.onclick = () => { if (!st || st.over || ctrl(st.G.turn(st.s)) !== 'me') return; const m = JSON.parse(b.dataset.mv); if (st.G.localAct && st.G.localAct(st, m)) return side(); if (m.roll) return roll(); doMove(m, true); });
     if (q('[data-roll]')) q('[data-roll]').onclick = roll;
     if (q('[data-pass]')) q('[data-pass]').onclick = pass;
     if (q('[data-resign]')) q('[data-resign]').onclick = () => UI.confirm(st.mode === 'pvp' ? 'Kết thúc ván này?' : 'Xin thua ván này?', '🏳️ Đồng ý', () => {
@@ -870,7 +1006,7 @@ const BOARD = (() => {
     if (q('[data-re]')) q('[data-re]').onclick = () => { if (st.bet > S().coins) return UI.toast('Không đủ xu để đấu tiếp'); if (!NET.remotes.get(st.opp)) return UI.toast('⚠️ Đối thủ đã rời khu'); sendInvite({ to: st.opp, name: st.oppName, game: st.id, bet: st.bet }); };
   }
   function panelHtml() {
-    const P = st.G.panel(st.s);
+    const P = st.G.panel(st.s, st);
     return `${P.text ? `<p class="muted">${P.text}</p>` : ''}${P.buttons.map((b) => `<button class="btn ${b.big ? '' : 'ghost'}" style="${b.big ? 'font-size:17px' : b.small ? 'font-size:12px;padding:6px 8px' : ''}" data-mv='${JSON.stringify(b.m)}' ${b.dis ? 'disabled' : ''}>${b.l}</button>`).join('')}`;
   }
   /** kết thúc ván. r.winner: bên thắng · −1 hoà · −2 mình xin thua */
@@ -900,7 +1036,7 @@ const BOARD = (() => {
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const s = st.s || (G.multi ? G.init([0, 1, 2, 3]) : G.init());
     const myTurn = !st.idle && !st.over && ctrl(G.turn(s)) === 'me';
-    G.draw(g, W, H, s, { sel: st.sel ?? -1, targets: st.targets || [], last: st.last, flip: st.flip, hover, myTurn, t: performance.now() / 1000, check: G.checkSq && !st.idle ? G.checkSq(s) : -1 });
+    G.draw(g, W, H, s, { me: st.idle ? 0 : st.mode === 'pvp' ? G.turn(s) : st.mine[0], preview: st.preview, sel: st.sel ?? -1, targets: st.targets || [], last: st.last, flip: st.flip, hover, myTurn, t: performance.now() / 1000, check: G.checkSq && !st.idle ? G.checkSq(s) : -1 });
     if (st.idle) { g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, W, H); g.font = FONT(Math.max(16, W / 18)); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.fillText('👈 Chọn chế độ chơi', W / 2, H / 2); }
   }
 
@@ -986,7 +1122,7 @@ const BOARD = (() => {
       const mv = m.m;
       // kiểm tra nước đi bên kia gửi có hợp lệ không
       if (mv.roll) { if (st.s.phase !== 'roll' || !(mv.v >= 1 && mv.v <= 6)) return; return doMove({ roll: true, v: mv.v | 0 }); }
-      const ok = st.G.legal(st.s).find((x) => (x.skip && mv.skip) || (x.pass && mv.pass) || (x.h != null && x.h === mv.h && x.to === mv.to) || (x.p != null && x.p >= 0 && x.p === mv.p) || (x.f != null && x.f === mv.f && x.t === mv.t));
+      const ok = st.G.okMove ? st.G.okMove(st.s, mv) : st.G.legal(st.s).find((x) => (x.skip && mv.skip) || (x.pass && mv.pass) || (x.h != null && x.h === mv.h && x.to === mv.to) || (x.p != null && x.p >= 0 && x.p === mv.p) || (x.f != null && x.f === mv.f && x.t === mv.t));
       if (ok) doMove(ok);
     }
   }
@@ -1145,6 +1281,7 @@ const BOARD = (() => {
     if (id === 'chess') { for (let r = 0; r < 8; r++) for (let k = 0; k < 8; k++) quad(k / 8, r / 8, (k + 1) / 8, (r + 1) / 8, (r + k) % 2 ? '#b58863' : '#f0d9b5'); c.font = '16px "Segoe UI Symbol",serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#111'; c.fillText('♚ ♛', x - 30, y - 92); c.fillStyle = '#fff'; c.strokeStyle = '#111'; c.lineWidth = 1; c.strokeText('♔ ♕', x + 30, y - 58); c.fillText('♔ ♕', x + 30, y - 58); }
     else if (id === 'xiangqi') { quad(0, 0, 1, 1, '#f2cf8d'); c.strokeStyle = '#7a4a1e'; c.lineWidth = 1; for (let k = 0; k <= 8; k++) { const a = P(k / 8, 0), b = P(k / 8, 1); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } for (let r = 0; r <= 9; r++) { const a = P(0, r / 9), b = P(1, r / 9); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } [[0.3, 0.2, '#c92a2a'], [0.6, 0.3, '#212529'], [0.45, 0.75, '#c92a2a'], [0.7, 0.8, '#212529']].forEach(([u, v, col]) => { const [px, py] = P(u, v); c.fillStyle = '#fff4e0'; c.beginPath(); c.ellipse(px, py, 7, 4, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = col; c.lineWidth = 1.5; c.stroke(); }); }
     else if (id === 'go') { quad(0, 0, 1, 1, '#e3b56a'); c.strokeStyle = '#5c3a1e'; c.lineWidth = 1; for (let k = 0; k <= 8; k++) { let a = P(k / 8, 0), b = P(k / 8, 1); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); a = P(0, k / 8); b = P(1, k / 8); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } [[0.25, 0.25, '#111'], [0.5, 0.375, '#fff'], [0.625, 0.625, '#111'], [0.375, 0.75, '#fff'], [0.75, 0.25, '#111']].forEach(([u, v, col]) => { const [px, py] = P(u, v); c.fillStyle = col; c.beginPath(); c.ellipse(px, py, 6, 3.5, 0, 0, Math.PI * 2); c.fill(); }); }
+    else if (id === 'battle') { quad(0, 0, 0.48, 1, '#4dabf7'); quad(0.52, 0, 1, 1, '#4dabf7'); c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 1; for (let k = 0; k <= 6; k++) for (const u0 of [0, 0.52]) { let a = P(u0 + 0.48 * k / 6, 0), b = P(u0 + 0.48 * k / 6, 1); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); a = P(u0, k / 6); b = P(u0 + 0.48, k / 6); c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke(); } quad(0.08, 0.2, 0.34, 0.33, '#495057'); quad(0.6, 0.55, 0.68, 0.9, '#495057'); [[0.75, 0.3], [0.2, 0.7], [0.85, 0.75]].forEach(([u, v]) => { const [px, py] = P(u, v); c.fillStyle = '#e03131'; c.beginPath(); c.ellipse(px, py, 4, 2.5, 0, 0, Math.PI * 2); c.fill(); }); }
     else if (id === 'typhu') { quad(0, 0, 1, 1, '#d3f9d8'); const cols = ['#8d5524', '#74c0fc', '#e64980', '#fd7e14', '#e03131', '#fcc419', '#2b8a3e', '#1c3faa']; for (let k = 0; k < 8; k++) { const u = k / 8; quad(u, 0, u + 0.125, 0.14, cols[k]); quad(u, 0.86, u + 0.125, 1, cols[7 - k]); } quad(0.15, 0.25, 0.85, 0.75, '#ebfbee'); const [px, py] = P(0.5, 0.5); c.font = '900 10px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#c92a2a'; c.fillText('TỶ PHÚ', px, py); }
     else if (id === 'ludo') { quad(0, 0, 1, 1, '#fff'); [[0, 0, '#e03131'], [0.6, 0, '#2f9e44'], [0.6, 0.6, '#f59f00'], [0, 0.6, '#1c7ed6']].forEach(([u, v, col]) => quad(u, v, u + 0.4, v + 0.4, col)); const [px, py] = P(0.5, 0.5); c.font = '16px system-ui,"Segoe UI Emoji"'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🎲', px, py); }
     c.fillStyle = '#1b2f48'; c.beginPath(); c.roundRect(x - 70, y - 140, 140, 28, 9); c.fill(); c.fillStyle = '#ffd43b'; c.font = '900 14px "Be Vietnam Pro", system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(`${G.icon} ${G.name.toUpperCase()}`, x, y - 126);

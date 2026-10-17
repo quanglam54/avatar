@@ -1037,10 +1037,10 @@ const MAPS = (() => {
     col(m, 1385, 805, 230, 36);
     sobj(m, 1800, 840, (c) => ART.sofa(c, 1800, 840, '#7048e8'), { l: -125, t: -85, w: 250, h: 92 });
     col(m, 1685, 805, 230, 36);
-    sobj(m, 2160, 640, (c) => ART.sofa(c, 2160, 640, '#f08c00'), { l: -125, t: -85, w: 250, h: 92 });
-    col(m, 2045, 605, 230, 36);
-    sobj(m, 2160, 880, (c) => ART.sofa(c, 2160, 880, '#1971c2'), { l: -125, t: -85, w: 250, h: 92 });
-    col(m, 2045, 845, 230, 36);
+    // ⚓ bàn Hải Chiến ở khu sofa bên phải
+    if (typeof BOARD !== 'undefined') BOARD.addTo(m, { sobj, col, inter }, 'battle', 2160, 690);
+    sobj(m, 2160, 920, (c) => ART.sofa(c, 2160, 920, '#1971c2'), { l: -125, t: -85, w: 250, h: 92 });
+    col(m, 2045, 885, 230, 36);
     [[90, 330], [2310, 330], [90, 960], [2310, 960], [640, 330], [1760, 330], [90, 1440], [2310, 1440]].forEach(([x, y]) => { sobj(m, x, y, (c) => ART.plantPot(c, x, y), { l: -30, t: -95, w: 60, h: 100 }); col(m, x - 17, y - 12, 34, 14); });
 
     npc(m, 'Chú Lộc', { skin: '#f1c27d', hair: 'short', hairColor: '#222', shirt: '#212529', shirtStyle: 'plain', pants: '#212529', hat: 'cowboy' }, { l: 680, t: 740, r: 1000, b: 860 }, 820, 790, 'none');
