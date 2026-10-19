@@ -68,6 +68,7 @@ const DATA = {
     { id: 'keobo', name: 'Bắt Bò', icon: '🐄', color: '#e03131', div: 60 },
     { id: 'pikachu', name: 'Pikachu', icon: '⚡', color: '#f59f00', div: 150 },
     { id: 'goldminer', name: 'Đào Vàng', icon: '⛏️', color: '#8a4b22', div: 250 },
+    { id: 'mahjong', name: 'Mahjong', icon: '🀄', color: '#1c7ed6', div: 150 },
     { id: 'bigfish', name: 'Cá Lớn Nuốt Cá Bé', short: 'Cá Lớn', icon: '🐟', color: '#1098ad', div: 60, native: true },
     { id: 'subway', name: 'Chạy Tàu Điện', short: 'Tàu Điện', icon: '🚇', color: '#e8590c', div: 40, native: true },
     { id: 'archery', name: 'Bắn Cung', icon: '🏹', color: '#2f9e44', div: 1.5, native: true },

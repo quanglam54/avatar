@@ -47,6 +47,11 @@
       desc: 'Nối thú cổ điển: nối 2 hình giống nhau, đường nối không quá 2 lần rẽ.',
       howto: ['Chọn 2 hình giống nhau để nối', 'Đường nối tối đa 3 đoạn (2 lần rẽ), không cắt qua hình khác', 'Nối liên tiếp nhanh được cộng combo', 'Có 3 lần gợi ý 💡 và 3 lần đảo 🔀', 'Hết giờ là kết thúc'],
     },
+    {
+      id: 'mahjong', title: 'Mahjong', icon: '🀄', cat: 'puzzle', c1: '#38bdf8', c2: '#f783ac', unit: 'điểm',
+      desc: 'Ghép cặp mạt chược: đưa quân lên khay 4 ô, 2 quân giống nhau sẽ biến mất.',
+      howto: ['Chỉ chạm được quân không bị quân khác đè lên', 'Quân được chạm bay lên khay 4 ô', '2 quân giống nhau trên khay tự biến mất (+điểm, ăn nhanh được combo)', 'Khay đầy mà không ghép được là thua', 'Trợ giúp mỗi màn: 🔄 Xáo trộn ×2, 🔍 Gợi ý ×3, ↩️ Hoàn tác ×3'],
+    },
   ];
 
   const CATS = { arcade: 'Hành động', puzzle: 'Giải đố', brain: 'Trí nhớ' };
