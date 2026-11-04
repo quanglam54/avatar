@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Tắc Kè Hoa · Trốn Tìm Ngụy Trang</title>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1b1b; color: #fff; font-family: "Be Vietnam Pro", system-ui, sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
+    #cv { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+    .top { position: fixed; top: 8px; left: 0; right: 0; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; pointer-events: none; z-index: 5; padding: 0 8px; }
+    .chip { background: rgba(0, 0, 0, .6); padding: 6px 12px; border-radius: 999px; font-weight: 800; font-size: 14px; white-space: nowrap; }
+    .chip.big { font-size: 16px; background: rgba(0, 0, 0, .72); }
+    .chip.btn { pointer-events: auto; cursor: pointer; border: 0; color: #fff; font: inherit; font-weight: 800; font-size: 14px; }
+    .tools { position: fixed; right: 10px; bottom: 14px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; z-index: 5; }
+    .row { display: flex; gap: 6px; }
+    .tb { border: 0; border-radius: 14px; padding: 10px 13px; font: inherit; font-weight: 800; font-size: 14px; background: rgba(255, 255, 255, .94); color: #222; box-shadow: 0 4px 0 rgba(0, 0, 0, .35); cursor: pointer; touch-action: manipulation; }
+    .tb:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0, 0, 0, .35); }
+    .tb.on { background: #ffd43b; }
+    .tb:disabled { opacity: .5; }
+    .pal { display: none; grid-template-columns: repeat(4, 54px); gap: 6px; background: rgba(0, 0, 0, .7); padding: 8px; border-radius: 16px; }
+    .pal.show { display: grid; }
+    .pal button { width: 54px; height: 54px; border-radius: 12px; border: 3px solid rgba(255, 255, 255, .85); padding: 0; cursor: pointer; position: relative; background-size: 54px 54px; }
+    .pal button span { position: absolute; left: 0; right: 0; bottom: -2px; font-size: 9px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000, 0 0 3px #000; }
+    .pal button.on { border-color: #ffd43b; box-shadow: 0 0 0 2px #ffd43b; }
+    .hint { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: rgba(0, 0, 0, .55); padding: 6px 12px; border-radius: 12px; font-size: 12.5px; font-weight: 700; pointer-events: none; z-index: 4; text-align: center; max-width: 60vw; }
+    .ov { position: fixed; inset: 0; display: none; place-items: center; background: rgba(10, 10, 25, .55); z-index: 10; padding: 12px; }
+    .ov.show { display: grid; }
+    .card { background: #fffdf7; color: #222; border-radius: 22px; padding: 18px 18px 16px; width: min(460px, 94vw); max-height: 90vh; overflow: auto; box-shadow: 0 20px 50px rgba(0, 0, 0, .5); }
+    .card h2 { margin: 0 0 4px; font-size: 22px; text-align: center; }
+    .card .sub { margin: 0 0 12px; color: #666; font-size: 13px; text-align: center; }
+    .card ul { margin: 0 0 12px; padding-left: 20px; font-size: 13.5px; line-height: 1.55; color: #444; }
+    .plist { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+    .plist span { background: #f1f3f5; border-radius: 999px; padding: 5px 10px; font-size: 13px; font-weight: 700; }
+    .plist span.me { background: #fff3bf; }
+    .seg { display: flex; gap: 6px; justify-content: center; margin: 6px 0 10px; flex-wrap: wrap; }
+    .seg button, .cbtn { border: 2px solid #dee2e6; background: #fff; border-radius: 12px; padding: 8px 12px; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; color: #222; }
+    .seg button.on { border-color: #7048e8; background: #f3f0ff; color: #5f3dc4; }
+    .cbtn.pri { background: linear-gradient(135deg, #7048e8, #ae3ec9); color: #fff; border: 0; padding: 12px 18px; font-size: 16px; }
+    .cbtn:disabled { opacity: .5; }
+    .acts { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
+    .lbl { font-size: 12px; font-weight: 800; color: #868e96; text-transform: uppercase; letter-spacing: .05em; text-align: center; }
+    .res { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0 12px; }
+    .res td { padding: 5px 6px; border-bottom: 1px solid #eee; }
+    .res td:last-child { text-align: right; font-weight: 800; }
+    #toasts { position: fixed; top: 50px; left: 50%; transform: translateX(-50%); display: grid; gap: 6px; z-index: 20; pointer-events: none; width: max-content; max-width: 92vw; }
+    .toast { background: rgba(0, 0, 0, .75); padding: 8px 14px; border-radius: 12px; font-weight: 700; font-size: 14px; text-align: center; animation: tin .2s; }
+    @keyframes tin { from { opacity: 0; transform: translateY(-6px); } }
+    @media (max-width: 560px) { .chip { font-size: 12.5px; padding: 5px 10px; } .tb { padding: 9px 11px; font-size: 13px; } .pal { grid-template-columns: repeat(4, 48px); } .pal button { width: 48px; height: 48px; background-size: 48px 48px; } }
+  </style>
+</head>
+<body>
+  <canvas id="cv"></canvas>
+  <div class="top">
+    <span class="chip big" id="cPhase">Phòng chờ</span>
+    <span class="chip" id="cRole"></span>
+    <span class="chip" id="cLeft"></span>
+    <span class="chip" id="cAmmo" style="display:none"></span>
+    <button class="chip btn" id="cLobby">📋 Phòng chờ</button>
+  </div>
+  <div class="tools" id="tools">
+    <div class="pal" id="pal"></div>
+    <div class="row" id="hideTools" style="display:none">
+      <button class="tb" id="bPick" title="Chọn màu sơn (P)">🖌️ Chọn sơn</button>
+      <button class="tb" id="bSpray" title="Sơn giống nền dưới chân (E)">🎨 Sơn theo nền</button>
+    </div>
+    <div class="row" id="poseTools" style="display:none">
+      <button class="tb" data-pose="0" title="Đứng (1)">🧍 Đứng</button>
+      <button class="tb" data-pose="1" title="Thu lu (2)">🪨 Thu lu</button>
+      <button class="tb" data-pose="2" title="Nằm (3)">🛌 Nằm</button>
+    </div>
+  </div>
+  <div class="hint" id="hint"></div>
+  <div id="toasts"></div>
+
+  <div class="ov" id="ovLobby"><div class="card" id="lobbyCard"></div></div>
+  <div class="ov" id="ovEnd"><div class="card" id="endCard"></div></div>
+
+  <script>
+  (() => {
+    /* ================= Thiết lập ================= */
+    const Q = new URLSearchParams(location.search);
+    const ME = Q.get('pid') || 'solo' + Math.random().toString(36).slice(2, 8);
+    const MYNAME = (Q.get('name') || 'Bạn').slice(0, 16);
+    const SID = Q.get('sid') || '';
+    const EMBED = parent !== window;
+    const $ = (id) => document.getElementById(id);
+    const rand = (n) => Math.floor(Math.random() * n);
+    const pick = (a) => a[rand(a.length)];
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+    const HIDE_MS = 30000, SEEK_MS = 150000, END_MS = 9000, AUTO_MS = 20000;
+    const AMMO = 25, RANGE = 340, SPEED = { h: 150, s: 165, g: 230, w: 230, l: 170 };
+    const W = 1800, H = 1200, CAGE = { x: 905, y: 605, r: 58 };
+
+    /* ================= Hoạ tiết nền (cũng là "sơn" của người trốn) ================= */
+    const TEXN = ['brick', 'white', 'wood', 'grass', 'flower', 'sand', 'tile', 'hay'];
+    const TEXNAME = { brick: 'Gạch', white: 'Tường vôi', wood: 'Gỗ', grass: 'Cỏ', flower: 'Hoa', sand: 'Cát', tile: 'Đá lát', hay: 'Rơm' };
+    const TS = 128; // tile 128px = 64 đơn vị bản đồ
+    const TILES = {}, PAT = {}, SWATCH = {};
+    function seeded(seed) { let s = seed; return () => { s = (Math.imul(s ^ (s >>> 15), 2246822507) + 0x6d2b79f5) >>> 0; return (s >>> 8) / 16777216; }; }
+    function wrap(g, fn, x, y, m = 40) {
+      for (const dx of [-TS, 0, TS]) for (const dy of [-TS, 0, TS]) {
+        if (x + dx < -m || x + dx > TS + m || y + dy < -m || y + dy > TS + m) continue;
+        fn(x + dx, y + dy);
+      }
+    }
+    function makeTile(name) {
+      const c = document.createElement('canvas'); c.width = c.height = TS;
+      const g = c.getContext('2d'), R = seeded(name.length * 977 + name.charCodeAt(0));
+      if (name === 'brick') {
+        g.fillStyle = '#cdbba7'; g.fillRect(0, 0, TS, TS);
+        const cols = ['#a4553f', '#b4613f', '#924936', '#ab5a44', '#9c5038'];
+        for (let r = 0; r < 4; r++) for (let k = -1; k < 3; k++) {
+          const x = k * 64 + (r % 2) * 32, y = r * 32;
+          g.fillStyle = pick2(cols, R); g.fillRect(x + 3, y + 3, 58, 26);
+          g.fillStyle = 'rgba(255,255,255,.08)'; g.fillRect(x + 3, y + 3, 58, 5);
+          for (let i = 0; i < 6; i++) { g.fillStyle = `rgba(60,20,10,${0.08 + R() * 0.12})`; g.fillRect(x + 4 + R() * 52, y + 4 + R() * 22, 3, 3); }
+        }
+      } else if (name === 'white') {
+        g.fillStyle = '#efede6'; g.fillRect(0, 0, TS, TS);
+        for (let i = 0; i < 160; i++) { const x = R() * TS, y = R() * TS; g.fillStyle = `rgba(120,110,90,${R() * 0.12})`; wrap(g, (a, b) => g.fillRect(a, b, 2, 2), x, y, 4); }
+        g.strokeStyle = 'rgba(120,110,90,.18)'; g.lineWidth = 1.2;
+        wrap(g, (a, b) => { g.beginPath(); g.moveTo(a, b); g.lineTo(a + 14, b + 9); g.lineTo(a + 20, b + 22); g.stroke(); }, 40, 50);
+      } else if (name === 'wood') {
+        for (let r = 0; r < 4; r++) {
+          const y = r * 32;
+          g.fillStyle = ['#b9874f', '#a9773f', '#c29258', '#a27142'][r]; g.fillRect(0, y, TS, 32);
+          g.strokeStyle = 'rgba(80,45,15,.25)'; g.lineWidth = 1;
+          for (let k = 0; k < 4; k++) { const yy = y + 6 + k * 7 + R() * 3; g.beginPath(); g.moveTo(0, yy); g.bezierCurveTo(40, yy + R() * 4 - 2, 80, yy + R() * 4 - 2, TS, yy); g.stroke(); }
+          g.fillStyle = 'rgba(60,30,10,.55)'; g.fillRect(0, y + 30, TS, 2);
+          const sx = (r * 47) % TS; g.fillRect(sx, y, 2, 32);
+          g.fillStyle = 'rgba(60,30,10,.5)'; g.beginPath(); g.arc((sx + 70) % TS, y + 16, 2.5, 0, 7); g.fill();
+        }
+      } else if (name === 'grass' || name === 'flower') {
+        g.fillStyle = '#5ba73d'; g.fillRect(0, 0, TS, TS);
+        for (let i = 0; i < 260; i++) {
+          const x = R() * TS, y = R() * TS, l = 4 + R() * 7, col = R() < 0.5 ? '#4b9431' : R() < 0.5 ? '#6fbd4c' : '#3f8429';
+          g.strokeStyle = col; g.lineWidth = 1.6;
+          wrap(g, (a, b) => { g.beginPath(); g.moveTo(a, b); g.lineTo(a + (R() - 0.5) * 4, b - l); g.stroke(); }, x, y, 12);
+        }
+        if (name === 'flower') {
+          for (let i = 0; i < 22; i++) {
+            const x = R() * TS, y = R() * TS, col = pick2(['#ff6b9d', '#ffd43b', '#ffffff', '#cc5de8', '#ff922b'], R);
+            wrap(g, (a, b) => { g.fillStyle = col; for (let k = 0; k < 5; k++) { const an = k * 1.256; g.beginPath(); g.arc(a + Math.cos(an) * 3.2, b + Math.sin(an) * 3.2, 2.6, 0, 7); g.fill(); } g.fillStyle = '#f08c00'; g.beginPath(); g.arc(a, b, 1.8, 0, 7); g.fill(); }, x, y, 8);
+          }
+        }
+      } else if (name === 'sand') {
+        g.fillStyle = '#e4cd96'; g.fillRect(0, 0, TS, TS);
+        for (let i = 0; i < 380; i++) { const x = R() * TS, y = R() * TS; g.fillStyle = R() < 0.5 ? 'rgba(160,120,60,.28)' : 'rgba(255,250,230,.5)'; g.fillRect(x, y, 2, 2); }
+        for (let i = 0; i < 6; i++) { const x = R() * TS, y = R() * TS; g.fillStyle = '#b8a07a'; wrap(g, (a, b) => { g.beginPath(); g.ellipse(a, b, 3.5, 2.5, R(), 0, 7); g.fill(); }, x, y, 6); }
+      } else if (name === 'tile') {
+        g.fillStyle = '#8f949b'; g.fillRect(0, 0, TS, TS);
+        for (let r = 0; r < 2; r++) for (let k = 0; k < 2; k++) {
+          const v = R() * 16 - 8;
+          g.fillStyle = `rgb(${178 + v},${182 + v},${188 + v})`; g.fillRect(k * 64 + 3, r * 64 + 3, 58, 58);
+          g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(k * 64 + 3, r * 64 + 3, 58, 6);
+          for (let i = 0; i < 10; i++) { g.fillStyle = 'rgba(70,70,80,.15)'; g.fillRect(k * 64 + 6 + R() * 50, r * 64 + 6 + R() * 50, 3, 3); }
+        }
+      } else if (name === 'hay') {
+        g.fillStyle = '#dcb84f'; g.fillRect(0, 0, TS, TS);
+        for (let i = 0; i < 220; i++) {
+          const x = R() * TS, y = R() * TS, an = -0.6 + R() * 1.2, l = 8 + R() * 14;
+          g.strokeStyle = pick2(['#c79e33', '#efd37a', '#b88f2a', '#f5df8f'], R); g.lineWidth = 1.5;
+          wrap(g, (a, b) => { g.beginPath(); g.moveTo(a, b); g.lineTo(a + Math.cos(an) * l, b + Math.sin(an) * l); g.stroke(); }, x, y, 24);
+        }
+      }
+      return c;
+    }
+    function pick2(a, R) { return a[Math.floor(R() * a.length)]; }
+    const ctx = $('cv').getContext('2d');
+    TEXN.forEach((n) => {
+      TILES[n] = makeTile(n);
+      const p = ctx.createPattern(TILES[n], 'repeat');
+      if (p.setTransform) p.setTransform(new DOMMatrix([0.5, 0, 0, 0.5, 0, 0]));
+      PAT[n] = p; SWATCH[n] = TILES[n].toDataURL();
+    });
+
+    /* ================= Bản đồ ================= */
+    const ZONES = [
+      ['grass', 0, 0, W, H], ['brick', 0, 0, 700, 270], ['white', 700, 0, 430, 215], ['wood', 1130, 0, 670, 330],
+      ['wood', 30, 300, 170, 200], ['flower', 300, 340, 260, 150], ['flower', 1390, 420, 290, 140], ['hay', 70, 810, 540, 340],
+      ['sand', 0, 560, W, 90], ['sand', 860, 215, 90, 985], ['tile', 1250, 790, 550, 410], ['flower', 640, 900, 200, 130], ['white', 1250, 690, 160, 100],
+    ];
+    function texAt(x, y) {
+      for (let i = ZONES.length - 1; i >= 0; i--) { const [t, zx, zy, zw, zh] = ZONES[i]; if (x >= zx && x < zx + zw && y >= zy && y < zy + zh) return t; }
+      return 'grass';
+    }
+    const PR = { hay: 26, barrel: 15, crate: 18, rock: 18, bush: 22, tree: 24, cow: 30, pot: 12, bench: 24, well: 30, fence: 0 };
+    const PROPS = [];
+    const P = (t, x, y) => PROPS.push({ t, x, y, r: PR[t] });
+    [[150, 880], [270, 960], [430, 900], [520, 1060], [190, 1090], [360, 1110], [1290, 120], [1520, 210], [1690, 160]].forEach(([x, y]) => P('hay', x, y));
+    [[1190, 60], [1740, 80], [1620, 280], [560, 210], [80, 90], [1440, 260], [120, 460]].forEach(([x, y]) => P('barrel', x, y));
+    [[1240, 260], [1400, 70], [1760, 300], [160, 340], [620, 90]].forEach(([x, y]) => P('crate', x, y));
+    [[450, 700], [1110, 720], [700, 460], [1210, 500], [1600, 720], [300, 760], [1000, 1110], [620, 790], [1720, 470], [60, 700]].forEach(([x, y]) => P('rock', x, y));
+    [[250, 525], [1080, 420], [560, 520], [1760, 540], [1160, 1000], [760, 1150], [1020, 860], [400, 300]].forEach(([x, y]) => P('bush', x, y));
+    [[120, 720], [1050, 300], [480, 1010], [1530, 680], [760, 760], [330, 120]].forEach(([x, y]) => P('tree', x, y));
+    [[780, 140], [1020, 120], [1300, 720], [640, 690]].forEach(([x, y]) => P('cow', x, y));
+    [[1300, 840], [1760, 840], [1300, 1160], [1760, 1160], [330, 360], [1660, 440]].forEach(([x, y]) => P('pot', x, y));
+    [[1460, 900], [1620, 1060]].forEach(([x, y]) => P('bench', x, y));
+    P('well', 1400, 1080);
+    PROPS.forEach((p) => { p.seed = (p.x * 31 + p.y * 17) % 997; });
+
+    function blockedAt(x, y, role, rr = 10) {
+      if (x < 20 || y < 30 || x > W - 20 || y > H - 12) return true;
+      if (role === 'g' || role === 'w') return false;
+      for (const p of PROPS) if (p.r && Math.hypot(p.x - x, (p.y - y) * 1.3) < p.r + rr) return true;
+      if (R.ph === 'hide' && role === 's' && Math.hypot(x - CAGE.x, y - CAGE.y) > CAGE.r - 12) return true;
+      if (R.ph === 'hide' && role === 'h' && Math.hypot(x - CAGE.x, y - CAGE.y) < CAGE.r + 10) return true;
+      return false;
+    }
+    function freeSpot(minCageDist = 160) {
+      for (let i = 0; i < 400; i++) {
+        const x = 40 + Math.random() * (W - 80), y = 60 + Math.random() * (H - 90);
+        if (Math.hypot(x - CAGE.x, y - CAGE.y) < minCageDist) continue;
+        if (!blockedAt(x, y, 'h', 16)) return { x, y };
+      }
+      return { x: 300, y: 600 };
+    }
+
+    /* ================= Âm thanh ================= */
+    let AC = null, muted = false;
+    function tone(f, d, type = 'sine', vol = 0.1, when = 0, f2 = 0) {
+      if (muted) return;
+      try {
+        if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+        if (AC.state === 'suspended') AC.resume();
+        const t0 = AC.currentTime + when, o = AC.createOscillator(), g = AC.createGain();
+        o.type = type; o.frequency.setValueAtTime(f, t0); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + d);
+        g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+        o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0 + d + 0.03);
+      } catch (e) { /* bỏ qua */ }
+    }
+    const sfx = {
+      pew: () => tone(900, 0.18, 'triangle', 0.07, 0, 300),
+      splash: () => { tone(400, 0.2, 'sine', 0.06, 0, 120); tone(220, 0.25, 'triangle', 0.05, 0.03, 90); },
+      caught: () => [660, 880, 1320].forEach((f, i) => tone(f, 0.16, 'square', 0.05, i * 0.08)),
+      spray: () => tone(2400, 0.5, 'sawtooth', 0.015, 0, 1800),
+      whistle: () => { tone(1800, 0.25, 'square', 0.04); tone(1800, 0.4, 'square', 0.04, 0.3); },
+      win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, 'triangle', 0.08, i * 0.11)),
+    };
+
+    /* ================= Trạng thái ================= */
+    const me = { u: ME, n: MYNAME, x: CAGE.x + 80, y: CAGE.y + 90, rx: 0, ry: 0, d: 1, r: 'l', p: -1, o: 0, mv: false, walk: 0, pf: 'any' };
+    me.rx = me.x; me.ry = me.y;
+    const peers = new Map(); // người khác + bot của chủ phòng khác
+    const bots = []; // bot do mình điều khiển (khi mình là chủ phòng)
+    let R = { ph: 'lobby', end: 0, no: 0, roles: {}, names: {}, win: null, bots: true, auto: 0, caught: {}, catches: {} };
+    let ammo = AMMO, cd = 0, spray = 0, botSendT = 0, myRoundRole = null, rewarded = -1, lastRd = 0, sendT = 0, lastSent = '';
+    let fx = [], toastQ = [];
+
+    function net(d) {
+      d.u = d.u || ME;
+      if (EMBED) { try { parent.postMessage({ type: 'hide-net', d }, '*'); } catch (e) { /* bỏ qua */ } }
+      else if (bc) bc.postMessage(d);
+    }
+    let bc = null;
+    if (!EMBED && 'BroadcastChannel' in window) { bc = new BroadcastChannel('takehoa-test'); bc.onmessage = (e) => recv(e.data); }
+    addEventListener('message', (e) => { const m = e.data || {}; if (m.type === 'hide-in' && m.d) recv(m.d); });
+
+    const everyone = () => [me, ...bots, ...peers.values()];
+    const findE = (u) => (u === ME ? me : bots.find((b) => b.u === u) || peers.get(u));
+    const nameOf = (u) => { const e = findE(u); return e ? e.n : (R.names && R.names[u]) || 'Ai đó'; };
+    const humans = () => [me, ...[...peers.values()].filter((p) => !p.bot)];
+    const hostId = () => humans().map((p) => p.u).sort()[0];
+    const isHost = () => hostId() === ME;
+
+    function recv(m) {
+      if (!m || typeof m !== 'object' || !m.u || m.u === ME) return;
+      if (m.k === 'st') {
+        let p = peers.get(m.u);
+        if (!p) { p = { u: m.u, rx: +m.x || 0, ry: +m.y || 0, walk: 0 }; peers.set(m.u, p); if (!m.bot && R.ph === 'lobby') toast(`👋 ${String(m.n || '').slice(0, 16)} vào phòng`); }
+        p.n = String(m.n || 'Người chơi').slice(0, 16); p.x = +m.x || 0; p.y = +m.y || 0; p.d = m.d === -1 ? -1 : 1;
+        p.r = String(m.r || 'l'); p.p = TEXN[m.p] ? +m.p : -1; p.o = [0, 1, 2].includes(m.o) ? m.o : 0; p.mv = !!m.mv; p.bot = !!m.bot; p.pf = m.pf;
+        p.seen = Date.now();
+        if (R.caught[p.u] && R.ph !== 'lobby') p.r = 'g';
+      } else if (m.k === 'rd') {
+        if (m.no < R.no) return;
+        applyRound(m);
+      } else if (m.k === 'sh') onShot(m);
+      else if (m.k === 'hit') onHit(m);
+      else if (m.k === 'bye') { peers.delete(m.u); [...peers.keys()].forEach((u) => { if (u.startsWith(`bot:${m.u}:`)) peers.delete(u); }); }
+    }
+
+    /* ================= Vòng chơi ================= */
+    function roundMsg() {
+      return { k: 'rd', ph: R.ph, left: Math.max(0, R.end - Date.now()), no: R.no, roles: R.roles, names: R.names, win: R.win, bots: R.bots, auto: R.auto ? Math.max(0, R.auto - Date.now()) : 0, catches: R.catches };
+    }
+    function hostSet(ph, ms, extra = {}) {
+      const d = Object.assign(roundMsg(), { ph, left: ms }, extra);
+      applyRound(d); net(d); lastRd = Date.now();
+    }
+    function applyRound(d) {
+      const prevPh = R.ph, prevNo = R.no;
+      R.ph = d.ph; R.end = Date.now() + (+d.left || 0); R.no = +d.no || 0; R.roles = d.roles || {}; R.win = d.win || null;
+      R.bots = d.bots !== false; R.auto = d.auto ? Date.now() + d.auto : 0;
+      if (d.catches) R.catches = Object.assign({}, d.catches);
+      if (d.names) R.names = d.names;
+      Object.entries(R.roles).forEach(([u, r]) => { if (r === 'g') R.caught[u] = 1; });
+      if (R.no !== prevNo && R.ph === 'hide') onRoundStart();
+      else if (prevPh !== R.ph) {
+        if (R.ph === 'seek') onSeek();
+        else if (R.ph === 'end') onEnd();
+        else if (R.ph === 'lobby') onLobby();
+      }
+      syncRole(); ui();
+    }
+    function syncRole() {
+      let r = R.roles[ME] || (R.ph === 'lobby' ? 'l' : 'w');
+      if (R.caught[ME] && R.ph !== 'lobby') r = 'g';
+      me.r = r;
+    }
+    function onRoundStart() {
+      R.caught = {}; R.catches = {};
+      syncRole(); myRoundRole = me.r;
+      ammo = AMMO; cd = 0; spray = 0; me.p = -1; me.o = 0;
+      $('ovLobby').classList.remove('show'); $('ovEnd').classList.remove('show');
+      if (me.r === 'h') { const s = freeSpot(); me.x = s.x; me.y = s.y; me.rx = me.x; me.ry = me.y; toast('🫥 Bạn là NGƯỜI TRỐN! Chạy đi trốn, sơn người giống nền, tạo dáng… 30 giây!', 4500); }
+      else if (me.r === 's') { me.x = CAGE.x + (Math.random() - 0.5) * 40; me.y = CAGE.y + (Math.random() - 0.5) * 30; toast('🔫 Bạn là NGƯỜI TÌM! Đang bịt mắt 30 giây…', 4000); }
+      else toast('👀 Ván đang chơi — bạn xem, ván sau sẽ được vào', 3500);
+      sfx.whistle();
+      if (isHost()) startBots();
+    }
+    function onSeek() {
+      sfx.whistle();
+      if (me.r === 's') toast('🔫 Đi tìm thôi! Chạm vào chỗ nghi ngờ để bắn nước', 3500);
+      if (me.r === 'h') toast('😱 Người tìm đã xuất phát! Đứng im cho kỹ…', 3000);
+    }
+    function onEnd() {
+      const win = R.win, mine = myRoundRole;
+      if (rewarded !== R.no && (mine === 'h' || mine === 's')) {
+        rewarded = R.no;
+        let coins = 0;
+        if (mine === 'h') coins = R.caught[ME] ? 10 : 50;
+        else coins = (R.catches[ME] || 0) * 15 + (win === 's' ? 20 : 5);
+        coins = Math.min(100, coins);
+        try { if (EMBED) parent.postMessage({ type: 'hide-reward', sid: SID, coins, role: mine, win: (win === 's') === (mine === 's'), catches: R.catches[ME] || 0 }, '*'); } catch (e) { /* bỏ qua */ }
+        R.myCoins = coins;
+      }
+      if ((win === 's') === (mine === 's') && mine) sfx.win();
+      showEnd();
+    }
+    function onLobby() {
+      R.caught = {}; myRoundRole = null; me.p = -1; me.o = 0;
+      bots.length = 0;
+      [...peers.values()].forEach((p) => { if (p.bot) peers.delete(p.u); });
+      $('ovEnd').classList.remove('show');
+      if (Math.hypot(me.x - CAGE.x, me.y - CAGE.y) > 400) { me.x = CAGE.x + 90; me.y = CAGE.y + 100; }
+      showLobby();
+    }
+
+    function startRound() {
+      const hs = humans().filter((p) => p === me || Date.now() - p.seen < 6000);
+      const list = hs.map((p) => ({ u: p.u, pf: p.pf || 'any' }));
+      const nb = R.bots ? Math.max(0, 4 - list.length) : 0;
+      for (let i = 0; i < nb; i++) list.push({ u: `bot:${ME}:${R.no + 1}:${i}`, pf: 'any', bot: true });
+      if (list.length < 2) { toast('Cần ít nhất 2 người (hoặc bật bot) để bắt đầu'); return; }
+      const ns = Math.max(1, Math.round(list.length / 4));
+      const order = [...shuffle(list.filter((x) => x.pf === 's')), ...shuffle(list.filter((x) => x.pf === 'any' && !x.bot)), ...shuffle(list.filter((x) => x.pf === 'any' && x.bot)), ...shuffle(list.filter((x) => x.pf === 'h'))];
+      const roles = {};
+      order.forEach((x, i) => { roles[x.u] = i < ns ? 's' : 'h'; });
+      R.pendingBots = list.filter((x) => x.bot).map((x, i) => ({ u: x.u, r: roles[x.u], n: BOT_NAMES[i % BOT_NAMES.length] }));
+      const names = {};
+      hs.forEach((p) => { names[p.u] = p.n; });
+      R.pendingBots.forEach((b) => { names[b.u] = b.n; });
+      hostSet('hide', HIDE_MS, { no: R.no + 1, roles, names, win: null, catches: {}, auto: 0 });
+    }
+    const BOT_NAMES = ['🤖 Mèo Mướp', '🤖 Tắc Kè', '🤖 Sóc Nâu', '🤖 Cú Mèo', '🤖 Ếch Xanh', '🤖 Cáo Lửa'];
+    function startBots() {
+      bots.length = 0;
+      (R.pendingBots || Object.keys(R.roles).filter((u) => u.startsWith(`bot:${ME}:`)).map((u) => ({ u, r: R.roles[u] }))).forEach((b, i) => {
+        const s = b.r === 's' ? { x: CAGE.x + (i % 2 ? 20 : -20), y: CAGE.y } : freeSpot();
+        bots.push({ u: b.u, n: b.n || (R.names && R.names[b.u]) || BOT_NAMES[i % BOT_NAMES.length], x: s.x, y: s.y, rx: s.x, ry: s.y, d: 1, r: b.r, p: -1, o: 0, mv: false, walk: 0, bot: true, goal: null, cd: 1.5, sprayT: 0, think: 0 });
+      });
+      R.pendingBots = null;
+    }
+
+    function hostTick() {
+      const now = Date.now();
+      // gỡ người đã rời đi khỏi danh sách vai
+      for (const [u, p] of peers) if (now - p.seen > 7000) { peers.delete(u); if (R.roles[u] && R.ph !== 'lobby' && !u.startsWith(`bot:${ME}:`)) { delete R.roles[u]; } }
+      if (R.ph === 'lobby') {
+        const n = humans().length;
+        if (n >= 2) { if (!R.auto) { R.auto = now + AUTO_MS; net(roundMsg()); } if (now >= R.auto) { R.auto = 0; startRound(); return; } }
+        else if (R.auto) { R.auto = 0; net(roundMsg()); }
+      } else if (R.ph === 'hide') {
+        if (now >= R.end) { hostSet('seek', SEEK_MS); return; }
+      } else if (R.ph === 'seek') {
+        const hiders = Object.entries(R.roles).filter(([, r]) => r === 'h');
+        const seekers = Object.entries(R.roles).filter(([, r]) => r === 's');
+        if (!hiders.length) { hostSet('end', END_MS, { win: 's' }); return; }
+        if (!seekers.length || now >= R.end) { hostSet('end', END_MS, { win: 'h' }); return; }
+      } else if (R.ph === 'end') {
+        if (now >= R.end) { hostSet('lobby', 0, { roles: {}, win: null }); return; }
+      }
+      if (now - lastRd > 1000) { lastRd = now; net(roundMsg()); }
+    }
+
+    /* ================= Bắn nước ================= */
+    function hitTest(e, x, y) {
+      const o = e.o || 0;
+      const c = o === 0 ? [0, -24, 15, 27] : o === 1 ? [0, -15, 19, 17] : [0, -8, 28, 12];
+      const dx = (x - e.x - c[0]) / c[2], dy = (y - e.y - c[1]) / c[3];
+      return dx * dx + dy * dy <= 1;
+    }
+    function shoot(x, y) {
+      if (me.r !== 's' || R.ph !== 'seek') return;
+      if (cd > 0) return;
+      if (ammo <= 0) { toast('💧 Hết nước rồi!'); return; }
+      if (Math.hypot(x - me.x, y - me.y) > RANGE) { toast('Xa quá, lại gần hơn!', 1200); return; }
+      ammo--; cd = 0.45; me.d = x < me.x ? -1 : 1;
+      const s = { k: 'sh', u: ME, x: Math.round(x), y: Math.round(y), fx: Math.round(me.x + me.d * 14), fy: Math.round(me.y - 26) };
+      net(s); onShot(s); ui();
+    }
+    function onShot(s) {
+      fx.push({ k: 'shot', fx: +s.fx, fy: +s.fy, x: +s.x, y: +s.y, t: 0 });
+      const near = Math.hypot(+s.x - me.x, +s.y - me.y) < 500;
+      if (near) sfx.pew();
+      if (R.ph !== 'seek') return;
+      const hit = (e) => { if (e.r === 'h' && !R.caught[e.u] && hitTest(e, +s.x, +s.y)) { const h = { k: 'hit', u: e.u, by: s.u }; net(h); onHit(h); } };
+      setTimeout(() => { hit(me); bots.forEach(hit); }, 160);
+    }
+    function onHit(h) {
+      if (R.caught[h.u]) return;
+      R.caught[h.u] = 1;
+      R.catches[h.by] = (R.catches[h.by] || 0) + 1;
+      if (R.roles[h.u]) R.roles[h.u] = 'g';
+      const e = findE(h.u);
+      if (e) { e.r = 'g'; fx.push({ k: 'boom', x: e.x, y: e.y - 18, t: 0 }); }
+      if (h.u === ME) { me.r = 'g'; toast('💦 Bạn bị bắt rồi! Giờ bạn bay lượn xem tiếp nhé', 4000); }
+      else toast(`💦 ${nameOf(h.by)} bắt được ${nameOf(h.u)}!`);
+      sfx.caught();
+      if (isHost()) net(roundMsg());
+      ui();
+    }
+
+    /* ================= Bot (chủ phòng điều khiển) ================= */
+    function botTick(b, dt) {
+      if (b.r === 'g') return;
+      b.cd -= dt; b.think -= dt;
+      if (b.sprayT > 0) { b.sprayT -= dt; if (b.sprayT <= 0) b.p = Math.random() < 0.82 ? TEXN.indexOf(texAt(b.x, b.y)) : rand(TEXN.length); b.mv = false; return; }
+      if (b.r === 'h') {
+        if (R.ph === 'hide' && !b.goal && !b.settled) b.goal = freeSpot(220);
+        if (R.ph === 'seek' && b.settled && b.think <= 0) {
+          b.think = 1;
+          const sk = everyone().filter((e) => e.r === 's');
+          if (sk.some((s) => Math.hypot(s.x - b.x, s.y - b.y) < 110) && Math.random() < 0.18) { b.goal = freeSpot(200); b.settled = false; b.o = 0; }
+        }
+      } else if (b.r === 's') {
+        if (R.ph !== 'seek') { b.mv = false; return; }
+        if (!b.goal) b.goal = freeSpot(0);
+        if (b.cd <= 0) {
+          b.cd = 0.9 + Math.random() * 1.2;
+          const targets = everyone().filter((e) => e.r === 'h' && !R.caught[e.u] && Math.hypot(e.x - b.x, e.y - b.y) < 280);
+          for (const t of targets) {
+            const match = t.p >= 0 && TEXN[t.p] === texAt(t.x, t.y);
+            let ch = match ? 0.05 : t.p < 0 ? 0.6 : 0.35;
+            if (t.mv) ch += 0.5;
+            if ((t.o || 0) === 0 && texAt(t.x, t.y - 40) !== 'white') ch += 0.06;
+            if (Math.random() < ch) { botShoot(b, t.x + (Math.random() - 0.5) * 10, t.y - 14 + (Math.random() - 0.5) * 10); return; }
+          }
+          if (Math.random() < 0.12) { const a = Math.random() * 6.28, r = 60 + Math.random() * 180; botShoot(b, b.x + Math.cos(a) * r, b.y + Math.sin(a) * r); }
+        }
+      }
+      if (b.goal) {
+        const dx = b.goal.x - b.x, dy = b.goal.y - b.y, d = Math.hypot(dx, dy), sp = SPEED[b.r] * 0.85 * dt;
+        if (d < 6) {
+          b.goal = null; b.mv = false;
+          if (b.r === 'h') { b.settled = true; b.sprayT = 1.2; b.o = pick([1, 1, 2, 0, 2]); }
+        } else {
+          const nx = b.x + (dx / d) * sp, ny = b.y + (dy / d) * sp;
+          if (!blockedAt(nx, ny, b.r)) { b.x = nx; b.y = ny; } else if (!blockedAt(nx, b.y, b.r)) b.x = nx; else if (!blockedAt(b.x, ny, b.r)) b.y = ny; else b.goal = freeSpot(b.r === 'h' ? 200 : 0);
+          b.mv = true; b.d = dx < 0 ? -1 : 1; b.walk += dt * 12;
+        }
+      }
+    }
+    function botShoot(b, x, y) {
+      b.d = x < b.x ? -1 : 1;
+      const s = { k: 'sh', u: b.u, x: Math.round(x), y: Math.round(y), fx: Math.round(b.x + b.d * 14), fy: Math.round(b.y - 26) };
+      net(s); onShot(s);
+      // kiểm tra trúng người chơi khác do chính máy họ làm khi nhận tin
+    }
+
+    /* ================= Điều khiển ================= */
+    const keys = {};
+    addEventListener('keydown', (e) => {
+      keys[e.key.toLowerCase()] = true;
+      const k = e.key.toLowerCase();
+      if (me.r === 'h') {
+        if (k === 'e') doSpray(); else if (k === 'p') togglePal();
+        else if (k === '1' || k === '2' || k === '3') setPose(+k - 1);
+      }
+      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
+    });
+    addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+    let joy = null, target = null, mouse = null;
+    const cv = $('cv');
+    function toWorld(cx, cy) { return { x: cx / CAM.s + CAM.x, y: cy / CAM.s + CAM.y }; }
+    cv.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      $('pal').classList.remove('show');
+      const r = cv.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top;
+      if (e.pointerType !== 'mouse' && cx < r.width * 0.45 && cy > r.height * 0.4) { joy = { id: e.pointerId, sx: cx, sy: cy, x: cx, y: cy }; cv.setPointerCapture(e.pointerId); return; }
+      const w = toWorld(cx, cy);
+      if (me.r === 's' && R.ph === 'seek') shoot(w.x, w.y);
+      else if (!(me.r === 's' && R.ph === 'hide')) target = w;
+    });
+    cv.addEventListener('pointermove', (e) => {
+      const r = cv.getBoundingClientRect();
+      mouse = { x: e.clientX - r.left, y: e.clientY - r.top };
+      if (joy && e.pointerId === joy.id) { joy.x = mouse.x; joy.y = mouse.y; }
+    });
+    const endJoy = (e) => { if (joy && e.pointerId === joy.id) joy = null; };
+    cv.addEventListener('pointerup', endJoy); cv.addEventListener('pointercancel', endJoy);
+    cv.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    function setPose(o) { if (me.r !== 'h' || spray > 0) return; me.o = o; ui(); }
+    function doSpray() {
+      if (me.r !== 'h' || spray > 0) return;
+      spray = 1.2; target = null; sfx.spray();
+    }
+    function togglePal() { $('pal').classList.toggle('show'); }
+
+    /* ================= Cập nhật ================= */
+    const CAM = { x: 0, y: 0, s: 1, w: 0, h: 0, dpr: 1 };
+    function update(dt) {
+      // di chuyển
+      let vx = 0, vy = 0;
+      const frozen = (me.r === 's' && R.ph === 'hide') || spray > 0 || R.ph === 'end';
+      if (keys.w || keys.arrowup) vy -= 1; if (keys.s || keys.arrowdown) vy += 1;
+      if (keys.a || keys.arrowleft) vx -= 1; if (keys.d || keys.arrowright) vx += 1;
+      if (joy) { const dx = joy.x - joy.sx, dy = joy.y - joy.sy, d = Math.hypot(dx, dy); if (d > 8) { vx = dx / Math.max(d, 50); vy = dy / Math.max(d, 50); } }
+      if (vx || vy) target = null;
+      if (target) { const dx = target.x - me.x, dy = target.y - me.y, d = Math.hypot(dx, dy); if (d < 5) target = null; else { vx = dx / d; vy = dy / d; } }
+      const m = Math.hypot(vx, vy);
+      me.mv = false;
+      if (m > 0.05 && !frozen) {
+        if (m > 1) { vx /= m; vy /= m; }
+        let sp = SPEED[me.r] || 160;
+        if (me.r === 'h' && me.o > 0) sp *= 0.5;
+        const nx = me.x + vx * sp * dt, ny = me.y + vy * sp * dt;
+        let moved = false;
+        if (!blockedAt(nx, me.y, me.r)) { me.x = nx; moved = true; }
+        if (!blockedAt(me.x, ny, me.r)) { me.y = ny; moved = true; }
+        if (!moved) target = null;
+        me.mv = moved; if (Math.abs(vx) > 0.1) me.d = vx < 0 ? -1 : 1; me.walk += dt * 12;
+      }
+      if (me.r === 's' && R.ph === 'hide' && blockedAt(me.x, me.y, 's')) { me.x = CAGE.x; me.y = CAGE.y; }
+      if (spray > 0) { spray -= dt; if (Math.random() < 0.6) fx.push({ k: 'mist', x: me.x + (Math.random() - 0.5) * 40, y: me.y - Math.random() * 40, t: 0, c: texAt(me.x, me.y) }); if (spray <= 0) { me.p = TEXN.indexOf(texAt(me.x, me.y)); toast(`🎨 Đã sơn người kiểu ${TEXNAME[TEXN[me.p]]}`); ui(); } }
+      if (cd > 0) cd -= dt;
+      me.rx = me.x; me.ry = me.y;
+      // người khác: nội suy mượt
+      const k = Math.min(1, dt * 10), now = Date.now();
+      for (const [u, p] of peers) {
+        if (now - p.seen > 8000) { peers.delete(u); continue; }
+        const d = Math.hypot(p.x - p.rx, p.y - p.ry);
+        if (d > 300) { p.rx = p.x; p.ry = p.y; }
+        p.rx += (p.x - p.rx) * k; p.ry += (p.y - p.ry) * k;
+        if (p.mv || d > 2) p.walk += dt * 12;
+      }
+      // chủ phòng
+      if (isHost()) { hostTick(); bots.forEach((b) => { botTick(b, dt); b.rx = b.x; b.ry = b.y; }); }
+      // gửi trạng thái
+      sendT -= dt;
+      const st = { k: 'st', u: ME, n: MYNAME, x: Math.round(me.x), y: Math.round(me.y), d: me.d, r: me.r, p: me.p, o: me.o, mv: me.mv ? 1 : 0, pf: me.pf };
+      const sig = JSON.stringify(st);
+      if ((sendT <= 0 && sig !== lastSent) || sendT < -1) {
+        net(st); lastSent = sig; sendT = 0.2;
+      }
+      botSendT -= dt;
+      if (botSendT <= 0 && bots.length) {
+        botSendT = 0.25;
+        bots.forEach((b) => net({ k: 'st', u: b.u, n: b.n, x: Math.round(b.x), y: Math.round(b.y), d: b.d, r: b.r, p: b.p, o: b.o, mv: b.mv ? 1 : 0, bot: 1 }));
+      }
+      // hiệu ứng
+      fx.forEach((f) => { f.t += dt; });
+      fx = fx.filter((f) => f.t < (f.k === 'boom' ? 1.2 : f.k === 'mist' ? 0.6 : 0.7));
+      if (Date.now() % 1000 < 20) ui();
+    }
+
+    /* ================= Vẽ ================= */
+    function resize() {
+      CAM.dpr = Math.min(2, devicePixelRatio || 1);
+      CAM.w = innerWidth; CAM.h = innerHeight;
+      cv.width = Math.round(CAM.w * CAM.dpr); cv.height = Math.round(CAM.h * CAM.dpr);
+      CAM.s = clamp(Math.sqrt((CAM.w * CAM.h) / (820 * 600)), 0.6, 1.8);
+    }
+    addEventListener('resize', resize); resize();
+
+    function ell(x, y, rx, ry) { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); }
+    function capsule(x1, y1, x2, y2, w) { ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+
+    function drawProp(p) {
+      const g = ctx, { x, y } = p;
+      g.fillStyle = 'rgba(0,0,0,.2)'; ell(x, y + 2, (p.r || 14) * 1.05, (p.r || 14) * 0.4); g.fill();
+      if (p.t === 'hay') {
+        g.fillStyle = '#c9a53e'; g.beginPath(); g.roundRect(x - 30, y - 34, 60, 36, 8); g.fill();
+        g.fillStyle = '#e3c25a'; g.beginPath(); g.roundRect(x - 30, y - 44, 60, 22, 8); g.fill();
+        g.strokeStyle = '#a7832a'; g.lineWidth = 1.2; for (let i = -24; i < 28; i += 7) { g.beginPath(); g.moveTo(x + i, y - 42); g.lineTo(x + i + 4, y - 4); g.stroke(); }
+        g.strokeStyle = '#8a5a2b'; g.lineWidth = 2.5; [-12, 12].forEach((dx) => { g.beginPath(); g.moveTo(x + dx, y - 44); g.lineTo(x + dx, y + 1); g.stroke(); });
+      } else if (p.t === 'barrel') {
+        g.fillStyle = '#8b5a2b'; g.beginPath(); g.roundRect(x - 15, y - 40, 30, 40, 8); g.fill();
+        g.fillStyle = '#a36a35'; ell(x, y - 40, 15, 6); g.fill(); g.fillStyle = '#6b4220'; ell(x, y - 40, 11, 4); g.fill();
+        g.strokeStyle = '#495057'; g.lineWidth = 3; [-30, -10].forEach((dy) => { g.beginPath(); g.moveTo(x - 15, y + dy); g.lineTo(x + 15, y + dy); g.stroke(); });
+      } else if (p.t === 'crate') {
+        g.fillStyle = '#b07a43'; g.fillRect(x - 20, y - 34, 40, 34); g.fillStyle = '#c99158'; g.fillRect(x - 20, y - 44, 40, 12);
+        g.strokeStyle = '#7a4f24'; g.lineWidth = 2.5; g.strokeRect(x - 20, y - 34, 40, 34); g.beginPath(); g.moveTo(x - 20, y - 34); g.lineTo(x + 20, y); g.stroke();
+      } else if (p.t === 'rock') {
+        g.fillStyle = '#8d939a'; g.beginPath(); g.moveTo(x - 22, y); g.quadraticCurveTo(x - 24, y - 22, x - 6, y - 26); g.quadraticCurveTo(x + 18, y - 30, x + 22, y - 6); g.quadraticCurveTo(x + 22, y + 2, x, y + 2); g.fill();
+        g.fillStyle = '#adb3b9'; g.beginPath(); g.ellipse(x - 4, y - 18, 10, 6, -0.3, 0, 7); g.fill();
+      } else if (p.t === 'bush') {
+        [[-14, -14, 14, '#2f7d32'], [12, -16, 15, '#388e3c'], [0, -26, 16, '#43a047'], [-4, -16, 12, '#4caf50']].forEach(([dx, dy, r, c]) => { g.fillStyle = c; ell(x + dx, y + dy, r, r * 0.9); g.fill(); });
+      } else if (p.t === 'tree') {
+        g.fillStyle = '#6d4c2f'; g.fillRect(x - 7, y - 50, 14, 52);
+        [[-30, -70, 34, '#2e7d32'], [28, -74, 32, '#2e7d32'], [0, -96, 38, '#388e3c'], [-12, -80, 26, '#43a047'], [14, -90, 22, '#4caf50']].forEach(([dx, dy, r, c]) => { g.fillStyle = c; ell(x + dx, y + dy, r, r * 0.92); g.fill(); });
+      } else if (p.t === 'cow') {
+        g.fillStyle = '#f4f2ec'; g.beginPath(); g.roundRect(x - 34, y - 38, 62, 30, 14); g.fill();
+        g.fillStyle = '#222'; [[-18, -30, 9], [6, -20, 7], [16, -33, 5]].forEach(([dx, dy, r]) => { ell(x + dx, y + dy, r, r * 0.75); g.fill(); });
+        g.fillStyle = '#f4f2ec'; [-28, -12, 10, 22].forEach((dx) => g.fillRect(x + dx, y - 12, 6, 14));
+        g.beginPath(); g.roundRect(x + 22, y - 50, 22, 20, 8); g.fill();
+        g.fillStyle = '#ffc9c9'; g.beginPath(); g.roundRect(x + 30, y - 38, 14, 9, 4); g.fill();
+        g.fillStyle = '#222'; ell(x + 30, y - 44, 2, 2); g.fill();
+      } else if (p.t === 'pot') {
+        g.fillStyle = '#c0582c'; g.beginPath(); g.moveTo(x - 12, y - 20); g.lineTo(x + 12, y - 20); g.lineTo(x + 9, y); g.lineTo(x - 9, y); g.fill();
+        [[-6, -26, '#ff6b9d'], [5, -28, '#ffd43b'], [0, -33, '#cc5de8']].forEach(([dx, dy, c]) => { g.fillStyle = '#2f9e44'; ell(x + dx, y + dy + 4, 6, 5); g.fill(); g.fillStyle = c; ell(x + dx, y + dy, 4, 4); g.fill(); });
+      } else if (p.t === 'bench') {
+        g.fillStyle = '#7a4f24'; g.fillRect(x - 28, y - 22, 4, 22); g.fillRect(x + 24, y - 22, 4, 22);
+        g.fillStyle = '#b07a43'; g.fillRect(x - 32, y - 26, 64, 9); g.fillRect(x - 32, y - 40, 64, 8);
+      } else if (p.t === 'well') {
+        g.fillStyle = '#868e96'; ell(x, y - 14, 32, 16); g.fill(); g.fillStyle = '#495057'; ell(x, y - 18, 24, 11); g.fill();
+        g.fillStyle = '#1c7ed6'; ell(x, y - 18, 18, 8); g.fill();
+        g.fillStyle = '#6d4c2f'; g.fillRect(x - 28, y - 64, 5, 48); g.fillRect(x + 23, y - 64, 5, 48);
+        g.fillStyle = '#a1522f'; g.beginPath(); g.moveTo(x - 36, y - 60); g.lineTo(x, y - 82); g.lineTo(x + 36, y - 60); g.fill();
+      }
+    }
+
+    /** Hình nhân trắng (người trốn sơn được thân giống nền; đầu luôn trắng có mặt cười) */
+    function drawFig(e, view) {
+      const g = ctx, x = e.rx, y = e.ry, o = e.o || 0, d = e.d || 1;
+      const ghost = e.r === 'g' || e.r === 'w';
+      if (ghost && !['g', 'w', 'l'].includes(view)) return;
+      g.save();
+      if (ghost) g.globalAlpha = 0.35;
+      const fill = e.r === 'h' && e.p >= 0 && !ghost ? PAT[TEXN[e.p]] : '#f6f6f3';
+      const edge = e.r === 'h' && e.p >= 0 ? 'rgba(0,0,0,.13)' : 'rgba(0,0,0,.28)';
+      g.fillStyle = 'rgba(0,0,0,.16)'; ell(x, y + 1, o === 2 ? 26 : 14, o === 2 ? 6 : 5); g.fill();
+      const sw = e.mv ? Math.sin(e.walk) * 4 : 0;
+      const head = (hx, hy, r) => {
+        g.fillStyle = '#f7f7f4'; ell(hx, hy, r, r); g.fill(); g.strokeStyle = 'rgba(0,0,0,.22)'; g.lineWidth = 1; g.stroke();
+        g.strokeStyle = 'rgba(30,30,30,.75)'; g.lineWidth = 1.3;
+        g.beginPath(); g.arc(hx - 3 + d * 1.5, hy - 1, 1.8, Math.PI * 1.1, Math.PI * 1.9); g.stroke();
+        g.beginPath(); g.arc(hx + 3 + d * 1.5, hy - 1, 1.8, Math.PI * 1.1, Math.PI * 1.9); g.stroke();
+        g.beginPath(); g.arc(hx + d * 1.5, hy + 1.5, r * 0.45, Math.PI * 0.15, Math.PI * 0.85); g.stroke();
+      };
+      g.strokeStyle = fill;
+      if (o === 0) {
+        // chân
+        capsule(x - 4, y - 14, x - 4 - sw, y - 2, 8); capsule(x + 4, y - 14, x + 4 + sw, y - 2, 8);
+        // tay
+        if (e.r === 's') { capsule(x - 9 * d, y - 30, x - 8 * d, y - 18, 6); capsule(x + 9 * d, y - 30, x + 16 * d, y - 26, 6); }
+        else { capsule(x - 10, y - 30, x - 12 + sw * 0.5, y - 17, 6); capsule(x + 10, y - 30, x + 12 - sw * 0.5, y - 17, 6); }
+        // thân
+        g.fillStyle = fill; g.beginPath(); g.roundRect(x - 10, y - 36, 20, 24, 8); g.fill();
+        g.strokeStyle = edge; g.lineWidth = 1; g.stroke();
+        if (e.r === 's') {
+          g.fillStyle = '#ff922b'; g.beginPath(); g.roundRect(x - 10, y - 34, 20, 15, 5); g.fill();
+          g.fillStyle = '#fff3bf'; g.fillRect(x - 10, y - 28, 20, 3);
+          g.fillStyle = '#1c7ed6'; g.beginPath(); g.roundRect(x + 10 * d - (d < 0 ? 18 : 0), y - 30, 18, 7, 3); g.fill();
+          g.fillStyle = '#ffd43b'; g.fillRect(x + 26 * d - (d < 0 ? 4 : 0), y - 29, 4, 4);
+        }
+        head(x, y - 44, 9);
+        if (e.r === 's') { g.fillStyle = '#1971c2'; g.beginPath(); g.ellipse(x, y - 49, 10, 5, 0, Math.PI, 0); g.fill(); g.fillRect(x + (d > 0 ? 2 : -14), y - 50, 12, 3); }
+      } else if (o === 1) {
+        head(x + d * 6, y - 26, 8);
+        g.fillStyle = fill; ell(x, y - 13, 18, 14); g.fill(); g.strokeStyle = edge; g.lineWidth = 1; g.stroke();
+      } else {
+        head(x + d * 24, y - 9, 7);
+        g.fillStyle = fill; ell(x - 2 * d, y - 7, 24, 8); g.fill(); g.strokeStyle = edge; g.lineWidth = 1; g.stroke();
+      }
+      g.restore();
+    }
+
+    function nameTag(e, view) {
+      const ghost = e.r === 'g' || e.r === 'w';
+      if (ghost && !['g', 'w', 'l'].includes(view)) return;
+      // người tìm không thấy tên người trốn
+      if (e.r === 'h' && e !== me && view === 's') return;
+      const g = ctx, y = e.ry - (e.o === 0 ? 62 : e.o === 1 ? 40 : 22);
+      g.font = '800 11px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      const t = (e.r === 's' ? '🔫 ' : e.r === 'h' ? '🫥 ' : '') + e.n, w = g.measureText(t).width + 10;
+      g.globalAlpha = ghost ? 0.5 : e.r === 'h' && e !== me ? 0.55 : 0.9;
+      g.fillStyle = e === me ? 'rgba(112,72,232,.85)' : e.r === 's' ? 'rgba(232,89,12,.85)' : 'rgba(0,0,0,.55)';
+      g.beginPath(); g.roundRect(e.rx - w / 2, y - 8, w, 16, 8); g.fill();
+      g.fillStyle = '#fff'; g.fillText(t, e.rx, y + 0.5);
+      g.globalAlpha = 1;
+    }
+
+    function draw() {
+      const g = ctx, view = me.r;
+      const vw = CAM.w / CAM.s, vh = CAM.h / CAM.s;
+      CAM.x = clamp(me.rx - vw / 2, -40, Math.max(-40, W - vw + 40)); CAM.y = clamp(me.ry - 30 - vh / 2, -40, Math.max(-40, H - vh + 40));
+      if (vw > W + 80) CAM.x = (W - vw) / 2; if (vh > H + 80) CAM.y = (H - vh) / 2;
+      g.setTransform(CAM.dpr, 0, 0, CAM.dpr, 0, 0);
+      g.fillStyle = '#2b2b2b'; g.fillRect(0, 0, CAM.w, CAM.h);
+      g.setTransform(CAM.dpr * CAM.s, 0, 0, CAM.dpr * CAM.s, -CAM.x * CAM.dpr * CAM.s, -CAM.y * CAM.dpr * CAM.s);
+      // nền
+      ZONES.forEach(([t, x, y, w, h]) => { g.fillStyle = PAT[t]; g.fillRect(x, y, w, h); });
+      g.strokeStyle = 'rgba(0,0,0,.12)'; g.lineWidth = 2;
+      ZONES.slice(1).forEach(([, x, y, w, h]) => g.strokeRect(x, y, w, h));
+      g.strokeStyle = '#6d4c2f'; g.lineWidth = 6; g.strokeRect(-3, -3, W + 6, H + 6);
+      // lồng người tìm
+      g.strokeStyle = R.ph === 'hide' ? 'rgba(255,146,43,.9)' : 'rgba(255,146,43,.35)'; g.lineWidth = 4; g.setLineDash([10, 8]);
+      ell(CAGE.x, CAGE.y, CAGE.r, CAGE.r * 0.8); g.stroke(); g.setLineDash([]);
+      // vật cản + người theo chiều sâu
+      const list = PROPS.map((p) => ({ y: p.y, f: () => drawProp(p) }));
+      everyone().forEach((e) => list.push({ y: e.ry, f: () => drawFig(e, view) }));
+      list.sort((a, b) => a.y - b.y).forEach((it) => it.f());
+      // bụi khi người trốn chạy
+      everyone().forEach((e) => { if (e.r === 'h' && e.mv && Math.random() < 0.3) fx.push({ k: 'dust', x: e.rx + (Math.random() - 0.5) * 10, y: e.ry, t: 0 }); });
+      // hiệu ứng
+      fx.forEach((f) => {
+        if (f.k === 'shot') {
+          const p = Math.min(1, f.t / 0.16);
+          const x = f.fx + (f.x - f.fx) * p, y = f.fy + (f.y - f.fy) * p;
+          if (p < 1) { g.strokeStyle = 'rgba(77,171,247,.85)'; g.lineWidth = 4; g.lineCap = 'round'; g.beginPath(); g.moveTo(f.fx + (f.x - f.fx) * Math.max(0, p - 0.35), f.fy + (f.y - f.fy) * Math.max(0, p - 0.35)); g.lineTo(x, y); g.stroke(); }
+          else { const k = (f.t - 0.16) / 0.54; g.strokeStyle = `rgba(116,192,252,${1 - k})`; g.lineWidth = 3; ell(f.x, f.y, 6 + k * 18, (6 + k * 18) * 0.5); g.stroke(); g.fillStyle = `rgba(165,216,255,${0.6 * (1 - k)})`; for (let i = 0; i < 6; i++) { const a = i * 1.05; ell(f.x + Math.cos(a) * k * 22, f.y + Math.sin(a) * k * 11 - k * 10, 2.5, 2.5); g.fill(); } }
+        } else if (f.k === 'boom') {
+          const k = f.t / 1.2; g.fillStyle = `rgba(116,192,252,${0.7 * (1 - k)})`;
+          for (let i = 0; i < 12; i++) { const a = i * 0.523; ell(f.x + Math.cos(a) * k * 50, f.y + Math.sin(a) * k * 30 - k * 20, 5 * (1 - k) + 2, 5 * (1 - k) + 2); g.fill(); }
+          g.font = '900 20px "Be Vietnam Pro", system-ui'; g.textAlign = 'center'; g.fillStyle = `rgba(255,255,255,${1 - k})`; g.fillText('💦 BẮT ĐƯỢC!', f.x, f.y - 40 - k * 20);
+        } else if (f.k === 'mist') {
+          const k = f.t / 0.6; g.fillStyle = f.c === 'white' ? `rgba(255,255,255,${0.6 * (1 - k)})` : `rgba(200,200,200,${0.5 * (1 - k)})`;
+          ell(f.x, f.y - k * 10, 4 + k * 8, 4 + k * 8); g.fill();
+        } else if (f.k === 'dust') {
+          const k = f.t / 0.7; g.fillStyle = `rgba(120,100,70,${0.25 * (1 - k)})`; ell(f.x, f.y - k * 6, 3 + k * 6, 2 + k * 3); g.fill();
+        }
+      });
+      everyone().forEach((e) => nameTag(e, view));
+      // tầm bắn
+      if (me.r === 's' && R.ph === 'seek') { g.strokeStyle = 'rgba(255,255,255,.12)'; g.lineWidth = 2; ell(me.rx, me.ry, RANGE, RANGE); g.stroke(); }
+      // màn hình
+      g.setTransform(CAM.dpr, 0, 0, CAM.dpr, 0, 0);
+      if (me.r === 's' && R.ph === 'hide') {
+        g.fillStyle = '#05050f'; g.fillRect(0, 0, CAM.w, CAM.h);
+        g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff';
+        g.font = '900 30px "Be Vietnam Pro", system-ui'; g.fillText('🙈 Đang bịt mắt đếm…', CAM.w / 2, CAM.h / 2 - 24);
+        g.font = '900 64px "Be Vietnam Pro", system-ui'; g.fillStyle = '#ffd43b'; g.fillText(Math.ceil(Math.max(0, R.end - Date.now()) / 1000), CAM.w / 2, CAM.h / 2 + 40);
+      }
+      if (me.r === 's' && R.ph === 'seek' && mouse && !joy) {
+        g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 2; ell(mouse.x, mouse.y, 12, 12); g.stroke();
+        g.beginPath(); g.moveTo(mouse.x - 18, mouse.y); g.lineTo(mouse.x - 6, mouse.y); g.moveTo(mouse.x + 6, mouse.y); g.lineTo(mouse.x + 18, mouse.y); g.moveTo(mouse.x, mouse.y - 18); g.lineTo(mouse.x, mouse.y - 6); g.moveTo(mouse.x, mouse.y + 6); g.lineTo(mouse.x, mouse.y + 18); g.stroke();
+      }
+      if (joy) {
+        g.fillStyle = 'rgba(255,255,255,.15)'; ell(joy.sx, joy.sy, 50, 50); g.fill();
+        const dx = joy.x - joy.sx, dy = joy.y - joy.sy, d = Math.hypot(dx, dy), k = d > 50 ? 50 / d : 1;
+        g.fillStyle = 'rgba(255,255,255,.55)'; ell(joy.sx + dx * k, joy.sy + dy * k, 22, 22); g.fill();
+      }
+      if (spray > 0) {
+        g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.roundRect(CAM.w / 2 - 90, CAM.h - 90, 180, 16, 8); g.fill();
+        g.fillStyle = '#ffd43b'; g.beginPath(); g.roundRect(CAM.w / 2 - 88, CAM.h - 88, 176 * (1 - spray / 1.2), 12, 6); g.fill();
+      }
+    }
+
+    /* ================= Giao diện ================= */
+    function toast(t, ms = 2600) {
+      const el = document.createElement('div'); el.className = 'toast'; el.textContent = t;
+      $('toasts').appendChild(el); setTimeout(() => el.remove(), ms);
+      while ($('toasts').children.length > 4) $('toasts').firstChild.remove();
+    }
+    const PH = { lobby: '🏠 Phòng chờ', hide: '🫥 Đi trốn!', seek: '🔍 Đang tìm', end: '🏁 Hết ván' };
+    const RL = { h: '🫥 Người trốn', s: '🔫 Người tìm', g: '👻 Đã bị bắt', w: '👀 Đang xem', l: '🧍 Đang chờ' };
+    function ui() {
+      $('cPhase').textContent = PH[R.ph];
+      $('cRole').textContent = RL[me.r] || '';
+      const left = Math.max(0, R.end - Date.now());
+      const alive = Object.values(R.roles).filter((r) => r === 'h').length, total = Object.values(R.roles).filter((r) => r === 'h' || r === 'g').length;
+      $('cLeft').textContent = R.ph === 'lobby' ? (R.auto ? `⏱ Bắt đầu sau ${Math.ceil((R.auto - Date.now()) / 1000)}s` : `👥 ${humans().length} người`) : `⏱ ${Math.floor(left / 60000)}:${String(Math.floor(left / 1000) % 60).padStart(2, '0')} · 🫥 ${alive}/${total}`;
+      $('cAmmo').style.display = me.r === 's' ? '' : 'none';
+      $('cAmmo').textContent = `💧 ${ammo}/${AMMO}`;
+      $('cLobby').style.display = R.ph === 'lobby' && !$('ovLobby').classList.contains('show') ? '' : 'none';
+      const hid = me.r === 'h' && (R.ph === 'hide' || R.ph === 'seek');
+      $('hideTools').style.display = hid ? 'flex' : 'none';
+      $('poseTools').style.display = hid ? 'flex' : 'none';
+      if (!hid) $('pal').classList.remove('show');
+      document.querySelectorAll('[data-pose]').forEach((b) => b.classList.toggle('on', +b.dataset.pose === me.o));
+      $('pal').querySelectorAll('button').forEach((b) => b.classList.toggle('on', +b.dataset.p === me.p));
+      const touch = matchMedia('(pointer: coarse)').matches;
+      let hint = '';
+      if (me.r === 'h' && R.ph === 'hide') hint = '🎨 Đứng trên nền nào thì "Sơn theo nền" — rồi Thu lu / Nằm cho khó thấy. Đầu trắng nên nấp gần đồ màu trắng (bò, tường vôi)!';
+      else if (me.r === 'h' && R.ph === 'seek') hint = 'Đứng im! Di chuyển sẽ bị bụi bay lộ chỗ 😬';
+      else if (me.r === 's' && R.ph === 'seek') hint = touch ? 'Kéo bên trái để đi · chạm chỗ nghi ngờ để bắn 💧' : 'WASD / mũi tên để đi · bấm chuột để bắn 💧';
+      else if (me.r === 'g' || me.r === 'w') hint = 'Bạn đang bay xem — đi khắp nơi xem mọi người trốn ở đâu 👻';
+      else if (R.ph === 'lobby') hint = touch ? 'Kéo bên trái màn hình hoặc chạm để đi dạo' : 'WASD / mũi tên hoặc bấm chuột để đi dạo';
+      $('hint').textContent = hint; $('hint').style.display = hint ? '' : 'none';
+      if ($('ovLobby').classList.contains('show')) renderLobby();
+    }
+
+    // bảng sơn
+    TEXN.forEach((n, i) => {
+      const b = document.createElement('button'); b.dataset.p = i; b.style.backgroundImage = `url(${SWATCH[n]})`;
+      b.innerHTML = `<span>${TEXNAME[n]}</span>`;
+      b.onclick = (e) => { e.stopPropagation(); if (me.r !== 'h') return; me.p = i; sfx.spray(); toast(`🖌️ Sơn kiểu ${TEXNAME[n]}`, 1400); $('pal').classList.remove('show'); ui(); };
+      $('pal').appendChild(b);
+    });
+    $('bPick').onclick = togglePal;
+    $('bSpray').onclick = doSpray;
+    document.querySelectorAll('[data-pose]').forEach((b) => { b.onclick = () => setPose(+b.dataset.pose); });
+    $('cLobby').onclick = showLobby;
+
+    function showLobby() { if (R.ph !== 'lobby') return; $('ovLobby').classList.add('show'); renderLobby(); ui(); }
+    let lobbySig = '';
+    function renderLobby() {
+      const host = isHost(), hs = humans();
+      const sig = JSON.stringify([host, hs.map((p) => p.n + p.u), me.pf, R.bots, R.auto ? Math.ceil((R.auto - Date.now()) / 1000) : 0]);
+      if (sig === lobbySig) return; lobbySig = sig;
+      const total = hs.length + (R.bots ? Math.max(0, 4 - hs.length) : 0);
+      $('lobbyCard').innerHTML = `
+        <h2>🦎 Tắc Kè Hoa</h2>
+        <p class="sub">Trốn tìm ngụy trang · nhiều người chơi</p>
+        <ul>
+          <li><b>Người trốn</b> (hình nhân trắng): 30 giây đầu chạy đi trốn, <b>sơn người</b> giống nền (gạch, cỏ, gỗ, rơm…) và <b>tạo dáng</b> đứng / thu lu / nằm.</li>
+          <li><b>Đầu luôn trắng</b> có mặt cười — nấp cạnh đồ trắng hoặc sau cây, bụi, đống rơm cho khó thấy.</li>
+          <li><b>Người tìm</b> bị bịt mắt 30 giây, sau đó có 2 phút 30 và ${AMMO} phát súng nước để bắn trúng người trốn.</li>
+          <li>🎁 Trốn sống sót <b>+50 xu</b> · bị bắt +10 · người tìm <b>+15 xu</b> mỗi người bắt được.</li>
+        </ul>
+        <div class="lbl">Người trong phòng (${hs.length})</div>
+        <div class="plist">${hs.map((p) => `<span class="${p === me ? 'me' : ''}">${p.u === hostId() ? '👑 ' : ''}${esc(p.n)}${p === me ? ' (bạn)' : ''}</span>`).join('')}${R.bots && hs.length < 4 ? `<span>🤖 +${4 - hs.length} bot</span>` : ''}</div>
+        <div class="lbl">Bạn muốn làm</div>
+        <div class="seg" id="pfSeg">${[['h', '🫥 Trốn'], ['any', '🎲 Ngẫu nhiên'], ['s', '🔫 Tìm']].map(([v, t]) => `<button data-pf="${v}" class="${me.pf === v ? 'on' : ''}">${t}</button>`).join('')}</div>
+        ${host ? `<div class="lbl">Chủ phòng 👑</div>
+          <div class="seg"><button id="botTg" class="${R.bots ? 'on' : ''}">🤖 Thêm bot cho đủ 4 người: ${R.bots ? 'BẬT' : 'TẮT'}</button></div>` : ''}
+        <p class="sub" style="margin:8px 0">${R.auto ? `⏱ Tự bắt đầu sau <b>${Math.ceil((R.auto - Date.now()) / 1000)}</b> giây` : host ? (total >= 2 ? 'Bấm bắt đầu khi sẵn sàng' : 'Cần thêm người hoặc bật bot') : 'Chờ chủ phòng 👑 bắt đầu…'}</p>
+        <div class="acts">
+          <button class="cbtn" id="walkBtn">🚶 Đi dạo</button>
+          ${host ? `<button class="cbtn pri" id="startBtn" ${total >= 2 ? '' : 'disabled'}>▶ Bắt đầu</button>` : ''}
+        </div>`;
+      $('lobbyCard').querySelectorAll('[data-pf]').forEach((b) => { b.onclick = () => { me.pf = b.dataset.pf; lobbySig = ''; renderLobby(); }; });
+      const bt = $('botTg'); if (bt) bt.onclick = () => { R.bots = !R.bots; net(roundMsg()); lobbySig = ''; renderLobby(); };
+      const sb = $('startBtn'); if (sb) sb.onclick = () => startRound();
+      $('walkBtn').onclick = () => { $('ovLobby').classList.remove('show'); ui(); };
+    }
+
+    function showEnd() {
+      const win = R.win, mine = myRoundRole;
+      const ent = Object.keys(R.roles).map((u) => ({ u, n: nameOf(u), r: R.roles[u], c: R.catches[u] || 0, caught: !!R.caught[u] }));
+      const iWon = mine && ((win === 's') === (mine === 's'));
+      $('endCard').innerHTML = `
+        <h2>${win === 's' ? '🔫 Người tìm thắng!' : '🫥 Người trốn thắng!'}</h2>
+        <p class="sub">${mine ? (iWon ? '🎉 Phe bạn thắng!' : '😅 Phe bạn thua rồi') : 'Ván sau bạn sẽ được vào chơi'}${R.myCoins != null && mine ? ` · <b>+${R.myCoins} xu</b>` : ''}</p>
+        <table class="res">${ent.sort((a, b) => (a.r === 's' ? -1 : 1) - (b.r === 's' ? -1 : 1)).map((e) => `<tr><td>${e.r === 's' ? '🔫' : e.caught ? '💦' : '🫥'} ${esc(e.n)}${e.u === ME ? ' (bạn)' : ''}</td><td>${e.r === 's' ? `bắt ${e.c}` : e.caught ? 'bị bắt' : 'sống sót'}</td></tr>`).join('')}</table>
+        <p class="sub">Ván mới sau vài giây…</p>
+        <div class="acts"><button class="cbtn" id="endClose">Đóng</button></div>`;
+      $('endClose').onclick = () => $('ovEnd').classList.remove('show');
+      $('ovEnd').classList.add('show');
+      R.myCoins = null;
+    }
+
+    /* ================= Vòng lặp ================= */
+    let last = 0;
+    function loop(t) {
+      const dt = Math.min(0.05, (t - (last || t)) / 1000); last = t;
+      update(dt); draw();
+      requestAnimationFrame(loop);
+    }
+    // tab bị ẩn (chuyển app / tab khác): requestAnimationFrame dừng → vẫn chạy logic để giữ kết nối
+    let lastHidden = performance.now();
+    setInterval(() => { if (!document.hidden) { lastHidden = performance.now(); return; } const n = performance.now(); update(Math.min(0.25, (n - lastHidden) / 1000)); lastHidden = n; }, 100);
+    addEventListener('pagehide', () => net({ k: 'bye' }));
+    if (Q.has('debug')) window.__TKH = { me, peers, bots, shoot, R: () => R, hostSet, SEEK_MS, END_MS };
+    showLobby();
+    net({ k: 'st', u: ME, n: MYNAME, x: Math.round(me.x), y: Math.round(me.y), d: 1, r: 'l', p: -1, o: 0, mv: 0, pf: me.pf });
+    requestAnimationFrame(loop);
+    setInterval(ui, 500);
+  })();
+  </script>
+</body>
+</html>

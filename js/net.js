@@ -249,6 +249,8 @@ const NET = (() => {
       if (typeof RACECUP !== 'undefined') RACECUP.onNet(m);
     } else if (m.t === 'dino') {
       if (typeof DINO !== 'undefined') DINO.onNet(m);
+    } else if (m.t === 'hide') {
+      if (typeof HIDE !== 'undefined') HIDE.onNet(m);
     } else if (m.t === 'tbl') {
       if (typeof CARDLOBBY !== 'undefined') CARDLOBBY.onTbl(m);
       TABLE.onNet(m);
@@ -339,6 +341,10 @@ const NET = (() => {
   /** 🦖 Đảo Khủng Long: vị trí / cắn / lập đàn giữa những người đang ở đảo (kênh của khu hiện tại) */
   function sendDino(d) {
     send('dino', d);
+  }
+  /** 🦎 Tắc Kè Hoa: trạng thái, phát bắn, trúng… giữa những người đang chơi (kênh của khu hiện tại) */
+  function sendHide(d) {
+    send('hide', d);
   }
   function sendCall(p) {
     if (lobby) lobby.send({ t: 'call', id: pid, ...p });
@@ -455,7 +461,7 @@ const NET = (() => {
   }
 
   return {
-    sendBooth, sendCardInv, sendDino, lobbyPeers: () => [...where].filter(([, w]) => Date.now() - w.seen < 30000).map(([id, w]) => ({ id, user: w.user, map: w.map })),
+    sendBooth, sendCardInv, sendDino, sendHide, lobbyPeers: () => [...where].filter(([, w]) => Date.now() - w.seen < 30000).map(([id, w]) => ({ id, user: w.user, map: w.map })),
     init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, sendKart, remotes, zoneCounts, announce, farmPing, sendNews, sendCall, sendFirework, sendBite, sendVoice, sendRps, sendCaro, sendSport, sendBoard, sendBox, sendRide, sendArena, sendHorse,
     get mode() { return mode; },
     get pid() { return pid; },

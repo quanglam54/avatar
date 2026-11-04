@@ -814,7 +814,7 @@ const MAPS = (() => {
 
   /* ---------- Khu giải trí ---------- */
   function fun() {
-    const m = base('fun', 'Khu giải trí', 5700, 1070);
+    const m = base('fun', 'Khu giải trí', 6300, 1070);
     ground(m, (g) => {
       paintGrass(g, m.w, m.h, 53);
       paintPaved(g, 120, 370, 5460, 460, '#f6e3d0');
@@ -902,6 +902,11 @@ const MAPS = (() => {
     aobj(m, DX, DY, (c, t) => (typeof DINO !== 'undefined' ? DINO.gate(c, DX, DY, t) : null), { l: -240, t: -350, w: 480, h: 450 });
     col(m, DX - 125, DY - 30, 36, 28); col(m, DX + 89, DY - 30, 36, 28);
     inter(m, { x: DX - 94, y: DY - 140, w: 188, h: 140, ax: DX, ay: DY + 40, name: 'Đảo Khủng Long (mua khủng long, nuôi lớn, sinh tồn)', use: () => (typeof DINO !== 'undefined' ? DINO.panel() : UI.toast('Đảo đang chuẩn bị, tải lại trang nhé')), arrow: { x: DX, y: DY - 260, text: 'Ra đảo' } });
+    /* 🦎 Tắc Kè Hoa: trốn tìm ngụy trang nhiều người */
+    const KX = 5880, KY = 780;
+    aobj(m, KX, KY, (c, t) => (typeof HIDE !== 'undefined' ? HIDE.building(c, KX, KY, t) : null), { l: -260, t: -330, w: 520, h: 360 });
+    col(m, KX - 230, KY - 60, 160, 56); col(m, KX + 70, KY - 60, 160, 56); col(m, KX - 70, KY - 60, 140, 24);
+    inter(m, { x: KX - 70, y: KY - 140, w: 140, h: 142, ax: KX, ay: KY + 40, name: 'Tắc Kè Hoa (trốn tìm ngụy trang nhiều người)', use: () => (typeof HIDE !== 'undefined' ? HIDE.play() : UI.toast('Trò chơi đang chuẩn bị, tải lại trang nhé')), arrow: { x: KX, y: KY - 175, text: 'Chơi trốn tìm' } });
     m.spawn = { x: 1050, y: 875 };
     m.bounds = { l: 20, t: 380, r: m.w - 20, b: m.h - 40 };
     return m;
