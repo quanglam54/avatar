@@ -115,6 +115,9 @@
     .toast { padding: 9px 16px; border-radius: 14px; font-weight: 700; font-size: 14px; text-align: center; animation: up .2s; }
     #joy { position: fixed; z-index: 4; width: 104px; height: 104px; margin: -52px 0 0 -52px; border-radius: 50%; background: rgba(255,255,255,.14); border: 2px solid rgba(255,255,255,.25); pointer-events: none; display: none; }
     #joy i { position: absolute; left: 30px; top: 30px; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,.6); }
+    .campad { position: fixed; left: 10px; top: 50%; transform: translateY(-50%); z-index: 6; display: grid; gap: 8px; }
+    .campad button { width: 46px; height: 46px; border-radius: 14px; font-size: 22px; font-weight: 900; display: grid; place-items: center; touch-action: none; }
+    .campad button:active { background: linear-gradient(135deg, var(--acc), var(--acc2)); }
     #loading { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: #0d0f18; font-weight: 800; font-size: 18px; }
     @media (max-width: 640px) {
       .maps { grid-template-columns: repeat(2, 1fr); }
@@ -159,11 +162,23 @@
   <div class="dock">
     <div class="camo glass" id="camoBox" style="display:none">🦎 Độ ngụy trang: <span id="camoTxt">0%</span><div class="bar"><i id="camoBar" style="width:0"></i></div></div>
     <div class="ammo glass" id="ammoBox" style="display:none">🔫 <span id="ammoTxt">30</span></div>
+    <div class="row" id="rollBtns" style="display:none">
+      <button class="big glass" data-roll="1" title="Xoay người (Z)">⤺<span>Xoay ←</span></button>
+      <button class="big glass" data-roll="-1" title="Xoay người (X)">⤻<span>Xoay →</span></button>
+    </div>
     <div class="row" id="hideBtns" style="display:none">
       <button class="big glass" id="bTaunt" title="Huýt sáo trêu (T) · +5 xu">📢<span>Huýt sáo</span></button>
+      <button class="big glass" id="bStick" title="Bám tường / trần (G)">🦎<span>Bám tường</span></button>
       <button class="big glass" id="bPose" title="Tạo dáng (Q)">🧍<span>Tạo dáng</span></button>
       <button class="big pri" id="bPaint" title="Tô màu người (F)">🎨<span>Tô màu</span></button>
     </div>
+  </div>
+  <div class="campad" id="campad">
+    <button class="glass" data-spin="1" title="Xoay trái (←)">↺</button>
+    <button class="glass" data-spin="-1" title="Xoay phải (→)">↻</button>
+    <button class="glass" data-zoom="-0.5" title="Lại gần (cuộn chuột)">＋</button>
+    <button class="glass" data-zoom="0.5" title="Ra xa">－</button>
+    <button class="glass" data-top="1" title="Nhìn cao / nhìn thấp">👁️</button>
   </div>
   <div class="hint glass" id="hint"></div>
 
@@ -224,8 +239,9 @@
 
     const HIDE_MS = 45000, SEEK_MS = 180000, END_MS = 10000, AUTO_MS = 25000;
     const AMMO = 30, RANGE = 22, TAUNT_MAX = 5, WH = 3.2;
-    const SPEED = { h: 3.2, s: 3.7, g: 6, w: 6, l: 3.7 };
+    const SPEED = { h: 2.8, s: 3.3, g: 6, w: 6, l: 3.3 };
     const PS = 128; // độ phân giải vải tô mỗi bộ phận
+    const BODY = 0.66; // người nhỏ so với phòng (như game gốc) → dễ nấp hơn
     const PART_NAMES = ['Đầu', 'Thân', 'Tay trái', 'Tay phải', 'Chân trái', 'Chân phải'];
     const PART_W = [0.15, 0.35, 0.1, 0.1, 0.15, 0.15];
     const SEEKCOL = ['#f1f0ec', '#ecebe6', '#f1f0ec', '#f1f0ec', '#e6e5df', '#e6e5df'];
@@ -680,7 +696,7 @@
       const lx = dx * c - dz * s, lz = dx * s + dz * c;
       return Math.abs(lx) < D.w / 2 + pad && Math.abs(lz) < D.d / 2 + pad;
     }
-    function walkable(x, z, role, pad = 0.25) {
+    function walkable(x, z, role, pad = 0.15) {
       const M = MAP;
       if (role === 'g' || role === 'w') return x > -1 && z > -1 && x < M.W + 1 && z < M.D + 1;
       const ok = M.rooms.some((r) => inR(x, z, r, pad)) || M.doors.some((d) => (d.w > d.d ? x > d.x + pad && x < d.x + d.w - pad && z > d.z - 0.3 && z < d.z + d.d + 0.3 : z > d.z + pad && z < d.z + d.d - pad && x > d.x - 0.3 && x < d.x + d.w + 0.3));
@@ -703,6 +719,7 @@
     const roomAt = (x, z) => MAP.rooms.find((r) => inR(x, z, r));
     /** màu "phía sau" một điểm trên người: tường sát bên, đồ vật sát bên, hoặc sàn */
     function bgAt(x, y, z) {
+      if (y > WH - 0.45) { const r = roomAt(x, z); if (r) return r.ceil && TEXC[r.ceil] ? { t: r.ceil } : { c: hexRgb(MAP.ceil && MAP.ceil[0] === '#' ? MAP.ceil : '#eeeeee') }; }
       let best = null, bd = 0.7;
       for (const w of mapGroup.userData.walls) {
         const t = (x - w.x1) * w.ux + (z - w.z1) * w.uz; if (t < 0 || t > w.len) continue;
@@ -771,7 +788,7 @@
       };
       // bóng đổ mềm dưới chân
       const sh0 = mesh(new THREE.CircleGeometry(0.34, 24), MATS.shadow || (MATS.shadow = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false })), 0, 0.012, 0);
-      sh0.rotation.x = -Math.PI / 2; root.add(sh0);
+      sh0.rotation.x = -Math.PI / 2; root.add(sh0); root.userData.shadow = sh0;
       add(torso, mesh(torsoGeo(), M(1), 0, 0.02, 0), 1, [0, 0.12, 1, 0.88]);
       add(torso, mesh(capsuleGeo(0.062, 0.058, 0.08, 16), M(1), 0, 0.68, 0), 1, [0, 0, 1, 0.1]);
       const headG = new THREE.SphereGeometry(0.152, 32, 24);
@@ -840,11 +857,11 @@
     const fxGroup = G(); scene.add(fxGroup);
     function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
     addEventListener('resize', resize); resize();
-    const CAM = { yaw: Math.PI, pitch: 0.32, dist: 3.4, x: 0, y: 0, z: 0 };
+    const CAM = { yaw: Math.PI, pitch: 0.3, dist: 2.7, x: 0, y: 0, z: 0, spin: 0, roll: 0 };
     const ray = new THREE.Raycaster();
 
     /* ================= Trạng thái ================= */
-    const mkEnt = (u, n) => ({ u, n, x: 0, z: 0, rx: 0, rz: 0, h: 0, rh: 0, r: 'l', o: 0, mv: false, walk: 0, m: null, parts: null, partsSeeker: null });
+    const mkEnt = (u, n) => ({ u, n, x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, h: 0, rh: 0, r: 'l', o: 0, mv: false, walk: 0, m: null, parts: null, partsSeeker: null, stick: null, qa: null, rq: null });
     const me = Object.assign(mkEnt(ME, MYNAME), { pf: 'any', vt: null });
     const peers = new Map(), bots = [];
     let R = { ph: 'lobby', end: 0, dur: 1, no: 0, roles: {}, names: {}, win: null, bots: true, auto: 0, caught: {}, catches: {}, map: 'mansion', mode: 'classic' };
@@ -854,7 +871,7 @@
     function ensureBody(e) {
       const seeker = e.r === 's';
       if (!e.parts || e.partsSeeker !== seeker) { e.parts = makeParts(seeker); e.partsSeeker = seeker; if (e.m) { scene.remove(e.m.root); e.m = null; } }
-      if (!e.m) { e.m = makeMannequin(e.parts, seeker); e.m.root.userData.ent = e; scene.add(e.m.root); }
+      if (!e.m) { e.m = makeMannequin(e.parts, seeker); e.m.root.scale.setScalar(BODY); e.m.root.userData.ent = e; scene.add(e.m.root); }
     }
     function dropBody(e) { if (e.m) scene.remove(e.m.root); e.m = null; }
     function resetPaint(e) { if (e.parts) e.parts.forEach((p) => resetPart(p, e.r === 's')); }
@@ -894,7 +911,9 @@
       if (m.k === 'st') {
         let p = peers.get(m.u);
         if (!p) { p = mkEnt(m.u, ''); p.rx = num(m.x); p.rz = num(m.z); peers.set(m.u, p); if (!m.bot && R.ph === 'lobby') toast(`👋 ${String(m.n || '').slice(0, 16)} vào phòng`); if (R.ph !== 'lobby' && me.r === 'h') paintSendT = Math.min(paintSendT, 0.5 + Math.random()); }
-        p.n = String(m.n || 'Người chơi').slice(0, 16); p.x = num(m.x); p.z = num(m.z); p.h = num(m.h);
+        p.n = String(m.n || 'Người chơi').slice(0, 16); p.x = num(m.x); p.y = clamp(num(m.y), 0, WH); p.z = num(m.z); p.h = num(m.h);
+        p.qa = Array.isArray(m.q) && m.q.length === 4 && m.q.every((v) => Number.isFinite(+v)) ? m.q.map(Number) : null;
+        if (p.qa && !p.rq) { p.rq = new THREE.Quaternion(...p.qa); p.rx = p.x; p.ry = p.y; p.rz = p.z; } if (!p.qa) p.rq = null;
         p.r = String(m.r || 'l'); p.o = [0, 1, 2, 3, 4].includes(m.o) ? m.o : 0; p.mv = !!m.mv; p.bot = !!m.bot; p.pf = m.pf;
         p.vt = MAPS[m.vt] ? m.vt : null; p.seen = Date.now();
         if (R.caught[p.u] && R.ph !== 'lobby' && R.mode !== 'infect') p.r = 'g';
@@ -944,14 +963,14 @@
       setMap(R.map);
       R.caught = {}; R.catches = {}; taunts = 0;
       syncRole(); myRoundRole = me.r;
-      ammo = AMMO; cd = 0; me.o = 0; exitPaint(false); closeTools();
+      ammo = AMMO; cd = 0; me.o = 0; exitPaint(false); closeTools(); me.stick = null; me.qa = null; me.rq = null; me.y = 0;
       dropBody(me); me.parts = null; ensureBody(me); undoStack.length = 0;
       peers.forEach((p) => { if (p.parts) { p.parts = null; if (p.m) dropBody(p); } });
       $('ovLobby').classList.remove('show'); $('ovEnd').classList.remove('show');
       if (me.r === 'h') { const s = freeSpot(); me.x = me.rx = s.x; me.z = me.rz = s.z; toast(`🫥 Bạn là NGƯỜI TRỐN ở ${MAP.icon} ${MAP.name}! Tìm chỗ sát tường, bấm 🎨 Tô màu — ${HIDE_MS / 1000} giây!`, 5000); }
       else if (me.r === 's') { me.x = me.rx = MAP.cage.x; me.z = me.rz = MAP.cage.z; toast('🔫 Bạn là NGƯỜI TÌM! Đang bịt mắt…', 4000); }
       else { placeInLobby(me); toast('👀 Ván đang chơi — bạn bay xem, ván sau sẽ được vào', 3500); }
-      me.h = me.r === 's' ? 0 : Math.random() * 6.28; CAM.yaw = me.h + Math.PI; CAM.pitch = 0.32; CAM.dist = 3.4;
+      me.h = me.r === 's' ? 0 : Math.random() * 6.28; CAM.yaw = me.h + Math.PI; CAM.pitch = 0.3; CAM.dist = 2.7;
       sfx.whistle();
       if (isHost()) startBots();
     }
@@ -974,7 +993,7 @@
       showEnd();
     }
     function onLobby() {
-      R.caught = {}; myRoundRole = null; me.o = 0;
+      R.caught = {}; myRoundRole = null; me.o = 0; me.stick = null; me.qa = null; me.rq = null; me.y = 0;
       bots.forEach(dropBody); bots.length = 0;
       [...peers.values()].forEach((p) => { if (p.bot) { dropBody(p); peers.delete(p.u); } else if (p.parts) { p.parts = null; dropBody(p); } });
       me.parts = null; dropBody(me);
@@ -1022,7 +1041,7 @@
 
     /* ================= Bắn nước ================= */
     const V3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
-    function gunPos(e) { return [e.rx + Math.sin(e.rh) * 1.1 - Math.cos(e.rh) * 0.06, 1.3, e.rz + Math.cos(e.rh) * 1.1 + Math.sin(e.rh) * 0.06]; }
+    function gunPos(e) { return [e.rx + Math.sin(e.rh) * 1.1 * BODY - Math.cos(e.rh) * 0.04, 1.3 * BODY, e.rz + Math.cos(e.rh) * 1.1 * BODY + Math.sin(e.rh) * 0.04]; }
     function shootAt(cx, cy) {
       if (me.r !== 's' || R.ph !== 'seek' || cd > 0) return;
       if (ammo <= 0) { toast('🔫 Hết đạn rồi!'); return; }
@@ -1057,8 +1076,9 @@
       const infect = R.mode === 'infect';
       if (R.roles[h.u]) R.roles[h.u] = infect ? 's' : 'g';
       const e = findE(h.u);
-      if (e) { fx.push({ k: 'boom', p: new THREE.Vector3(e.rx, 1.1, e.rz), t: 0 }); e.r = infect ? 's' : 'g'; e.o = 0; if (e !== me) { e.parts = null; dropBody(e); } }
+      if (e) { fx.push({ k: 'boom', p: e.rq ? new THREE.Vector3(e.cx, e.cy, e.cz) : new THREE.Vector3(e.rx, 1.1 * BODY, e.rz), t: 0 }); if (e !== me && e.stick) unstick(e); if (e !== me) { e.qa = null; e.rq = null; } e.r = infect ? 's' : 'g'; e.o = 0; if (e !== me) { e.parts = null; dropBody(e); } }
       if (h.u === ME) {
+        if (me.stick) unstick(me);
         me.r = infect ? 's' : 'g'; exitPaint(false); closeTools(); me.parts = null; dropBody(me);
         if (infect) { ammo = AMMO; toast('🦠 Bạn bị bắt — giờ bạn thành NGƯỜI TÌM!', 4500); } else toast('💦 Bạn bị bắt rồi! Giờ bạn bay xem tiếp nhé', 4000);
       } else toast(`💦 ${nameOf(h.by)} bắt được ${nameOf(h.u)}!`);
@@ -1084,14 +1104,95 @@
       return sc;
     }
 
+    /* ================= Bám tường / bám trần (như tắc kè) ================= */
+    const _up = new THREE.Vector3(), _n = new THREE.Vector3(), _x = new THREE.Vector3(), _mtx = new THREE.Matrix4();
+    function nearestWall(x, z, maxD = 0.75) {
+      let best = null, bd = maxD;
+      mapGroup.userData.walls.forEach((w, wi) => {
+        const t = (x - w.x1) * w.ux + (z - w.z1) * w.uz; if (t < 0.25 || t > w.len - 0.25) return;
+        const d = (x - w.x1) * -w.uz + (z - w.z1) * w.ux; // khoảng cách vào trong phòng
+        if (d > -0.05 && d < bd) { bd = d; best = { wi, t }; }
+      });
+      return best;
+    }
+    /** từ trạng thái bám → vị trí gốc + hướng xoay của hình nhân */
+    function stickXform(st) {
+      let c;
+      if (st.type === 'w') {
+        const w = mapGroup.userData.walls[st.wi];
+        _n.set(-w.uz, 0, w.ux);
+        _up.set(0, 1, 0).multiplyScalar(Math.cos(st.roll)).add(new THREE.Vector3(w.ux, 0, w.uz).multiplyScalar(Math.sin(st.roll)));
+        c = new THREE.Vector3(w.x1 + w.ux * st.t, st.y, w.z1 + w.uz * st.t).addScaledVector(_n, 0.12 * BODY / 0.66);
+      } else {
+        _n.set(0, -1, 0); _up.set(Math.sin(st.roll), 0, Math.cos(st.roll));
+        c = new THREE.Vector3(st.x, WH - 0.12 * BODY / 0.66, st.z);
+      }
+      _x.crossVectors(_up, _n).normalize();
+      const q = new THREE.Quaternion().setFromRotationMatrix(_mtx.makeBasis(_x, _up, _n));
+      const pos = c.clone().addScaledVector(_up, -0.92 * BODY);
+      return { pos, q, c };
+    }
+    function applyStick(e) {
+      const X = stickXform(e.stick);
+      e.x = e.rx = X.pos.x; e.y = e.ry = X.pos.y; e.z = e.rz = X.pos.z;
+      e.qa = [X.q.x, X.q.y, X.q.z, X.q.w]; e.rq = X.q;
+      e.cx = X.c.x; e.cy = X.c.y; e.cz = X.c.z;
+    }
+    function stickOn(e, surf) {
+      if (surf === 'w') {
+        const nw = nearestWall(e.x, e.z); if (!nw) return false;
+        e.stick = { type: 'w', wi: nw.wi, t: nw.t, y: 1.25, roll: 0 };
+      } else {
+        const r = roomAt(e.x, e.z); if (!r) return false;
+        e.stick = { type: 'c', x: e.x, z: e.z, roll: e.h };
+      }
+      e.floor = { x: e.x, z: e.z }; if (e.o === 0) e.o = 3;
+      applyStick(e); return true;
+    }
+    function unstick(e) {
+      if (!e.stick) return;
+      // rơi xuống ngay dưới chỗ đang bám (nếu chỗ đó đứng được), không thì về chỗ cũ
+      const cx = e.cx, cz = e.cz; let p = null;
+      for (let k = 0; k <= 6 && !p; k++) { const n = e.stick.type === 'w' ? stickXformN(e.stick) : [0, 0]; const x = cx + n[0] * k * 0.12, z = cz + n[1] * k * 0.12; if (walkable(x, z, e.r)) p = { x, z }; }
+      p = p || e.floor || { x: e.x, z: e.z };
+      e.stick = null; e.qa = null; e.rq = null; e.y = e.ry = 0; e.x = e.rx = p.x; e.z = e.rz = p.z;
+    }
+    function stickXformN(st) { const w = mapGroup.userData.walls[st.wi]; return [-w.uz, w.ux]; }
+    /** di chuyển khi đang bám: tường thì lên/xuống/ngang, trần thì đi khắp trần */
+    function stickMove(e, fwd, side, roll, dt) {
+      const st = e.stick, sp = 1.3 * dt;
+      if (st.type === 'w') {
+        const w = mapGroup.userData.walls[st.wi];
+        const rx = Math.cos(CAM.yaw), rz = -Math.sin(CAM.yaw), sign = rx * w.ux + rz * w.uz >= 0 ? 1 : -1; // phím phải = sang phải màn hình
+        st.y = clamp(st.y + fwd * sp, 0.35, WH - 0.3);
+        st.t = clamp(st.t + side * sign * sp, 0.3, w.len - 0.3);
+      } else {
+        const sy = Math.sin(CAM.yaw), cy = Math.cos(CAM.yaw);
+        const nx = st.x + (-sy * fwd + cy * side) * sp, nz = st.z + (-cy * fwd - sy * side) * sp;
+        if (MAP.rooms.some((r) => inR(nx, st.z, r, 0.3))) st.x = nx;
+        if (MAP.rooms.some((r) => inR(st.x, nz, r, 0.3))) st.z = nz;
+      }
+      st.roll += roll * dt * 2.2;
+      e.mv = !!(fwd || side);
+      applyStick(e);
+    }
+    function toggleStick() {
+      if (me.r !== 'h' || (R.ph !== 'hide' && R.ph !== 'seek') || paintMode) return;
+      if (me.stick) { unstick(me); toast('🪂 Đã thả xuống sàn', 1200); ui(); return; }
+      if (stickOn(me, 'w')) { toast('🦎 Bám tường! W/S lên xuống · A/D sang ngang · Z/X xoay người · G để thả', 3500); CAM.pitch = 0.15; }
+      else if (stickOn(me, 'c')) { toast('🦇 Bám trần! WASD đi trên trần · Z/X xoay người · G để thả', 3500); CAM.pitch = -0.75; CAM.dist = 2.4; }
+      else toast('Không có chỗ bám ở đây', 1500);
+      ui();
+    }
+
     /* ================= Bot ================= */
     function botHide() {
       const r = Math.random(), room = pick(MAP.rooms);
       if (r < 0.6) {
         for (let i = 0; i < 50; i++) {
           const side = pick(['n', 's', 'w', 'e']); const t = 0.6 + Math.random() * ((side === 'n' || side === 's' ? room.w : room.d) - 1.2);
-          const p = side === 'n' ? { x: room.x + t, z: room.z + 0.32, h: 0 } : side === 's' ? { x: room.x + t, z: room.z + room.d - 0.32, h: Math.PI } : side === 'w' ? { x: room.x + 0.32, z: room.z + t, h: Math.PI / 2 } : { x: room.x + room.w - 0.32, z: room.z + t, h: -Math.PI / 2 };
-          if (walkable(p.x, p.z, 'h', 0.28) && Math.hypot(p.x - MAP.cage.x, p.z - MAP.cage.z) > 3) return Object.assign(p, { o: pick([3, 0, 3, 4]) });
+          const p = side === 'n' ? { x: room.x + t, z: room.z + 0.18, h: 0 } : side === 's' ? { x: room.x + t, z: room.z + room.d - 0.18, h: Math.PI } : side === 'w' ? { x: room.x + 0.18, z: room.z + t, h: Math.PI / 2 } : { x: room.x + room.w - 0.18, z: room.z + t, h: -Math.PI / 2 };
+          if (walkable(p.x, p.z, 'h', 0.16) && Math.hypot(p.x - MAP.cage.x, p.z - MAP.cage.z) > 3) return Object.assign(p, { o: pick([3, 0, 3, 4]) });
         }
       } else if (r < 0.85) {
         const ps = MAP.props.filter((p) => Math.hypot(p.x - MAP.cage.x, p.z - MAP.cage.z) > 3);
@@ -1100,7 +1201,7 @@
       const s = freeSpot(3); return { x: s.x, z: s.z, h: Math.random() * 6, o: 2 };
     }
     function botPaint(b) {
-      ensureBody(b); b.m.root.position.set(b.x, 0, b.z); b.m.root.rotation.y = b.h; setPose(b.m, b.o, 0, false); b.m.root.updateMatrixWorld(true);
+      ensureBody(b); if (b.rq) { b.m.root.position.set(b.x, b.y, b.z); b.m.root.quaternion.copy(b.rq); } else { b.m.root.position.set(b.x, 0, b.z); b.m.root.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), b.h); } setPose(b.m, b.o, 0, false); b.m.root.updateMatrixWorld(true);
       const sums = b.parts.map(() => [0, 0, 0, 0]);
       b.m.meshes.forEach((ms) => { ms.getWorldPosition(_v); const bg = bgAt(_v.x, _v.y, _v.z); if (!bg) return; const c = bg.t ? AVG[bg.t] : bg.c, s = sums[ms.userData.part]; s[0] += c[0]; s[1] += c[1]; s[2] += c[2]; s[3]++; });
       b.parts.forEach((p, i) => {
@@ -1117,7 +1218,7 @@
       if (b.paintT > 0) { b.paintT -= dt; b.mv = false; if (b.paintT <= 0) botPaint(b); return; }
       if (b.r === 'h') {
         if (R.ph === 'hide' && !b.goal && !b.settled) b.goal = botHide();
-        if (R.ph === 'seek' && b.settled && b.think <= 0) { b.think = 1; if (everyone().some((s) => s.r === 's' && Math.hypot(s.x - b.x, s.z - b.z) < 2) && Math.random() < 0.1) { b.goal = botHide(); b.settled = false; b.o = 0; } }
+        if (R.ph === 'seek' && b.settled && b.think <= 0) { b.think = 1; if (everyone().some((s) => s.r === 's' && Math.hypot(s.x - b.x, s.z - b.z) < 2) && Math.random() < 0.1) { unstick(b); b.goal = botHide(); b.settled = false; b.o = 0; } }
       } else if (b.r === 's') {
         if (R.ph !== 'seek') { b.mv = false; return; }
         if (!b.goal) b.goal = freeSpot(0);
@@ -1126,14 +1227,14 @@
           for (const t of everyone().filter((e) => e.r === 'h' && !R.caught[e.u] && e.m && Math.hypot(e.x - b.x, e.z - b.z) < 9)) {
             const c = t === me ? camo : camoScore(t);
             const ch = 0.02 + 0.7 * Math.pow(1 - c, 2) + (t.mv ? 0.5 : 0);
-            if (Math.random() < ch) { botShoot(b, [t.x + (Math.random() - 0.5) * 0.25, t.o === 2 ? 0.2 : t.o === 1 ? 0.45 : 1.15, t.z + (Math.random() - 0.5) * 0.25]); return; }
+            if (Math.random() < ch) { botShoot(b, t.rq ? [t.cx + (Math.random() - 0.5) * 0.15, t.cy, t.cz + (Math.random() - 0.5) * 0.15] : [t.x + (Math.random() - 0.5) * 0.18, (t.o === 2 ? 0.2 : t.o === 1 ? 0.45 : 1.15) * BODY, t.z + (Math.random() - 0.5) * 0.18]); return; }
           }
           if (Math.random() < 0.1) { const a = Math.random() * 6.28; botShoot(b, [b.x + Math.cos(a) * 4, 1, b.z + Math.sin(a) * 4]); }
         }
       }
       if (b.goal) {
         const dx = b.goal.x - b.x, dz = b.goal.z - b.z, d = Math.hypot(dx, dz), sp = SPEED[b.r] * 0.8 * dt;
-        if (d < 0.15) { b.mv = false; if (b.r === 'h') { b.settled = true; b.o = b.goal.o || 0; b.h = b.goal.h || 0; b.paintT = 1.5; } b.goal = null; }
+        if (d < 0.15) { b.mv = false; if (b.r === 'h') { b.settled = true; b.o = b.goal.o || 0; b.h = b.goal.h || 0; b.paintT = 1.5; if (Math.random() < 0.3 && stickOn(b, Math.random() < 0.75 ? 'w' : 'c')) { b.stick.y = 0.8 + Math.random() * 1.6; b.stick.roll = (Math.random() - 0.5) * 3.2; b.o = 3; applyStick(b); } } b.goal = null; }
         else {
           const nx = b.x + (dx / d) * sp, nz = b.z + (dz / d) * sp;
           if (walkable(nx, nz, b.r)) { b.x = nx; b.z = nz; } else if (walkable(nx, b.z, b.r)) b.x = nx; else if (walkable(b.x, nz, b.r)) b.z = nz; else { b.stuck = (b.stuck || 0) + dt; if (b.stuck > 0.6) { b.stuck = 0; b.goal = b.r === 'h' ? botHide() : freeSpot(0); } }
@@ -1142,7 +1243,7 @@
       }
     }
     function botShoot(b, tgt) {
-      const o = [b.x, 1.5, b.z], dir = [tgt[0] - o[0], tgt[1] - o[1], tgt[2] - o[2]], L = Math.hypot(...dir);
+      const o = [b.x, 1.5 * BODY, b.z], dir = [tgt[0] - o[0], tgt[1] - o[1], tgt[2] - o[2]], L = Math.hypot(...dir);
       b.h = Math.atan2(dir[0], dir[2]);
       ray.set(V3(o), V3(dir).normalize()); const hits = ray.intersectObject(mapGroup, true).filter((h) => !h.object.userData.cage);
       const end = hits.length && hits[0].distance < L + 0.5 ? hits[0].point : V3(tgt);
@@ -1181,7 +1282,7 @@
       if (R.ph === 'seek') toast('⚠️ Đang bị tìm — tô màu lúc này dễ lộ lắm!', 2000);
       paintMode = true; $('poseBox').classList.remove('show'); $('paint').classList.add('show');
       CAM.saved = { yaw: CAM.yaw, pitch: CAM.pitch, dist: CAM.dist };
-      CAM.yaw = me.h; CAM.pitch = 0.15; CAM.dist = 2.1; drawSV(); ui();
+      CAM.yaw = me.h; CAM.pitch = 0.15; CAM.dist = 1.5; drawSV(); ui();
     }
     function exitPaint(send = true) {
       if (!paintMode) return;
@@ -1216,7 +1317,7 @@
       const k = e.key.toLowerCase(); keys[k] = true;
       if (me.r === 'h' && (R.ph === 'hide' || R.ph === 'seek')) {
         if (k === 'f' || k === 'e') { paintMode ? exitPaint(true) : enterPaint(); }
-        else if (k === 'q') togglePose(); else if (k === 't') taunt();
+        else if (k === 'q') togglePose(); else if (k === 't') taunt(); else if (k === 'g') toggleStick();
         else if (k >= '1' && k <= '5' && !paintMode) setPose_(+k - 1);
       }
       if (k === 'escape') { exitPaint(true); closeTools(); }
@@ -1259,7 +1360,7 @@
       if (joy && e.pointerId === joy.id) { joy.x = e.clientX; joy.y = e.clientY; return; }
       if (!drag || e.pointerId !== drag.id) return;
       if (drag.paint) { paintAt(e.clientX, e.clientY, false); return; }
-      CAM.yaw -= (e.clientX - drag.x) * 0.006; CAM.pitch = clamp(CAM.pitch + (e.clientY - drag.y) * 0.004, -0.35, 1.2);
+      CAM.yaw -= (e.clientX - drag.x) * 0.009; CAM.pitch = clamp(CAM.pitch + (e.clientY - drag.y) * 0.006, me.stick ? -1.3 : -0.3, 1.25);
       drag.x = e.clientX; drag.y = e.clientY;
     });
     const up = (e) => {
@@ -1271,15 +1372,25 @@
       if (tap && me.r === 's' && R.ph === 'seek') shootAt(e.clientX, e.clientY);
     };
     cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
-    cv.addEventListener('wheel', (e) => { CAM.dist = clamp(CAM.dist + e.deltaY * 0.003, 1.4, 7); }, { passive: true });
+    cv.addEventListener('wheel', (e) => { CAM.dist = clamp(CAM.dist + e.deltaY * 0.003, 0.9, 7); }, { passive: true });
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
     function setPose_(o) { if (me.r !== 'h') return; me.o = o; ui(); }
     function togglePose() { if (me.r !== 'h') return; exitPaint(true); $('poseBox').classList.toggle('show'); }
     $('bPaint').onclick = () => (paintMode ? exitPaint(true) : enterPaint());
-    $('bPose').onclick = togglePose; $('bTaunt').onclick = taunt;
+    $('bPose').onclick = togglePose; $('bTaunt').onclick = taunt; $('bStick').onclick = toggleStick;
+    document.querySelectorAll('[data-roll]').forEach((b) => {
+      const on = (e) => { e.preventDefault(); CAM.roll = +b.dataset.roll; }, off = () => { CAM.roll = 0; };
+      b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
+    });
     document.querySelectorAll('[data-pose]').forEach((b) => { b.onclick = () => { setPose_(+b.dataset.pose); $('poseBox').classList.remove('show'); }; });
     $('bMute').onclick = () => { muted = !muted; $('bMute').textContent = muted ? '🔇' : '🔊'; };
     $('bLobby').onclick = () => showLobby();
+    document.querySelectorAll('[data-spin]').forEach((b) => {
+      const on = (e) => { e.preventDefault(); CAM.spin = +b.dataset.spin; }, off = () => { CAM.spin = 0; };
+      b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
+    });
+    document.querySelectorAll('[data-zoom]').forEach((b) => { b.onclick = () => { CAM.dist = clamp(CAM.dist + +b.dataset.zoom, 0.9, 7); }; });
+    document.querySelector('[data-top]').onclick = () => { const top = CAM.pitch < 0.8; CAM.pitch = top ? 0.95 : 0.3; CAM.dist = top ? 3.2 : 2.7; };
 
     /* ================= Âm thanh ================= */
     let AC = null, muted = false;
@@ -1301,13 +1412,17 @@
       const frozen = (me.r === 's' && R.ph === 'hide') || paintMode || R.ph === 'end';
       let fwd = 0, side = 0;
       if (keys.w || keys.arrowup) fwd += 1; if (keys.s || keys.arrowdown) fwd -= 1;
-      if (keys.a || keys.arrowleft) side -= 1; if (keys.d || keys.arrowright) side += 1;
+      if (keys.a) side -= 1; if (keys.d) side += 1;
+      const spin = CAM.spin + (keys.arrowleft ? 1 : 0) - (keys.arrowright ? 1 : 0);
+      if (spin) CAM.yaw += spin * dt * 2.4;
       if (joy) { const dx = joy.x - joy.sx, dy = joy.y - joy.sy, d = Math.hypot(dx, dy); if (d > 8) { side = dx / Math.max(d, 50); fwd = -dy / Math.max(d, 50); } }
       const sy = Math.sin(CAM.yaw), cy = Math.cos(CAM.yaw);
       vx = -sy * fwd + cy * side; vz = -cy * fwd - sy * side;
       const m = Math.hypot(vx, vz);
       me.mv = false;
-      if (m > 0.05 && !frozen) {
+      const rollIn = (keys.z ? 1 : 0) - (keys.x ? 1 : 0) + CAM.roll;
+      if (me.stick) { if (!frozen) stickMove(me, fwd, side, rollIn, dt); else applyStick(me); }
+      else if (m > 0.05 && !frozen) {
         if (m > 1) { vx /= m; vz /= m; }
         let sp = SPEED[me.r] || 3.6; if (me.r === 'h' && me.o > 0) sp *= 0.45;
         const nx = me.x + vx * sp * dt, nz = me.z + vz * sp * dt;
@@ -1317,7 +1432,7 @@
         me.mv = moved; if (moved) { me.h = Math.atan2(vx, vz); me.walk += dt * 9; }
       }
       if (me.r === 's' && R.ph === 'hide' && !walkable(me.x, me.z, 's')) { me.x = MAP.cage.x; me.z = MAP.cage.z; }
-      me.rx = me.x; me.rz = me.z; me.rh = me.h;
+      if (!me.stick) { me.rx = me.x; me.rz = me.z; me.rh = me.h; me.y = me.ry = 0; }
       if (cd > 0) cd -= dt; if (tauntCd > 0) tauntCd -= dt;
       camoT -= dt; if (camoT <= 0) { camoT = 0.3; camo = me.r === 'h' ? camoScore(me) : 0; }
       if (me.r === 'h' && R.ph === 'hide' && paintDirty && !paintMode) { paintSendT -= dt; if (paintSendT <= 0) { paintSendT = 3; sendPaint(); } }
@@ -1327,17 +1442,18 @@
         if (now - p.seen > 8000) { dropBody(p); peers.delete(u); continue; }
         if (Math.hypot(p.x - p.rx, p.z - p.rz) > 4) { p.rx = p.x; p.rz = p.z; }
         const pd = Math.hypot(p.x - p.rx, p.z - p.rz);
-        p.rx += (p.x - p.rx) * k; p.rz += (p.z - p.rz) * k;
+        p.rx += (p.x - p.rx) * k; p.rz += (p.z - p.rz) * k; p.ry += (p.y - p.ry) * k;
+        if (p.qa && p.rq) p.rq.slerp(new THREE.Quaternion(...p.qa), k);
         let dh = p.h - p.rh; while (dh > Math.PI) dh -= Math.PI * 2; while (dh < -Math.PI) dh += Math.PI * 2; p.rh += dh * k;
         if (p.mv || pd > 0.02) p.walk += dt * 9;
       }
-      if (isHost()) { hostTick(); bots.forEach((b) => { botTick(b, dt); b.rx = b.x; b.rz = b.z; b.rh = b.h; }); }
+      if (isHost()) { hostTick(); bots.forEach((b) => { botTick(b, dt); if (!b.stick) { b.rx = b.x; b.rz = b.z; b.rh = b.h; } }); }
       sendT -= dt;
-      const st = { k: 'st', u: ME, n: MYNAME, x: +me.x.toFixed(2), z: +me.z.toFixed(2), h: +me.h.toFixed(2), r: me.r, o: me.o, mv: me.mv ? 1 : 0, pf: me.pf, vt: me.vt };
+      const st = { k: 'st', u: ME, n: MYNAME, x: +me.x.toFixed(2), y: +me.y.toFixed(2), z: +me.z.toFixed(2), h: +me.h.toFixed(2), q: me.qa ? me.qa.map((v) => +v.toFixed(3)) : 0, r: me.r, o: me.o, mv: me.mv ? 1 : 0, pf: me.pf, vt: me.vt };
       const sig = JSON.stringify(st);
       if ((sendT <= 0 && sig !== lastSent) || sendT < -1) { net(st); lastSent = sig; sendT = 0.15; }
       botSendT -= dt;
-      if (botSendT <= 0 && bots.length) { botSendT = 0.25; bots.forEach((b) => net({ k: 'st', u: b.u, n: b.n, x: +b.x.toFixed(2), z: +b.z.toFixed(2), h: +b.h.toFixed(2), r: b.r, o: b.o, mv: b.mv ? 1 : 0, bot: 1 })); }
+      if (botSendT <= 0 && bots.length) { botSendT = 0.25; bots.forEach((b) => net({ k: 'st', u: b.u, n: b.n, x: +b.x.toFixed(2), y: +(b.y || 0).toFixed(2), z: +b.z.toFixed(2), h: +b.h.toFixed(2), q: b.qa ? b.qa.map((v) => +v.toFixed(3)) : 0, r: b.r, o: b.o, mv: b.mv ? 1 : 0, bot: 1 })); }
       fx.forEach((f) => { f.t += dt; });
     }
 
@@ -1350,14 +1466,18 @@
         if (!visible) { if (e.m) e.m.root.visible = false; return; }
         ensureBody(e);
         const mm = e.m; mm.root.visible = true;
-        mm.root.position.set(e.rx, 0, e.rz); mm.root.rotation.y = e.rh;
+        if (e.rq) { mm.root.position.set(e.rx, e.ry || 0, e.rz); mm.root.quaternion.copy(e.rq); }
+        else { mm.root.position.set(e.rx, 0, e.rz); mm.root.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), e.rh); }
+        mm.root.userData.shadow.visible = !e.rq;
+        if (e.rq) { _v.set(0, 0.92 * BODY, 0).applyQuaternion(e.rq); e.cx = e.rx + _v.x; e.cy = (e.ry || 0) + _v.y; e.cz = e.rz + _v.z; }
         setPose(mm, e.r === 'h' ? e.o : 0, e.walk, e.mv);
         const op = ghost ? 0.3 : 1;
         if (mm._op !== op) { mm._op = op; e.parts.forEach((p) => { p.mat.opacity = op; p.mat.depthWrite = op === 1; }); }
       });
     }
     function placeCamera() {
-      const tx = me.rx, tz = me.rz, ty = paintMode ? (me.o === 2 ? 0.4 : me.o === 1 ? 0.5 : 0.95) : 1.45;
+      let tx = me.rx, tz = me.rz, ty = paintMode ? (me.o === 2 ? 0.28 : me.o === 1 ? 0.36 : 0.66) : 1.05;
+      if (me.stick) { tx = me.cx; ty = me.cy; tz = me.cz; }
       const cp = Math.cos(CAM.pitch), want = new THREE.Vector3(tx + Math.sin(CAM.yaw) * cp * CAM.dist, ty + Math.sin(CAM.pitch) * CAM.dist, tz + Math.cos(CAM.yaw) * cp * CAM.dist);
       const tgt = new THREE.Vector3(tx, ty, tz), dir = want.clone().sub(tgt), L = dir.length(); dir.normalize();
       if (me.r !== 'g' && me.r !== 'w') {
@@ -1400,7 +1520,7 @@
         const ghost = e.r === 'g' || e.r === 'w';
         let show = e.m && e.m.root.visible && !(e.r === 'h' && e !== me && view === 's') && !(ghost && !['g', 'w', 'l'].includes(view)) && !(e === me && paintMode);
         if (!show) return;
-        _v.set(e.rx, e.r === 'h' && e.o === 2 ? 0.6 : e.r === 'h' && e.o === 1 ? 1.0 : 2.05, e.rz).project(camera);
+        if (e.rq) _v.set(e.cx, e.cy + 0.55, e.cz).project(camera); else _v.set(e.rx, (e.r === 'h' && e.o === 2 ? 0.6 : e.r === 'h' && e.o === 1 ? 1.0 : 2.05) * BODY, e.rz).project(camera);
         if (_v.z > 1 || Math.abs(_v.x) > 1.1 || Math.abs(_v.y) > 1.1) return;
         const dist = Math.hypot(e.rx - camera.position.x, e.rz - camera.position.z); if (dist > 18) return;
         let el = tagEls.get(e.u); if (!el) { el = document.createElement('span'); tagBox.appendChild(el); tagEls.set(e.u, el); }
@@ -1448,6 +1568,8 @@
       const hid = me.r === 'h' && (R.ph === 'hide' || R.ph === 'seek');
       $('hideBtns').style.display = hid && !paintMode ? 'flex' : 'none';
       $('camoBox').style.display = hid ? '' : 'none';
+      $('rollBtns').style.display = hid && me.stick && !paintMode ? 'flex' : 'none';
+      $('bStick').firstChild.textContent = me.stick ? '🪂' : '🦎'; $('bStick').lastChild.textContent = me.stick ? 'Thả xuống' : 'Bám tường';
       $('bTaunt').disabled = R.ph !== 'seek' || tauntCd > 0;
       $('ammoBox').style.display = me.r === 's' && R.ph !== 'lobby' ? '' : 'none';
       $('ammoTxt').textContent = `${ammo}/${AMMO}`;
@@ -1459,11 +1581,12 @@
       const touch = matchMedia('(pointer: coarse)').matches;
       let hint = '';
       if (paintMode) hint = '';
-      else if (me.r === 'h' && R.ph === 'hide') hint = 'Áp lưng vào tường / đồ vật → 🎨 Tô màu (🧪 hút màu từ tường rồi tô) → tạo dáng. Kéo chuột để xoay nhìn';
+      else if (me.r === 'h' && me.stick) hint = me.stick.type === 'c' ? (touch ? 'Đang bám trần! Cần điều khiển để bò trên trần · ⤺ ⤻ xoay người · 🪂 để thả' : 'Đang bám trần! WASD bò trên trần · Z/X xoay người · G để thả') : (touch ? 'Đang bám tường! Cần điều khiển: lên / xuống / sang ngang · ⤺ ⤻ xoay người · 🪂 để thả' : 'Đang bám tường! W/S lên xuống · A/D sang ngang · Z/X xoay người · G để thả');
+      else if (me.r === 'h' && R.ph === 'hide') hint = 'Áp lưng vào tường hoặc bấm 🦎 Bám để dán lên tường / trần → 🎨 Tô màu (🧪 hút màu từ tường rồi tô) → tạo dáng. Nút ↺ ↻ bên trái để xoay nhìn';
       else if (me.r === 'h' && R.ph === 'seek') hint = 'Đứng im! 📢 Huýt sáo trêu để được thêm xu (nhưng dễ lộ)';
-      else if (me.r === 's' && R.ph === 'seek') hint = touch ? 'Kéo bên trái để đi · kéo bên phải để xoay · chạm chỗ khả nghi để bắn 🔫' : 'WASD để đi · kéo chuột để xoay · bấm để bắn 🔫 — soi viền người, mặt cười, màu lệch';
+      else if (me.r === 's' && R.ph === 'seek') hint = touch ? 'Kéo bên trái để đi · kéo bên phải để xoay · chạm chỗ khả nghi để bắn 🔫' : 'WASD để đi · ← → hoặc kéo chuột để xoay · bấm để bắn 🔫 — soi viền người, mặt cười, màu lệch';
       else if (me.r === 'g' || me.r === 'w') hint = 'Bạn đang bay xem — xuyên tường đi khắp nơi 👻';
-      else if (R.ph === 'lobby') hint = touch ? 'Kéo bên trái để đi, kéo bên phải để xoay — đi dạo thử bản đồ' : 'WASD để đi, kéo chuột để xoay, cuộn để zoom — đi dạo thử bản đồ';
+      else if (R.ph === 'lobby') hint = touch ? 'Kéo bên trái để đi, kéo bên phải để xoay — đi dạo thử bản đồ' : 'WASD để đi · ← → hoặc kéo chuột để xoay · cuộn chuột để lại gần / ra xa';
       $('hint').textContent = hint; $('hint').style.display = hint ? '' : 'none';
       if ($('ovLobby').classList.contains('show')) { renderLobby(); const n = $('lobNote'); if (n && R.auto) n.innerHTML = `⏱ Tự bắt đầu sau <b>${Math.ceil((R.auto - Date.now()) / 1000)}</b> giây`; }
     }
@@ -1531,7 +1654,7 @@
         <div class="sub">Trốn tìm ngụy trang nhiều người — cầm cọ tự tô người cho giống bức tường sau lưng, tạo dáng, đứng im. Người tìm cầm súng săn 🔫</div>
         <div class="rules">
           <div><b>🖌️ Tự tô từng chỗ</b>Kéo cọ lên người hình nhân, 🪣 đổ màu cả bộ phận, 🧪 hút đúng màu tường / đồ vật.</div>
-          <div><b>🙆 Tạo dáng</b>Đứng, thu lu, nằm, dang tay, ngồi. Áp lưng vào tường hoặc đồ vật là khó thấy nhất.</div>
+          <div><b>🦎 Bám tường, bám trần</b>Dán người lên tường hoặc trần, trèo lên xuống, xoay ngang dọc tuỳ ý · 5 dáng: đứng, thu lu, nằm, dang tay, ngồi.</div>
           <div><b>🎁 Thưởng xu</b>Trốn sống sót +50 · bị bắt +10 · bắt 1 người +15 · huýt sáo +5.</div>
         </div>
         <div class="lbl">Phòng chơi · rủ bạn bè</div>
@@ -1594,7 +1717,7 @@
     let lastHidden = performance.now();
     setInterval(() => { if (!document.hidden) { lastHidden = performance.now(); return; } const n = performance.now(); update(Math.min(0.25, (n - lastHidden) / 1000)); lastHidden = n; }, 100);
     addEventListener('pagehide', () => net({ k: 'bye' }));
-    if (Q.has('debug')) window.__TKH = { me, peers, bots, R: () => R, hostSet, setMap, camoScore, MAPS, SEEK_MS, startRound, joinRoom, enterPaint, exitPaint, shootAt, camera, CAM, bgAt, paintAt, dropAt, setColor };
+    if (Q.has('debug')) window.__TKH = { me, peers, bots, R: () => R, hostSet, setMap, camoScore, MAPS, SEEK_MS, startRound, joinRoom, toggleStick, stickOn, unstick, enterPaint, exitPaint, shootAt, camera, CAM, bgAt, paintAt, dropAt, setColor };
 
     setMap('mansion'); placeInLobby(me);
     $('loading').remove();
