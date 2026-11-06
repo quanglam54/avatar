@@ -158,7 +158,7 @@
 
   <div class="dock">
     <div class="camo glass" id="camoBox" style="display:none">🦎 Độ ngụy trang: <span id="camoTxt">0%</span><div class="bar"><i id="camoBar" style="width:0"></i></div></div>
-    <div class="ammo glass" id="ammoBox" style="display:none">💧 <span id="ammoTxt">30</span></div>
+    <div class="ammo glass" id="ammoBox" style="display:none">🔫 <span id="ammoTxt">30</span></div>
     <div class="row" id="hideBtns" style="display:none">
       <button class="big glass" id="bTaunt" title="Huýt sáo trêu (T) · +5 xu">📢<span>Huýt sáo</span></button>
       <button class="big glass" id="bPose" title="Tạo dáng (Q)">🧍<span>Tạo dáng</span></button>
@@ -208,6 +208,8 @@
     const ME = Q.get('pid') || 'solo' + Math.random().toString(36).slice(2, 8);
     const MYNAME = (Q.get('name') || 'Bạn').slice(0, 16);
     const SID = Q.get('sid') || '';
+    const cleanRoom = (r) => String(r || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    let ROOM = cleanRoom(Q.get('room'));
     const EMBED = parent !== window;
     const $ = (id) => document.getElementById(id);
     const rand = (n) => Math.floor(Math.random() * n);
@@ -226,7 +228,7 @@
     const PS = 128; // độ phân giải vải tô mỗi bộ phận
     const PART_NAMES = ['Đầu', 'Thân', 'Tay trái', 'Tay phải', 'Chân trái', 'Chân phải'];
     const PART_W = [0.15, 0.35, 0.1, 0.1, 0.15, 0.15];
-    const SEEKCOL = ['#fde3c4', '#f97316', '#fde3c4', '#fde3c4', '#1e3a8a', '#1e3a8a'];
+    const SEEKCOL = ['#f1f0ec', '#ecebe6', '#f1f0ec', '#f1f0ec', '#e6e5df', '#e6e5df'];
 
     /* ================= Hoạ tiết vẽ bằng code ================= */
     function wrapDraw(W, H, fn, x, y, m = 40) {
@@ -725,7 +727,7 @@
       return PART_NAMES.map((n, i) => {
         const c = document.createElement('canvas'); c.width = c.height = PS;
         const g = c.getContext('2d'); const tex = new THREE.CanvasTexture(c);
-        const mat = new THREE.MeshLambertMaterial({ map: tex, transparent: true });
+        const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.62, metalness: 0 });
         const p = { i, c, g, tex, mat, avg: [244, 244, 241] };
         resetPart(p, seeker); return p;
       });
@@ -746,6 +748,17 @@
     const tiny = document.createElement('canvas'); tiny.width = tiny.height = 8; const tg = tiny.getContext('2d');
     function partAvg(p) { tg.clearRect(0, 0, 8, 8); tg.drawImage(p.c, 0, 0, 8, 8); const d = tg.getImageData(0, 0, 8, 8).data; let r = 0, g = 0, b = 0; for (let j = 0; j < d.length; j += 4) { r += d[j]; g += d[j + 1]; b += d[j + 2]; } p.avg = [r / 64, g / 64, b / 64]; }
 
+    /** khối viên thuốc (đầu tròn) dựng bằng lathe để tô màu được (có uv quanh ống) */
+    function capsuleGeo(rb, rt, len, seg = 20) {
+      const pts = [];
+      for (let i = 0; i <= 6; i++) { const a = -Math.PI / 2 + (i / 6) * (Math.PI / 2); pts.push(new THREE.Vector2(Math.cos(a) * rb, -len / 2 + Math.sin(a) * rb + rb * 0)); }
+      for (let i = 0; i <= 6; i++) { const a = (i / 6) * (Math.PI / 2); pts.push(new THREE.Vector2(Math.cos(a) * rt, len / 2 + Math.sin(a) * rt)); }
+      return new THREE.LatheGeometry(pts, seg);
+    }
+    function torsoGeo() {
+      const P = [[0.001, -0.06], [0.1, -0.05], [0.145, 0], [0.155, 0.08], [0.14, 0.2], [0.135, 0.28], [0.155, 0.38], [0.178, 0.47], [0.17, 0.54], [0.13, 0.6], [0.075, 0.635], [0.001, 0.645]];
+      return new THREE.LatheGeometry(P.map(([r, y]) => new THREE.Vector2(r, y)), 28);
+    }
     function makeMannequin(parts, seeker) {
       const root = G(), hips = G(); hips.position.y = 0.92; root.add(hips);
       const torso = G(); hips.add(torso);
@@ -756,33 +769,51 @@
         if (rg) { m.geometry = m.geometry.clone(); const uv = m.geometry.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, rg[0] + uv.getX(i) * rg[2], rg[1] + uv.getY(i) * rg[3]); uv.needsUpdate = true; }
         return m;
       };
-      add(torso, cyl(0.17, 0.13, 0.46, M(1), 0, 0.26, 0), 1, [0, 0.36, 1, 0.64]);
-      add(torso, sph(0.17, M(1), 0, 0.49, 0), 1, [0, 0, 0.5, 0.34]); add(torso, sph(0.13, M(1), 0, 0.03, 0), 1, [0.5, 0, 0.5, 0.34]);
-      add(torso, cyl(0.055, 0.06, 0.12, M(1), 0, 0.64, 0), 1, [0, 0, 0.5, 0.1]);
-      const head = add(torso, mesh(new THREE.SphereGeometry(0.14, 24, 18), M(0), 0, 0.8, 0), 0); head.rotation.y = 0;
+      // bóng đổ mềm dưới chân
+      const sh0 = mesh(new THREE.CircleGeometry(0.34, 24), MATS.shadow || (MATS.shadow = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false })), 0, 0.012, 0);
+      sh0.rotation.x = -Math.PI / 2; root.add(sh0);
+      add(torso, mesh(torsoGeo(), M(1), 0, 0.02, 0), 1, [0, 0.12, 1, 0.88]);
+      add(torso, mesh(capsuleGeo(0.062, 0.058, 0.08, 16), M(1), 0, 0.68, 0), 1, [0, 0, 1, 0.1]);
+      const headG = new THREE.SphereGeometry(0.152, 32, 24);
+      const head = add(torso, mesh(headG, M(0), 0, 0.85, 0), 0); head.scale.set(1, 1.06, 1);
       const sh = [], el = [], hp = [], kn = [];
       [1, -1].forEach((s, k) => {
-        const S = G(); S.position.set(0.21 * s, 0.47, 0); torso.add(S); sh.push(S);
-        add(S, sph(0.06, M(2 + k), 0, 0, 0), 2 + k, [0, 0, 0.5, 0.18]);
-        add(S, cyl(0.055, 0.046, 0.3, M(2 + k), 0, -0.15, 0), 2 + k, [0, 0.6, 1, 0.4]);
+        const S = G(); S.position.set(0.19 * s, 0.5, 0); torso.add(S); sh.push(S);
+        add(S, mesh(new THREE.SphereGeometry(0.068, 18, 14), M(2 + k), 0, 0, 0), 2 + k, [0, 0, 0.5, 0.18]);
+        add(S, mesh(capsuleGeo(0.056, 0.064, 0.2), M(2 + k), 0, -0.15, 0), 2 + k, [0, 0.58, 1, 0.42]);
         const E = G(); E.position.y = -0.3; S.add(E); el.push(E);
-        add(E, cyl(0.046, 0.04, 0.28, M(2 + k), 0, -0.14, 0), 2 + k, [0, 0.2, 1, 0.38]);
-        add(E, sph(0.055, M(2 + k), 0, -0.3, 0), 2 + k, [0.5, 0, 0.5, 0.18]);
-        const H = G(); H.position.set(0.09 * s, 0, 0); hips.add(H); hp.push(H);
-        add(H, cyl(0.08, 0.066, 0.44, M(4 + k), 0, -0.22, 0), 4 + k, [0, 0.56, 1, 0.44]);
+        add(E, mesh(capsuleGeo(0.046, 0.054, 0.19), M(2 + k), 0, -0.13, 0), 2 + k, [0, 0.2, 1, 0.36]);
+        const hand = add(E, mesh(new THREE.SphereGeometry(0.058, 16, 12), M(2 + k), 0, -0.29, 0.01), 2 + k, [0.5, 0, 0.5, 0.18]); hand.scale.set(0.9, 1.2, 0.8);
+        const H = G(); H.position.set(0.085 * s, 0, 0); hips.add(H); hp.push(H);
+        add(H, mesh(capsuleGeo(0.07, 0.085, 0.3), M(4 + k), 0, -0.21, 0), 4 + k, [0, 0.56, 1, 0.44]);
         const K = G(); K.position.y = -0.44; H.add(K); kn.push(K);
-        add(K, sph(0.066, M(4 + k), 0, 0, 0), 4 + k, [0, 0, 0.5, 0.13]);
-        add(K, cyl(0.064, 0.05, 0.42, M(4 + k), 0, -0.22, 0), 4 + k, [0, 0.14, 1, 0.41]);
-        add(K, box(0.1, 0.07, 0.24, M(4 + k), 0, -0.45, 0.05), 4 + k, [0.5, 0, 0.5, 0.13]);
+        add(K, mesh(capsuleGeo(0.055, 0.07, 0.3), M(4 + k), 0, -0.2, 0), 4 + k, [0, 0.14, 1, 0.41]);
+        const foot = add(K, mesh(new THREE.SphereGeometry(0.075, 16, 12), M(4 + k), 0, -0.42, 0.045), 4 + k, [0.5, 0, 0.5, 0.13]); foot.scale.set(0.95, 0.6, 1.55);
       });
-      const extra = G(); root.add(extra);
       if (seeker) {
-        const cap = G(); cap.add(mesh(new THREE.SphereGeometry(0.15, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), C('#1d4ed8'), 0, 0.82, 0), box(0.18, 0.02, 0.16, C('#1d4ed8'), 0, 0.83, 0.15)); torso.add(cap);
-        const gun = G(); gun.add(box(0.08, 0.1, 0.38, C('#0ea5e9'), 0, -0.02, 0.12), cyl(0.06, 0.06, 0.1, C('#fde047'), 0, 0.07, 0.05), cyl(0.02, 0.02, 0.12, C('#facc15'), 0, -0.02, 0.36)); gun.children[2].rotation.x = Math.PI / 2; el[1].add(gun); gun.position.y = -0.3;
-        torso.add(sph(0.13, C('#38bdf8'), 0, 0.3, -0.2));
+        // mũ lưỡi trai đỏ để nhận ra người tìm
+        const red = C('#dc2626');
+        const cap = mesh(new THREE.SphereGeometry(0.158, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), red, 0, 0.87, 0); torso.add(cap);
+        const brim = mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.015, 20, 1, false, -Math.PI / 2, Math.PI), red, 0, 0.88, 0.07); torso.add(brim);
+        // shotgun cầm hai tay
+        const gun = G(), steel = C('#2b2f36'), dark = C('#16181d'), wood = C('#7a4a26');
+        const barrel = mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.62, 14), steel, 0, 0.03, 0.42); barrel.rotation.x = Math.PI / 2;
+        const tube = mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.5, 12), dark, 0, -0.015, 0.38); tube.rotation.x = Math.PI / 2;
+        const pump = mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.16, 14), wood, 0, -0.012, 0.36); pump.rotation.x = Math.PI / 2;
+        const muzzle = mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.03, 14), dark, 0, 0.03, 0.73); muzzle.rotation.x = Math.PI / 2;
+        gun.add(barrel, tube, pump, muzzle,
+          box(0.06, 0.08, 0.26, steel, 0, 0.0, 0.04),            // thân súng
+          box(0.012, 0.035, 0.05, dark, 0, -0.06, 0.02),         // cò
+          box(0.04, 0.1, 0.05, wood, 0, -0.08, -0.06),           // tay cầm
+          box(0.055, 0.09, 0.26, wood, 0, -0.03, -0.2),          // báng gỗ
+          box(0.058, 0.11, 0.03, dark, 0, -0.035, -0.33),        // đệm báng
+          box(0.01, 0.018, 0.02, C('#e5e7eb'), 0, 0.06, 0.7));   // đầu ngắm
+        gun.position.set(-0.06, 0.34, 0.36); torso.add(gun);
+        m_gun = gun;
       }
       return { root, hips, torso, head, sh, el, hp, kn, meshes, seeker };
     }
+    let m_gun = null;
     function setPose(m, o, walk, moving) {
       const { hips, torso, sh, el, hp, kn } = m;
       hips.position.y = 0.92; hips.rotation.set(0, 0, 0); torso.rotation.set(0, 0, 0);
@@ -795,7 +826,7 @@
         sh[0].rotation.z = 0.1; sh[1].rotation.z = -0.1;
         if (moving) { const a = Math.sin(walk) * 0.55; hp[0].rotation.x = a; hp[1].rotation.x = -a; kn[0].rotation.x = Math.max(0, -a) * 0.8; kn[1].rotation.x = Math.max(0, a) * 0.8; sh[0].rotation.x = -a * 0.6; sh[1].rotation.x = a * 0.6; hips.position.y = 0.92 - Math.abs(Math.sin(walk)) * 0.03; }
       }
-      if (m.seeker) { sh[1].rotation.x = -1.35; el[1].rotation.x = -0.15; }
+      if (m.seeker) { sh[1].rotation.set(-1.0, 0, 0.12); el[1].rotation.set(-0.95, 0, 0); sh[0].rotation.set(-1.35, 0, -0.55); el[0].rotation.set(-0.35, 0, 0); }
     }
 
     /* ================= Cảnh 3D, máy quay ================= */
@@ -841,7 +872,7 @@
     /* ================= Mạng ================= */
     let bc = null;
     function net(d) {
-      d.u = d.u || ME;
+      d.u = d.u || ME; d.rm = ROOM;
       delete d.t; delete d.id; delete d.map; // 3 trường này game Avatar dùng riêng
       if (EMBED) { try { parent.postMessage({ type: 'hide-net', d }, '*'); } catch (e) { /* bỏ qua */ } }
       else if (bc) bc.postMessage(d);
@@ -859,6 +890,7 @@
 
     function recv(m) {
       if (!m || typeof m !== 'object' || !m.u || m.u === ME) return;
+      if ((m.rm || '') !== ROOM) return; // tin của phòng khác
       if (m.k === 'st') {
         let p = peers.get(m.u);
         if (!p) { p = mkEnt(m.u, ''); p.rx = num(m.x); p.rz = num(m.z); peers.set(m.u, p); if (!m.bot && R.ph === 'lobby') toast(`👋 ${String(m.n || '').slice(0, 16)} vào phòng`); if (R.ph !== 'lobby' && me.r === 'h') paintSendT = Math.min(paintSendT, 0.5 + Math.random()); }
@@ -925,7 +957,7 @@
     }
     function onSeek() {
       sfx.whistle();
-      if (me.r === 's') toast('🔫 Đi tìm thôi! Chạm / bấm vào chỗ khả nghi để bắn nước', 3500);
+      if (me.r === 's') toast('🔫 Đi tìm thôi! Chạm / bấm vào chỗ khả nghi để bắn', 3500);
       if (me.r === 'h') { exitPaint(true); sendPaint(); toast('😱 Người tìm xuất phát! Đứng im — cử động là lộ đó…', 3000); }
     }
     function onEnd() {
@@ -990,10 +1022,10 @@
 
     /* ================= Bắn nước ================= */
     const V3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
-    function gunPos(e) { return [e.rx + Math.sin(e.rh) * 0.4 - Math.cos(e.rh) * 0.2, 1.25, e.rz + Math.cos(e.rh) * 0.4 + Math.sin(e.rh) * 0.2]; }
+    function gunPos(e) { return [e.rx + Math.sin(e.rh) * 1.1 - Math.cos(e.rh) * 0.06, 1.3, e.rz + Math.cos(e.rh) * 1.1 + Math.sin(e.rh) * 0.06]; }
     function shootAt(cx, cy) {
       if (me.r !== 's' || R.ph !== 'seek' || cd > 0) return;
-      if (ammo <= 0) { toast('💧 Hết nước rồi!'); return; }
+      if (ammo <= 0) { toast('🔫 Hết đạn rồi!'); return; }
       ray.setFromCamera({ x: (cx / innerWidth) * 2 - 1, y: -(cy / innerHeight) * 2 + 1 }, camera);
       const targets = [mapGroup, ...everyone().filter((e) => e !== me && e.m && e.m.root.visible).map((e) => e.m.root)];
       const hits = ray.intersectObjects(targets, true).filter((h) => !h.object.userData.cage);
@@ -1180,6 +1212,7 @@
     /* ================= Điều khiển ================= */
     const keys = {};
     addEventListener('keydown', (e) => {
+      if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
       const k = e.key.toLowerCase(); keys[k] = true;
       if (me.r === 'h' && (R.ph === 'hide' || R.ph === 'seek')) {
         if (k === 'f' || k === 'e') { paintMode ? exitPaint(true) : enterPaint(); }
@@ -1346,9 +1379,13 @@
       fx = fx.filter((f) => f.t < ({ boom: 1.3, note: 1.6 }[f.k] || 0.7));
       fx.forEach((f) => {
         if (f.k === 'shot') {
-          const p = Math.min(1, f.t / 0.16), a = f.a.clone().lerp(f.b, Math.max(0, p - 0.4)), b = f.a.clone().lerp(f.b, p);
-          if (p < 1) { const g = new THREE.BufferGeometry().setFromPoints([a, b]); fxGroup.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x4dabf7 }))); }
-          else { const k = (f.t - 0.16) / 0.54; const s = mesh(new THREE.SphereGeometry(0.08 + k * 0.35, 10, 8), new THREE.MeshBasicMaterial({ color: 0x74c0fc, transparent: true, opacity: 0.6 * (1 - k) }), f.b.x, f.b.y, f.b.z); fxGroup.add(s); }
+          const k = f.t / 0.7, len = f.a.distanceTo(f.b), mid = f.a.clone().add(f.b).multiplyScalar(0.5);
+          const beam = mesh(new THREE.CylinderGeometry(0.018 * (1 - k) + 0.004, 0.03 * (1 - k) + 0.004, len, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff3a0, transparent: true, opacity: Math.max(0, 1 - k * 1.4), depthWrite: false }), mid.x, mid.y, mid.z);
+          beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), f.b.clone().sub(f.a).normalize()); fxGroup.add(beam);
+          const glow = mesh(new THREE.CylinderGeometry(0.06 * (1 - k), 0.09 * (1 - k), len, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xffc94d, transparent: true, opacity: Math.max(0, 0.35 - k * 0.5), depthWrite: false }), mid.x, mid.y, mid.z);
+          glow.quaternion.copy(beam.quaternion); fxGroup.add(glow);
+          if (f.t < 0.12) fxGroup.add(mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }), f.a.x, f.a.y, f.a.z));
+          fxGroup.add(mesh(new THREE.SphereGeometry(0.05 + k * 0.25, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.8 * (1 - k), depthWrite: false }), f.b.x, f.b.y, f.b.z));
         } else if (f.k === 'boom') {
           const k = f.t / 1.3; for (let i = 0; i < 10; i++) { const a = i * 0.628; fxGroup.add(mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0x74c0fc, transparent: true, opacity: 1 - k }), f.p.x + Math.cos(a) * k * 1.2, f.p.y + k * 0.6, f.p.z + Math.sin(a) * k * 1.2)); }
         } else if (f.k === 'note') {
@@ -1397,7 +1434,7 @@
     /* ================= Giao diện ================= */
     function toast(t, ms = 2600) { const el = document.createElement('div'); el.className = 'toast glass'; el.textContent = t; $('toasts').appendChild(el); setTimeout(() => el.remove(), ms); while ($('toasts').children.length > 4) $('toasts').firstChild.remove(); }
     const PH = { lobby: 'PHÒNG CHỜ', hide: '🫥 ĐI TRỐN', seek: '🔍 ĐANG TÌM', end: '🏁 HẾT VÁN' };
-    const RL = { h: ['🫥', 'Người trốn', 'Tô màu · tạo dáng · đứng im'], s: ['🔫', 'Người tìm', 'Bắn nước vào chỗ khả nghi'], g: ['👻', 'Đã bị bắt', 'Bay xem mọi người trốn'], w: ['👀', 'Đang xem', 'Ván sau sẽ được vào'], l: ['🧍', 'Đang chờ', 'Chọn bản đồ trong phòng chờ'] };
+    const RL = { h: ['🫥', 'Người trốn', 'Tô màu · tạo dáng · đứng im'], s: ['🔫', 'Người tìm', 'Bắn vào chỗ khả nghi'], g: ['👻', 'Đã bị bắt', 'Bay xem mọi người trốn'], w: ['👀', 'Đang xem', 'Ván sau sẽ được vào'], l: ['🧍', 'Đang chờ', 'Chọn bản đồ trong phòng chờ'] };
     function ui() {
       if (!MAP) return;
       const left = Math.max(0, R.end - Date.now());
@@ -1407,7 +1444,7 @@
       const alive = Object.values(R.roles).filter((r) => r === 'h').length, sk = Object.values(R.roles).filter((r) => r === 's').length;
       $('cCnt').textContent = R.ph === 'lobby' ? `👥 ${humans().length}` : `🫥 ${alive} · 🔫 ${sk}`;
       const rl = RL[me.r] || RL.l;
-      $('rIc').textContent = rl[0]; $('rName').textContent = rl[1]; $('rSub').textContent = R.ph === 'lobby' ? rl[2] : `${MAP.icon} ${MAP.name} · ${rl[2]}`;
+      $('rIc').textContent = rl[0]; $('rName').textContent = rl[1] + (ROOM ? ` · 🔒 ${ROOM}` : ''); $('rSub').textContent = R.ph === 'lobby' ? rl[2] : `${MAP.icon} ${MAP.name} · ${rl[2]}`;
       const hid = me.r === 'h' && (R.ph === 'hide' || R.ph === 'seek');
       $('hideBtns').style.display = hid && !paintMode ? 'flex' : 'none';
       $('camoBox').style.display = hid ? '' : 'none';
@@ -1424,11 +1461,11 @@
       if (paintMode) hint = '';
       else if (me.r === 'h' && R.ph === 'hide') hint = 'Áp lưng vào tường / đồ vật → 🎨 Tô màu (🧪 hút màu từ tường rồi tô) → tạo dáng. Kéo chuột để xoay nhìn';
       else if (me.r === 'h' && R.ph === 'seek') hint = 'Đứng im! 📢 Huýt sáo trêu để được thêm xu (nhưng dễ lộ)';
-      else if (me.r === 's' && R.ph === 'seek') hint = touch ? 'Kéo bên trái để đi · kéo bên phải để xoay · chạm chỗ khả nghi để bắn 💧' : 'WASD để đi · kéo chuột để xoay · bấm để bắn 💧 — soi viền người, mặt cười, màu lệch';
+      else if (me.r === 's' && R.ph === 'seek') hint = touch ? 'Kéo bên trái để đi · kéo bên phải để xoay · chạm chỗ khả nghi để bắn 🔫' : 'WASD để đi · kéo chuột để xoay · bấm để bắn 🔫 — soi viền người, mặt cười, màu lệch';
       else if (me.r === 'g' || me.r === 'w') hint = 'Bạn đang bay xem — xuyên tường đi khắp nơi 👻';
       else if (R.ph === 'lobby') hint = touch ? 'Kéo bên trái để đi, kéo bên phải để xoay — đi dạo thử bản đồ' : 'WASD để đi, kéo chuột để xoay, cuộn để zoom — đi dạo thử bản đồ';
       $('hint').textContent = hint; $('hint').style.display = hint ? '' : 'none';
-      if ($('ovLobby').classList.contains('show')) renderLobby();
+      if ($('ovLobby').classList.contains('show')) { renderLobby(); const n = $('lobNote'); if (n && R.auto) n.innerHTML = `⏱ Tự bắt đầu sau <b>${Math.ceil((R.auto - Date.now()) / 1000)}</b> giây`; }
     }
 
     /* ----- ảnh nhỏ bản đồ cho phòng chờ ----- */
@@ -1452,22 +1489,62 @@
       };
       setTimeout(next, 60);
     }
+    function joinRoom(code) {
+      code = cleanRoom(code);
+      if (code === ROOM) return;
+      net({ k: 'bye' });
+      ROOM = code;
+      try { if (EMBED) parent.postMessage({ type: 'hide-room', room: ROOM }, '*'); } catch (e) { /* bỏ qua */ }
+      peers.forEach(dropBody); peers.clear(); bots.forEach(dropBody); bots.length = 0;
+      R = { ph: 'lobby', end: 0, dur: 1, no: 0, roles: {}, names: {}, win: null, bots: true, auto: 0, caught: {}, catches: {}, map: R.map, mode: 'classic' };
+      rewarded = -1; myRoundRole = null; me.r = 'l'; me.o = 0; me.parts = null; dropBody(me); exitPaint(false);
+      placeInLobby(me); lastSent = ''; sendT = 0;
+      toast(ROOM ? `🔒 Đã vào phòng riêng ${ROOM} — gửi mã này cho bạn bè hoặc bấm ✉️ Mời` : '🌐 Đã về phòng chung', 3500);
+      lobbySig = ''; showLobby();
+    }
+    let invOpen = false, invData = null, invSent = new Set(), roomTyped = '';
+    addEventListener('message', (e) => { const m = e.data || {}; if (m.type === 'hide-friends-list') { invData = m; lobbySig = ''; renderLobby(); } });
+    function sendInvite(to, toPid) {
+      try { parent.postMessage({ type: 'hide-invite', to, toPid, room: ROOM }, '*'); } catch (e) { return; }
+      invSent.add(to || toPid); toast('✉️ Đã gửi lời mời', 1500); lobbySig = ''; renderLobby();
+    }
+    function inviteHtml() {
+      if (!invOpen) return '';
+      if (!EMBED) return '<div class="tip">✉️ Mời bạn bè chỉ dùng được khi chơi trong game Avatar. Ở đây hãy gửi mã phòng cho bạn.</div>';
+      if (!invData) return '<div class="tip">Đang tải danh sách bạn bè…</div>';
+      const btn = (key, label, attr, on) => `<button class="${invSent.has(key) ? '' : 'on'}" ${attr} ${invSent.has(key) ? 'disabled' : ''}>${invSent.has(key) ? '✅ ' : '✉️ '}${esc(label)}${on === false ? ' <small>(offline)</small>' : on ? ' <small>🟢 online</small>' : ''}</button>`;
+      const fr = invData.friends || [], near = invData.near || [];
+      if (!fr.length && !near.length) return `<div class="tip">${invData.me ? 'Bạn chưa có bạn bè nào — kết bạn ở nút 👥 Bạn bè trong game nhé.' : 'Đăng nhập tài khoản để mời bạn bè.'} Hoặc gửi mã phòng cho bạn tự nhập.</div>`;
+      return `<div class="seg" style="margin-top:8px">${fr.map((f) => btn(f.u, f.n, `data-inv-u="${esc(f.u)}"`, f.on)).join('')}${near.map((r) => btn(r.p, '🧑 ' + r.n, `data-inv-p="${esc(r.p)}"`, true)).join('')}</div>
+        <div class="tip">Bạn bè đang online ở khu nào cũng nhận được lời mời — bấm nhận là tự bay tới và vào đúng phòng này. Người offline sẽ không nhận được.</div>`;
+    }
     function showLobby() { if (R.ph !== 'lobby') return; $('ovLobby').classList.add('show'); lobbySig = ''; renderLobby(); ui(); }
     let lobbySig = '';
     function renderLobby() {
       const host = isHost(), hs = humans();
       const votes = {}; hs.forEach((p) => { if (p.vt) votes[p.vt] = (votes[p.vt] || 0) + 1; });
-      const sig = JSON.stringify([host, hs.map((p) => p.n + p.u), me.pf, me.vt, votes, R.bots, R.mode, R.auto ? Math.ceil((R.auto - Date.now()) / 1000) : 0, Object.keys(THUMBS).length]);
+      const sig = JSON.stringify([host, hs.map((p) => p.n + p.u), me.pf, me.vt, votes, R.bots, R.mode, !!R.auto, Object.keys(THUMBS).length, ROOM, invOpen, invData && [invData.friends, invData.near], [...invSent]]);
       if (sig === lobbySig) return; lobbySig = sig;
       const total = hs.length + (R.bots ? Math.max(0, 5 - hs.length) : 0);
       $('lobbyCard').innerHTML = `
         <h2>🦎 Tắc Kè Hoa 3D</h2>
-        <div class="sub">Trốn tìm ngụy trang nhiều người — cầm cọ tự tô người cho giống bức tường sau lưng, tạo dáng, đứng im. Người tìm có súng nước 💧</div>
+        <div class="sub">Trốn tìm ngụy trang nhiều người — cầm cọ tự tô người cho giống bức tường sau lưng, tạo dáng, đứng im. Người tìm cầm súng săn 🔫</div>
         <div class="rules">
           <div><b>🖌️ Tự tô từng chỗ</b>Kéo cọ lên người hình nhân, 🪣 đổ màu cả bộ phận, 🧪 hút đúng màu tường / đồ vật.</div>
           <div><b>🙆 Tạo dáng</b>Đứng, thu lu, nằm, dang tay, ngồi. Áp lưng vào tường hoặc đồ vật là khó thấy nhất.</div>
           <div><b>🎁 Thưởng xu</b>Trốn sống sót +50 · bị bắt +10 · bắt 1 người +15 · huýt sáo +5.</div>
         </div>
+        <div class="lbl">Phòng chơi · rủ bạn bè</div>
+        <div class="seg" style="align-items:center">
+          <span class="plist"><span class="${ROOM ? 'me' : ''}">${ROOM ? `🔒 Phòng riêng · mã <b>${ROOM}</b>` : '🌐 Phòng chung — ai vào cũng gặp'}</span></span>
+          ${ROOM ? '<button id="pubRoom">🌐 Về phòng chung</button>' : '<button id="mkRoom">🔒 Tạo phòng riêng</button>'}
+          <button id="invBtn" class="on">✉️ Mời bạn bè</button>
+        </div>
+        <div class="seg" style="margin-top:8px;align-items:center">
+          <input id="roomIn" maxlength="6" placeholder="Nhập mã phòng" value="${esc(roomTyped)}" style="flex:0 1 150px;padding:9px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:#fff;font:inherit;font-weight:800;text-transform:uppercase;letter-spacing:.1em">
+          <button id="roomGo">🔑 Vào phòng</button>
+        </div>
+        ${inviteHtml()}
         <div class="lbl">Bình chọn bản đồ ${me.vt ? '' : '· chạm để chọn & đi dạo thử'}</div>
         <div class="maps">${MAP_IDS.map((id) => `<button class="mapc ${me.vt === id ? 'on' : ''}" data-map="${id}"><div class="th" style="${THUMBS[id] ? `background-image:url(${THUMBS[id]})` : ''}">${THUMBS[id] ? '' : MAPS[id].icon}</div><div class="t"><b>${MAPS[id].icon} ${MAPS[id].name}</b><small>${MAPS[id].desc}</small></div>${votes[id] ? `<span class="votes">🗳 ${votes[id]}</span>` : ''}</button>`).join('')}</div>
         <div class="lbl">Bạn muốn làm</div>
@@ -1478,7 +1555,7 @@
         <div class="lbl">Trong phòng (${hs.length})</div>
         <div class="plist">${hs.map((p) => `<span class="${p === me ? 'me' : ''}">${p.u === hostId() ? '👑 ' : ''}${esc(p.n)}${p === me ? ' (bạn)' : ''}${p.vt ? ' · ' + MAPS[p.vt].icon : ''}</span>`).join('')}${R.bots && hs.length < 5 ? `<span>🤖 +${5 - hs.length} bot</span>` : ''}</div>
         <div class="foot">
-          <span class="note">${R.auto ? `⏱ Tự bắt đầu sau <b>${Math.ceil((R.auto - Date.now()) / 1000)}</b> giây` : host ? (total >= 2 ? 'Sẵn sàng thì bấm Bắt đầu' : 'Cần thêm người hoặc bật bot') : 'Chờ chủ phòng 👑 bắt đầu…'}</span>
+          <span class="note" id="lobNote">${R.auto ? `⏱ Tự bắt đầu sau <b>${Math.ceil((R.auto - Date.now()) / 1000)}</b> giây` : host ? (total >= 2 ? 'Sẵn sàng thì bấm Bắt đầu' : 'Cần thêm người hoặc bật bot') : 'Chờ chủ phòng 👑 bắt đầu…'}</span>
           <button class="cbtn" id="walkBtn">🚶 Đi dạo</button>
           ${host ? `<button class="cbtn pri" id="startBtn" ${total >= 2 ? '' : 'disabled'}>▶ Bắt đầu</button>` : ''}
         </div>`;
@@ -1488,6 +1565,14 @@
       L.querySelectorAll('[data-mode]').forEach((b) => { b.onclick = () => { if (!isHost()) return; R.mode = b.dataset.mode; net(roundMsg()); lobbySig = ''; renderLobby(); }; });
       const bt = $('botTg'); if (bt) bt.onclick = () => { R.bots = !R.bots; net(roundMsg()); lobbySig = ''; renderLobby(); };
       const sb = $('startBtn'); if (sb) sb.onclick = () => startRound();
+      const mk = $('mkRoom'); if (mk) mk.onclick = () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 5; i++) c += A[rand(A.length)]; joinRoom(c); invOpen = true; if (EMBED) parent.postMessage({ type: 'hide-friends' }, '*'); };
+      const pr = $('pubRoom'); if (pr) pr.onclick = () => joinRoom('');
+      $('invBtn').onclick = () => { invOpen = !invOpen; if (invOpen && EMBED) { invData = null; parent.postMessage({ type: 'hide-friends' }, '*'); } lobbySig = ''; renderLobby(); };
+      const ri = $('roomIn'); ri.oninput = () => { roomTyped = cleanRoom(ri.value); };
+      ri.onkeydown = (e) => { if (e.key === 'Enter') $('roomGo').click(); };
+      $('roomGo').onclick = () => { if (cleanRoom(roomTyped).length < 3) { toast('Mã phòng gồm 3–6 chữ / số'); return; } joinRoom(roomTyped); roomTyped = ''; };
+      L.querySelectorAll('[data-inv-u]').forEach((b) => { b.onclick = () => sendInvite(b.dataset.invU, ''); });
+      L.querySelectorAll('[data-inv-p]').forEach((b) => { b.onclick = () => sendInvite('', b.dataset.invP); });
       $('walkBtn').onclick = () => { $('ovLobby').classList.remove('show'); ui(); };
     }
     function showEnd() {
@@ -1509,7 +1594,7 @@
     let lastHidden = performance.now();
     setInterval(() => { if (!document.hidden) { lastHidden = performance.now(); return; } const n = performance.now(); update(Math.min(0.25, (n - lastHidden) / 1000)); lastHidden = n; }, 100);
     addEventListener('pagehide', () => net({ k: 'bye' }));
-    if (Q.has('debug')) window.__TKH = { me, peers, bots, R: () => R, hostSet, setMap, camoScore, MAPS, SEEK_MS, startRound, enterPaint, exitPaint, shootAt, camera, CAM, bgAt, paintAt, dropAt, setColor };
+    if (Q.has('debug')) window.__TKH = { me, peers, bots, R: () => R, hostSet, setMap, camoScore, MAPS, SEEK_MS, startRound, joinRoom, enterPaint, exitPaint, shootAt, camera, CAM, bgAt, paintAt, dropAt, setColor };
 
     setMap('mansion'); placeInLobby(me);
     $('loading').remove();

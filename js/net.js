@@ -313,6 +313,7 @@ const NET = (() => {
       else if (m.t === 'call' && typeof CALL !== 'undefined') CALL.onSignal(m);
       else if (m.t === 'pb' && typeof BOOTH !== 'undefined') BOOTH.onNet(m);
       else if (m.t === 'cinv' && typeof CARDLOBBY !== 'undefined') CARDLOBBY.onInvite(m);
+      else if (m.t === 'hinv' && typeof HIDE !== 'undefined') HIDE.onInvite(m);
       else if (m.t === 'news' && m.text) { if (typeof TREASURE !== 'undefined') TREASURE.onNews(String(m.text).slice(0, 160)); }
       else if ((m.t === 'farmrev' || m.t === 'farmhit' || m.t === 'saverev' || m.t === 'dm') && m.u) AV.onFarmPing(m.t, String(m.u));
     });
@@ -337,6 +338,10 @@ const NET = (() => {
   /** 🃏 mời bạn bè (theo tên đăng nhập) vào bàn bài ở casino — đi qua kênh chung nên mời được người ở khu khác */
   function sendCardInv(p) {
     if (lobby) lobby.send({ t: 'cinv', id: pid, name: AV.S.name, ...p });
+  }
+  /** 🦎 mời bạn chơi Tắc Kè Hoa (theo tên đăng nhập hoặc mã người chơi đứng gần) — đi qua kênh chung nên mời được người ở khu khác */
+  function sendHideInv(p) {
+    if (lobby) lobby.send({ t: 'hinv', id: pid, name: AV.S.name, ...p });
   }
   /** 🦖 Đảo Khủng Long: vị trí / cắn / lập đàn giữa những người đang ở đảo (kênh của khu hiện tại) */
   function sendDino(d) {
@@ -461,7 +466,7 @@ const NET = (() => {
   }
 
   return {
-    sendBooth, sendCardInv, sendDino, sendHide, lobbyPeers: () => [...where].filter(([, w]) => Date.now() - w.seen < 30000).map(([id, w]) => ({ id, user: w.user, map: w.map })),
+    sendBooth, sendCardInv, sendDino, sendHide, sendHideInv, lobbyPeers: () => [...where].filter(([, w]) => Date.now() - w.seen < 30000).map(([id, w]) => ({ id, user: w.user, map: w.map })),
     init, enter, tick, update, sendState, sendChat, sendSys, sendQuiz, sendTable, sendRace, sendKart, remotes, zoneCounts, announce, farmPing, sendNews, sendCall, sendFirework, sendBite, sendVoice, sendRps, sendCaro, sendSport, sendBoard, sendBox, sendRide, sendArena, sendHorse,
     get mode() { return mode; },
     get pid() { return pid; },

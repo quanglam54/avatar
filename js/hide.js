@@ -5,11 +5,15 @@ const HIDE = (() => {
   let sess = null; // { sid, paid: số ván đã nhận thưởng }
   const S = () => AV.S;
 
-  function play() {
-    sess = { sid: Date.now().toString(36), paid: 0 };
+  const cleanRoom = (r) => String(r || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+
+  /** room: mã phòng riêng (để trống = phòng chung) */
+  function play(room) {
+    room = cleanRoom(room);
+    sess = { sid: Date.now().toString(36), paid: 0, room };
     const v = document.getElementById('arcadeView');
-    v.innerHTML = `<div class="arc-bar"><b>🦎 Tắc Kè Hoa</b><span>Trốn tìm ngụy trang · sơn người giống nền để trốn · người tìm bắn súng nước</span><button class="tv-x" data-close>✕ Thoát</button></div>
-      <iframe src="arcade/games/hide.html?sid=${sess.sid}&pid=${encodeURIComponent(NET.pid || '')}&name=${encodeURIComponent(S().name || 'Bạn')}&v=${Date.now().toString(36)}" title="Tắc Kè Hoa" allow="autoplay; fullscreen"></iframe>`;
+    v.innerHTML = `<div class="arc-bar"><b>🦎 Tắc Kè Hoa</b><span>Trốn tìm ngụy trang · tự tô người giống tường để trốn · người tìm cầm súng săn</span><button class="tv-x" data-close>✕ Thoát</button></div>
+      <iframe src="arcade/games/hide.html?sid=${sess.sid}&pid=${encodeURIComponent(NET.pid || '')}&name=${encodeURIComponent(S().name || 'Bạn')}&room=${room}&v=${Date.now().toString(36)}" title="Tắc Kè Hoa" allow="autoplay; fullscreen"></iframe>`;
     v.classList.add('show');
     v.querySelector('[data-close]').onclick = () => { finish(); UI.closeArcade(); };
     setTimeout(() => { const f = v.querySelector('iframe'); if (f) f.focus(); }, 300);
@@ -18,7 +22,7 @@ const HIDE = (() => {
 
   function finish() {
     if (!sess) return;
-    NET.sendHide({ k: 'bye', u: NET.pid });
+    NET.sendHide({ k: 'bye', u: NET.pid, rm: sess.room });
     sess = null;
   }
 
@@ -39,6 +43,9 @@ const HIDE = (() => {
     const m = e.data || {};
     if (m.type === 'hide-net' && sess && m.d && typeof m.d === 'object') NET.sendHide(m.d);
     else if (m.type === 'hide-reward') reward(m);
+    else if (m.type === 'hide-room' && sess) sess.room = cleanRoom(m.room);
+    else if (m.type === 'hide-friends' && sess) sendFriends();
+    else if (m.type === 'hide-invite' && sess) invite(m);
     else if (m.type === 'arcade-close' && sess) finish();
   });
 
@@ -47,6 +54,50 @@ const HIDE = (() => {
     if (!sess) return;
     const f = document.querySelector('#arcadeView iframe');
     if (f && f.contentWindow) f.contentWindow.postMessage({ type: 'hide-in', d: m }, '*');
+  }
+
+  /* ---------- mời bạn bè ---------- */
+  /** gửi vào game: bạn bè (đang online hay không) + người đang đứng gần ở Khu giải trí */
+  function sendFriends() {
+    const me = typeof CLOUD !== 'undefined' ? CLOUD.username : '';
+    const friends = (S().friends || []).filter((f) => f.username && f.username !== me)
+      .map((f) => ({ u: f.username, n: f.name || f.username, on: !!NET.onlineUser(f.username) }))
+      .sort((a, b) => b.on - a.on);
+    const fu = new Set(friends.map((f) => f.u));
+    const near = NET.players().filter((r) => !r.user || !fu.has(r.user)).map((r) => ({ p: r.id, n: r.name }));
+    const f = document.querySelector('#arcadeView iframe');
+    if (f && f.contentWindow) f.contentWindow.postMessage({ type: 'hide-friends-list', friends, near, me: !!me }, '*');
+  }
+  function invite(m) {
+    const to = String(m.to || '').slice(0, 30), toPid = String(m.toPid || '').slice(0, 40);
+    if (!to && !toPid) return;
+    NET.sendHideInv({ to, toPid, room: cleanRoom(m.room) });
+  }
+  /** nhận lời mời (qua kênh chung của cả server) */
+  function onInvite(m) {
+    const me = typeof CLOUD !== 'undefined' ? CLOUD.username : '';
+    if (!((m.to && me && m.to === me) || (m.toPid && m.toPid === NET.pid))) return;
+    const room = cleanRoom(m.room), who = String(m.name || 'Một người bạn').slice(0, 20);
+    if (sess && sess.room === room) return; // đang ở đúng phòng đó rồi
+    document.querySelectorAll('.invite-card').forEach((x) => x.remove());
+    const el = document.createElement('div');
+    el.className = 'invite-card';
+    el.innerHTML = `<div>🦎 <b>${UI.esc ? UI.esc(who) : who.replace(/[<>&"]/g, '')}</b> rủ bạn chơi <b>Tắc Kè Hoa</b> — trốn tìm ngụy trang${room ? ` · phòng riêng <b>${room}</b>` : ''}!</div>
+      <div class="row-end"><button class="btn ghost small" data-no>Để sau</button><button class="btn small" data-yes>🦎 Vào chơi</button></div>`;
+    document.body.appendChild(el);
+    el.querySelector('[data-no]').onclick = () => el.remove();
+    el.querySelector('[data-yes]').onclick = () => { el.remove(); go(room); };
+    setTimeout(() => el.remove(), 25000);
+  }
+  /** tới Khu giải trí (nếu đang ở khu khác) rồi mở game vào đúng phòng */
+  function go(room) {
+    if (sess) { finish(); UI.closeArcade(); }
+    if (AV.currentMap() === 'fun') return play(room);
+    AV.teleport('fun', false, 5880, 850, '🦎 Tới Tắc Kè Hoa…');
+    const t0 = Date.now();
+    const iv = setInterval(() => {
+      if (AV.currentMap() === 'fun') { clearInterval(iv); setTimeout(() => play(room), 1200); } else if (Date.now() - t0 > 15000) clearInterval(iv);
+    }, 300);
   }
 
   /** toà nhà gạch có chữ graffiti + hình nhân sơn nửa người ép vào tường */
@@ -103,5 +154,5 @@ const HIDE = (() => {
     c.restore();
   }
 
-  return { play, onNet, building };
+  return { play, onNet, onInvite, building };
 })();
