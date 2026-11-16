@@ -628,11 +628,16 @@ const UI = (() => {
   function shipBin() {
     const S = AV.S;
     const p = panel('📦 Thùng giao hàng', '');
+    AV.shipPayout(); // mở thùng mà đã sang ngày mới → nhận tiền luôn
     const render = () => {
       const sell = Object.entries(S.inv).filter(([id, n]) => n > 0 && DATA.ITEMS[id] && DATA.ITEMS[id].sell > 0 && !id.startsWith('seed_'));
       const sh = S.ship && Object.keys(S.ship.items || {}).length ? S.ship : null;
+      const d = new Date(), today = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+      const due = sh && sh.day !== today;
+      const last = S.shipLast;
       p.body.innerHTML = `<p class="muted">Bỏ đồ vào thùng, <b>sáng hôm sau</b> thương lái thu mua với giá <b>cao hơn 10%</b> so với bán ngay.</p>
-        ${sh ? `<div class="bk-bal"><small>Trong thùng (nhận ngày mai)</small><b>${AV.shipValue().toLocaleString('vi-VN')} xu</b><small>${Object.entries(sh.items).map(([id, n]) => `${n} ${DATA.ITEMS[id].icon}`).join(' ')}</small></div>` : ''}
+        ${last ? `<p class="muted" style="margin:4px 0 8px">✅ Lần nhận gần nhất: <b>+${last.v.toLocaleString('vi-VN')} xu</b> cho ${last.n.toLocaleString('vi-VN')} món · ${new Date(last.at).toLocaleString('vi-VN')}</p>` : ''}
+        ${sh ? `<div class="bk-bal"><small>${due ? '⏳ Đã sang ngày mới — đang chờ tải xong tài khoản để nhận tiền' : `Trong thùng (bỏ ngày ${sh.day.split('-').reverse().join('/')} · nhận từ 0h ngày mai)`}</small><b>${AV.shipValue().toLocaleString('vi-VN')} xu</b><small>${Object.entries(sh.items).map(([id, n]) => `${n} ${DATA.ITEMS[id].icon}`).join(' ')}</small></div>` : ''}
         ${sell.length ? `<div class="shop-list">${sell.map(([id, n]) => `<div class="shop-row"><span class="ic">${DATA.ITEMS[id].icon}</span><div class="info"><b>${esc(DATA.ITEMS[id].name)}</b><small>Có ${n} · ~${Math.round(DATA.ITEMS[id].sell * 1.1)} xu/cái</small></div><button class="btn small" data-put="${id}">Bỏ vào</button></div>`).join('')}</div>
         <div class="row-end"><button class="btn" data-all>📦 Bỏ tất cả</button></div>` : '<p class="muted">Túi không có gì bán được</p>'}`;
       p.body.querySelectorAll('[data-put]').forEach((b) => b.onclick = () => { AV.shipPut([b.dataset.put]); render(); });

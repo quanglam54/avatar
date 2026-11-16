@@ -3060,12 +3060,17 @@
   AV.shipPayout = () => {
     const sh = S.ship;
     if (!sh || sh.day === todayKey() || !Object.keys(sh.items || {}).length) return;
+    // đang đăng nhập mà chưa tải xong bản lưu trên tài khoản → chờ, kẻo trả tiền vào bản sắp bị thay
+    if (CLOUD.user && !cloudReady) return;
     const v = AV.shipValue(sh);
-    S.ship = null; S.coins += v; changed(); UI.updateHud();
+    S.ship = null; S.coins += v;
+    S.shipLast = { v, at: Date.now(), n: Object.values(sh.items).reduce((a, b) => a + b, 0) }; // để người chơi tự kiểm tra lần nhận gần nhất
+    changed(); UI.updateHud();
     setTimeout(() => UI.toast(`📦 Thùng giao hàng: thương lái đã thu mua đồ hôm trước · +${v.toLocaleString('vi-VN')} xu`, 6000), 1500);
   };
-  setInterval(() => { if (!CLOUD.user || cloudReady) AV.shipPayout(); }, 60000);
+  setInterval(() => AV.shipPayout(), 60000);
   setTimeout(() => AV.shipPayout(), 9000);
+  AV.isCloudReadyForShip = () => !CLOUD.user || cloudReady;
 
   /* ---------- 🏥 Bệnh viện Zeno ---------- */
   AV.hospital = (what) => {
@@ -4009,6 +4014,7 @@
     try { cloud = await CLOUD.pull(); } catch (e) { UI.toast('⚠️ ' + e.message, 6000); }
     const finish = () => {
       cloudReady = true; syncedAt = S.changedAt || 0; saveNow(); joinRoom(); MUSIC.refresh(S.settings || {});
+      setTimeout(() => AV.shipPayout(), 2000);
       setTimeout(() => { if (S.name && !AV.checkedToday() && !UI.isBlocking()) UI.dailyPanel(); UI.updateDailyDot(); }, 2500);
       setTimeout(() => SOCIAL.pull(), 3500);
     };
