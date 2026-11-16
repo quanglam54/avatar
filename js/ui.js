@@ -1671,8 +1671,8 @@ const UI = (() => {
       ['app', '📲', 'Cài app', installApp],
       ['bank', '🏦', 'Ngân hàng', () => BANK.panel('app')],
       ['house', '🏗️', 'Nâng cấp nhà', houseUpgrade],
-      ['treasure', '🏴‍☠️', 'Săn rương', () => TREASURE.popup()],
     ];
+    if (typeof TREASURE !== 'undefined' && TREASURE.season()) items.push(['treasure', '🏴‍☠️', 'Săn rương', () => TREASURE.popup()]);
     if (AV.isHouse()) items.push(['house', '💼', 'Két', housePanel]);
     const p = panel('☰ MENU', `
       <div class="menu-head"><canvas class="menu-av"></canvas><div><b>${esc(S.name)}</b><small>Cấp ${S.level} · 💰 ${S.coins.toLocaleString('vi-VN')} xu</small></div></div>

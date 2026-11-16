@@ -278,7 +278,7 @@ const TREASURE = (() => {
   /* ---------- thông báo: popup khi vào game + dải chữ trên màn hình ---------- */
   let banner = null;
   /** chỉ quảng bá trong mùa Halloween (tháng 10, theo công tắc Halloween trong Cài đặt) */
-  const season = () => typeof AV.hw !== 'function' || AV.hw();
+  const season = () => new Date().getMonth() === 9; // chỉ tháng 10, không theo công tắc trong Cài đặt
   function updateBanner() {
     if (!season()) { if (banner) banner.style.display = 'none'; return; }
     if (!banner) {
@@ -315,5 +315,5 @@ const TREASURE = (() => {
     setTimeout(async () => { await refresh(true); const d = new Date().toDateString(); if (season() && S().trPopDay !== d) { S().trPopDay = d; popup(); } }, 4500);
     setInterval(() => refresh(), 60000);
   }
-  return { init, dig, panel, popup, onNews, drawSpots, drawTool, tool, booth, spots, refresh };
+  return { init, dig, panel, popup, season, onNews, drawSpots, drawTool, tool, booth, spots, refresh };
 })();
