@@ -277,13 +277,17 @@ const TREASURE = (() => {
 
   /* ---------- thông báo: popup khi vào game + dải chữ trên màn hình ---------- */
   let banner = null;
+  /** chỉ quảng bá trong mùa Halloween (tháng 10, theo công tắc Halloween trong Cài đặt) */
+  const season = () => typeof AV.hw !== 'function' || AV.hw();
   function updateBanner() {
+    if (!season()) { if (banner) banner.style.display = 'none'; return; }
     if (!banner) {
       banner = document.createElement('div');
       banner.className = 'tr-banner';
       banner.onclick = () => (AV.currentMap() === 'beach' ? panel() : popup());
       document.body.appendChild(banner);
     }
+    banner.style.display = '';
     const n = left();
     banner.innerHTML = `<span>🎃 SỰ KIỆN HALLOWEEN · Săn rương ở 🏖️ Bãi biển · Đang còn <b>${n}</b> rương · ${nextNote()} · Gom ${NEED} 💠 đổi ${fmt(REWARD)} xu</span>`;
   }
@@ -308,7 +312,7 @@ const TREASURE = (() => {
   }
   function init() {
     updateBanner();
-    setTimeout(async () => { await refresh(true); const d = new Date().toDateString(); if (S().trPopDay !== d) { S().trPopDay = d; popup(); } }, 4500);
+    setTimeout(async () => { await refresh(true); const d = new Date().toDateString(); if (season() && S().trPopDay !== d) { S().trPopDay = d; popup(); } }, 4500);
     setInterval(() => refresh(), 60000);
   }
   return { init, dig, panel, popup, onNews, drawSpots, drawTool, tool, booth, spots, refresh };

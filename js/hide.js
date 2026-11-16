@@ -37,6 +37,59 @@ const HIDE = (() => {
     AV.markChanged();
     if (AV.quest) AV.quest('arcade');
     UI.toast(`🦎 Tắc Kè Hoa: ${m.role === 's' ? `🔫 bắt được ${m.catches | 0} người` : '🫥 đi trốn'} → +${coins} xu`, 4500);
+    weekAdd(m, coins);
+  }
+
+  /* ---------- 🏆 giải đấu tuần (bảng hide_week trên Supabase) ---------- */
+  const PRIZE = [1000000, 500000, 200000];
+  const weekKey = (t = Date.now()) => { const d = new Date(t + 7 * 3600e3); const day = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - day); return d.toISOString().slice(0, 10); };
+  const online = () => typeof CLOUD !== 'undefined' && CLOUD.user && CLOUD.client;
+  const post = (d) => { const f = document.querySelector('#arcadeView iframe'); if (f && f.contentWindow) f.contentWindow.postMessage(d, '*'); };
+  let board = null, boardAt = 0;
+  async function weekAdd(m, coins) {
+    if (!online()) return;
+    try { await CLOUD.client.rpc('hide_week_add', { p_name: S().name || 'Bạn', p_points: coins, p_catches: m.catches | 0, p_win: !!m.win }); } catch (e) { /* chưa chạy file SQL 20 */ }
+    sendBoard(true);
+  }
+  async function loadBoard() {
+    const db = CLOUD.client, uid = CLOUD.user.id, wk = weekKey(), last = weekKey(Date.now() - 7 * 86400e3), cols = 'user_id, name, points, catches, wins, rounds';
+    const [a, b, c] = await Promise.all([
+      db.from('hide_week').select(cols).eq('week', wk).order('points', { ascending: false }).order('updated_at', { ascending: true }).limit(10),
+      db.from('hide_week').select(cols).eq('week', last).order('points', { ascending: false }).order('updated_at', { ascending: true }).limit(3),
+      db.from('hide_week').select('points, updated_at').eq('week', wk).eq('user_id', uid).maybeSingle(),
+    ]);
+    if (a.error) return { type: 'hide-board-data', off: 'Giải tuần chưa mở (cần chạy file SQL 20)' };
+    let mine = null;
+    if (c.data) {
+      const { count } = await db.from('hide_week').select('user_id', { count: 'exact', head: true }).eq('week', wk).gt('points', c.data.points);
+      mine = { p: c.data.points, rank: (count || 0) + 1 };
+    }
+    const lastRows = b.data || [], idx = lastRows.findIndex((r) => r.user_id === uid && r.points > 0);
+    const got = (S().hideCup || {})[last];
+    const row = (r) => ({ n: r.name || 'Ẩn danh', p: r.points, c: r.catches, w: r.wins, k: r.rounds, me: r.user_id === uid });
+    return { type: 'hide-board-data', week: wk, top: (a.data || []).map(row), mine, last: lastRows.map(row), claim: idx >= 0 && !got ? idx + 1 : 0, got: got || 0, prize: PRIZE };
+  }
+  async function sendBoard(force) {
+    if (!sess) return;
+    if (!online()) return post({ type: 'hide-board-data', off: 'Đăng nhập tài khoản để tham gia giải tuần' });
+    if (!force && board && Date.now() - boardAt < 20000) return post(board);
+    boardAt = Date.now();
+    try { board = await loadBoard(); } catch (e) { board = { type: 'hide-board-data', off: 'Không tải được bảng xếp hạng' }; }
+    post(board);
+  }
+  async function claimCup() {
+    if (!online()) return;
+    const last = weekKey(Date.now() - 7 * 86400e3);
+    if ((S().hideCup || {})[last]) return;
+    let d; try { d = await loadBoard(); } catch (e) { return; }
+    if (!d.claim) return;
+    const rank = d.claim, coins = PRIZE[rank - 1];
+    S().hideCup = { ...(S().hideCup || {}), [last]: rank };
+    AV.earn(coins, 100);
+    UI.updateHud();
+    UI.toast(`🏆 Giải Tắc Kè Hoa tuần trước: hạng ${rank} → +${coins.toLocaleString('vi-VN')} xu!`, 6000);
+    if (NET.sendNews) NET.sendNews(`🦎 ${S().name} đạt hạng ${rank} Giải Tắc Kè Hoa tuần trước!`);
+    sendBoard(true);
   }
 
   window.addEventListener('message', (e) => {
@@ -46,6 +99,8 @@ const HIDE = (() => {
     else if (m.type === 'hide-room' && sess) sess.room = cleanRoom(m.room);
     else if (m.type === 'hide-friends' && sess) sendFriends();
     else if (m.type === 'hide-invite' && sess) invite(m);
+    else if (m.type === 'hide-board' && sess) sendBoard(!!m.force);
+    else if (m.type === 'hide-claim' && sess) claimCup();
     else if (m.type === 'arcade-close' && sess) finish();
   });
 

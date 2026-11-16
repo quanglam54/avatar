@@ -111,7 +111,32 @@
   }
   let map = maps.farm;
 
+  /* ---------- Chỉ chơi ở 1 tab: tab mở sau giành quyền, tab cũ khoá lại và NGỪNG LƯU (tránh bản cũ ghi đè bản mới) ---------- */
+  let tabLocked = false;
+  const TAB_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  let tabCh = null;
+  try { tabCh = new BroadcastChannel('avatar-one-tab'); } catch (e) { tabCh = null; }
+  function lockTab() {
+    if (tabLocked) return;
+    tabLocked = true;
+    const el = document.createElement('div');
+    el.id = 'tabLock';
+    el.style.cssText = 'position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:rgba(10,12,24,.82);backdrop-filter:blur(6px);padding:16px';
+    el.innerHTML = `<div style="background:#fff;border:3px solid #2b1a10;border-radius:20px;box-shadow:0 6px 0 #2b1a10;padding:22px;max-width:380px;text-align:center;font-family:inherit">
+      <div style="font-size:44px">🔒</div><h3 style="margin:6px 0">Game đang mở ở tab khác</h3>
+      <p style="color:#495057;line-height:1.5;margin:0 0 14px">Bạn vừa mở game ở một tab / cửa sổ khác. Tab này đã <b>ngừng lưu</b> để không ghi đè tiến trình mới.</p>
+      <button class="btn" id="tabTake">▶ Chơi ở tab này</button></div>`;
+    document.body.appendChild(el);
+    el.querySelector('#tabTake').onclick = () => location.reload();
+  }
+  if (tabCh) {
+    tabCh.onmessage = (e) => { const m = e.data || {}; if (m.id !== TAB_ID && m.t === 'open') lockTab(); };
+    tabCh.postMessage({ t: 'open', id: TAB_ID });
+  }
+  AV.isTabLocked = () => tabLocked;
+
   function saveNow() {
+    if (tabLocked) return;
     if (map) { S.map = map.id; }
     if (!player.hidden) { S.x = Math.round(player.x); S.y = Math.round(player.y); }
     S.savedAt = Date.now();
@@ -124,7 +149,7 @@
 
   /** Đẩy lên mạng an toàn: nếu máy khác vừa lưu bản mới hơn thì tải bản đó về, KHÔNG ghi đè */
   async function pushSafe() {
-    if (!CLOUD.user || !cloudReady || syncing) return false;
+    if (!CLOUD.user || !cloudReady || syncing || tabLocked) return false;
     syncing = true;
     try {
       let remote = 0;
@@ -137,7 +162,7 @@
   }
   /** Kiểm tra máy khác có vừa lưu không (khi quay lại tab, khi máy kia báo, định kỳ) */
   async function checkRemote() {
-    if (!CLOUD.user || !cloudReady || syncing) return;
+    if (!CLOUD.user || !cloudReady || syncing || tabLocked) return;
     syncing = true;
     try {
       const remote = await CLOUD.peekChangedAt();
@@ -352,6 +377,7 @@
 
   let cloudTimer = null;
   function changed() {
+    if (tabLocked) return;
     // changedAt chỉ đổi khi tiến trình thật sự thay đổi (mua, bán, trồng…) — dùng để so bản lưu giữa các máy
     S.changedAt = Date.now();
     saveNow();
@@ -3061,7 +3087,7 @@
     const sh = S.ship;
     if (!sh || sh.day === todayKey() || !Object.keys(sh.items || {}).length) return;
     // đang đăng nhập mà chưa tải xong bản lưu trên tài khoản → chờ, kẻo trả tiền vào bản sắp bị thay
-    if (CLOUD.user && !cloudReady) return;
+    if ((CLOUD.user && !cloudReady) || tabLocked) return;
     const v = AV.shipValue(sh);
     S.ship = null; S.coins += v;
     S.shipLast = { v, at: Date.now(), n: Object.values(sh.items).reduce((a, b) => a + b, 0) }; // để người chơi tự kiểm tra lần nhận gần nhất
@@ -4127,12 +4153,12 @@
   setInterval(() => { if (CLOUD.user && cloudReady && CLOUD.dirty) pushSafe(); }, 10000);
   setInterval(() => { if (!document.hidden && !CLOUD.dirty) checkRemote(); }, 45000);
   window.addEventListener('focus', () => { if (!CLOUD.dirty) checkRemote(); });
-  window.addEventListener('pagehide', () => { saveNow(); if (cloudReady) CLOUD.pushOnExit(S); });
+  window.addEventListener('pagehide', () => { if (tabLocked) return; saveNow(); if (cloudReady) CLOUD.pushOnExit(S); });
 
   setInterval(saveNow, 5000);
   window.addEventListener('beforeunload', saveNow);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { saveNow(); if (CLOUD.user && cloudReady && CLOUD.dirty) pushSafe(); }
+    if (document.hidden && !tabLocked) { saveNow(); if (CLOUD.user && cloudReady && CLOUD.dirty) pushSafe(); }
     else if (CLOUD.dirty) pushSafe(); else checkRemote();
   });
 

@@ -260,6 +260,7 @@ const PHONE = (() => {
     { id: 'food', icon: '🛵', name: 'ZenoFood', bg: 'linear-gradient(#ff8a3d,#e8590c)' },
     { id: 'car', icon: '🚕', name: 'ZenoCar', bg: 'linear-gradient(#69db7c,#2b8a3e)' },
     { id: 'bank', icon: '🏦', name: 'QL Bank', bg: 'linear-gradient(#2f9e44,#00502b)' },
+    { id: 'market', icon: '🛒', name: 'ZenoMarket', bg: 'linear-gradient(#ffd43b,#f08c00)' },
     { id: 'quest', icon: '📜', name: 'Nhiệm vụ', bg: 'linear-gradient(#ffe8a3,#f59f00)' },
     { id: 'lotto', icon: '🎰', name: 'QL Lotto', bg: 'linear-gradient(#ff8787,#c92a2a)' },
     { id: 'weather', icon: '🌤️', name: 'Thời tiết', bg: 'linear-gradient(#74c0fc,#1c7ed6)' },
@@ -515,6 +516,7 @@ const PHONE = (() => {
 
     if (id === 'map') { close(); return UI.cityMap(false); }
     if (id === 'bank') { close(); return BANK.panel('atm'); }
+    if (id === 'market') { close(); return typeof MARKET !== 'undefined' ? MARKET.panel() : null; }
     if (id === 'quest') { close(); return UI.questsPanel(); }
     if (id === 'lotto') { close(); return typeof LOTTO !== 'undefined' ? LOTTO.panel('result') : null; }
     if (id === 'settings') { close(); return UI.settings(); }
